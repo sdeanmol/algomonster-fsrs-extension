@@ -1,0 +1,131 @@
+#algo-fsrs-launcher {
+    position: fixed;
+    bottom: 100px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    background: rgb(55, 65, 81, 1);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    z-index: 999999;
+    transition: transform 0.2s;
+    user-select: none;
+}
+
+#algo-fsrs-launcher:hover {
+    transform: scale(1.1);
+}
+
+#algo-fsrs-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    background: #1e1e1e;
+    color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    z-index: 999999;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #333;
+}
+
+#fsrs-header {
+    background: #4CAF50;
+    padding: 10px 15px;
+    border-radius: 8px 8px 0 0;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fsrs-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.fsrs-controls button {
+    background: rgba(0, 0, 0, 0.2);
+    border: none;
+    color: white;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.fsrs-controls button:hover {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+#fsrs-body,
+#fsrs-review-ui {
+    padding: 15px;
+}
+
+#algo-fsrs-container textarea {
+    width: 100%;
+    margin-bottom: 12px;
+    margin-top: 5px;
+    background: #2d2d2d;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 8px;
+    box-sizing: border-box;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.fsrs-primary-btn {
+    width: 100%;
+    padding: 10px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.fsrs-primary-btn:hover {
+    background: #45a049;
+}
+
+#fsrs-divider {
+    border: 0;
+    height: 1px;
+    background: #444;
+    margin: 15px 0;
+}
+
+.fsrs-rating-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.fsrs-rating-buttons button {
+    flex: 1;
+    font-size: 12px;
+    padding: 8px 0;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.fsrs-rating-buttons button:hover {
+    filter: brightness(1.1);
+}

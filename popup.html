@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>FSRS Dashboard</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <div class="header">
+        <h2> AlgoMonster FSRS</h2>
+    </div>
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div class="stat-value" id="total-cards">0</div>
+            <div class="stat-label">Total Patterns</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" id="due-cards">0</div>
+            <div class="stat-label">Due Today</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" id="retention-rate">0%</div>
+            <div class="stat-label">Retention Rate</div>
+        </div>
+    </div>
+    <div class="heatmap-container">
+        <div style="font-size: 12px; margin-bottom: 5px; color: #bbb;">Contribution Activity</div>
+        <div class="heatmap" id="heatmap-grid"></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+            <button id="toggle-lifetime-btn" class="btn btn-secondary btn-small">Show Lifetime</button>
+            <div class="heatmap-legend">
+                Less <span class="legend-box level-0"></span> <span class="legend-box level-1"></span> <span
+                    class="legend-box level-2"></span> <span class="legend-box level-3"></span> <span
+                    class="legend-box level-4"></span> More
+            </div>
+        </div>
+    </div>
+    <div class="action-buttons">
+        <button id="export-btn" class="btn"> Export Backup (JSON)</button>
+        <label for="import-file" class="btn btn-secondary">
+            Import Backup
+            <input type="file" id="import-file" accept=".json" style="display: none;">
+        </label>
+        <div id="status-msg"></div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+
+</html>
