@@ -56,7 +56,12 @@
         </div>
     </div>
     <div class="heatmap-container">
-        <div style="font-size: 12px; margin-bottom: 5px; color: #bbb;">Contribution Activity</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <div style="font-size: 12px; color: #bbb;">Contribution Activity</div>
+            <button id="open-heatmap-tab-btn"
+                style="background: none; border: none; color: #3498db; cursor: pointer; font-size: 11px;"
+                title="Open full screen heatmap">↗️ Full Screen</button>
+        </div>
         <div class="heatmap" id="heatmap-grid"></div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
             <button id="toggle-lifetime-btn" class="btn btn-secondary btn-small">Show Lifetime</button>

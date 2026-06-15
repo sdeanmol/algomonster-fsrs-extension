@@ -13,7 +13,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 3. Settings Panel Toggle
+    // 3. Open Full Screen Heatmap Tab ---
+    const openHeatmapBtn = document.getElementById('open-heatmap-tab-btn');
+    if (openHeatmapBtn) {
+        openHeatmapBtn.addEventListener('click', () => {
+            chrome.tabs.create({ url: 'heatmap.html' });
+        });
+    }
+
+    // 4. Settings Panel Toggle
     const settingsPanel = document.getElementById('settings-panel');
     const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
     
@@ -29,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 3. Save Custom Weights
+    // 5. Save Custom Weights
     const saveWeightsBtn = document.getElementById('save-weights-btn');
     if (saveWeightsBtn) {
         saveWeightsBtn.addEventListener('click', () => {
@@ -58,12 +66,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. Clickable Stat Boxes (Opens full data view)
+    // 6. Clickable Stat Boxes (Opens full data view)
     document.getElementById('box-total')?.addEventListener('click', () => chrome.tabs.create({ url: 'data.html?view=total' }));
     document.getElementById('box-due')?.addEventListener('click', () => chrome.tabs.create({ url: 'data.html?view=due' }));
     document.getElementById('box-retention')?.addEventListener('click', () => chrome.tabs.create({ url: 'data.html?view=retention' }));
 
-    // 5. Heatmap Lifetime Toggle
+    // 7. Heatmap Lifetime Toggle
     const toggleLifetimeBtn = document.getElementById('toggle-lifetime-btn');
     if (toggleLifetimeBtn) {
         toggleLifetimeBtn.addEventListener('click', () => {
@@ -73,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. Export Data
+    // 8. Export Data
     document.getElementById('export-btn')?.addEventListener('click', () => {
         chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'fsrsTopicWeights'], (result) => {
             const backupData = {
@@ -93,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 7. Import Data
+    // 9. Import Data
     document.getElementById('import-file')?.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Activity Heatmap</title>
+    <link rel="stylesheet" href="heatmap.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header" style="display: flex; flex-direction: column; align-items: stretch; gap: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1 style="border: none; padding: 0; margin: 0;">🟩 Contribution Heatmap</h1>
+                <div class="heatmap-legend">
+                    Less 
+                    <span class="legend-box level-0"></span> 
+                    <span class="legend-box level-1"></span> 
+                    <span class="legend-box level-2"></span> 
+                    <span class="legend-box level-3"></span> 
+                    <span class="legend-box level-4"></span> 
+                    More
+                </div>
+            </div>
+
+            <div class="filter-bar" style="display: flex; gap: 10px; background: #1e1e1e; padding: 12px; border-radius: 6px; border: 1px solid #333; align-items: center;">
+                <span style="font-size: 13px; font-weight: bold; color: #aaa;">🔍 Filter View:</span>
+                
+                <select id="filter-type" style="background: #2d2d2d; color: white; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; cursor: pointer;">
+                    <option value="lifetime">Lifetime History</option>
+                    <option value="year-wise">Year Wise</option>
+                    <option value="month-wise">Month Wise</option>
+                    <option value="day-wise">Day Wise</option>
+                </select>
+
+                <select id="select-year" style="display: none; background: #2d2d2d; color: white; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; cursor: pointer;"></select>
+                <select id="select-month" style="display: none; background: #2d2d2d; color: white; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; cursor: pointer;"></select>
+                <select id="select-day" style="display: none; background: #2d2d2d; color: white; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; cursor: pointer;"></select>
+                
+                <span id="filter-summary-text" style="font-size: 12px; color: #888; margin-left: auto; font-weight: bold;"></span>
+            </div>
+        </div>
+        
+        <div class="heatmap-wrapper" style="margin-top: 20px;">
+            <div class="heatmap" id="full-heatmap-grid"></div>
+        </div>
+        
+        <p style="text-align: center; color: #888; font-size: 12px; margin-top: 15px;">
+            <em>Tip: Click on any colored square to view the specific algorithmic patterns you reviewed that day!</em>
+        </p>
+    </div>
+    <script src="heatmap.js"></script>
+</body>
+</html>
