@@ -5,7 +5,15 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStats(); 
     loadHeatmap(isLifetimeView);
 
-    // 2. Settings Panel Toggle
+    // 2. Open History Tab ---
+    const historyBtn = document.getElementById('history-btn');
+    if (historyBtn) {
+        historyBtn.addEventListener('click', () => {
+            chrome.tabs.create({ url: 'history.html' });
+        });
+    }
+
+    // 3. Settings Panel Toggle
     const settingsPanel = document.getElementById('settings-panel');
     const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
     
