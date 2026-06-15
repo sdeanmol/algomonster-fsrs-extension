@@ -158,3 +158,13 @@ body {
     height: 10px;
     border-radius: 2px;
 }
+
+/* Add to bottom of popup.css */
+.stat-box.clickable {
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+.stat-box.clickable:hover {
+    background: #3a3a3a;
+    border-color: #4CAF50;
+}

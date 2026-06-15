@@ -35,6 +35,17 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         reader.readAsText(file);
     });
+
+    // --- NEW: Clickable Stat Boxes ---
+    document.getElementById('box-total').addEventListener('click', () => {
+        chrome.tabs.create({ url: 'data.html?view=total' });
+    });
+    document.getElementById('box-due').addEventListener('click', () => {
+        chrome.tabs.create({ url: 'data.html?view=due' });
+    });
+    document.getElementById('box-retention').addEventListener('click', () => {
+        chrome.tabs.create({ url: 'data.html?view=retention' });
+    });
 });
 
 function loadStats() {
