@@ -1,7 +1,7 @@
 let activityData = {};
-let currentView = 'year'; // Options: 'year', 'month', 'day'
+let currentView = 'year'; 
 let selectedYear = null;
-let selectedMonth = null; // Format: "YYYY-MM"
+let selectedMonth = null; 
 
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -19,12 +19,10 @@ function attachListeners() {
     document.getElementById('view-day').addEventListener('click', () => setView('day'));
 }
 
-// Navigates between granularity levels
 function setView(view, targetYear = null, targetMonth = null) {
     currentView = view;
     if (view === 'year') {
-        selectedYear = null;
-        selectedMonth = null;
+        selectedYear = null; selectedMonth = null;
     } else if (view === 'month') {
         selectedYear = targetYear || selectedYear || getMostRecentYear();
         selectedMonth = null;
@@ -45,32 +43,30 @@ function getMostRecentMonth(year) {
     return months.length > 0 ? months.sort().reverse()[0] : `${year}-01`;
 }
 
-// NEW: Opens data.html with the specific date query
 function openDataTab(dateRange, event) {
-    if (event) event.stopPropagation(); // Stops the card drill-down from firing
+    if (event) event.stopPropagation(); 
     chrome.tabs.create({ url: `data.html?view=history&date=${dateRange}` });
 }
 
 function renderView() {
-    // 1. Update active button styles
     ['year', 'month', 'day'].forEach(v => {
         document.getElementById(`view-${v}`).classList.toggle('active', v === currentView);
     });
 
-    // 2. Update Breadcrumb Navigation
+    // 1. Build Breadcrumbs (using classes instead of onclick)
     const breadcrumb = document.getElementById('breadcrumb');
     if (currentView === 'year') {
         breadcrumb.innerHTML = `All Years`;
     } else if (currentView === 'month') {
-        breadcrumb.innerHTML = `<span onclick="setView('year')">All Years</span> > ${selectedYear}`;
+        breadcrumb.innerHTML = `<span class="bc-year">All Years</span> > ${selectedYear}`;
     } else if (currentView === 'day') {
         const m = parseInt(selectedMonth.split('-')[1], 10) - 1;
-        breadcrumb.innerHTML = `<span onclick="setView('year')">All Years</span> > <span onclick="setView('month', '${selectedYear}')">${selectedYear}</span> > ${monthNames[m]}`;
+        breadcrumb.innerHTML = `<span class="bc-year">All Years</span> > <span class="bc-month" data-year="${selectedYear}">${selectedYear}</span> > ${monthNames[m]}`;
     }
 
-    // 3. Render Grid Data
+    // 2. Render Cards
     const container = document.getElementById('chart-container');
-    container.className = `grid grid-${currentView}s`; // changes css class to grid-years, grid-months, etc.
+    container.className = `grid grid-${currentView}s`; 
     container.innerHTML = '';
 
     if (Object.keys(activityData).length === 0) {
@@ -81,53 +77,95 @@ function renderView() {
     if (currentView === 'year') {
         const yearData = aggregateByYear();
         Object.keys(yearData).sort().reverse().forEach(year => {
+            // Replaced onclick with data-attributes and classes
             container.innerHTML += `
-                <div class="card" onclick="setView('month', '${year}')" title="Click to view Months">
+                <div class="card card-year" data-year="${year}" title="Click to view Months">
                     <div class="card-title">${year}</div>
                     <div class="card-value">${yearData[year].total}</div>
                     <div class="card-subtitle">Patterns Reviewed<br>Active Days: ${yearData[year].activeDays}</div>
-                    <button class="view-data-btn" onclick="openDataTab('${year}', event)">🔗 View Cards</button>
+                    <button class="view-data-btn btn-year" data-year="${year}">🔗 View Cards</button>
                 </div>
             `;
         });
     } 
     else if (currentView === 'month') {
         const monthData = aggregateByMonth(selectedYear);
-        if (Object.keys(monthData).length === 0) return container.innerHTML = `<div class="empty-state">No activity in ${selectedYear}</div>`;
-        
-        Object.keys(monthData).sort().reverse().forEach(monthKey => {
-            const mIndex = parseInt(monthKey.split('-')[1], 10) - 1;
-            container.innerHTML += `
-                <div class="card" onclick="setView('day', '${selectedYear}', '${monthKey}')" title="Click to view Days">
-                    <div class="card-title">${monthNames[mIndex]}</div>
-                    <div class="card-value">${monthData[monthKey].total}</div>
-                    <div class="card-subtitle">Patterns Reviewed</div>
-                    <button class="view-data-btn" onclick="openDataTab('${monthKey}', event)">🔗 View Cards</button>
-                </div>
-            `;
-        });
+        if (Object.keys(monthData).length === 0) {
+            container.innerHTML = `<div class="empty-state">No activity in ${selectedYear}</div>`;
+        } else {
+            Object.keys(monthData).sort().reverse().forEach(monthKey => {
+                const mIndex = parseInt(monthKey.split('-')[1], 10) - 1;
+                container.innerHTML += `
+                    <div class="card card-month" data-year="${selectedYear}" data-month="${monthKey}" title="Click to view Days">
+                        <div class="card-title">${monthNames[mIndex]}</div>
+                        <div class="card-value">${monthData[monthKey].total}</div>
+                        <div class="card-subtitle">Patterns Reviewed</div>
+                        <button class="view-data-btn btn-month" data-month="${monthKey}">🔗 View Cards</button>
+                    </div>
+                `;
+            });
+        }
     } 
     else if (currentView === 'day') {
         const dayData = aggregateByDay(selectedMonth);
-        if (Object.keys(dayData).length === 0) return container.innerHTML = `<div class="empty-state">No activity in this month.</div>`;
-        
-        Object.keys(dayData).sort().reverse().forEach(dateString => {
-            const dateObj = new Date(dateString);
-            const displayDate = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-            
-            container.innerHTML += `
-                <div class="card clickable-day" onclick="openDataTab('${dateString}', event)" title="View cards reviewed on this day">
-                    <div class="card-title" style="font-size: 14px;">${displayDate}</div>
-                    <div class="card-value" style="font-size: 20px;">${dayData[dateString]}</div>
-                    <div class="card-subtitle">Reviews</div>
-                    <div style="font-size: 11px; color: #3498db; margin-top: 12px; font-weight: bold;">🔗 View Cards</div>
-                </div>
-            `;
-        });
+        if (Object.keys(dayData).length === 0) {
+            container.innerHTML = `<div class="empty-state">No activity in this month.</div>`;
+        } else {
+            Object.keys(dayData).sort().reverse().forEach(dateString => {
+                const dateObj = new Date(dateString);
+                const displayDate = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                
+                container.innerHTML += `
+                    <div class="card clickable-day card-day" data-date="${dateString}" title="View cards reviewed on this day">
+                        <div class="card-title" style="font-size: 14px;">${displayDate}</div>
+                        <div class="card-value" style="font-size: 20px;">${dayData[dateString]}</div>
+                        <div class="card-subtitle">Reviews</div>
+                        <div style="font-size: 11px; color: #3498db; margin-top: 12px; font-weight: bold;">🔗 View Cards</div>
+                    </div>
+                `;
+            });
+        }
     }
+
+    // 3. Attach Dynamic Listeners to injected elements safely
+    bindDynamicListeners();
 }
 
-// --- Data Aggregation Functions ---
+// NEW: Dynamically binds events safely to avoid Chrome CSP violations
+function bindDynamicListeners() {
+    // Breadcrumb Listeners
+    document.querySelectorAll('.bc-year').forEach(el => {
+        el.addEventListener('click', () => setView('year'));
+    });
+    document.querySelectorAll('.bc-month').forEach(el => {
+        el.addEventListener('click', (e) => setView('month', e.target.getAttribute('data-year')));
+    });
+
+    // Card Drill-Down Listeners
+    document.querySelectorAll('.card-year').forEach(el => {
+        el.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') return; // Ignore if clicking the button inside
+            setView('month', e.currentTarget.getAttribute('data-year'));
+        });
+    });
+    document.querySelectorAll('.card-month').forEach(el => {
+        el.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            setView('day', e.currentTarget.getAttribute('data-year'), e.currentTarget.getAttribute('data-month'));
+        });
+    });
+
+    // Link "View Data" Button Listeners
+    document.querySelectorAll('.btn-year').forEach(el => {
+        el.addEventListener('click', (e) => openDataTab(e.currentTarget.getAttribute('data-year'), e));
+    });
+    document.querySelectorAll('.btn-month').forEach(el => {
+        el.addEventListener('click', (e) => openDataTab(e.currentTarget.getAttribute('data-month'), e));
+    });
+    document.querySelectorAll('.card-day').forEach(el => {
+        el.addEventListener('click', (e) => openDataTab(e.currentTarget.getAttribute('data-date'), e));
+    });
+}
 
 function aggregateByYear() {
     const years = {};
@@ -144,7 +182,7 @@ function aggregateByMonth(targetYear) {
     const months = {};
     for (const [dateString, count] of Object.entries(activityData)) {
         if (dateString.startsWith(targetYear)) {
-            const monthKey = dateString.substring(0, 7); // "YYYY-MM"
+            const monthKey = dateString.substring(0, 7); 
             if (!months[monthKey]) months[monthKey] = { total: 0 };
             months[monthKey].total += count;
         }
