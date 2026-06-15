@@ -22,7 +22,6 @@ function attachListeners() {
 // Navigates between granularity levels
 function setView(view, targetYear = null, targetMonth = null) {
     currentView = view;
-    
     if (view === 'year') {
         selectedYear = null;
         selectedMonth = null;
@@ -33,7 +32,6 @@ function setView(view, targetYear = null, targetMonth = null) {
         selectedYear = targetYear || selectedYear || getMostRecentYear();
         selectedMonth = targetMonth || selectedMonth || getMostRecentMonth(selectedYear);
     }
-    
     renderView();
 }
 
@@ -47,7 +45,12 @@ function getMostRecentMonth(year) {
     return months.length > 0 ? months.sort().reverse()[0] : `${year}-01`;
 }
 
-// Renders the UI based on state
+// NEW: Opens data.html with the specific date query
+function openDataTab(dateRange, event) {
+    if (event) event.stopPropagation(); // Stops the card drill-down from firing
+    chrome.tabs.create({ url: `data.html?view=history&date=${dateRange}` });
+}
+
 function renderView() {
     // 1. Update active button styles
     ['year', 'month', 'day'].forEach(v => {
@@ -79,10 +82,11 @@ function renderView() {
         const yearData = aggregateByYear();
         Object.keys(yearData).sort().reverse().forEach(year => {
             container.innerHTML += `
-                <div class="card" onclick="setView('month', '${year}')">
+                <div class="card" onclick="setView('month', '${year}')" title="Click to view Months">
                     <div class="card-title">${year}</div>
                     <div class="card-value">${yearData[year].total}</div>
                     <div class="card-subtitle">Patterns Reviewed<br>Active Days: ${yearData[year].activeDays}</div>
+                    <button class="view-data-btn" onclick="openDataTab('${year}', event)">🔗 View Cards</button>
                 </div>
             `;
         });
@@ -94,10 +98,11 @@ function renderView() {
         Object.keys(monthData).sort().reverse().forEach(monthKey => {
             const mIndex = parseInt(monthKey.split('-')[1], 10) - 1;
             container.innerHTML += `
-                <div class="card" onclick="setView('day', '${selectedYear}', '${monthKey}')">
+                <div class="card" onclick="setView('day', '${selectedYear}', '${monthKey}')" title="Click to view Days">
                     <div class="card-title">${monthNames[mIndex]}</div>
                     <div class="card-value">${monthData[monthKey].total}</div>
                     <div class="card-subtitle">Patterns Reviewed</div>
+                    <button class="view-data-btn" onclick="openDataTab('${monthKey}', event)">🔗 View Cards</button>
                 </div>
             `;
         });
@@ -111,10 +116,11 @@ function renderView() {
             const displayDate = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
             
             container.innerHTML += `
-                <div class="card no-click">
+                <div class="card clickable-day" onclick="openDataTab('${dateString}', event)" title="View cards reviewed on this day">
                     <div class="card-title" style="font-size: 14px;">${displayDate}</div>
                     <div class="card-value" style="font-size: 20px;">${dayData[dateString]}</div>
                     <div class="card-subtitle">Reviews</div>
+                    <div style="font-size: 11px; color: #3498db; margin-top: 12px; font-weight: bold;">🔗 View Cards</div>
                 </div>
             `;
         });

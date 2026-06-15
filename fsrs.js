@@ -7,12 +7,14 @@ class FSRS {
     }
 
     createCard(problemTitle, problemUrl, textRead, approach, tags = []) {
+        const now = new Date().getTime();
         return {
             id: Date.now().toString(),
             problemTitle, problemUrl, textRead, approach, tags,
-            due: new Date().getTime(),
+            due: now,
             stability: 0, difficulty: 0, elapsed_days: 0, scheduled_days: 0,
-            reps: 0, lapses: 0, state: 0
+            reps: 0, lapses: 0, state: 0,
+            historyLog: [now] // NEW: Track exactly when this was created/reviewed
         };
     }
 
@@ -23,15 +25,18 @@ class FSRS {
         else if (interval < 20) fuzzRange = 2;
         else if (interval < 45) fuzzRange = 3;
         else fuzzRange = Math.max(4, Math.round(interval * 0.05));
-
+        
         const fuzz = Math.floor(Math.random() * (fuzzRange * 2 + 1)) - fuzzRange;
         return Math.max(1, Math.round(interval + fuzz));
     }
 
     reviewCard(card, rating, customWeights = null, now = new Date().getTime()) {
         let newCard = { ...card };
+        
+        // NEW: Add this exact review timestamp to the card's history log
+        newCard.historyLog = newCard.historyLog || [];
+        newCard.historyLog.push(now);
 
-        // Use custom weights if provided and valid (exactly 17 parameters), otherwise use defaults
         const w = (customWeights && customWeights.length === 17) ? customWeights : this.w;
 
         if (newCard.state === 0) {
@@ -55,7 +60,7 @@ class FSRS {
         newCard.reps += 1;
         const intervalModifier = 9 * Math.pow(1 / this.requestRetention - 1, 1 / this.decay);
         let rawInterval = newCard.stability * intervalModifier;
-
+        
         newCard.scheduled_days = this.applyFuzz(rawInterval);
         newCard.due = now + (newCard.scheduled_days * 24 * 60 * 60 * 1000);
         return newCard;
