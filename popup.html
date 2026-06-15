@@ -1,15 +1,54 @@
 <!DOCTYPE html>
 <html>
+
 <head>
+    <meta charset="UTF-8">
     <title>FSRS Dashboard</title>
     <link rel="stylesheet" href="popup.css">
 </head>
+
 <body>
-    <div class="header"><h2>🧠 AlgoMonster FSRS</h2></div>
+    <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>🧠 AlgoMonster FSRS</h2>
+        <button id="toggle-settings-btn"
+            style="background: none; border: none; color: white; cursor: pointer; font-size: 18px;"
+            title="Settings">⚙️</button>
+    </div>
+
+    <div id="settings-panel"
+        style="display: none; padding: 0 15px 15px 15px; border-top: 1px solid #333; margin-top: 10px; padding-top: 15px;">
+        <div style="font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #4CAF50;">Custom Topic Weights</div>
+        <p style="font-size: 11px; color: #bbb; margin-bottom: 10px; line-height: 1.4;">
+            Map your AlgoMonster tags to custom FSRS parameters. Enter 17 comma-separated floats.
+        </p>
+
+        <label style="font-size: 11px; color: #ccc;">Target Tag (e.g., "Graphs", "Dynamic Programming"):</label>
+        <input type="text" id="weight-tag" placeholder="Tag Name"
+            style="width: 100%; margin-bottom: 8px; padding: 6px; background: #2d2d2d; color: white; border: 1px solid #444; border-radius: 4px; box-sizing: border-box;">
+
+        <label style="font-size: 11px; color: #ccc;">FSRS Optimization Weights (17 values):</label>
+        <textarea id="weight-values" placeholder="0.4, 0.6, 2.4, 5.8..."
+            style="width: 100%; height: 50px; margin-bottom: 8px; padding: 6px; background: #2d2d2d; color: white; border: 1px solid #444; border-radius: 4px; box-sizing: border-box; resize: vertical;"></textarea>
+
+        <button id="save-weights-btn" class="btn btn-small" style="margin-bottom: 10px;">Save Custom Weights</button>
+
+        <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px;">Active Custom Profiles:</div>
+        <ul id="active-weights-list" style="font-size: 11px; color: #aaa; padding-left: 15px; margin: 0;">
+        </ul>
+    </div>
     <div class="stats-grid">
-        <div class="stat-box clickable" id="box-total"><div class="stat-value" id="total-cards">0</div><div class="stat-label">Total Patterns</div></div>
-        <div class="stat-box clickable" id="box-due"><div class="stat-value" id="due-cards">0</div><div class="stat-label">Due Today</div></div>
-        <div class="stat-box clickable" id="box-retention"><div class="stat-value" id="retention-rate">0%</div><div class="stat-label">Retention Rate</div></div>
+        <div class="stat-box clickable" id="box-total">
+            <div class="stat-value" id="total-cards">0</div>
+            <div class="stat-label">Total Patterns</div>
+        </div>
+        <div class="stat-box clickable" id="box-due">
+            <div class="stat-value" id="due-cards">0</div>
+            <div class="stat-label">Due Today</div>
+        </div>
+        <div class="stat-box clickable" id="box-retention">
+            <div class="stat-value" id="retention-rate">0%</div>
+            <div class="stat-label">Retention Rate</div>
+        </div>
     </div>
     <div class="heatmap-container">
         <div style="font-size: 12px; margin-bottom: 5px; color: #bbb;">Contribution Activity</div>
@@ -17,7 +56,9 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
             <button id="toggle-lifetime-btn" class="btn btn-secondary btn-small">Show Lifetime</button>
             <div class="heatmap-legend">
-                Less <span class="legend-box level-0"></span> <span class="legend-box level-1"></span> <span class="legend-box level-2"></span> <span class="legend-box level-3"></span> <span class="legend-box level-4"></span> More
+                Less <span class="legend-box level-0"></span> <span class="legend-box level-1"></span> <span
+                    class="legend-box level-2"></span> <span class="legend-box level-3"></span> <span
+                    class="legend-box level-4"></span> More
             </div>
         </div>
     </div>
@@ -31,4 +72,5 @@
     </div>
     <script src="popup.js"></script>
 </body>
+
 </html>

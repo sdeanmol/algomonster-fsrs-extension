@@ -28,22 +28,26 @@ class FSRS {
         return Math.max(1, Math.round(interval + fuzz));
     }
 
-    reviewCard(card, rating, now = new Date().getTime()) {
+    reviewCard(card, rating, customWeights = null, now = new Date().getTime()) {
         let newCard = { ...card };
+
+        // Use custom weights if provided and valid (exactly 17 parameters), otherwise use defaults
+        const w = (customWeights && customWeights.length === 17) ? customWeights : this.w;
+
         if (newCard.state === 0) {
-            newCard.difficulty = Math.max(1, Math.min(10, this.w[4] + (rating - 3) * this.w[5]));
-            newCard.stability = this.w[rating - 1];
+            newCard.difficulty = Math.max(1, Math.min(10, w[4] + (rating - 3) * w[5]));
+            newCard.stability = w[rating - 1];
             newCard.state = rating === 1 ? 1 : 2;
         } else {
             const retrievability = Math.exp(this.decay * newCard.elapsed_days / newCard.stability);
-            newCard.difficulty = Math.max(1, Math.min(10, newCard.difficulty + this.w[6] * (rating - 3)));
+            newCard.difficulty = Math.max(1, Math.min(10, newCard.difficulty + w[6] * (rating - 3)));
 
             if (rating === 1) {
-                newCard.stability = this.w[11] * Math.pow(newCard.difficulty, -this.w[12]) * Math.pow(newCard.stability, this.w[13]) * Math.exp((1 - retrievability) * this.w[14]);
+                newCard.stability = w[11] * Math.pow(newCard.difficulty, -w[12]) * Math.pow(newCard.stability, w[13]) * Math.exp((1 - retrievability) * w[14]);
                 newCard.lapses += 1;
                 newCard.state = 3;
             } else {
-                newCard.stability = newCard.stability * (1 + Math.exp(this.w[8]) * (11 - newCard.difficulty) * Math.pow(newCard.stability, -this.w[9]) * (Math.exp((1 - retrievability) * this.w[10]) - 1));
+                newCard.stability = newCard.stability * (1 + Math.exp(w[8]) * (11 - newCard.difficulty) * Math.pow(newCard.stability, -w[9]) * (Math.exp((1 - retrievability) * w[10]) - 1));
                 newCard.state = 2;
             }
         }

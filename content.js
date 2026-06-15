@@ -2,9 +2,11 @@
 const fsrs = new FSRS();
 let cards = [];
 let lastCheckedUrl = window.location.href;
+let topicWeights = {};
 
 chrome.storage.local.get(['fsrsCards'], (result) => {
     if (result.fsrsCards) cards = result.fsrsCards;
+    if (result.fsrsTopicWeights) topicWeights = result.fsrsTopicWeights;
     createUI();
     
     // SPA Observer: Checks for DOM deletion and URL changes every 500ms
@@ -283,7 +285,19 @@ function startReview() {
             const index = cards.findIndex(c => c.id === currentCard.id);
             const rating = parseInt(e.target.getAttribute('data-rating'));
             
-            cards[index] = fsrs.reviewCard(currentCard, rating);
+            // Determine if this card has a tag that matches a custom weight profile
+            let customWeightsToApply = null;
+            if (currentCard.tags && currentCard.tags.length > 0) {
+                for (const tag of currentCard.tags) {
+                    if (topicWeights[tag]) {
+                        customWeightsToApply = topicWeights[tag];
+                        break; // Use the first matching profile
+                    }
+                }
+            }
+
+            // Pass the custom weights into the engine
+            cards[index] = fsrs.reviewCard(currentCard, rating, customWeightsToApply);
             cards[index].lastRating = rating; // NEW: Save last rating here as well
             
             saveCards();
