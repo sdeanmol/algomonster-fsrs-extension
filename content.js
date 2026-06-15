@@ -7,13 +7,20 @@ chrome.storage.local.get(['fsrsCards'], (result) => {
     if (result.fsrsCards) cards = result.fsrsCards;
     createUI();
     
-    // Listen for Single Page App (SPA) URL changes
+    // SPA Observer: Checks for DOM deletion and URL changes every 500ms
     setInterval(() => {
+        if (!document.getElementById('algo-fsrs-container') && document.body) {
+            createUI();
+        }
+
         if (window.location.href !== lastCheckedUrl) {
             lastCheckedUrl = window.location.href;
-            if (document.getElementById('algo-fsrs-container').style.display !== 'none') {
+            
+            setTimeout(() => {
+                const tagsEl = document.getElementById('fsrs-current-tags');
+                if (tagsEl) tagsEl.innerText = getAutoTags().join(', ');
                 refreshWidgetState();
-            }
+            }, 800); 
         }
     }, 500);
 });
@@ -44,8 +51,18 @@ function getAutoTags() {
     return ["AlgoMonster"];
 }
 
-// NEW: Updates the UI based on whether the current page is already saved
 function refreshWidgetState() {
+    const container = document.getElementById('algo-fsrs-container');
+    if (!container) return;
+
+    // FIX 1: Aggressively reset to default view on SPA navigation
+    const reviewUi = document.getElementById('fsrs-review-ui');
+    if (reviewUi) {
+        reviewUi.style.display = 'none';
+        reviewUi.innerHTML = ''; // Clear review session completely
+    }
+    document.getElementById('fsrs-body').style.display = 'block';
+
     const cleanUrl = window.location.href.split('?')[0].split('#')[0];
     const existingCard = cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
     
@@ -88,6 +105,8 @@ function refreshWidgetState() {
 }
 
 function createUI() {
+    if (document.getElementById('algo-fsrs-container')) return;
+
     const launcher = document.createElement('div');
     launcher.id = 'algo-fsrs-launcher';
     launcher.innerText = '🧠'; 
@@ -106,7 +125,7 @@ function createUI() {
             </div>
         </div>
         <div id="fsrs-body">
-            <div style="font-size: 11px; color: #888; margin-bottom: 8px;">🏷️ <span id="fsrs-current-tags"></span></div>
+            <div style="font-size: 11px; color: #888; margin-bottom: 8px;">🏷️ <span id="fsrs-current-tags">${getAutoTags().join(', ')}</span></div>
             
             <label style="display:flex; justify-content:space-between; align-items:flex-end;">
                 Your Approach:
@@ -212,7 +231,10 @@ function updateReviewCount() {
 
 function startReview() {
     const dueCards = getDueCards();
-    if (dueCards.length === 0) return alert("No cards due right now!");
+    if (dueCards.length === 0) {
+        alert("No cards due right now!");
+        return;
+    }
 
     let currentCard = dueCards[0];
     const reviewUi = document.getElementById('fsrs-review-ui');
@@ -221,8 +243,12 @@ function startReview() {
 
     const tagsHtml = currentCard.tags?.length ? `<div style="font-size: 11px; color: #888; margin-bottom: 8px;">🏷️ ${currentCard.tags.join(', ')}</div>` : '';
 
+    // FIX 2: Added Back Button inside the Review UI Header
     reviewUi.innerHTML = `
-        <h4 style="margin-top:0; margin-bottom: 5px;">${currentCard.problemTitle}</h4>
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+            <h4 style="margin:0;">${currentCard.problemTitle}</h4>
+            <button id="fsrs-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold;">← Back</button>
+        </div>
         ${tagsHtml}
         <p style="margin-bottom: 15px;">
             <a href="${currentCard.problemUrl}" target="_blank" style="color: #4CAF50; text-decoration: none; font-weight: bold; border-bottom: 1px solid #4CAF50;">🔗 Open Problem Page</a>
@@ -238,6 +264,14 @@ function startReview() {
         </div>
         <button id="fsrs-show-answer-btn" class="fsrs-primary-btn">Show Approach</button>
     `;
+
+    // Handle Back Button Click
+    document.getElementById('fsrs-back-btn').addEventListener('click', () => {
+        reviewUi.style.display = 'none';
+        reviewUi.innerHTML = '';
+        document.getElementById('fsrs-body').style.display = 'block';
+        refreshWidgetState();
+    });
 
     document.getElementById('fsrs-show-answer-btn').addEventListener('click', (e) => {
         e.target.style.display = 'none';
@@ -259,6 +293,7 @@ function startReview() {
             document.getElementById('fsrs-body').style.display = 'block';
             updateReviewCount();
             if (getDueCards().length > 0) startReview();
+            else refreshWidgetState(); // Reset UI cleanly when deck is finished
         });
     });
 }
