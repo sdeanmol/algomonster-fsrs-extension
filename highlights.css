@@ -1,0 +1,99 @@
+body {
+    background: #121212;
+    color: #e0e0e0;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 30px;
+}
+.container { max-width: 900px; margin: 0 auto; }
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid #333;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+}
+h1 { color: #f1c40f; margin: 0 0 5px 0; font-size: 24px; }
+.subtitle { color: #888; font-size: 14px; margin: 0; }
+
+.controls button {
+    background: #2d2d2d;
+    color: white;
+    border: 1px solid #444;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+.controls button:hover { background: #3d3d3d; }
+
+.highlights-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.highlight-card {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-left: 6px solid #f1c40f; /* Dynamically overwritten via JS */
+    border-radius: 6px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    transition: transform 0.2s, background 0.2s;
+}
+.highlight-card:hover {
+    background: #252525;
+}
+
+.highlight-content { flex: 1; }
+.highlight-text {
+    font-size: 16px;
+    color: #fff;
+    line-height: 1.5;
+    margin-bottom: 12px;
+    font-style: italic;
+}
+.highlight-meta {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 12px;
+}
+.highlight-url {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: bold;
+}
+.highlight-url:hover { text-decoration: underline; }
+.highlight-date { color: #888; }
+
+.delete-btn {
+    background: #2d2d2d;
+    color: #e74c3c;
+    border: 1px solid #444;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+}
+.delete-btn:hover {
+    background: #c0392b;
+    color: white;
+    border-color: #c0392b;
+}
+
+.empty-state {
+    text-align: center;
+    color: #888;
+    padding: 50px;
+    background: #1e1e1e;
+    border-radius: 8px;
+    border: 1px dashed #444;
+}

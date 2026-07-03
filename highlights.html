@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Highlighter Manager</title>
+    <link rel="stylesheet" href="highlights.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🖍️ Highlighted Snippets</h1>
+                <p id="highlight-subtitle" class="subtitle">Loading highlights...</p>
+            </div>
+            <div class="controls">
+                <button id="refresh-btn">🔄 Refresh</button>
+            </div>
+        </div>
+        
+        <div id="highlights-container" class="highlights-list">
+            <!-- Highlight cards will be injected here via JS -->
+        </div>
+    </div>
+    <script src="highlights.js"></script>
+</body>
+</html>

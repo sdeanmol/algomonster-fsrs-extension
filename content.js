@@ -16,6 +16,11 @@ let chromeSettings = {
 let activeHighlightStyles = new Set();
 let highlightDebounceTimer = null;
 
+// NEW: Active ranges map for Hover tracking
+let activeMarkRanges = []; 
+let hoveredMarkId = null;
+let hideTooltipTimer = null; // NEW: Grace period timer
+
 chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings'], (result) => {
     if (result.fsrsCards) cards = result.fsrsCards;
     if (result.fsrsTopicWeights) topicWeights = result.fsrsTopicWeights;
@@ -51,7 +56,6 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
     domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
 });
 
-// NEW: Listen for SPA URL changes directly from Background script
 chrome.runtime.onMessage.addListener((request) => {
     if (request.action === "spa_url_changed") {
         setTimeout(applyHighlightsForCurrentPage, 500);
@@ -67,52 +71,135 @@ function createHighlighterUI() {
     tooltip.id = 'algo-highlight-tooltip';
     document.body.appendChild(tooltip);
 
-    // Handle Text Selection
+    // 1. Text Selection Logic (For NEW highlights)
     document.addEventListener('mouseup', (e) => {
         if (!chromeSettings.showMarkerPopup) return;
         if (e.target.closest('#algo-highlight-tooltip') || e.target.closest('#algo-fsrs-container')) return;
 
         const selection = window.getSelection();
         if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
-            tooltip.style.display = 'none';
+            if (hoveredMarkId === null) tooltip.style.display = 'none';
             return;
         }
 
+        hoveredMarkId = null; 
+        clearTimeout(hideTooltipTimer); // Clear any pending hides
+        hideTooltipTimer = null;
+        
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
 
-        renderTooltipColors();
+        renderTooltipColors(null, null); // Render without delete button
         tooltip.style.display = 'flex';
         tooltip.style.left = `${rect.left + (rect.width / 2) + window.scrollX}px`;
         tooltip.style.top = `${rect.top + window.scrollY - 5}px`;
     });
+
+    // 2. Hover Detection Logic (For EXISTING highlights)
+    document.addEventListener('mousemove', (e) => {
+        if (!chromeSettings.showMarkerPopup) return;
+        
+        // FIX: If the cursor successfully reaches the tooltip, cancel the hide timer
+        if (e.target.closest('#algo-highlight-tooltip') || e.target.closest('#algo-fsrs-container')) {
+            clearTimeout(hideTooltipTimer);
+            hideTooltipTimer = null;
+            return;
+        }
+
+        // If user is actively highlighting new text, do not intercept
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed && selection.toString().trim() !== '') return;
+
+        // Math checking: Does cursor intersect any highlight bounding box?
+        let foundMark = null;
+        for (const item of activeMarkRanges) {
+            const rects = item.range.getClientRects();
+            for (let i = 0; i < rects.length; i++) {
+                const r = rects[i];
+                // Added a 5px forgiveness padding to the mathematical borders
+                if (e.clientX >= r.left - 5 && e.clientX <= r.right + 5 && e.clientY >= r.top - 5 && e.clientY <= r.bottom + 5) {
+                    foundMark = item;
+                    break;
+                }
+            }
+            if (foundMark) break;
+        }
+
+        if (foundMark) {
+            // We are over a highlight, stop any hiding timers immediately
+            clearTimeout(hideTooltipTimer);
+            hideTooltipTimer = null;
+            
+            if (hoveredMarkId !== foundMark.markId) {
+                hoveredMarkId = foundMark.markId;
+                renderTooltipColors(hoveredMarkId, foundMark.color);
+                tooltip.style.display = 'flex';
+                const rect = foundMark.range.getBoundingClientRect();
+                tooltip.style.left = `${e.clientX + window.scrollX}px`; // Follow cursor X
+                tooltip.style.top = `${rect.top + window.scrollY - 5}px`; // Snap to top of box Y
+            }
+        } else {
+            // We moved off the highlight, but DON'T hide it instantly. 
+            // Give the user 400ms to move their mouse to the tooltip menu.
+            if (hoveredMarkId !== null && !hideTooltipTimer) {
+                hideTooltipTimer = setTimeout(() => {
+                    hoveredMarkId = null;
+                    tooltip.style.display = 'none';
+                    hideTooltipTimer = null;
+                }, 400); 
+            }
+        }
+    });
 }
 
-function renderTooltipColors() {
+function renderTooltipColors(existingMarkId = null, currentColor = null) {
     const tooltip = document.getElementById('algo-highlight-tooltip');
     tooltip.innerHTML = '';
 
+    // Color Swatches
     chromeSettings.recentColors.forEach(color => {
         const swatch = document.createElement('div');
         swatch.className = 'algo-color-swatch';
         swatch.style.backgroundColor = color;
+        if (existingMarkId && color === currentColor) swatch.style.borderColor = '#fff';
+        
         swatch.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // Keep selection
-            saveHighlight(color);
+            e.preventDefault(); 
+            if (existingMarkId) updateHighlightColor(existingMarkId, color);
+            else saveHighlight(color);
         });
         tooltip.appendChild(swatch);
     });
 
+    // Custom Color Picker
     const picker = document.createElement('input');
     picker.type = 'color';
     picker.id = 'algo-color-picker';
-    picker.value = chromeSettings.defaultHighlightColor;
+    picker.value = currentColor || chromeSettings.defaultHighlightColor;
     picker.addEventListener('input', (e) => {
         const newColor = e.target.value;
-        saveHighlight(newColor);
+        if (existingMarkId) updateHighlightColor(existingMarkId, newColor);
+        else saveHighlight(newColor);
         updateRecentColors(newColor);
     });
     tooltip.appendChild(picker);
+
+    // NEW: Delete Button (Only shows if hovering existing highlight)
+    if (existingMarkId) {
+        const divider = document.createElement('div');
+        divider.className = 'algo-tooltip-divider';
+        tooltip.appendChild(divider);
+
+        const deleteBtn = document.createElement('div');
+        deleteBtn.className = 'algo-delete-btn';
+        deleteBtn.innerHTML = '🗑️';
+        deleteBtn.title = 'Remove Highlight';
+        deleteBtn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            deleteHighlight(existingMarkId);
+        });
+        tooltip.appendChild(deleteBtn);
+    }
 }
 
 function updateRecentColors(newColor) {
@@ -121,13 +208,23 @@ function updateRecentColors(newColor) {
     chrome.storage.local.set({ chromeSettings });
 }
 
-// Generates the strict Schema metadata requested
 function getDOMMeta(node, offset) {
     const parent = node.parentNode;
+    
+    // NEW FIX: Generate an absolute path from the body to ensure strict uniqueness
+    let path = [];
+    let current = parent;
+    while (current && current !== document.body && current !== document.documentElement) {
+        let index = Array.from(current.parentNode.childNodes).indexOf(current);
+        path.unshift(index);
+        current = current.parentNode;
+    }
+
     return {
         parentTagName: parent.tagName.toLowerCase(),
         parentIndex: Array.from(parent.childNodes).indexOf(node),
-        textOffset: offset
+        textOffset: offset,
+        parentDomPath: path // Guarantees we target the exact node, not just the first matching tag
     };
 }
 
@@ -136,28 +233,27 @@ function saveHighlight(color) {
     if (!selection || selection.isCollapsed) return;
 
     const range = selection.getRangeAt(0);
-    const cleanUrl = window.location.href.split('#')[0]; // Ignore anchor links
-
-    const highlightSource = {
-        startMeta: getDOMMeta(range.startContainer, range.startOffset),
-        endMeta: getDOMMeta(range.endContainer, range.endOffset)
-    };
+    const cleanUrl = window.location.href.split('#')[0]; 
+    const timestamp = new Date().getTime();
 
     const newMark = {
-        createdAt: new Date().getTime(),
+        id: `mark_${timestamp}_${Math.random().toString(36).substr(2, 5)}`, // NEW: Unique ID for robust targeting
+        createdAt: timestamp,
         url: cleanUrl,
         text: selection.toString(),
         color: color,
-        highlightSource: highlightSource
+        highlightSource: {
+            startMeta: getDOMMeta(range.startContainer, range.startOffset),
+            endMeta: getDOMMeta(range.endContainer, range.endOffset)
+        }
     };
 
     marks.push(newMark);
     
-    // Save Contextual Metadata
     if (!bookmarks.find(b => b.url === cleanUrl)) {
         bookmarks.push({ url: cleanUrl, title: document.title, meta: { favIconUrl: 'https://algo.monster/favicon.ico' } });
     }
-    pagecontents = pagecontents.filter(p => p.url !== cleanUrl); // Update latest size
+    pagecontents = pagecontents.filter(p => p.url !== cleanUrl); 
     pagecontents.push({ url: cleanUrl, description: document.body.innerText.substring(0, 100), length: document.body.innerText.length });
 
     chrome.storage.local.set({ marks, bookmarks, pagecontents });
@@ -167,7 +263,26 @@ function saveHighlight(color) {
     applyHighlightsForCurrentPage();
 }
 
-// Dynamically creates CSS rules for the Custom Highlight API
+// NEW: Edit & Delete Functions
+function updateHighlightColor(markId, newColor) {
+    const markIndex = marks.findIndex(m => (m.id || m.createdAt.toString()) === markId);
+    if (markIndex > -1) {
+        marks[markIndex].color = newColor;
+        chrome.storage.local.set({ marks });
+        applyHighlightsForCurrentPage();
+        renderTooltipColors(markId, newColor);
+    }
+}
+
+function deleteHighlight(markId) {
+    marks = marks.filter(m => (m.id || m.createdAt.toString()) !== markId);
+    chrome.storage.local.set({ marks });
+    
+    document.getElementById('algo-highlight-tooltip').style.display = 'none';
+    hoveredMarkId = null;
+    applyHighlightsForCurrentPage();
+}
+
 function ensureHighlightStyle(color) {
     const colorName = `algo-hl-${color.replace('#', '')}`;
     if (!activeHighlightStyles.has(colorName)) {
@@ -179,53 +294,98 @@ function ensureHighlightStyle(color) {
     return colorName;
 }
 
-// Safely reconstructs a Range object from Schema metadata
-function restoreRangeFromMeta(highlightSource) {
+function restoreRangeFromMeta(highlightSource, markText) {
     try {
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
         let startNode = null;
         let endNode = null;
-        let node;
 
-        while ((node = walker.nextNode())) {
-            const parent = node.parentNode;
-            const parentTagName = parent.tagName.toLowerCase();
-            const parentIndex = Array.from(parent.childNodes).indexOf(node);
+        // 1. Try strict path resolution (The New Schema)
+        if (highlightSource.startMeta.parentDomPath && highlightSource.endMeta.parentDomPath) {
+            const resolvePath = (path, childIndex) => {
+                let current = document.body;
+                for (let i = 0; i < path.length; i++) {
+                    if (!current || !current.childNodes) return null;
+                    current = current.childNodes[path[i]];
+                }
+                return current ? current.childNodes[childIndex] : null;
+            };
 
-            if (!startNode && parentTagName === highlightSource.startMeta.parentTagName && parentIndex === highlightSource.startMeta.parentIndex) {
-                startNode = node;
+            startNode = resolvePath(highlightSource.startMeta.parentDomPath, highlightSource.startMeta.parentIndex);
+            endNode = resolvePath(highlightSource.endMeta.parentDomPath, highlightSource.endMeta.parentIndex);
+        }
+
+        // 2. Fallback to TreeWalker (For old highlights saved before this fix)
+        if (!startNode || !endNode) {
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while ((node = walker.nextNode())) {
+                const parent = node.parentNode;
+                const parentTagName = parent.tagName.toLowerCase();
+                const parentIndex = Array.from(parent.childNodes).indexOf(node);
+
+                if (!startNode && parentTagName === highlightSource.startMeta.parentTagName && parentIndex === highlightSource.startMeta.parentIndex) {
+                    startNode = node;
+                }
+                if (startNode && parentTagName === highlightSource.endMeta.parentTagName && parentIndex === highlightSource.endMeta.parentIndex) {
+                    endNode = node;
+                    break;
+                }
             }
-            if (!endNode && parentTagName === highlightSource.endMeta.parentTagName && parentIndex === highlightSource.endMeta.parentIndex) {
-                endNode = node;
-            }
-            if (startNode && endNode) break;
         }
 
         if (startNode && endNode) {
             const range = document.createRange();
-            range.setStart(startNode, highlightSource.startMeta.textOffset);
-            range.setEnd(endNode, highlightSource.endMeta.textOffset);
+            // Ensure offsets are bounded safely (Prevents React hydration crashes)
+            const startOffset = Math.min(highlightSource.startMeta.textOffset, startNode.length || 0);
+            const endOffset = Math.min(highlightSource.endMeta.textOffset, endNode.length || 0);
+            
+            range.setStart(startNode, startOffset);
+            range.setEnd(endNode, endOffset);
+
+            // --- NEW FIX: Strict Text Verification ---
+            // When an SPA accordion closes, the target node vanishes and our fallback 
+            // might grab a completely different button. We must verify the text matches!
+            if (markText) {
+                const rangeTextClean = range.toString().replace(/\s+/g, '');
+                const markTextClean = markText.replace(/\s+/g, '');
+                
+                if (rangeTextClean !== markTextClean) {
+                    // Reject if there is absolutely no overlap between the strings
+                    if (!markTextClean.includes(rangeTextClean) && !rangeTextClean.includes(markTextClean)) {
+                        return null; 
+                    }
+                    // Reject tiny false positives (e.g. matching a single letter 's' in another un-related button)
+                    if (rangeTextClean.length < (markTextClean.length * 0.5)) {
+                        return null;
+                    }
+                }
+            }
+            
             return range;
         }
     } catch (e) {
-        // Silent fail if DOM hydrated differently and nodes disappeared
+        console.warn("FSRS Highlighter: Failed to restore range", e);
     }
     return null;
 }
 
-// Uses CSS.highlights API (Zero DOM manipulation = React/Vue safe)
 function applyHighlightsForCurrentPage() {
-    if (!('highlights' in CSS)) return; // Fallback for unsupported browsers
+    if (!('highlights' in CSS)) return; 
     
     const cleanUrl = window.location.href.split('#')[0];
     const pageMarks = marks.filter(m => m.url === cleanUrl);
     
     CSS.highlights.clear();
     const highlightsByColor = {};
+    activeMarkRanges = []; // Reset tracked hovers
 
     pageMarks.forEach(mark => {
-        const range = restoreRangeFromMeta(mark.highlightSource);
+        // Pass the expected mark.text to the restorer for verification
+        const range = restoreRangeFromMeta(mark.highlightSource, mark.text);
         if (range) {
+            const targetId = mark.id || mark.createdAt.toString();
+            activeMarkRanges.push({ markId: targetId, range: range, color: mark.color });
+
             const colorName = ensureHighlightStyle(mark.color);
             if (!highlightsByColor[colorName]) highlightsByColor[colorName] = [];
             highlightsByColor[colorName].push(range);
@@ -233,8 +393,7 @@ function applyHighlightsForCurrentPage() {
     });
 
     for (const [colorName, ranges] of Object.entries(highlightsByColor)) {
-        const highlightObj = new Highlight(...ranges);
-        CSS.highlights.set(colorName, highlightObj);
+        CSS.highlights.set(colorName, new Highlight(...ranges));
     }
 }
 

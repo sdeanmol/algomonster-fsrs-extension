@@ -130,7 +130,7 @@
     filter: brightness(1.1);
 }
 
-/* NEW: Highlighter Tooltip Styles */
+/* Highlighter Tooltip Styles */
 #algo-highlight-tooltip {
     position: absolute;
     z-index: 9999999;
@@ -175,4 +175,21 @@
     border-radius: 4px;
     cursor: pointer;
     background: none;
+}
+
+/* NEW: Delete Button Styles */
+.algo-tooltip-divider {
+    width: 1px;
+    height: 16px;
+    background-color: #555;
+    margin: 0 4px;
+}
+.algo-delete-btn {
+    cursor: pointer;
+    font-size: 14px;
+    transition: transform 0.1s;
+    user-select: none;
+}
+.algo-delete-btn:hover {
+    transform: scale(1.2);
 }

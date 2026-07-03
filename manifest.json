@@ -12,14 +12,18 @@
     "webNavigation"
   ],
   "host_permissions": [
-    "*://*.algo.monster/*"
+    "*://*.algo.monster/*",
+    "*://*.systemdesignschool.io/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["*://*.algo.monster/*"],
+      "matches": [
+        "*://*.algo.monster/*",
+        "*://*.systemdesignschool.io/*"
+      ],
       "js": ["fsrs.js", "content.js"],
       "css": ["style.css"]
     }

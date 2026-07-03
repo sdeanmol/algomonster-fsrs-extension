@@ -5,7 +5,19 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStats(); 
     loadHeatmap(isLifetimeView);
 
-    // NEW: Load Highlighter Settings
+    // 2. Settings Panel Toggle
+    const settingsPanel = document.getElementById('settings-panel');
+    const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
+    
+    if (toggleSettingsBtn && settingsPanel) {
+        toggleSettingsBtn.addEventListener('click', () => {
+            const isHidden = settingsPanel.style.display === 'none' || settingsPanel.style.display === '';
+            settingsPanel.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) loadSavedWeights();
+        });
+    }
+
+    // 3. Load Highlighter Settings
     const markerToggle = document.getElementById('toggle-marker-popup');
     if (markerToggle) {
         chrome.storage.local.get(['chromeSettings'], (result) => {
@@ -22,39 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 2. Open History Tab ---
-    const historyBtn = document.getElementById('history-btn');
-    if (historyBtn) {
-        historyBtn.addEventListener('click', () => {
-            chrome.tabs.create({ url: 'history.html' });
-        });
-    }
+    // NEW: Open Highlighter Manager
+    document.getElementById('manage-highlights-btn')?.addEventListener('click', () => {
+        chrome.tabs.create({ url: 'highlights.html' });
+    });
 
-    // 3. Open Full Screen Heatmap Tab ---
-    const openHeatmapBtn = document.getElementById('open-heatmap-tab-btn');
-    if (openHeatmapBtn) {
-        openHeatmapBtn.addEventListener('click', () => {
-            chrome.tabs.create({ url: 'heatmap.html' });
-        });
-    }
-
-    // 4. Settings Panel Toggle
-    const settingsPanel = document.getElementById('settings-panel');
-    const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
-    
-    if (toggleSettingsBtn && settingsPanel) {
-        toggleSettingsBtn.addEventListener('click', () => {
-            // Check if it is currently hidden (handles both inline styles and empty states)
-            const isHidden = settingsPanel.style.display === 'none' || settingsPanel.style.display === '';
-            settingsPanel.style.display = isHidden ? 'block' : 'none';
-            
-            if (isHidden) {
-                loadSavedWeights();
-            }
-        });
-    }
-
-    // 5. Save Custom Weights
+    // 4. Save Custom Weights
     const saveWeightsBtn = document.getElementById('save-weights-btn');
     if (saveWeightsBtn) {
         saveWeightsBtn.addEventListener('click', () => {
@@ -64,15 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!tag || !valuesStr) return showStatus("Tag and weights are required.", true);
 
             const weightsArray = valuesStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
-            
-            if (weightsArray.length !== 17) {
-                return showStatus(`Invalid array: Found ${weightsArray.length} values. Expected 17.`, true);
-            }
+            if (weightsArray.length !== 17) return showStatus(`Invalid array: Found ${weightsArray.length} values. Expected 17.`, true);
 
             chrome.storage.local.get(['fsrsTopicWeights'], (result) => {
                 const topicWeights = result.fsrsTopicWeights || {};
                 topicWeights[tag] = weightsArray;
-                
                 chrome.storage.local.set({ fsrsTopicWeights: topicWeights }, () => {
                     showStatus(`Weights saved for tag: ${tag}`);
                     document.getElementById('weight-tag').value = '';
@@ -83,71 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. Export Data (UPDATED FOR HIGHLIGHTER SCHEMA)
-    document.getElementById('export-btn')?.addEventListener('click', () => {
-        chrome.storage.local.get(null, (result) => { // Get EVERYTHING
-            const backupData = {
-                // FSRS Data
-                cards: result.fsrsCards || [],
-                activity: result.fsrsActivity || {},
-                weights: result.fsrsTopicWeights || {},
-                // Highlighter Data (Strict Schema)
-                marks: result.marks || [],
-                bookmarks: result.bookmarks || [],
-                pagecontents: result.pagecontents || [],
-                chromeSettings: result.chromeSettings || {}
-            };
-            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            chrome.downloads.download({
-                url: url,
-                filename: `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json`,
-                saveAs: true
-            });
-            showStatus("Backup exported successfully!");
-        });
-    });
-
-    // 7. Import Data (UPDATED FOR HIGHLIGHTER SCHEMA)
-    document.getElementById('import-file')?.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            try {
-                const imported = JSON.parse(event.target.result);
-                
-                // Construct safe import object supporting both old v2 backups and new v3 schema
-                const storageUpdate = {
-                    fsrsCards: Array.isArray(imported) ? imported : (imported.cards || []),
-                    fsrsActivity: Array.isArray(imported) ? {} : (imported.activity || {}),
-                    fsrsTopicWeights: Array.isArray(imported) ? {} : (imported.weights || {})
-                };
-
-                if (imported.marks) storageUpdate.marks = imported.marks;
-                if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks;
-                if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
-                if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
-
-                chrome.storage.local.set(storageUpdate, () => {
-                    showStatus("Data imported successfully!");
-                    loadStats(); 
-                    loadHeatmap(isLifetimeView);
-                    
-                    // Update toggles
-                    if (storageUpdate.chromeSettings && storageUpdate.chromeSettings.showMarkerPopup !== undefined) {
-                        markerToggle.checked = storageUpdate.chromeSettings.showMarkerPopup;
-                    }
-                    if (settingsPanel.style.display === 'block') loadSavedWeights();
-                });
-            } catch (err) {
-                showStatus("Error reading file.", true);
-            }
-        };
-        reader.readAsText(file);
-    });
+    // 5. Open History & Full Screen Heatmap Tabs
+    document.getElementById('history-btn')?.addEventListener('click', () => chrome.tabs.create({ url: 'history.html' }));
+    document.getElementById('open-heatmap-tab-btn')?.addEventListener('click', () => chrome.tabs.create({ url: 'heatmap.html' }));
 
     // 6. Clickable Stat Boxes (Opens full data view)
     document.getElementById('box-total')?.addEventListener('click', () => chrome.tabs.create({ url: 'data.html?view=total' }));
@@ -164,27 +83,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 8. Export Data
-    document.getElementById('export-btn')?.addEventListener('click', () => {
-        chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'fsrsTopicWeights'], (result) => {
-            const backupData = {
-                cards: result.fsrsCards || [],
-                activity: result.fsrsActivity || {},
-                weights: result.fsrsTopicWeights || {}
-            };
-            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            chrome.downloads.download({
-                url: url,
-                filename: `algo_fsrs_backup_${new Date().toISOString().split('T')[0]}.json`,
-                saveAs: true
+    // 8. UNIFIED EXPORT FUNCTION (Fixes double download bug)
+    const exportBtn = document.getElementById('export-btn');
+    if (exportBtn) {
+        // We ensure only one event listener handles this
+        exportBtn.onclick = () => {
+            chrome.storage.local.get(null, (result) => { 
+                const backupData = {
+                    cards: result.fsrsCards || [],
+                    activity: result.fsrsActivity || {},
+                    weights: result.fsrsTopicWeights || {},
+                    marks: result.marks || [],
+                    bookmarks: result.bookmarks || [],
+                    pagecontents: result.pagecontents || [],
+                    chromeSettings: result.chromeSettings || {}
+                };
+                const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                chrome.downloads.download({
+                    url: url,
+                    filename: `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json`,
+                    saveAs: true
+                });
+                showStatus("Backup exported successfully!");
             });
-            showStatus("Backup exported successfully!");
-        });
-    });
+        };
+    }
 
-    // 9. Import Data
+    // 9. Unified Import Data
     document.getElementById('import-file')?.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -193,19 +120,27 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = function(event) {
             try {
                 const imported = JSON.parse(event.target.result);
-                let newCards = Array.isArray(imported) ? imported : (imported.cards || []);
-                let newActivity = Array.isArray(imported) ? {} : (imported.activity || {});
-                let newWeights = Array.isArray(imported) ? {} : (imported.weights || {});
+                
+                const storageUpdate = {
+                    fsrsCards: Array.isArray(imported) ? imported : (imported.cards || []),
+                    fsrsActivity: Array.isArray(imported) ? {} : (imported.activity || {}),
+                    fsrsTopicWeights: Array.isArray(imported) ? {} : (imported.weights || {})
+                };
 
-                chrome.storage.local.set({ 
-                    fsrsCards: newCards, 
-                    fsrsActivity: newActivity,
-                    fsrsTopicWeights: newWeights
-                }, () => {
+                if (imported.marks) storageUpdate.marks = imported.marks;
+                if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks;
+                if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
+                if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
+
+                chrome.storage.local.set(storageUpdate, () => {
                     showStatus("Data imported successfully!");
                     loadStats(); 
                     loadHeatmap(isLifetimeView);
-                    if (settingsPanel.style.display === 'block') loadSavedWeights();
+                    
+                    if (storageUpdate.chromeSettings && storageUpdate.chromeSettings.showMarkerPopup !== undefined && markerToggle) {
+                        markerToggle.checked = storageUpdate.chromeSettings.showMarkerPopup;
+                    }
+                    if (settingsPanel && settingsPanel.style.display === 'block') loadSavedWeights();
                 });
             } catch (err) {
                 showStatus("Error reading file.", true);
