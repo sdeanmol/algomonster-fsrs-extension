@@ -140,21 +140,28 @@
     padding: 6px;
     display: none;
     gap: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     align-items: center;
-    transform: translate(-50%, -100%);
-    margin-top: -10px;
+    /* / Drops 8px BELOW the anchor, expands inward to the LEFT to prevent screen cutoff / */
+    transform: translate(-100%, 8px);
+    margin: 0;
 }
+
 #algo-highlight-tooltip::after {
     content: '';
     position: absolute;
-    bottom: -6px;
-    left: 50%;
-    margin-left: -6px;
-    border-width: 6px 6px 0;
+    /* / Triangle pointing UP / */
+    bottom: auto;
+    top: -6px;
+    left: auto;
+    right: 12px;
+    /* / Aligned to the right side where the cursor ends / */
+    border-width: 0 6px 6px;
     border-style: solid;
-    border-color: #1e1e1e transparent transparent transparent;
+    border-color: transparent transparent #1e1e1e transparent;
 }
+
+
 .algo-color-swatch {
     width: 20px;
     height: 20px;
@@ -163,10 +170,12 @@
     border: 2px solid transparent;
     transition: transform 0.1s;
 }
+
 .algo-color-swatch:hover {
     transform: scale(1.2);
     border-color: #fff;
 }
+
 #algo-color-picker {
     width: 24px;
     height: 24px;
@@ -177,19 +186,21 @@
     background: none;
 }
 
-/* NEW: Delete Button Styles */
+/* Delete Button Styles */
 .algo-tooltip-divider {
     width: 1px;
     height: 16px;
     background-color: #555;
     margin: 0 4px;
 }
+
 .algo-delete-btn {
     cursor: pointer;
     font-size: 14px;
     transition: transform 0.1s;
     user-select: none;
 }
+
 .algo-delete-btn:hover {
     transform: scale(1.2);
 }

@@ -16,10 +16,10 @@ let chromeSettings = {
 let activeHighlightStyles = new Set();
 let highlightDebounceTimer = null;
 
-// NEW: Active ranges map for Hover tracking
+// Active ranges map for Hover tracking
 let activeMarkRanges = []; 
 let hoveredMarkId = null;
-let hideTooltipTimer = null; // NEW: Grace period timer
+let hideTooltipTimer = null; 
 
 chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings'], (result) => {
     if (result.fsrsCards) cards = result.fsrsCards;
@@ -78,45 +78,46 @@ function createHighlighterUI() {
 
         const selection = window.getSelection();
         if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
-            if (hoveredMarkId === null) tooltip.style.display = 'none';
+            if (hoveredMarkId === null) tooltip.style.display = 'none'; 
             return;
         }
 
         hoveredMarkId = null; 
-        clearTimeout(hideTooltipTimer); // Clear any pending hides
+        clearTimeout(hideTooltipTimer); 
         hideTooltipTimer = null;
         
         const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
+        
+        // --- NEW POSITIONING: Get the exact last line of the multi-line selection ---
+        const rects = range.getClientRects();
+        const lastRect = rects[rects.length - 1];
 
-        renderTooltipColors(null, null); // Render without delete button
+        renderTooltipColors(null, null); 
         tooltip.style.display = 'flex';
-        tooltip.style.left = `${rect.left + (rect.width / 2) + window.scrollX}px`;
-        tooltip.style.top = `${rect.top + window.scrollY - 5}px`;
+        
+        // Anchor to the bottom-right corner where the highlight ends
+        tooltip.style.left = `${lastRect.right + window.scrollX}px`;
+        tooltip.style.top = `${lastRect.bottom + window.scrollY}px`;
     });
 
     // 2. Hover Detection Logic (For EXISTING highlights)
     document.addEventListener('mousemove', (e) => {
         if (!chromeSettings.showMarkerPopup) return;
         
-        // FIX: If the cursor successfully reaches the tooltip, cancel the hide timer
         if (e.target.closest('#algo-highlight-tooltip') || e.target.closest('#algo-fsrs-container')) {
             clearTimeout(hideTooltipTimer);
             hideTooltipTimer = null;
             return;
         }
 
-        // If user is actively highlighting new text, do not intercept
         const selection = window.getSelection();
         if (selection && !selection.isCollapsed && selection.toString().trim() !== '') return;
 
-        // Math checking: Does cursor intersect any highlight bounding box?
         let foundMark = null;
         for (const item of activeMarkRanges) {
             const rects = item.range.getClientRects();
             for (let i = 0; i < rects.length; i++) {
                 const r = rects[i];
-                // Added a 5px forgiveness padding to the mathematical borders
                 if (e.clientX >= r.left - 5 && e.clientX <= r.right + 5 && e.clientY >= r.top - 5 && e.clientY <= r.bottom + 5) {
                     foundMark = item;
                     break;
@@ -126,7 +127,6 @@ function createHighlighterUI() {
         }
 
         if (foundMark) {
-            // We are over a highlight, stop any hiding timers immediately
             clearTimeout(hideTooltipTimer);
             hideTooltipTimer = null;
             
@@ -134,13 +134,13 @@ function createHighlighterUI() {
                 hoveredMarkId = foundMark.markId;
                 renderTooltipColors(hoveredMarkId, foundMark.color);
                 tooltip.style.display = 'flex';
-                const rect = foundMark.range.getBoundingClientRect();
-                tooltip.style.left = `${e.clientX + window.scrollX}px`; // Follow cursor X
-                tooltip.style.top = `${rect.top + window.scrollY - 5}px`; // Snap to top of box Y
+                
+                // --- NEW POSITIONING: Snap just below the cursor ---
+                // We add 15px to X so the little triangle pointer perfectly aligns under the cursor
+                tooltip.style.left = `${e.clientX + window.scrollX + 15}px`; 
+                tooltip.style.top = `${e.clientY + window.scrollY}px`; 
             }
         } else {
-            // We moved off the highlight, but DON'T hide it instantly. 
-            // Give the user 400ms to move their mouse to the tooltip menu.
             if (hoveredMarkId !== null && !hideTooltipTimer) {
                 hideTooltipTimer = setTimeout(() => {
                     hoveredMarkId = null;
@@ -184,7 +184,7 @@ function renderTooltipColors(existingMarkId = null, currentColor = null) {
     });
     tooltip.appendChild(picker);
 
-    // NEW: Delete Button (Only shows if hovering existing highlight)
+    // Delete Button (Only shows if hovering existing highlight)
     if (existingMarkId) {
         const divider = document.createElement('div');
         divider.className = 'algo-tooltip-divider';
@@ -210,8 +210,6 @@ function updateRecentColors(newColor) {
 
 function getDOMMeta(node, offset) {
     const parent = node.parentNode;
-    
-    // NEW FIX: Generate an absolute path from the body to ensure strict uniqueness
     let path = [];
     let current = parent;
     while (current && current !== document.body && current !== document.documentElement) {
@@ -224,7 +222,7 @@ function getDOMMeta(node, offset) {
         parentTagName: parent.tagName.toLowerCase(),
         parentIndex: Array.from(parent.childNodes).indexOf(node),
         textOffset: offset,
-        parentDomPath: path // Guarantees we target the exact node, not just the first matching tag
+        parentDomPath: path
     };
 }
 
@@ -237,7 +235,7 @@ function saveHighlight(color) {
     const timestamp = new Date().getTime();
 
     const newMark = {
-        id: `mark_${timestamp}_${Math.random().toString(36).substr(2, 5)}`, // NEW: Unique ID for robust targeting
+        id: `mark_${timestamp}_${Math.random().toString(36).substr(2, 5)}`, 
         createdAt: timestamp,
         url: cleanUrl,
         text: selection.toString(),
@@ -263,7 +261,6 @@ function saveHighlight(color) {
     applyHighlightsForCurrentPage();
 }
 
-// NEW: Edit & Delete Functions
 function updateHighlightColor(markId, newColor) {
     const markIndex = marks.findIndex(m => (m.id || m.createdAt.toString()) === markId);
     if (markIndex > -1) {
@@ -299,7 +296,6 @@ function restoreRangeFromMeta(highlightSource, markText) {
         let startNode = null;
         let endNode = null;
 
-        // 1. Try strict path resolution (The New Schema)
         if (highlightSource.startMeta.parentDomPath && highlightSource.endMeta.parentDomPath) {
             const resolvePath = (path, childIndex) => {
                 let current = document.body;
@@ -314,7 +310,6 @@ function restoreRangeFromMeta(highlightSource, markText) {
             endNode = resolvePath(highlightSource.endMeta.parentDomPath, highlightSource.endMeta.parentIndex);
         }
 
-        // 2. Fallback to TreeWalker (For old highlights saved before this fix)
         if (!startNode || !endNode) {
             const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
             let node;
@@ -323,9 +318,7 @@ function restoreRangeFromMeta(highlightSource, markText) {
                 const parentTagName = parent.tagName.toLowerCase();
                 const parentIndex = Array.from(parent.childNodes).indexOf(node);
 
-                if (!startNode && parentTagName === highlightSource.startMeta.parentTagName && parentIndex === highlightSource.startMeta.parentIndex) {
-                    startNode = node;
-                }
+                if (!startNode && parentTagName === highlightSource.startMeta.parentTagName && parentIndex === highlightSource.startMeta.parentIndex) startNode = node;
                 if (startNode && parentTagName === highlightSource.endMeta.parentTagName && parentIndex === highlightSource.endMeta.parentIndex) {
                     endNode = node;
                     break;
@@ -335,37 +328,24 @@ function restoreRangeFromMeta(highlightSource, markText) {
 
         if (startNode && endNode) {
             const range = document.createRange();
-            // Ensure offsets are bounded safely (Prevents React hydration crashes)
             const startOffset = Math.min(highlightSource.startMeta.textOffset, startNode.length || 0);
             const endOffset = Math.min(highlightSource.endMeta.textOffset, endNode.length || 0);
             
             range.setStart(startNode, startOffset);
             range.setEnd(endNode, endOffset);
 
-            // --- NEW FIX: Strict Text Verification ---
-            // When an SPA accordion closes, the target node vanishes and our fallback 
-            // might grab a completely different button. We must verify the text matches!
             if (markText) {
                 const rangeTextClean = range.toString().replace(/\s+/g, '');
                 const markTextClean = markText.replace(/\s+/g, '');
                 
                 if (rangeTextClean !== markTextClean) {
-                    // Reject if there is absolutely no overlap between the strings
-                    if (!markTextClean.includes(rangeTextClean) && !rangeTextClean.includes(markTextClean)) {
-                        return null; 
-                    }
-                    // Reject tiny false positives (e.g. matching a single letter 's' in another un-related button)
-                    if (rangeTextClean.length < (markTextClean.length * 0.5)) {
-                        return null;
-                    }
+                    if (!markTextClean.includes(rangeTextClean) && !rangeTextClean.includes(markTextClean)) return null; 
+                    if (rangeTextClean.length < (markTextClean.length * 0.5)) return null;
                 }
             }
-            
             return range;
         }
-    } catch (e) {
-        console.warn("FSRS Highlighter: Failed to restore range", e);
-    }
+    } catch (e) {}
     return null;
 }
 
@@ -377,10 +357,9 @@ function applyHighlightsForCurrentPage() {
     
     CSS.highlights.clear();
     const highlightsByColor = {};
-    activeMarkRanges = []; // Reset tracked hovers
+    activeMarkRanges = []; 
 
     pageMarks.forEach(mark => {
-        // Pass the expected mark.text to the restorer for verification
         const range = restoreRangeFromMeta(mark.highlightSource, mark.text);
         if (range) {
             const targetId = mark.id || mark.createdAt.toString();
