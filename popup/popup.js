@@ -1,11 +1,9 @@
 let isLifetimeView = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Initialize Default Views
     loadStats(); 
     loadHeatmap(isLifetimeView);
 
-    // 2. Settings Panel Toggle
     const settingsPanel = document.getElementById('settings-panel');
     const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
     
@@ -17,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 3. Load Highlighter Settings
     const markerToggle = document.getElementById('toggle-marker-popup');
     if (markerToggle) {
         chrome.storage.local.get(['chromeSettings'], (result) => {
@@ -34,12 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // NEW: Open Highlighter Manager
-    document.getElementById('manage-highlights-btn')?.addEventListener('click', () => {
-        chrome.tabs.create({ url: 'highlights.html' });
-    });
-
-    // 4. Save Custom Weights
     const saveWeightsBtn = document.getElementById('save-weights-btn');
     if (saveWeightsBtn) {
         saveWeightsBtn.addEventListener('click', () => {
@@ -64,16 +55,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 5. Open History & Full Screen Heatmap Tabs
-    document.getElementById('history-btn')?.addEventListener('click', () => chrome.tabs.create({ url: 'history.html' }));
-    document.getElementById('open-heatmap-tab-btn')?.addEventListener('click', () => chrome.tabs.create({ url: 'heatmap.html' }));
+    // --- UPDATED PATHS FOR FOLDER RESTRUCTURE ---
+    document.getElementById('history-btn')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/history.html' }));
+    document.getElementById('open-heatmap-tab-btn')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/heatmap.html' }));
+    document.getElementById('box-total')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/data.html?view=total' }));
+    document.getElementById('box-due')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/data.html?view=due' }));
+    document.getElementById('box-retention')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/data.html?view=retention' }));
+    document.getElementById('manage-highlights-btn')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/highlights.html' }));
+    // ---------------------------------------------
 
-    // 6. Clickable Stat Boxes (Opens full data view)
-    document.getElementById('box-total')?.addEventListener('click', () => chrome.tabs.create({ url: 'data.html?view=total' }));
-    document.getElementById('box-due')?.addEventListener('click', () => chrome.tabs.create({ url: 'data.html?view=due' }));
-    document.getElementById('box-retention')?.addEventListener('click', () => chrome.tabs.create({ url: 'data.html?view=retention' }));
-
-    // 7. Heatmap Lifetime Toggle
     const toggleLifetimeBtn = document.getElementById('toggle-lifetime-btn');
     if (toggleLifetimeBtn) {
         toggleLifetimeBtn.addEventListener('click', () => {
@@ -83,10 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 8. UNIFIED EXPORT FUNCTION (Fixes double download bug)
     const exportBtn = document.getElementById('export-btn');
     if (exportBtn) {
-        // We ensure only one event listener handles this
         exportBtn.onclick = () => {
             chrome.storage.local.get(null, (result) => { 
                 const backupData = {
@@ -111,7 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // 9. Unified Import Data
     document.getElementById('import-file')?.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;

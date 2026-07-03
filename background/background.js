@@ -1,11 +1,9 @@
 chrome.runtime.onInstalled.addListener(() => {
-    // Set the alarm to check every 60 minutes
     chrome.alarms.create('checkFsrsReviews', { periodInMinutes: 60 });
     
-    // STARTUP TEST: Fire this immediately when the extension is installed/reloaded
     chrome.notifications.create('test-install', {
         type: 'basic',
-        iconUrl: 'icon.png', // This MUST exist in your folder
+        iconUrl: '../icons/icon.png', // Updated Path
         title: 'FSRS Tracker Active 🧠',
         message: 'Notifications are working! You will be alerted when reviews are due.',
         priority: 2
@@ -22,12 +20,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'checkFsrsReviews') checkDueCards();
 });
 
-// NEW: Handle SPA Client-Side Routing for Highlighter
+// Handle SPA Client-Side Routing for Highlighter
 chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
     chrome.tabs.sendMessage(details.tabId, { 
         action: "spa_url_changed", 
         url: details.url 
-    }).catch(() => {}); // Catch silent errors if content script isn't ready
+    }).catch(() => {});
 });
 
 function checkDueCards() {
@@ -37,11 +35,10 @@ function checkDueCards() {
         const dueCards = result.fsrsCards.filter(c => c.due <= now);
 
         if (dueCards.length > 0) {
-            // CRITICAL FIX: Clear the old notification ID before creating a new one
             chrome.notifications.clear('algo-review-notification', () => {
                 chrome.notifications.create('algo-review-notification', {
                     type: 'basic',
-                    iconUrl: 'icon.png',
+                    iconUrl: '../icons/icon.png', // Updated Path
                     title: '🧠 AlgoMonster Reviews Due!',
                     message: `You have ${dueCards.length} pattern(s) ready for review.`,
                     priority: 2,
