@@ -5,6 +5,23 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStats(); 
     loadHeatmap(isLifetimeView);
 
+    // NEW: Load Highlighter Settings
+    const markerToggle = document.getElementById('toggle-marker-popup');
+    if (markerToggle) {
+        chrome.storage.local.get(['chromeSettings'], (result) => {
+            if (result.chromeSettings && result.chromeSettings.showMarkerPopup !== undefined) {
+                markerToggle.checked = result.chromeSettings.showMarkerPopup;
+            }
+        });
+        markerToggle.addEventListener('change', (e) => {
+            chrome.storage.local.get(['chromeSettings'], (result) => {
+                let settings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                settings.showMarkerPopup = e.target.checked;
+                chrome.storage.local.set({ chromeSettings: settings });
+            });
+        });
+    }
+
     // 2. Open History Tab ---
     const historyBtn = document.getElementById('history-btn');
     if (historyBtn) {
@@ -65,6 +82,72 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+    // 6. Export Data (UPDATED FOR HIGHLIGHTER SCHEMA)
+    document.getElementById('export-btn')?.addEventListener('click', () => {
+        chrome.storage.local.get(null, (result) => { // Get EVERYTHING
+            const backupData = {
+                // FSRS Data
+                cards: result.fsrsCards || [],
+                activity: result.fsrsActivity || {},
+                weights: result.fsrsTopicWeights || {},
+                // Highlighter Data (Strict Schema)
+                marks: result.marks || [],
+                bookmarks: result.bookmarks || [],
+                pagecontents: result.pagecontents || [],
+                chromeSettings: result.chromeSettings || {}
+            };
+            const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            chrome.downloads.download({
+                url: url,
+                filename: `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json`,
+                saveAs: true
+            });
+            showStatus("Backup exported successfully!");
+        });
+    });
+
+    // 7. Import Data (UPDATED FOR HIGHLIGHTER SCHEMA)
+    document.getElementById('import-file')?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const imported = JSON.parse(event.target.result);
+                
+                // Construct safe import object supporting both old v2 backups and new v3 schema
+                const storageUpdate = {
+                    fsrsCards: Array.isArray(imported) ? imported : (imported.cards || []),
+                    fsrsActivity: Array.isArray(imported) ? {} : (imported.activity || {}),
+                    fsrsTopicWeights: Array.isArray(imported) ? {} : (imported.weights || {})
+                };
+
+                if (imported.marks) storageUpdate.marks = imported.marks;
+                if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks;
+                if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
+                if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
+
+                chrome.storage.local.set(storageUpdate, () => {
+                    showStatus("Data imported successfully!");
+                    loadStats(); 
+                    loadHeatmap(isLifetimeView);
+                    
+                    // Update toggles
+                    if (storageUpdate.chromeSettings && storageUpdate.chromeSettings.showMarkerPopup !== undefined) {
+                        markerToggle.checked = storageUpdate.chromeSettings.showMarkerPopup;
+                    }
+                    if (settingsPanel.style.display === 'block') loadSavedWeights();
+                });
+            } catch (err) {
+                showStatus("Error reading file.", true);
+            }
+        };
+        reader.readAsText(file);
+    });
 
     // 6. Clickable Stat Boxes (Opens full data view)
     document.getElementById('box-total')?.addEventListener('click', () => chrome.tabs.create({ url: 'data.html?view=total' }));

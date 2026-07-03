@@ -22,6 +22,14 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'checkFsrsReviews') checkDueCards();
 });
 
+// NEW: Handle SPA Client-Side Routing for Highlighter
+chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+    chrome.tabs.sendMessage(details.tabId, { 
+        action: "spa_url_changed", 
+        url: details.url 
+    }).catch(() => {}); // Catch silent errors if content script isn't ready
+});
+
 function checkDueCards() {
     chrome.storage.local.get(['fsrsCards'], (result) => {
         if (!result.fsrsCards || result.fsrsCards.length === 0) return;

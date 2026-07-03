@@ -4,20 +4,37 @@ let cards = [];
 let lastCheckedUrl = window.location.href;
 let topicWeights = {};
 
-chrome.storage.local.get(['fsrsCards'], (result) => {
+// --- NEW: Highlighter State ---
+let marks = [];
+let bookmarks = [];
+let pagecontents = [];
+let chromeSettings = {
+    defaultHighlightColor: '#f1c40f',
+    recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'],
+    showMarkerPopup: true
+};
+let activeHighlightStyles = new Set();
+let highlightDebounceTimer = null;
+
+chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings'], (result) => {
     if (result.fsrsCards) cards = result.fsrsCards;
     if (result.fsrsTopicWeights) topicWeights = result.fsrsTopicWeights;
-    createUI();
     
-    // SPA Observer: Checks for DOM deletion and URL changes every 500ms
-    setInterval(() => {
-        if (!document.getElementById('algo-fsrs-container') && document.body) {
-            createUI();
-        }
+    // Load Highlighter Data
+    if (result.marks) marks = result.marks;
+    if (result.bookmarks) bookmarks = result.bookmarks;
+    if (result.pagecontents) pagecontents = result.pagecontents;
+    if (result.chromeSettings) chromeSettings = { ...chromeSettings, ...result.chromeSettings };
 
+    createUI();
+    createHighlighterUI();
+    applyHighlightsForCurrentPage();
+    
+    // SPA Observer for FSRS Widget
+    setInterval(() => {
+        if (!document.getElementById('algo-fsrs-container') && document.body) createUI();
         if (window.location.href !== lastCheckedUrl) {
             lastCheckedUrl = window.location.href;
-            
             setTimeout(() => {
                 const tagsEl = document.getElementById('fsrs-current-tags');
                 if (tagsEl) tagsEl.innerText = getAutoTags().join(', ');
@@ -25,7 +42,201 @@ chrome.storage.local.get(['fsrsCards'], (result) => {
             }, 800); 
         }
     }, 500);
+
+    // SPA Observer for Highlighter (DOM Hydration safe)
+    const domObserver = new MutationObserver(() => {
+        clearTimeout(highlightDebounceTimer);
+        highlightDebounceTimer = setTimeout(applyHighlightsForCurrentPage, 300);
+    });
+    domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
 });
+
+// NEW: Listen for SPA URL changes directly from Background script
+chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === "spa_url_changed") {
+        setTimeout(applyHighlightsForCurrentPage, 500);
+    }
+});
+
+// --- HIGHLIGHTER CORE LOGIC ---
+
+function createHighlighterUI() {
+    if (document.getElementById('algo-highlight-tooltip')) return;
+
+    const tooltip = document.createElement('div');
+    tooltip.id = 'algo-highlight-tooltip';
+    document.body.appendChild(tooltip);
+
+    // Handle Text Selection
+    document.addEventListener('mouseup', (e) => {
+        if (!chromeSettings.showMarkerPopup) return;
+        if (e.target.closest('#algo-highlight-tooltip') || e.target.closest('#algo-fsrs-container')) return;
+
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
+            tooltip.style.display = 'none';
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+
+        renderTooltipColors();
+        tooltip.style.display = 'flex';
+        tooltip.style.left = `${rect.left + (rect.width / 2) + window.scrollX}px`;
+        tooltip.style.top = `${rect.top + window.scrollY - 5}px`;
+    });
+}
+
+function renderTooltipColors() {
+    const tooltip = document.getElementById('algo-highlight-tooltip');
+    tooltip.innerHTML = '';
+
+    chromeSettings.recentColors.forEach(color => {
+        const swatch = document.createElement('div');
+        swatch.className = 'algo-color-swatch';
+        swatch.style.backgroundColor = color;
+        swatch.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Keep selection
+            saveHighlight(color);
+        });
+        tooltip.appendChild(swatch);
+    });
+
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.id = 'algo-color-picker';
+    picker.value = chromeSettings.defaultHighlightColor;
+    picker.addEventListener('input', (e) => {
+        const newColor = e.target.value;
+        saveHighlight(newColor);
+        updateRecentColors(newColor);
+    });
+    tooltip.appendChild(picker);
+}
+
+function updateRecentColors(newColor) {
+    chromeSettings.defaultHighlightColor = newColor;
+    chromeSettings.recentColors = [newColor, ...chromeSettings.recentColors.filter(c => c !== newColor)].slice(0, 4);
+    chrome.storage.local.set({ chromeSettings });
+}
+
+// Generates the strict Schema metadata requested
+function getDOMMeta(node, offset) {
+    const parent = node.parentNode;
+    return {
+        parentTagName: parent.tagName.toLowerCase(),
+        parentIndex: Array.from(parent.childNodes).indexOf(node),
+        textOffset: offset
+    };
+}
+
+function saveHighlight(color) {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return;
+
+    const range = selection.getRangeAt(0);
+    const cleanUrl = window.location.href.split('#')[0]; // Ignore anchor links
+
+    const highlightSource = {
+        startMeta: getDOMMeta(range.startContainer, range.startOffset),
+        endMeta: getDOMMeta(range.endContainer, range.endOffset)
+    };
+
+    const newMark = {
+        createdAt: new Date().getTime(),
+        url: cleanUrl,
+        text: selection.toString(),
+        color: color,
+        highlightSource: highlightSource
+    };
+
+    marks.push(newMark);
+    
+    // Save Contextual Metadata
+    if (!bookmarks.find(b => b.url === cleanUrl)) {
+        bookmarks.push({ url: cleanUrl, title: document.title, meta: { favIconUrl: 'https://algo.monster/favicon.ico' } });
+    }
+    pagecontents = pagecontents.filter(p => p.url !== cleanUrl); // Update latest size
+    pagecontents.push({ url: cleanUrl, description: document.body.innerText.substring(0, 100), length: document.body.innerText.length });
+
+    chrome.storage.local.set({ marks, bookmarks, pagecontents });
+    
+    document.getElementById('algo-highlight-tooltip').style.display = 'none';
+    selection.removeAllRanges();
+    applyHighlightsForCurrentPage();
+}
+
+// Dynamically creates CSS rules for the Custom Highlight API
+function ensureHighlightStyle(color) {
+    const colorName = `algo-hl-${color.replace('#', '')}`;
+    if (!activeHighlightStyles.has(colorName)) {
+        const style = document.createElement('style');
+        style.textContent = `::highlight(${colorName}) { background-color: ${color}; color: inherit; }`;
+        document.head.appendChild(style);
+        activeHighlightStyles.add(colorName);
+    }
+    return colorName;
+}
+
+// Safely reconstructs a Range object from Schema metadata
+function restoreRangeFromMeta(highlightSource) {
+    try {
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+        let startNode = null;
+        let endNode = null;
+        let node;
+
+        while ((node = walker.nextNode())) {
+            const parent = node.parentNode;
+            const parentTagName = parent.tagName.toLowerCase();
+            const parentIndex = Array.from(parent.childNodes).indexOf(node);
+
+            if (!startNode && parentTagName === highlightSource.startMeta.parentTagName && parentIndex === highlightSource.startMeta.parentIndex) {
+                startNode = node;
+            }
+            if (!endNode && parentTagName === highlightSource.endMeta.parentTagName && parentIndex === highlightSource.endMeta.parentIndex) {
+                endNode = node;
+            }
+            if (startNode && endNode) break;
+        }
+
+        if (startNode && endNode) {
+            const range = document.createRange();
+            range.setStart(startNode, highlightSource.startMeta.textOffset);
+            range.setEnd(endNode, highlightSource.endMeta.textOffset);
+            return range;
+        }
+    } catch (e) {
+        // Silent fail if DOM hydrated differently and nodes disappeared
+    }
+    return null;
+}
+
+// Uses CSS.highlights API (Zero DOM manipulation = React/Vue safe)
+function applyHighlightsForCurrentPage() {
+    if (!('highlights' in CSS)) return; // Fallback for unsupported browsers
+    
+    const cleanUrl = window.location.href.split('#')[0];
+    const pageMarks = marks.filter(m => m.url === cleanUrl);
+    
+    CSS.highlights.clear();
+    const highlightsByColor = {};
+
+    pageMarks.forEach(mark => {
+        const range = restoreRangeFromMeta(mark.highlightSource);
+        if (range) {
+            const colorName = ensureHighlightStyle(mark.color);
+            if (!highlightsByColor[colorName]) highlightsByColor[colorName] = [];
+            highlightsByColor[colorName].push(range);
+        }
+    });
+
+    for (const [colorName, ranges] of Object.entries(highlightsByColor)) {
+        const highlightObj = new Highlight(...ranges);
+        CSS.highlights.set(colorName, highlightObj);
+    }
+}
 
 function saveCards() {
     chrome.storage.local.set({ fsrsCards: cards });

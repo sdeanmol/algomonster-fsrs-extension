@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "AlgoMonster FSRS Pro",
-  "version": "2.0",
-  "description": "FSRS spaced repetition with Auto-tagging, Heatmap Dashboard, and Notifications.",
+  "version": "3.0",
+  "description": "FSRS spaced repetition & SPA-safe Text Highlighter with DOM serialization.",
   "permissions": [
     "storage",
     "activeTab",
     "notifications",
     "alarms",
-    "downloads"
+    "downloads",
+    "webNavigation"
   ],
   "host_permissions": [
     "*://*.algo.monster/*"
@@ -18,16 +19,9 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "*://*.algo.monster/*"
-      ],
-      "js": [
-        "fsrs.js",
-        "content.js"
-      ],
-      "css": [
-        "style.css"
-      ]
+      "matches": ["*://*.algo.monster/*"],
+      "js": ["fsrs.js", "content.js"],
+      "css": ["style.css"]
     }
   ],
   "action": {
