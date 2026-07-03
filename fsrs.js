@@ -58,7 +58,7 @@ class FSRS {
         }
 
         newCard.reps += 1;
-        const intervalModifier = 9 * Math.pow(1 / this.requestRetention - 1, 1 / this.decay);
+        const intervalModifier = 9 * (Math.pow(this.requestRetention, 1 / this.decay) - 1);
         let rawInterval = newCard.stability * intervalModifier;
         
         newCard.scheduled_days = this.applyFuzz(rawInterval);
