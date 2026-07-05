@@ -200,7 +200,7 @@ function renderHeatmap() {
             else cell.classList.add('level-4');
 
             cell.addEventListener('click', () => {
-                chrome.tabs.create({ url: `data.html?view=history&date=${dateString}` });
+                chrome.tabs.create({ url: `pages/data/data.html?view=history&date=${dateString}` });
             });
         }
 

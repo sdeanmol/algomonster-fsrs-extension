@@ -55,13 +55,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- UPDATED PATHS FOR FOLDER RESTRUCTURE ---
-    document.getElementById('history-btn')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/history.html' }));
-    document.getElementById('open-heatmap-tab-btn')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/heatmap.html' }));
-    document.getElementById('box-total')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/data.html?view=total' }));
-    document.getElementById('box-due')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/data.html?view=due' }));
-    document.getElementById('box-retention')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/data.html?view=retention' }));
-    document.getElementById('manage-highlights-btn')?.addEventListener('click', () => chrome.tabs.create({ url: '../pages/highlights.html' }));
+    // --- ABSOLUTE PATHS FOR PAGES ---
+    document.getElementById('history-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/history/history.html') }));
+    document.getElementById('open-heatmap-tab-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/heatmap/heatmap.html') }));
+    document.getElementById('box-total')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/data/data.html?view=total') }));
+    document.getElementById('box-due')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/data/data.html?view=due') }));
+    document.getElementById('box-retention')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/data/data.html?view=retention') }));
+    document.getElementById('manage-highlights-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/highlights/highlights.html') }));
     // ---------------------------------------------
 
     const toggleLifetimeBtn = document.getElementById('toggle-lifetime-btn');

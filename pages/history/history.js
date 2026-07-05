@@ -45,7 +45,7 @@ function getMostRecentMonth(year) {
 
 function openDataTab(dateRange, event) {
     if (event) event.stopPropagation(); 
-    chrome.tabs.create({ url: `data.html?view=history&date=${dateRange}` });
+    chrome.tabs.create({ url: `pages/data/data.html?view=history&date=${dateRange}` });
 }
 
 function renderView() {
