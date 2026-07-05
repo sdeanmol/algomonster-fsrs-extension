@@ -4,7 +4,7 @@ let cards = [];
 let lastCheckedUrl = window.location.href;
 let topicWeights = {};
 
-// --- NEW: Highlighter State ---
+// --- Highlighter State ---
 let marks = [];
 let bookmarks = [];
 let pagecontents = [];
@@ -25,7 +25,6 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
     if (result.fsrsCards) cards = result.fsrsCards;
     if (result.fsrsTopicWeights) topicWeights = result.fsrsTopicWeights;
     
-    // Load Highlighter Data
     if (result.marks) marks = result.marks;
     if (result.bookmarks) bookmarks = result.bookmarks;
     if (result.pagecontents) pagecontents = result.pagecontents;
@@ -35,32 +34,56 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
     createHighlighterUI();
     applyHighlightsForCurrentPage();
     
-    // SPA Observer for FSRS Widget
-    setInterval(() => {
-        if (!document.getElementById('algo-fsrs-container') && document.body) createUI();
-        if (window.location.href !== lastCheckedUrl) {
-            lastCheckedUrl = window.location.href;
-            setTimeout(() => {
-                const tagsEl = document.getElementById('fsrs-current-tags');
-                if (tagsEl) tagsEl.innerText = getAutoTags().join(', ');
-                refreshWidgetState();
-            }, 800); 
+    // 1. NEW: Hyper-Responsive Click Listener
+    // Instantly intercepts any click on a link or button to force an immediate widget refresh
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('a, button, [role="button"]')) {
+            // Fire immediately to catch fast SPA transitions
+            setTimeout(triggerAggressiveUIUpdate, 50);
+            // Fire again shortly after in case the SPA had to fetch data over the network
+            setTimeout(triggerAggressiveUIUpdate, 400); 
         }
-    }, 500);
+    });
 
-    // SPA Observer for Highlighter (DOM Hydration safe)
+    // 2. Hydration Observer (Updates FSRS UI if the URL secretly changed via scroll)
     const domObserver = new MutationObserver(() => {
         clearTimeout(highlightDebounceTimer);
-        highlightDebounceTimer = setTimeout(applyHighlightsForCurrentPage, 300);
+        highlightDebounceTimer = setTimeout(() => {
+            applyHighlightsForCurrentPage();
+            // If the URL changed without a click, force an update
+            if (window.location.href !== lastCheckedUrl) {
+                triggerAggressiveUIUpdate();
+            }
+        }, 100);
     });
     domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
 });
 
+// 3. Listen for SPA URL changes directly from Chrome Background script
 chrome.runtime.onMessage.addListener((request) => {
     if (request.action === "spa_url_changed") {
-        setTimeout(applyHighlightsForCurrentPage, 500);
+        setTimeout(triggerAggressiveUIUpdate, 50);
     }
 });
+
+// NEW: Centralized function to instantly refresh the widget content without destroying it
+function triggerAggressiveUIUpdate() {
+    lastCheckedUrl = window.location.href;
+    
+    if (!document.getElementById('algo-fsrs-container') && document.body) {
+        createUI(); // Inject if the SPA accidentally destroyed it
+    } else {
+        // Instantly update the contents of the existing widget
+        const tagsEl = document.getElementById('fsrs-current-tags');
+        if (tagsEl && typeof getAutoTags === 'function') {
+            tagsEl.innerText = getAutoTags().join(', ');
+        }
+        if (typeof refreshWidgetState === 'function') {
+            refreshWidgetState();
+        }
+    }
+    applyHighlightsForCurrentPage();
+}
 
 // --- HIGHLIGHTER CORE LOGIC ---
 
@@ -458,58 +481,84 @@ function refreshWidgetState() {
 function createUI() {
     if (document.getElementById('algo-fsrs-container')) return;
 
+    // 1. CREATE LAUNCHER
     const launcher = document.createElement('div');
     launcher.id = 'algo-fsrs-launcher';
     launcher.innerText = '🧠'; 
     document.body.appendChild(launcher);
 
+    // 2. CREATE WIDGET CONTAINER
     const container = document.createElement('div');
     container.id = 'algo-fsrs-container';
     container.style.display = 'none'; 
     
     container.innerHTML = `
         <div id="fsrs-header">
-            <span>FSRS Tracker</span>
+            <div class="fsrs-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                <span>FSRS Tracker</span>
+            </div>
             <div class="fsrs-controls">
-                <button id="fsrs-min-btn" title="Minimize">_</button>
-                <button id="fsrs-close-btn" title="Close">X</button>
+                <button id="fsrs-min-btn" class="fsrs-icon-btn" title="Minimize">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+                <button id="fsrs-close-btn" class="fsrs-icon-btn" title="Close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
             </div>
         </div>
+        
         <div id="fsrs-body">
-            <div style="font-size: 11px; color: #888; margin-bottom: 8px;">🏷️ <span id="fsrs-current-tags">${getAutoTags().join(', ')}</span></div>
-            
-            <label style="display:flex; justify-content:space-between; align-items:flex-end;">
-                Your Approach:
-                <button id="fsrs-update-text-btn" style="display:none; padding: 3px 8px; font-size: 10px; background: #555; color: white; border: none; border-radius: 3px; cursor: pointer;">Save Edit Only</button>
-            </label>
-            <textarea id="fsrs-approach" placeholder="How did you solve this?" style="height: 80px;"></textarea>
-            
-            <p id="fsrs-action-label" style="margin: 10px 0 5px 0; font-size: 12px; font-weight: bold; text-align: center;">Save & Rate Initial Difficulty:</p>
-            <div class="fsrs-rating-buttons" id="fsrs-save-ratings">
-                <button data-rating="1" style="background:#e74c3c;">Again</button>
-                <button data-rating="2" style="background:#e67e22;">Hard</button>
-                <button data-rating="3" style="background:#2ecc71;">Good</button>
-                <button data-rating="4" style="background:#3498db;">Easy</button>
+            <div class="fsrs-tags-container">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                <span id="fsrs-current-tags">${getAutoTags().join(', ')}</span>
             </div>
+            
+            <div class="fsrs-approach-header">
+                <label>Your Approach:</label>
+                <button id="fsrs-update-text-btn" class="fsrs-secondary-btn" style="display:none;" title="Save edits without reviewing">💾 Save Edit</button>
+            </div>
+            <textarea id="fsrs-approach" class="fsrs-textarea" placeholder="How did you solve this pattern? Jot down your key insights..."></textarea>
+            
+            <div class="fsrs-rating-section">
+                <p id="fsrs-action-label" class="fsrs-rating-label">Save & Rate Initial Difficulty:</p>
+                <div class="fsrs-rating-buttons" id="fsrs-save-ratings">
+                    <button data-rating="1" class="fsrs-btn-again" title="Hard to remember (Shortcut: 1)">Again</button>
+                    <button data-rating="2" class="fsrs-btn-hard" title="Remembered with effort (Shortcut: 2)">Hard</button>
+                    <button data-rating="3" class="fsrs-btn-good" title="Remembered easily (Shortcut: 3)">Good</button>
+                    <button data-rating="4" class="fsrs-btn-easy" title="Too easy (Shortcut: 4)">Easy</button>
+                </div>
+            </div>
+            
             <hr id="fsrs-divider">
-            <button id="fsrs-review-btn" class="fsrs-primary-btn">Review Due Cards (${getDueCards().length})</button>
+            <button id="fsrs-review-btn" class="fsrs-primary-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                Review Due Cards (${getDueCards().length})
+            </button>
         </div>
         <div id="fsrs-review-ui" style="display:none;"></div>
     `;
+    
     document.body.appendChild(container);
 
-    // Open widget and refresh state
-    launcher.addEventListener('click', () => { 
-        launcher.style.display = 'none'; 
-        container.style.display = 'flex'; 
-        document.getElementById('fsrs-current-tags').innerText = getAutoTags().join(', ');
+    // 3. WIDGET TOGGLE CONTROLS
+    launcher.addEventListener('click', () => {
+        launcher.style.display = 'none';
+        container.style.display = 'block';
         refreshWidgetState();
     });
-    
-    document.getElementById('fsrs-min-btn').addEventListener('click', () => { container.style.display = 'none'; launcher.style.display = 'flex'; });
-    document.getElementById('fsrs-close-btn').addEventListener('click', () => { container.style.display = 'none'; launcher.style.display = 'none'; });
 
-    // Handle saving an edit WITHOUT logging a review
+    document.getElementById('fsrs-min-btn').addEventListener('click', () => { 
+        container.style.display = 'none'; 
+        launcher.style.display = 'flex'; 
+    });
+    
+    document.getElementById('fsrs-close-btn').addEventListener('click', () => { 
+        container.style.display = 'none'; 
+        launcher.style.display = 'none'; 
+    });
+
+    // 4. FSRS APP LOGIC LISTENERS
     document.getElementById('fsrs-update-text-btn').addEventListener('click', (e) => {
         const existingId = document.getElementById('fsrs-save-ratings').getAttribute('data-existing-id');
         if (existingId) {
@@ -529,7 +578,6 @@ function createUI() {
         }
     });
 
-    // Handle Create OR Review Existing Page
     document.getElementById('fsrs-save-ratings').querySelectorAll('button').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const approach = document.getElementById('fsrs-approach').value;
@@ -541,25 +589,23 @@ function createUI() {
             const problemTitle = document.title.replace(' - AlgoMonster', '').trim();
 
             if (existingId) {
-                // Update text and force an early review
                 const index = cards.findIndex(c => c.id === existingId);
                 if (index > -1) {
                     cards[index].approach = approach;
                     cards[index] = fsrs.reviewCard(cards[index], rating);
-                    cards[index].lastRating = rating; // NEW: Save last rating
+                    cards[index].lastRating = rating; 
                 }
             } else {
-                // Create a completely new card
                 let newCard = fsrs.createCard(problemTitle, cleanUrl, "", approach, getAutoTags());
                 newCard = fsrs.reviewCard(newCard, rating);
-                newCard.lastRating = rating; // NEW: Save last rating
+                newCard.lastRating = rating; 
                 cards.push(newCard);
             }
 
             saveCards();
             logReviewActivity(); 
             updateReviewCount();
-            refreshWidgetState(); // Immediately update the UI highlights
+            refreshWidgetState(); 
             
             const originalText = e.target.innerText;
             e.target.innerText = "Saved ✓";

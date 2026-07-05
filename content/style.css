@@ -204,3 +204,169 @@
 .algo-delete-btn:hover {
     transform: scale(1.2);
 }
+
+/* Enhanced FSRS Widget Styles */
+#fsrs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #252526;
+    padding: 10px 14px;
+    border-bottom: 1px solid #333;
+    border-radius: 8px 8px 0 0;
+    
+    /* NEW ADDITIONS FOR DRAGGING */
+    cursor: grab;
+    user-select: none; 
+}
+
+/* Add this right below it to change the cursor when actively dragging */
+#fsrs-header:active {
+    cursor: grabbing;
+}
+
+.fsrs-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #e0e0e0;
+}
+.fsrs-controls {
+    display: flex;
+    gap: 4px;
+}
+.fsrs-icon-btn {
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+.fsrs-icon-btn:hover {
+    background: #333;
+    color: #fff;
+}
+
+#fsrs-body {
+    padding: 14px;
+}
+.fsrs-tags-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 12px;
+    background: #1e1e1e;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+.fsrs-approach-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #bbb;
+}
+.fsrs-textarea {
+    width: 100%;
+    height: 85px;
+    background-color: #1e1e1e;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 10px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    resize: vertical;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.fsrs-textarea:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.fsrs-secondary-btn {
+    background-color: #2d2d2d;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 4px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.fsrs-secondary-btn:hover {
+    background-color: #444;
+    border-color: #888;
+}
+
+.fsrs-rating-section {
+    margin-top: 16px;
+}
+.fsrs-rating-label {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    color: #e0e0e0;
+}
+.fsrs-rating-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+.fsrs-rating-buttons button {
+    border: none;
+    padding: 8px 0;
+    border-radius: 6px;
+    color: white;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: transform 0.1s, filter 0.2s;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.fsrs-rating-buttons button:active { transform: scale(0.95); }
+.fsrs-rating-buttons button:hover { filter: brightness(1.15); }
+.fsrs-btn-again { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+.fsrs-btn-hard { background: linear-gradient(135deg, #e67e22, #d35400); }
+.fsrs-btn-good { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+.fsrs-btn-easy { background: linear-gradient(135deg, #3498db, #2980b9); }
+
+#fsrs-divider {
+    border: 0;
+    height: 1px;
+    background: #333;
+    margin: 16px 0;
+}
+
+.fsrs-primary-btn {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.fsrs-primary-btn:hover {
+    background-color: #2980b9;
+}
