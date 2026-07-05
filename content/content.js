@@ -598,7 +598,6 @@ function createUI() {
 
             saveCards();
             logReviewActivity(); 
-            updateReviewCount();
             refreshWidgetState(); 
             
             const originalText = e.target.innerText;
@@ -606,18 +605,11 @@ function createUI() {
             setTimeout(() => e.target.innerText = originalText, 1500);
         });
     });
-
-    document.getElementById('fsrs-review-btn').addEventListener('click', startReview);
 }
 
 function getDueCards() {
     const now = new Date().getTime();
     return cards.filter(c => c.due <= now).sort((a, b) => a.due - b.due);
-}
-
-function updateReviewCount() {
-    const btn = document.getElementById('fsrs-review-btn');
-    if (btn) btn.innerText = `Review Due Cards (${getDueCards().length})`;
 }
 
 function startReview() {
@@ -694,7 +686,6 @@ function startReview() {
 
             reviewUi.style.display = 'none';
             document.getElementById('fsrs-body').style.display = 'block';
-            updateReviewCount();
             if (getDueCards().length > 0) startReview();
             else refreshWidgetState(); // Reset UI cleanly when deck is finished
         });
