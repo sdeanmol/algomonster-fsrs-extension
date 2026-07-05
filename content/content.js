@@ -529,12 +529,6 @@ function createUI() {
                     <button data-rating="4" class="fsrs-btn-easy" title="Too easy (Shortcut: 4)">Easy</button>
                 </div>
             </div>
-            
-            <hr id="fsrs-divider">
-            <button id="fsrs-review-btn" class="fsrs-primary-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                Review Due Cards (${getDueCards().length})
-            </button>
         </div>
         <div id="fsrs-review-ui" style="display:none;"></div>
     `;
