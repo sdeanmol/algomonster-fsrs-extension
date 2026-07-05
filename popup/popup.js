@@ -62,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('box-due')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/data/data.html?view=due') }));
     document.getElementById('box-retention')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/data/data.html?view=retention') }));
     document.getElementById('manage-highlights-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/highlights/highlights.html') }));
+    // --- COLOR CUSTOMIZATION ---
+    document.getElementById('open-options-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/highlightOptions/highlightOptions.html') }));
     // ---------------------------------------------
 
     const toggleLifetimeBtn = document.getElementById('toggle-lifetime-btn');

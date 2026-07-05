@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Highlighter Settings</title>
+    <link rel="stylesheet" href="highlightOptions.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>🖍️ Highlighter Appearance</h2>
+            <p>Customize the colors that appear in your floating popup.</p>
+        </div>
+
+        <div class="panel">
+            <div class="settings-group">
+                <label>Default Highlight Color</label>
+                <div class="color-row">
+                    <input type="color" id="default-color" class="color-picker">
+                    <span class="color-hex" id="default-hex"></span>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <div class="settings-group">
+                <label>Popup Palette Colors (4 Slots)</label>
+                <div class="palette-grid">
+                    <div class="color-row">
+                        <input type="color" id="color-1" class="color-picker">
+                    </div>
+                    <div class="color-row">
+                        <input type="color" id="color-2" class="color-picker">
+                    </div>
+                    <div class="color-row">
+                        <input type="color" id="color-3" class="color-picker">
+                    </div>
+                    <div class="color-row">
+                        <input type="color" id="color-4" class="color-picker">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button id="reset-btn" class="btn btn-secondary">Reset to Defaults</button>
+            <button id="save-btn" class="btn btn-primary">Save Colors</button>
+        </div>
+
+        <div id="status-toast" class="toast">Settings saved successfully!</div>
+    </div>
+
+    <script src="highlightOptions.js"></script>
+</body>
+</html>

@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>AlgoMonster FSRS Dashboard</title>
     <link rel="stylesheet" href="popup.css">
 </head>
+
 <body>
     <!-- Header -->
     <div class="header">
@@ -47,7 +49,7 @@
         <div class="panel-header">
             <span class="panel-title highlight-title">🖍️ Highlighter Settings</span>
         </div>
-        
+
         <label class="toggle-row">
             <span class="toggle-label">Floating Marker Menu</span>
             <div class="toggle-switch">
@@ -55,7 +57,10 @@
                 <span class="slider"></span>
             </div>
         </label>
-        
+
+        <button id="open-options-btn" class="btn btn-secondary w-full" style="margin-bottom: 8px;">🎨 Customize
+            Colors</button>
+
         <button id="manage-highlights-btn" class="btn btn-primary w-full">View All Highlights</button>
     </div>
 
@@ -65,7 +70,7 @@
             <span class="panel-title">⚙️ Data & Options</span>
             <button id="toggle-settings-btn" class="icon-btn">Advanced ⚙️</button>
         </div>
-        
+
         <div class="action-grid">
             <button id="export-btn" class="btn btn-secondary">💾 Export Backup</button>
             <label class="btn btn-secondary import-btn">
@@ -82,7 +87,7 @@
                 <input type="text" id="weight-values" class="input-field" placeholder="17 comma-separated values">
                 <button id="save-weights-btn" class="btn btn-accent w-full">Save Array</button>
             </div>
-            
+
             <div class="saved-weights">
                 <div class="saved-weights-title">Active Profiles:</div>
                 <ul id="active-weights-list"></ul>
@@ -95,4 +100,5 @@
 
     <script src="popup.js"></script>
 </body>
+
 </html>
