@@ -1,170 +1,287 @@
+/* Global Reset & Base Theme */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 body {
-    width: 320px;
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #1e1e1e;
-    color: #fff;
+    width: 340px; /* Wider canvas for a better layout */
+    background-color: #121212;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 16px;
 }
 
+/* Header */
 .header {
-    background: #4CAF50;
-    padding: 15px;
     text-align: center;
+    margin-bottom: 16px;
 }
-
 .header h2 {
-    margin: 0;
     font-size: 18px;
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
-.stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px;
-    padding: 15px;
-}
-
-.stat-box {
-    background: #2d2d2d;
-    padding: 15px 5px;
+/* Panels (Cards) */
+.panel {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
     border-radius: 8px;
-    text-align: center;
-    border: 1px solid #444;
+    padding: 14px;
+    margin-bottom: 12px;
 }
-
-.stat-value {
-    font-size: 20px;
-    font-weight: bold;
-    color: #4CAF50;
-    margin-bottom: 5px;
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
 }
-
-.stat-label {
-    font-size: 11px;
+.panel-title {
+    font-size: 13px;
+    font-weight: 600;
     color: #bbb;
 }
+.highlight-title {
+    color: #f1c40f;
+}
 
-.action-buttons {
-    padding: 0 15px 20px 15px;
-    display: flex;
-    flex-direction: column;
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
+    margin-bottom: 12px;
 }
-
-.btn {
-    width: 100%;
-    padding: 10px;
-    background: #3498db;
-    color: white;
-    border: none;
-    border-radius: 4px;
+.stat-box {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px 8px;
+    text-align: center;
     cursor: pointer;
-    font-weight: bold;
-    text-align: center;
-    box-sizing: border-box;
+    transition: transform 0.2s, background-color 0.2s, border-color 0.2s;
+}
+.stat-box:hover {
+    transform: translateY(-2px);
+    background-color: #252525;
+    border-color: #555;
+}
+.stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #3498db;
+    margin-bottom: 4px;
+}
+.stat-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.stat-box.warning .stat-value {
+    color: #e74c3c;
 }
 
-.btn-small {
-    width: auto;
-    padding: 4px 8px;
-    font-size: 10px;
+/* Heatmap Section */
+.heatmap-wrapper {
+    overflow-x: auto;
+    padding-bottom: 6px;
 }
-
-.btn:hover {
-    background: #2980b9;
-}
-
-.btn-secondary {
-    background: #555;
-}
-
-.btn-secondary:hover {
-    background: #444;
-}
-
-#status-msg {
-    text-align: center;
-    font-size: 12px;
-    color: #2ecc71;
-    min-height: 15px;
-}
-
-.heatmap-container {
-    padding: 0 15px 15px 15px;
-}
+.heatmap-wrapper::-webkit-scrollbar { height: 6px; }
+.heatmap-wrapper::-webkit-scrollbar-track { background: #121212; border-radius: 3px; }
+.heatmap-wrapper::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
 
 .heatmap {
     display: grid;
     grid-template-rows: repeat(7, 10px);
     grid-auto-flow: column;
     gap: 3px;
-    margin-bottom: 8px;
-    overflow-x: auto;
-    padding-bottom: 8px;
+    min-width: min-content;
 }
-
-.heatmap::-webkit-scrollbar {
-    height: 6px;
-}
-
-.heatmap::-webkit-scrollbar-track {
-    background: #1e1e1e;
-    border-radius: 4px;
-}
-
-.heatmap::-webkit-scrollbar-thumb {
-    background: #444;
-    border-radius: 4px;
-}
-
 .heatmap-cell {
     width: 10px;
     height: 10px;
     border-radius: 2px;
 }
+.level-0 { background-color: #2d2d2d; }
+.level-1 { background-color: #0e4429; }
+.level-2 { background-color: #006d32; }
+.level-3 { background-color: #26a641; }
+.level-4 { background-color: #39d353; }
 
-.level-0 {
-    background-color: #2d2d2d;
-}
-
-.level-1 {
-    background-color: #0e4429;
-}
-
-.level-2 {
-    background-color: #006d32;
-}
-
-.level-3 {
-    background-color: #26a641;
-}
-
-.level-4 {
-    background-color: #39d353;
-}
-
-.heatmap-legend {
+.panel-actions {
     display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 10px;
-    color: #888;
-    justify-content: flex-end;
+    justify-content: space-between;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #333;
 }
 
-.legend-box {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-}
-
-/* Add to bottom of popup.css */
-.stat-box.clickable {
+/* Buttons */
+.btn {
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
+    border: none;
+    transition: background 0.2s, transform 0.1s;
+    text-align: center;
 }
-.stat-box.clickable:hover {
-    background: #3a3a3a;
-    border-color: #4CAF50;
+.btn:active { transform: scale(0.98); }
+.w-full { width: 100%; display: block; }
+
+.btn-primary {
+    background-color: #f1c40f;
+    color: #121212;
+}
+.btn-primary:hover { background-color: #f39c12; }
+
+.btn-secondary {
+    background-color: #2d2d2d;
+    color: #fff;
+    border: 1px solid #444;
+}
+.btn-secondary:hover { background-color: #3d3d3d; border-color: #555; }
+
+.btn-accent {
+    background-color: #3498db;
+    color: white;
+}
+.btn-accent:hover { background-color: #2980b9; }
+
+.icon-btn, .btn-text {
+    background: none;
+    border: none;
+    color: #3498db;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px;
+}
+.icon-btn:hover, .btn-text:hover {
+    color: #5dade2;
+    text-decoration: underline;
+}
+
+/* Action Grid (Export/Import) */
+.action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.import-btn {
+    margin: 0;
+    line-height: normal; /* Fixes label vertical alignment */
+}
+
+/* Toggle Switch (Apple Style) */
+.toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    cursor: pointer;
+}
+.toggle-label {
+    font-size: 13px;
+    color: #e0e0e0;
+}
+.toggle-switch {
+    position: relative;
+    width: 40px;
+    height: 22px;
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #444;
+    transition: .3s;
+    border-radius: 22px;
+}
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+input:checked + .slider {
+    background-color: #2ecc71;
+}
+input:checked + .slider:before {
+    transform: translateX(18px);
+}
+
+/* Advanced Settings */
+.advanced-settings {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed #444;
+}
+.settings-subtitle {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 10px;
+}
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.input-field {
+    background-color: #121212;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    width: 100%;
+}
+.input-field:focus {
+    outline: none;
+    border-color: #3498db;
+}
+.saved-weights-title {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 8px;
+}
+#active-weights-list {
+    list-style: none;
+    font-size: 12px;
+    background: #121212;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+#active-weights-list li {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+#active-weights-list li:last-child {
+    margin-bottom: 0;
+}
+
+/* Status Message Toast */
+.status-message {
+    text-align: center;
+    font-size: 12px;
+    font-weight: bold;
+    min-height: 15px;
+    margin-top: 10px;
 }
