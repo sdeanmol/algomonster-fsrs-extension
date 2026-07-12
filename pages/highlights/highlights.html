@@ -12,15 +12,58 @@
                 <h1>🖍️ Highlighted Snippets</h1>
                 <p id="highlight-subtitle" class="subtitle">Loading highlights...</p>
             </div>
-            <div class="controls">
-                <button id="refresh-btn">🔄 Refresh</button>
+            <div class="header-actions">
+                <button id="refresh-btn" class="btn btn-secondary">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <!-- Search and Filters Panel -->
+        <div class="filters-panel">
+            <div class="search-box">
+                <input type="text" id="search-input" class="input-field" placeholder="🔍 Search in highlights or webpage titles...">
+            </div>
+
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label for="webpage-select">Source Page</label>
+                    <select id="webpage-select" class="input-field select-field">
+                        <option value="all">All Pages</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="sort-select">Sort By</label>
+                    <select id="sort-select" class="input-field select-field">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="longest">Longest Snippet</option>
+                        <option value="shortest">Shortest Snippet</option>
+                        <option value="title">Webpage Title (A-Z)</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Filter by Color</label>
+                    <div id="color-filters-container" class="color-filters">
+                        <!-- Dynamic color dots will go here -->
+                    </div>
+                </div>
+
+                <div class="filter-group reset-group">
+                    <button id="clear-filters-btn" class="btn btn-text" style="display: none;">❌ Clear Filters</button>
+                </div>
             </div>
         </div>
         
+        <!-- Highlights List -->
         <div id="highlights-container" class="highlights-list">
             <!-- Highlight cards will be injected here via JS -->
         </div>
     </div>
+
+    <!-- Status Toast for Clipboard Copy -->
+    <div id="status-toast" class="toast">Text copied to clipboard!</div>
+
     <script src="highlights.js"></script>
 </body>
 </html>
