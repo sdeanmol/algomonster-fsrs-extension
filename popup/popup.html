@@ -64,6 +64,51 @@
         <button id="manage-highlights-btn" class="btn btn-primary w-full">View All Highlights</button>
     </div>
 
+    <!-- Notification Settings Panel -->
+    <div class="panel">
+        <div class="panel-header">
+            <span class="panel-title" style="color: #e74c3c;">🔔 Notification Settings</span>
+        </div>
+
+        <label class="toggle-row">
+            <span class="toggle-label">Enable Review Reminders</span>
+            <div class="toggle-switch">
+                <input type="checkbox" id="toggle-notifications" checked>
+                <span class="slider"></span>
+            </div>
+        </label>
+
+        <div class="input-group" style="margin-bottom: 12px; display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
+            <span class="toggle-label" style="font-size: 13px;">Check Interval</span>
+            <select id="notification-interval" class="input-field" style="width: 150px; padding: 4px 8px; margin: 0; background-color: #2d2d2d; cursor: pointer;">
+                <option value="1">1 minute (Test/Dev)</option>
+                <option value="15">Every 15 minutes</option>
+                <option value="30">Every 30 minutes</option>
+                <option value="60" selected>Every hour</option>
+                <option value="120">Every 2 hours</option>
+                <option value="360">Every 6 hours</option>
+                <option value="720">Every 12 hours</option>
+                <option value="1440">Daily</option>
+                <option value="custom">Custom...</option>
+            </select>
+        </div>
+
+        <div id="custom-interval-container" class="input-group" style="display: none; margin-bottom: 12px; align-items: center; justify-content: space-between; flex-direction: row;">
+            <span class="toggle-label" style="font-size: 12px; color: #888;">Custom Minutes</span>
+            <input type="number" id="custom-interval-input" class="input-field" min="1" max="1440" placeholder="60" style="width: 80px; padding: 4px 8px; margin: 0; text-align: center;">
+        </div>
+
+        <label class="toggle-row">
+            <span class="toggle-label">Sticky Notification</span>
+            <div class="toggle-switch">
+                <input type="checkbox" id="toggle-sticky-notification" checked>
+                <span class="slider"></span>
+            </div>
+        </label>
+
+        <button id="test-notification-btn" class="btn btn-secondary w-full" style="margin-top: 8px;">🔔 Send Test Notification</button>
+    </div>
+
     <!-- Data & Settings Panel -->
     <div class="panel">
         <div class="panel-header">

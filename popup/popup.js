@@ -86,7 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     marks: result.marks || [],
                     bookmarks: result.bookmarks || [],
                     pagecontents: result.pagecontents || [],
-                    chromeSettings: result.chromeSettings || {}
+                    chromeSettings: result.chromeSettings || {},
+                    notificationSettings: result.notificationSettings || {}
                 };
                 const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -99,6 +100,96 @@ document.addEventListener('DOMContentLoaded', () => {
                 showStatus("Backup exported successfully!");
             });
         };
+    }
+
+    // --- Notification Settings DOM Handling ---
+    const notifToggle = document.getElementById('toggle-notifications');
+    const notifInterval = document.getElementById('notification-interval');
+    const customIntervalContainer = document.getElementById('custom-interval-container');
+    const customIntervalInput = document.getElementById('custom-interval-input');
+    const notifStickyToggle = document.getElementById('toggle-sticky-notification');
+    const testNotifBtn = document.getElementById('test-notification-btn');
+
+    function updateNotificationUI(settings) {
+        if (!notifToggle) return;
+        notifToggle.checked = settings.enabled !== false;
+        if (notifStickyToggle) {
+            notifStickyToggle.checked = settings.requireInteraction !== false;
+        }
+
+        const freqStr = settings.frequency || '60';
+        const standardOptions = ['1', '15', '30', '60', '120', '360', '720', '1440'];
+        if (notifInterval) {
+            if (standardOptions.includes(freqStr)) {
+                notifInterval.value = freqStr;
+                if (customIntervalContainer) customIntervalContainer.style.display = 'none';
+            } else {
+                notifInterval.value = 'custom';
+                if (customIntervalContainer) customIntervalContainer.style.display = 'flex';
+                if (customIntervalInput) customIntervalInput.value = freqStr;
+            }
+        }
+    }
+
+    if (notifToggle && notifInterval && customIntervalContainer && customIntervalInput && notifStickyToggle && testNotifBtn) {
+        chrome.storage.local.get(['notificationSettings'], (result) => {
+            const settings = result.notificationSettings || {
+                enabled: true,
+                frequency: '60',
+                priority: '2',
+                requireInteraction: true
+            };
+            updateNotificationUI(settings);
+        });
+
+        notifInterval.addEventListener('change', () => {
+            if (notifInterval.value === 'custom') {
+                customIntervalContainer.style.display = 'flex';
+                if (!customIntervalInput.value) {
+                    customIntervalInput.value = '60';
+                }
+            } else {
+                customIntervalContainer.style.display = 'none';
+            }
+            saveNotificationSettings();
+        });
+
+        notifToggle.addEventListener('change', saveNotificationSettings);
+        notifStickyToggle.addEventListener('change', saveNotificationSettings);
+        customIntervalInput.addEventListener('input', saveNotificationSettings);
+
+        testNotifBtn.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ action: 'test_notification' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Error sending test message:", chrome.runtime.lastError.message);
+                    showStatus("Error triggering notification.", true);
+                } else if (response && response.success) {
+                    showStatus("Test notification sent!");
+                } else {
+                    showStatus("Failed to send test notification.", true);
+                }
+            });
+        });
+
+        function saveNotificationSettings() {
+            chrome.storage.local.get(['notificationSettings'], (result) => {
+                const oldSettings = result.notificationSettings || { priority: '2' };
+                let frequency = notifInterval.value;
+                if (frequency === 'custom') {
+                    const customVal = parseInt(customIntervalInput.value, 10);
+                    frequency = (!isNaN(customVal) && customVal > 0) ? String(customVal) : '60';
+                }
+
+                const updatedSettings = {
+                    enabled: notifToggle.checked,
+                    frequency: frequency,
+                    priority: oldSettings.priority || '2',
+                    requireInteraction: notifStickyToggle.checked
+                };
+
+                chrome.storage.local.set({ notificationSettings: updatedSettings });
+            });
+        }
     }
 
     document.getElementById('import-file')?.addEventListener('change', (e) => {
@@ -120,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks;
                 if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
                 if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
+                if (imported.notificationSettings) storageUpdate.notificationSettings = imported.notificationSettings;
 
                 chrome.storage.local.set(storageUpdate, () => {
                     showStatus("Data imported successfully!");
@@ -128,6 +220,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     if (storageUpdate.chromeSettings && storageUpdate.chromeSettings.showMarkerPopup !== undefined && markerToggle) {
                         markerToggle.checked = storageUpdate.chromeSettings.showMarkerPopup;
+                    }
+                    if (storageUpdate.notificationSettings) {
+                        updateNotificationUI(storageUpdate.notificationSettings);
                     }
                     if (settingsPanel && settingsPanel.style.display === 'block') loadSavedWeights();
                 });

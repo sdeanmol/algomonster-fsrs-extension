@@ -1,9 +1,22 @@
-chrome.runtime.onInstalled.addListener(() => {
-    chrome.alarms.create('checkFsrsReviews', { periodInMinutes: 60 });
+chrome.runtime.onInstalled.addListener(async () => {
+    // Initialize default notification settings if they don't exist
+    const result = await chrome.storage.local.get(['notificationSettings']);
+    if (!result.notificationSettings) {
+        await chrome.storage.local.set({
+            notificationSettings: {
+                enabled: true,
+                frequency: '60',
+                priority: '2',
+                requireInteraction: true
+            }
+        });
+    }
+
+    await setupAlarm();
     
     chrome.notifications.create('test-install', {
         type: 'basic',
-        iconUrl: '../icons/icon.png', // Updated Path
+        iconUrl: '../icons/icon.png', // Relative path from service worker
         title: 'FSRS Tracker Active 🧠',
         message: 'Notifications are working! You will be alerted when reviews are due.',
         priority: 2
@@ -13,7 +26,7 @@ chrome.runtime.onInstalled.addListener(() => {
         }
     });
 
-    checkDueCards();
+    await checkDueCards();
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -28,29 +41,106 @@ chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
     }).catch(() => {});
 });
 
-function checkDueCards() {
-    chrome.storage.local.get(['fsrsCards'], (result) => {
-        if (!result.fsrsCards || result.fsrsCards.length === 0) return;
-        const now = new Date().getTime();
-        const dueCards = result.fsrsCards.filter(c => c.due <= now);
+async function setupAlarm() {
+    const result = await chrome.storage.local.get(['notificationSettings']);
+    const settings = result.notificationSettings || {
+        enabled: true,
+        frequency: '60',
+        priority: '2',
+        requireInteraction: true
+    };
 
-        if (dueCards.length > 0) {
-            chrome.notifications.clear('algo-review-notification', () => {
-                chrome.notifications.create('algo-review-notification', {
-                    type: 'basic',
-                    iconUrl: '../icons/icon.png', // Updated Path
-                    title: '🧠 AlgoMonster Reviews Due!',
-                    message: `You have ${dueCards.length} pattern(s) ready for review.`,
-                    priority: 2,
-                    requireInteraction: true 
-                }, (id) => {
-                    if (chrome.runtime.lastError) {
-                        console.error("Notification Error:", chrome.runtime.lastError.message);
-                    }
-                });
+    await chrome.alarms.clear('checkFsrsReviews');
+
+    if (settings.enabled) {
+        const interval = parseInt(settings.frequency, 10) || 60;
+        chrome.alarms.create('checkFsrsReviews', { periodInMinutes: interval });
+    }
+}
+
+// Watch for changes in settings to dynamically reschedule the alarm
+chrome.storage.onChanged.addListener(async (changes, areaName) => {
+    if (areaName === 'local' && changes.notificationSettings) {
+        await setupAlarm();
+    }
+});
+
+// Handle runtime messages (like test notification requests)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'test_notification') {
+        (async () => {
+            try {
+                await showTestNotification();
+                sendResponse({ success: true });
+            } catch (err) {
+                console.error(err);
+                sendResponse({ success: false, error: err.message });
+            }
+        })();
+        return true; // Keep message channel open for async response
+    }
+});
+
+async function showTestNotification() {
+    const result = await chrome.storage.local.get(['notificationSettings']);
+    const settings = result.notificationSettings || {
+        enabled: true,
+        frequency: '60',
+        priority: '2',
+        requireInteraction: true
+    };
+
+    return new Promise((resolve) => {
+        chrome.notifications.clear('algo-test-notification', () => {
+            chrome.notifications.create('algo-test-notification', {
+                type: 'basic',
+                iconUrl: '../icons/icon.png',
+                title: '🔔 Notification Test',
+                message: `This is a test. Reviews will check every ${settings.frequency} minutes.`,
+                priority: parseInt(settings.priority, 10) || 2,
+                requireInteraction: settings.requireInteraction !== false
+            }, (id) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Test Notification Error:", chrome.runtime.lastError.message);
+                }
+                resolve();
             });
-        }
+        });
     });
+}
+
+async function checkDueCards() {
+    const result = await chrome.storage.local.get(['fsrsCards', 'notificationSettings']);
+    const settings = result.notificationSettings || {
+        enabled: true,
+        frequency: '60',
+        priority: '2',
+        requireInteraction: true
+    };
+
+    // If notifications are disabled, do not notify
+    if (settings.enabled === false) return;
+
+    if (!result.fsrsCards || result.fsrsCards.length === 0) return;
+    const now = Date.now();
+    const dueCards = result.fsrsCards.filter(c => c.due <= now);
+
+    if (dueCards.length > 0) {
+        chrome.notifications.clear('algo-review-notification', () => {
+            chrome.notifications.create('algo-review-notification', {
+                type: 'basic',
+                iconUrl: '../icons/icon.png',
+                title: '🧠 AlgoMonster Reviews Due!',
+                message: `You have ${dueCards.length} pattern(s) ready for review.`,
+                priority: parseInt(settings.priority, 10) || 2,
+                requireInteraction: settings.requireInteraction !== false
+            }, (id) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Notification Error:", chrome.runtime.lastError.message);
+                }
+            });
+        });
+    }
 }
 
 chrome.notifications.onClicked.addListener((notificationId) => {
