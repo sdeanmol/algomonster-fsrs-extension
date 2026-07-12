@@ -80,6 +80,16 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
     domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
 });
 
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes.chromeSettings) {
+        chromeSettings = { ...chromeSettings, ...changes.chromeSettings.newValue };
+        if (!chromeSettings.showMarkerPopup) {
+            const tooltip = document.getElementById('algo-highlight-tooltip');
+            if (tooltip) tooltip.style.display = 'none';
+        }
+    }
+});
+
 // 3. Listen for SPA URL changes directly from Chrome Background script
 chrome.runtime.onMessage.addListener((request) => {
     if (request.action === "spa_url_changed") {
