@@ -1,45 +1,105 @@
+let allCards = [];
+let currentView = 'total';
+let targetDate = null;
+
+let searchQuery = '';
+let selectedTag = 'all';
+let selectedStatus = 'all';
+
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const view = urlParams.get('view') || 'total';
-    const targetDate = urlParams.get('date'); // Used for history views
+    currentView = urlParams.get('view') || 'total';
+    targetDate = urlParams.get('date');
 
     chrome.storage.local.get(['fsrsCards'], (result) => {
-        const cards = result.fsrsCards || [];
-        renderView(view, cards, targetDate);
+        allCards = result.fsrsCards || [];
+        
+        // Dynamic Filter Populators
+        populateTagsFilter();
+        
+        // Listeners
+        const searchInput = document.getElementById('search-input');
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value.trim();
+            filterAndRender();
+        });
+
+        const tagSelect = document.getElementById('tag-select');
+        tagSelect.addEventListener('change', (e) => {
+            selectedTag = e.target.value;
+            filterAndRender();
+        });
+
+        const statusSelect = document.getElementById('status-select');
+        statusSelect.addEventListener('change', (e) => {
+            selectedStatus = e.target.value;
+            filterAndRender();
+        });
+
+        const clearBtn = document.getElementById('clear-filters-btn');
+        clearBtn.addEventListener('click', () => {
+            searchQuery = '';
+            selectedTag = 'all';
+            selectedStatus = 'all';
+
+            searchInput.value = '';
+            tagSelect.value = 'all';
+            statusSelect.value = 'all';
+
+            filterAndRender();
+        });
+
+        filterAndRender();
     });
 });
 
-function renderView(view, cards, targetDate) {
+function populateTagsFilter() {
+    const tagSelect = document.getElementById('tag-select');
+    if (!tagSelect) return;
+
+    // Collect all unique tags
+    const tagsSet = new Set();
+    allCards.forEach(card => {
+        if (card.tags && Array.isArray(card.tags)) {
+            card.tags.forEach(t => tagsSet.add(t));
+        }
+    });
+
+    // Populate select
+    tagsSet.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        tagSelect.appendChild(option);
+    });
+}
+
+function filterAndRender() {
     const titleEl = document.getElementById('page-title');
     const subtitleEl = document.getElementById('page-subtitle');
     const contentEl = document.getElementById('data-content');
+    const clearFiltersBtn = document.getElementById('clear-filters-btn');
     const now = new Date().getTime();
 
-    if (view === 'total') {
-        titleEl.innerText = 'Total Saved Patterns';
-        subtitleEl.innerText = `You have saved ${cards.length} algorithmic patterns.`;
-        contentEl.innerHTML = generateCardsTable(cards);
-    } 
-    else if (view === 'due') {
-        const dueCards = cards.filter(c => c.due <= now).sort((a, b) => a.due - b.due);
-        titleEl.innerText = 'Patterns Due Today';
-        subtitleEl.innerText = `You have ${dueCards.length} pattern(s) awaiting your review.`;
-        contentEl.innerHTML = dueCards.length > 0 ? generateCardsTable(dueCards) : '<p>All caught up! Great job.</p>';
-    } 
-    else if (view === 'retention') {
-        let totalReps = 0; let totalLapses = 0;
-        cards.forEach(c => { totalReps += c.reps || 0; totalLapses += c.lapses || 0; });
-        const retentionRate = totalReps > 0 ? Math.round(((totalReps - totalLapses) / totalReps) * 100) : 0;
-        const hardestCards = [...cards].sort((a, b) => (b.lapses || 0) - (a.lapses || 0)).filter(c => c.lapses > 0);
+    // 1. Build Base Dataset according to view
+    let baseCards = [];
+    let isRetention = false;
 
+    if (currentView === 'total') {
+        titleEl.innerText = 'Total Saved Patterns';
+        baseCards = [...allCards];
+    } 
+    else if (currentView === 'due') {
+        baseCards = allCards.filter(c => c.due <= now).sort((a, b) => a.due - b.due);
+        titleEl.innerText = 'Patterns Due Today';
+    } 
+    else if (currentView === 'retention') {
+        isRetention = true;
+        baseCards = allCards.filter(c => c.lapses > 0).sort((a, b) => b.lapses - a.lapses);
         titleEl.innerText = 'Retention & Analytics';
-        subtitleEl.innerText = `Overall Memory Retention: ${retentionRate}% (${totalReps} total reviews, ${totalLapses} forgotten patterns).`;
-        contentEl.innerHTML = hardestCards.length > 0 ? `<h3>Most Forgotten Patterns</h3>` + generateCardsTable(hardestCards, true) : `<p>You haven't lapsed on any cards yet. Keep reviewing!</p>`;
     }
-    // NEW: Handle History Deep Links
-    else if (view === 'history' && targetDate) {
-        // Filter cards that have a history log timestamp starting with the target date (e.g. "2026-06")
-        const filteredCards = cards.filter(c => {
+    else if (currentView === 'history' && targetDate) {
+        const filteredCards = allCards.filter(c => {
             if (!c.historyLog) return false;
             return c.historyLog.some(timestamp => {
                 const dateObj = new Date(timestamp);
@@ -47,11 +107,8 @@ function renderView(view, cards, targetDate) {
                 return localDateStr.startsWith(targetDate);
             });
         });
-
-        // Deduplicate in case a user reviewed the same card twice in the target period
-        const uniqueCards = [...new Set(filteredCards)];
-
-        // Format the Header nicely based on granularity
+        baseCards = [...new Set(filteredCards)]; // Deduplicate
+        
         let dateDisplay = targetDate;
         if (targetDate.length === 7) {
             const [y, m] = targetDate.split('-');
@@ -60,41 +117,108 @@ function renderView(view, cards, targetDate) {
         } else if (targetDate.length === 10) {
             dateDisplay = new Date(targetDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         }
-
         titleEl.innerText = `Activity for ${dateDisplay}`;
-        subtitleEl.innerText = `You reviewed ${uniqueCards.length} unique pattern(s) during this period.`;
-        
-        if (uniqueCards.length > 0) {
-            contentEl.innerHTML = generateCardsTable(uniqueCards);
-        } else {
-            // Friendly fallback message for reviews logged before this feature was added
-            contentEl.innerHTML = `
-                <div style="background: #2d2d2d; padding: 25px; border-radius: 8px; text-align: center; border: 1px solid #444; margin-top: 20px;">
-                    <h3 style="color: #fff; margin-top: 0;">No Card Data Found</h3>
-                    <p style="color: #bbb; line-height: 1.5;">We know you reviewed cards during this period, but their exact names cannot be retrieved.</p>
-                    <p style="font-size: 12px; color: #888; margin-top: 15px; padding-top: 15px; border-top: 1px solid #444;">
-                        <em>Why? Exact card history tracking was just added in v2.1. Older reviews will show in the activity numbers, but individual card records are only tracked moving forward.</em>
-                    </p>
-                </div>
-            `;
-        }
     }
+
+    // 2. Filter base dataset
+    let filtered = baseCards.filter(card => {
+        // A. Search query check
+        const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(searchQuery.toLowerCase());
+        const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(searchQuery.toLowerCase());
+        const tagMatch = card.tags && card.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        const matchesSearch = !searchQuery || titleMatch || urlMatch || tagMatch;
+
+        // B. Tag check
+        const matchesTag = selectedTag === 'all' || (card.tags && card.tags.includes(selectedTag));
+
+        // C. Status check
+        const isCardDue = card.due <= now;
+        const matchesStatus = selectedStatus === 'all' || 
+                              (selectedStatus === 'due' && isCardDue) || 
+                              (selectedStatus === 'safe' && !isCardDue);
+
+        return matchesSearch && matchesTag && matchesStatus;
+    });
+
+    // 3. Toggle reset button
+    const isFilterActive = searchQuery !== '' || selectedTag !== 'all' || selectedStatus !== 'all';
+    if (clearFiltersBtn) {
+        clearFiltersBtn.style.display = isFilterActive ? 'inline-block' : 'none';
+    }
+
+    // 4. Subtitle Stats
+    if (currentView === 'total') {
+        subtitleEl.innerText = isFilterActive 
+            ? `Showing ${filtered.length} matching pattern(s) out of ${allCards.length} total.`
+            : `You have saved ${allCards.length} algorithmic patterns.`;
+    } else if (currentView === 'due') {
+        subtitleEl.innerText = isFilterActive
+            ? `Showing ${filtered.length} matching due pattern(s) out of ${baseCards.length} due today.`
+            : `You have ${baseCards.length} pattern(s) awaiting review.`;
+    } else if (currentView === 'retention') {
+        let totalReps = 0; let totalLapses = 0;
+        allCards.forEach(c => { totalReps += c.reps || 0; totalLapses += c.lapses || 0; });
+        const retentionRate = totalReps > 0 ? Math.round(((totalReps - totalLapses) / totalReps) * 100) : 0;
+        subtitleEl.innerText = `Overall Memory Retention: ${retentionRate}% (${totalReps} total reviews, ${totalLapses} forgotten patterns).`;
+    } else if (currentView === 'history') {
+        subtitleEl.innerText = `You reviewed ${filtered.length} unique pattern(s) during this period.`;
+    }
+
+    // 5. Render
+    contentEl.innerHTML = '';
+    
+    // Retention Specific title insertion
+    if (currentView === 'retention' && baseCards.length > 0) {
+        const titleHeader = document.createElement('h3');
+        titleHeader.textContent = "Most Forgotten Patterns";
+        contentEl.appendChild(titleHeader);
+    }
+
+    if (filtered.length === 0) {
+        contentEl.innerHTML += `<div class="empty-state">No matching patterns found. Try adjusting your filters.</div>`;
+        return;
+    }
+
+    contentEl.innerHTML += generateCardsTable(filtered, isRetention);
 }
 
 function generateCardsTable(cardsArray, showLapses = false) {
+    const now = new Date().getTime();
     let table = `<table><thead><tr>
-        <th>Problem Title</th><th>Tags</th><th>Next Due</th><th>Total Reviews</th>
-        ${showLapses ? '<th>Times Forgotten</th>' : ''}
+        <th>Problem Title</th>
+        <th>Tags</th>
+        <th>Next Due</th>
+        <th>Reviews</th>
+        <th>Stability</th>
+        <th>Difficulty</th>
+        ${showLapses ? '<th>Lapses</th>' : ''}
     </tr></thead><tbody>`;
 
     cardsArray.forEach(card => {
-        const isPastDue = card.due <= new Date().getTime() ? '<span class="warning">Due Now</span>' : new Date(card.due).toLocaleDateString();
+        const isPastDue = card.due <= now;
+        const statusBadge = isPastDue 
+            ? '<span class="badge badge-due">Due Now</span>' 
+            : `<span class="badge badge-safe">${new Date(card.due).toLocaleDateString()}</span>`;
+            
         const tagsHtml = (card.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+        const reps = card.reps || 0;
+        const lapses = card.lapses || 0;
+        
+        // Format FSRS stats beautifully
+        const stabilityFormatted = card.stability > 0 ? `${card.stability.toFixed(1)}d` : 'New';
+        const difficultyFormatted = card.difficulty > 0 ? `${card.difficulty.toFixed(1)}/10` : 'N/A';
+
         table += `<tr>
             <td><a href="${card.problemUrl}" target="_blank">${card.problemTitle}</a></td>
-            <td>${tagsHtml}</td><td>${isPastDue}</td><td>${card.reps || 0}</td>
-            ${showLapses ? `<td class="warning">${card.lapses || 0}</td>` : ''}
+            <td>${tagsHtml}</td>
+            <td>${statusBadge}</td>
+            <td>${reps}</td>
+            <td>${stabilityFormatted}</td>
+            <td>${difficultyFormatted}</td>
+            ${showLapses ? `<td class="warning">${lapses}</td>` : ''}
         </tr>`;
     });
+    
     return table + `</tbody></table>`;
 }

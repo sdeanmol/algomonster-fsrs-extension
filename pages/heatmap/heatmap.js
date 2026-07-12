@@ -25,7 +25,7 @@ function setupFilters() {
     Object.keys(activityData).forEach(d => years.add(d.split('-')[0]));
     
     yearSelect.innerHTML = Array.from(years).sort().reverse().map(y => `<option value="${y}">${y}</option>`).join('');
-    yearSelect.value = currentYear; // Default to Current Year
+    yearSelect.value = currentYear;
 
     // 2. Safely cascade Month updates
     function updateMonthDropdown() {
@@ -34,18 +34,16 @@ function setupFilters() {
         
         Object.keys(activityData).filter(d => d.startsWith(targetYear)).forEach(d => activeMonths.add(d.split('-')[1]));
         
-        // Fallback to all 12 months if no data exists for this year
         if (activeMonths.size === 0) {
             for(let i=1; i<=12; i++) activeMonths.add(i.toString().padStart(2, '0'));
         }
         
         monthSelect.innerHTML = Array.from(activeMonths).sort().map(m => `<option value="${m}">${monthNames[parseInt(m)-1]}</option>`).join('');
         
-        // Smart Defaulting
         if (targetYear === currentYear && activeMonths.has(currentMonth)) {
             monthSelect.value = currentMonth;
         } else {
-            monthSelect.value = monthSelect.options[0].value; // Force select first available
+            monthSelect.value = monthSelect.options[0].value;
         }
     }
 
@@ -57,7 +55,6 @@ function setupFilters() {
         
         Object.keys(activityData).filter(d => d.startsWith(`${targetYear}-${targetMonth}`)).forEach(d => activeDays.add(d.split('-')[2]));
         
-        // Fallback to all days in the specific month if no data exists
         if (activeDays.size === 0) {
             const daysInMonth = new Date(parseInt(targetYear), parseInt(targetMonth), 0).getDate();
             for(let i=1; i<=daysInMonth; i++) activeDays.add(i.toString().padStart(2, '0'));
@@ -65,24 +62,22 @@ function setupFilters() {
         
         daySelect.innerHTML = Array.from(activeDays).sort().map(d => `<option value="${d}">Day ${parseInt(d)}</option>`).join('');
         
-        // Smart Defaulting
         if (targetYear === currentYear && targetMonth === currentMonth && activeDays.has(currentDay)) {
             daySelect.value = currentDay;
         } else {
-            daySelect.value = daySelect.options[0].value; // Force select first available
+            daySelect.value = daySelect.options[0].value;
         }
     }
 
-    // Initialize the dropdown chains
     updateMonthDropdown();
     updateDayDropdown();
 
     // 4. Attach Event Listeners
     typeSelect.addEventListener('change', () => {
         const mode = typeSelect.value;
-        yearSelect.style.display = (mode !== 'lifetime') ? 'inline-block' : 'none';
-        monthSelect.style.display = (mode === 'month-wise' || mode === 'day-wise') ? 'inline-block' : 'none';
-        daySelect.style.display = (mode === 'day-wise') ? 'inline-block' : 'none';
+        yearSelect.classList.toggle('hide-select', mode === 'lifetime');
+        monthSelect.classList.toggle('hide-select', mode !== 'month-wise' && mode !== 'day-wise');
+        daySelect.classList.toggle('hide-select', mode !== 'day-wise');
         renderHeatmap();
     });
 
@@ -103,6 +98,7 @@ function setupFilters() {
 function renderHeatmap() {
     const grid = document.getElementById('full-heatmap-grid');
     const summaryText = document.getElementById('filter-summary-text');
+    if (!grid) return;
     grid.innerHTML = '';
 
     const mode = document.getElementById('filter-type').value;
@@ -113,7 +109,6 @@ function renderHeatmap() {
     let startDate, totalDays;
     let totalReviewsCalculated = 0;
 
-    // Securely parse dates as integers to prevent NaN crashes
     const y = parseInt(chosenYear, 10);
     const m = parseInt(chosenMonth, 10) - 1; 
     const d = parseInt(chosenDay, 10);
@@ -181,7 +176,6 @@ function renderHeatmap() {
         const displayDate = cellDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
         cell.title = count === 1 ? `1 review on ${displayDate}` : `${count} reviews on ${displayDate}`;
 
-        // Dimming logic
         let isOutsideFilterRange = false;
         if (mode === 'year-wise' && currentYearString !== chosenYear) isOutsideFilterRange = true;
         if (mode === 'month-wise' && (currentYearString !== chosenYear || currentMonthString !== chosenMonth)) isOutsideFilterRange = true;
@@ -211,9 +205,116 @@ function renderHeatmap() {
         summaryText.innerText += ` (${totalReviewsCalculated} Total Reviews)`;
     }
 
-    // UI Scroll Snap
+    // Render Stats Dashboard
+    renderStatsDashboard();
+
+    // Scroll Grid
     setTimeout(() => {
         const wrapper = document.querySelector('.heatmap-wrapper');
         if (wrapper && mode === 'lifetime') wrapper.scrollLeft = wrapper.scrollWidth;
     }, 50);
+}
+
+function renderStatsDashboard() {
+    const container = document.getElementById('heatmap-stats-container');
+    if (!container) return;
+
+    const stats = getStreakStats();
+
+    container.innerHTML = `
+        <div class="stats-card stats-card-streak">
+            <span class="stats-card-title">🔥 Current Streak</span>
+            <div class="stats-card-value">
+                ${stats.currentStreak}
+                <span class="stats-card-unit">days</span>
+            </div>
+        </div>
+        <div class="stats-card stats-card-longest">
+            <span class="stats-card-title">👑 Longest Streak</span>
+            <div class="stats-card-value">
+                ${stats.longestStreak}
+                <span class="stats-card-unit">days</span>
+            </div>
+        </div>
+        <div class="stats-card stats-card-active">
+            <span class="stats-card-title">📅 Active Days</span>
+            <div class="stats-card-value">
+                ${stats.activeDays}
+                <span class="stats-card-unit">days</span>
+            </div>
+        </div>
+        <div class="stats-card stats-card-max">
+            <span class="stats-card-title">⚡ Max Reviews</span>
+            <div class="stats-card-value">
+                ${stats.maxReviews}
+                <span class="stats-card-unit">reviews</span>
+            </div>
+        </div>
+    `;
+}
+
+function getStreakStats() {
+    const dates = Object.keys(activityData).filter(d => activityData[d] > 0).sort();
+    if (dates.length === 0) {
+        return { currentStreak: 0, longestStreak: 0, activeDays: 0, maxReviews: 0 };
+    }
+    
+    const activeDays = dates.length;
+    const maxReviews = Math.max(...Object.values(activityData), 0);
+    
+    let longestStreak = 0;
+    let currentStreak = 0;
+    
+    // Calculate Longest Streak
+    let tempStreak = 0;
+    let lastTime = null;
+    
+    dates.forEach(dStr => {
+        const parts = dStr.split('-');
+        const t = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)).getTime();
+        
+        if (lastTime === null) {
+            tempStreak = 1;
+        } else {
+            const diffDays = Math.round((t - lastTime) / (1000 * 60 * 60 * 24));
+            if (diffDays === 1) {
+                tempStreak++;
+            } else if (diffDays > 1) {
+                if (tempStreak > longestStreak) longestStreak = tempStreak;
+                tempStreak = 1;
+            }
+        }
+        lastTime = t;
+    });
+    if (tempStreak > longestStreak) longestStreak = tempStreak;
+    
+    // Calculate Current Streak
+    const oneDay = 1000 * 60 * 60 * 24;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTime = today.getTime();
+    
+    let checkTime = todayTime;
+    let todayStr = new Date(checkTime - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    let yesterdayStr = new Date(checkTime - oneDay - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    
+    if (activityData[todayStr] > 0 || activityData[yesterdayStr] > 0) {
+        if (activityData[todayStr] > 0) {
+            checkTime = todayTime;
+        } else {
+            checkTime = todayTime - oneDay;
+        }
+        
+        while (true) {
+            const checkStr = new Date(checkTime - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            if (activityData[checkStr] > 0) {
+                currentStreak++;
+                checkTime -= oneDay;
+            } else {
+                break;
+            }
+        }
+    }
+    
+    return { currentStreak, longestStreak, activeDays, maxReviews };
 }

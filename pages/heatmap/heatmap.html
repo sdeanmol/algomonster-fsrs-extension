@@ -7,46 +7,67 @@
 </head>
 <body>
     <div class="container">
-        <div class="header" style="display: flex; flex-direction: column; align-items: stretch; gap: 15px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h1 style="border: none; padding: 0; margin: 0;">🟩 Contribution Heatmap</h1>
+        <!-- Header Section -->
+        <div class="header">
+            <div class="header-top">
+                <h1>🟩 Contribution Heatmap</h1>
                 <div class="heatmap-legend">
-                    Less 
-                    <span class="legend-box level-0"></span> 
-                    <span class="legend-box level-1"></span> 
-                    <span class="legend-box level-2"></span> 
-                    <span class="legend-box level-3"></span> 
-                    <span class="legend-box level-4"></span> 
-                    More
+                    <span>Less</span>
+                    <span class="legend-box level-0"></span>
+                    <span class="legend-box level-1"></span>
+                    <span class="legend-box level-2"></span>
+                    <span class="legend-box level-3"></span>
+                    <span class="legend-box level-4"></span>
+                    <span>More</span>
                 </div>
             </div>
 
-            <div class="filter-bar" style="display: flex; gap: 10px; background: #1e1e1e; padding: 12px; border-radius: 6px; border: 1px solid #333; align-items: center;">
-                <span style="font-size: 13px; font-weight: bold; color: #aaa;">🔍 Filter View:</span>
-                
-                <select id="filter-type" style="background: #2d2d2d; color: white; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; cursor: pointer;">
+            <!-- Filter Panel -->
+            <div class="filter-bar">
+                <span class="filter-title">🔍 Filter View:</span>
+                <select id="filter-type" class="input-field select-field">
                     <option value="lifetime">Lifetime History</option>
                     <option value="year-wise">Year Wise</option>
                     <option value="month-wise">Month Wise</option>
                     <option value="day-wise">Day Wise</option>
                 </select>
 
-                <select id="select-year" style="display: none; background: #2d2d2d; color: white; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; cursor: pointer;"></select>
-                <select id="select-month" style="display: none; background: #2d2d2d; color: white; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; cursor: pointer;"></select>
-                <select id="select-day" style="display: none; background: #2d2d2d; color: white; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; cursor: pointer;"></select>
+                <select id="select-year" class="input-field select-field hide-select"></select>
+                <select id="select-month" class="input-field select-field hide-select"></select>
+                <select id="select-day" class="input-field select-field hide-select"></select>
                 
-                <span id="filter-summary-text" style="font-size: 12px; color: #888; margin-left: auto; font-weight: bold;"></span>
+                <span id="filter-summary-text" class="filter-summary"></span>
             </div>
         </div>
         
-        <div class="heatmap-wrapper" style="margin-top: 20px;">
-            <div class="heatmap" id="full-heatmap-grid"></div>
+        <!-- Heatmap Board -->
+        <div class="heatmap-wrapper">
+            <div class="heatmap-container">
+                <!-- Weekday Labels -->
+                <div class="weekday-labels">
+                    <span>Sun</span>
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                </div>
+                <!-- The Grid Cells -->
+                <div class="heatmap" id="full-heatmap-grid"></div>
+            </div>
+        </div>
+
+        <!-- Gamified Streaks Dashboard -->
+        <div id="heatmap-stats-container" class="stats-grid">
+            <!-- Dynamic stats cards will be loaded here by JS -->
         </div>
         
-        <p style="text-align: center; color: #888; font-size: 12px; margin-top: 15px;">
+        <p class="tip-text">
             <em>Tip: Click on any colored square to view the specific algorithmic patterns you reviewed that day!</em>
         </p>
     </div>
+    
     <script src="heatmap.js"></script>
 </body>
 </html>
