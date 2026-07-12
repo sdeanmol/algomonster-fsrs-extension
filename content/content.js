@@ -10,8 +10,16 @@ let bookmarks = [];
 let pagecontents = [];
 let chromeSettings = {
     defaultHighlightColor: '#f1c40f',
-    recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'],
-    showMarkerPopup: true
+    recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
+    showMarkerPopup: true,
+    activePaletteIndex: 0,
+    palettes: [
+        { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
+        { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
+        { name: 'Ocean Breeze', colors: ['#a8dadc', '#457b9d', '#1d3557', '#e63946', '#f1faee'] },
+        { name: 'Forest Moss', colors: ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'] },
+        { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
+    ]
 };
 let activeHighlightStyles = new Set();
 let highlightDebounceTimer = null;
@@ -28,7 +36,20 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
     if (result.marks) marks = result.marks;
     if (result.bookmarks) bookmarks = result.bookmarks;
     if (result.pagecontents) pagecontents = result.pagecontents;
-    if (result.chromeSettings) chromeSettings = { ...chromeSettings, ...result.chromeSettings };
+    if (result.chromeSettings) {
+        chromeSettings = { ...chromeSettings, ...result.chromeSettings };
+    }
+    // Ensure palettes are initialized
+    if (!chromeSettings.palettes || chromeSettings.palettes.length === 0) {
+        chromeSettings.palettes = [
+            { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
+            { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
+            { name: 'Ocean Breeze', colors: ['#a8dadc', '#457b9d', '#1d3557', '#e63946', '#f1faee'] },
+            { name: 'Forest Moss', colors: ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'] },
+            { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
+        ];
+        chromeSettings.activePaletteIndex = 0;
+    }
 
     createUI();
     createHighlighterUI();
@@ -179,12 +200,23 @@ function renderTooltipColors(existingMarkId = null, currentColor = null) {
     const tooltip = document.getElementById('algo-highlight-tooltip');
     tooltip.innerHTML = '';
 
+    // Fetch active palette colors
+    const activePalette = chromeSettings.palettes && chromeSettings.palettes[chromeSettings.activePaletteIndex]
+        ? chromeSettings.palettes[chromeSettings.activePaletteIndex]
+        : { colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] };
+    
+    const paletteColors = activePalette.colors || [];
+
     // Color Swatches
-    chromeSettings.recentColors.forEach(color => {
+    paletteColors.forEach(color => {
         const swatch = document.createElement('div');
         swatch.className = 'algo-color-swatch';
         swatch.style.backgroundColor = color;
-        if (existingMarkId && color === currentColor) swatch.style.borderColor = '#fff';
+        
+        // Mark as active if this swatch matches the highlight color
+        if (existingMarkId && color === currentColor) {
+            swatch.classList.add('active');
+        }
         
         swatch.addEventListener('mousedown', (e) => {
             e.preventDefault(); 

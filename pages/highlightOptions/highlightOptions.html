@@ -2,49 +2,65 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Highlighter Settings</title>
+    <title>Highlighter Settings & Palettes</title>
     <link rel="stylesheet" href="highlightOptions.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h2>🖍️ Highlighter Appearance</h2>
-            <p>Customize the colors that appear in your floating popup.</p>
+            <p>Customize the default marker color and manage your text selection palettes.</p>
         </div>
 
-        <div class="panel">
-            <div class="settings-group">
-                <label>Default Highlight Color</label>
-                <div class="color-row">
-                    <input type="color" id="default-color" class="color-picker">
-                    <span class="color-hex" id="default-hex"></span>
+        <div class="settings-layout">
+            <!-- Left Side / General Settings & Editor -->
+            <div class="settings-column">
+                <div class="panel">
+                    <h3 class="panel-subtitle">General Options</h3>
+                    <div class="settings-group">
+                        <label>Default Highlight Color</label>
+                        <div class="color-row">
+                            <input type="color" id="default-color" class="color-picker">
+                            <span class="color-hex" id="default-hex"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header-row">
+                        <h3 class="panel-subtitle">🎨 Palette Creator / Editor</h3>
+                        <span id="palette-count" class="badge">0 / 50</span>
+                    </div>
+                    <div class="input-group">
+                        <label for="palette-name-input">Palette Name</label>
+                        <input type="text" id="palette-name-input" class="input-field" placeholder="My Custom Palette...">
+                    </div>
+                    
+                    <div class="settings-group" style="margin-top: 16px;">
+                        <label>Palette Colors (1 - 5 Slots)</label>
+                        <div id="palette-slots-container" class="slots-list">
+                            <!-- Slots will be added dynamically here -->
+                        </div>
+                        <button id="add-slot-btn" class="btn btn-secondary btn-sm" style="margin-top: 8px;">➕ Add Color Slot</button>
+                    </div>
+
+                    <div class="action-buttons" style="margin-top: 20px;">
+                        <button id="save-palette-btn" class="btn btn-primary">💾 Save Palette</button>
+                    </div>
                 </div>
             </div>
 
-            <hr class="divider">
-
-            <div class="settings-group">
-                <label>Popup Palette Colors (4 Slots)</label>
-                <div class="palette-grid">
-                    <div class="color-row">
-                        <input type="color" id="color-1" class="color-picker">
+            <!-- Right Side / Palettes List -->
+            <div class="settings-column">
+                <div class="panel">
+                    <h3 class="panel-subtitle">Saved Palettes</h3>
+                    <div id="palettes-list-container" class="palettes-list">
+                        <!-- Custom palettes will render here -->
                     </div>
-                    <div class="color-row">
-                        <input type="color" id="color-2" class="color-picker">
-                    </div>
-                    <div class="color-row">
-                        <input type="color" id="color-3" class="color-picker">
-                    </div>
-                    <div class="color-row">
-                        <input type="color" id="color-4" class="color-picker">
-                    </div>
+                    <hr class="divider">
+                    <button id="reset-palettes-btn" class="btn btn-secondary w-full">🔄 Reset to Defaults</button>
                 </div>
             </div>
-        </div>
-
-        <div class="action-buttons">
-            <button id="reset-btn" class="btn btn-secondary">Reset to Defaults</button>
-            <button id="save-btn" class="btn btn-primary">Save Colors</button>
         </div>
 
         <div id="status-toast" class="toast">Settings saved successfully!</div>

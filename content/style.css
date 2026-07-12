@@ -134,75 +134,127 @@
 #algo-highlight-tooltip {
     position: absolute;
     z-index: 9999999;
-    background: #1e1e1e;
-    border: 1px solid #444;
-    border-radius: 6px;
-    padding: 6px;
+    background: rgba(26, 26, 26, 0.9) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    padding: 8px 10px !important;
     display: none;
     gap: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
     align-items: center;
-    /* / Drops 8px BELOW the anchor, expands inward to the LEFT to prevent screen cutoff / */
+    /* Drops 8px BELOW the anchor, expands inward to the LEFT to prevent screen cutoff */
     transform: translate(-100%, 8px);
     margin: 0;
+    animation: algo-fade-in-scale 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes algo-fade-in-scale {
+    from {
+        opacity: 0;
+        transform: translate(-100%, 3px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-100%, 8px) scale(1);
+    }
 }
 
 #algo-highlight-tooltip::after {
     content: '';
     position: absolute;
-    /* / Triangle pointing UP / */
+    /* Triangle pointing UP */
     bottom: auto;
     top: -6px;
     left: auto;
-    right: 12px;
-    /* / Aligned to the right side where the cursor ends / */
+    right: 18px;
+    /* Aligned to the right side where the cursor ends */
     border-width: 0 6px 6px;
     border-style: solid;
-    border-color: transparent transparent #1e1e1e transparent;
+    border-color: transparent transparent rgba(26, 26, 26, 0.9) transparent;
 }
 
-
 .algo-color-swatch {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     cursor: pointer;
-    border: 2px solid transparent;
-    transition: transform 0.1s;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.2s, box-shadow 0.2s;
 }
 
 .algo-color-swatch:hover {
     transform: scale(1.2);
-    border-color: #fff;
+    border-color: #ffffff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+.algo-color-swatch.active {
+    border-color: #ffffff !important;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4), 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+    transform: scale(1.1);
 }
 
 #algo-color-picker {
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: none;
-    border-radius: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
     cursor: pointer;
-    background: none;
+    background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+    position: relative;
+    -webkit-appearance: none;
+    overflow: hidden;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.2s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+#algo-color-picker::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+#algo-color-picker::-webkit-color-swatch {
+    border: none;
+    background: transparent !important;
+}
+
+#algo-color-picker:hover {
+    transform: scale(1.2);
+    border-color: #ffffff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
 }
 
 /* Delete Button Styles */
 .algo-tooltip-divider {
     width: 1px;
-    height: 16px;
-    background-color: #555;
-    margin: 0 4px;
+    height: 18px;
+    background-color: rgba(255, 255, 255, 0.15);
+    margin: 0 6px;
 }
 
 .algo-delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
     cursor: pointer;
-    font-size: 14px;
-    transition: transform 0.1s;
+    font-size: 11px;
+    background: rgba(231, 76, 60, 0.15);
+    color: #e74c3c;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     user-select: none;
+    line-height: 1;
 }
 
 .algo-delete-btn:hover {
-    transform: scale(1.2);
+    background: #e74c3c;
+    color: #ffffff;
+    transform: scale(1.2) rotate(-15deg);
+    box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);
 }
 
 /* Enhanced FSRS Widget Styles */
