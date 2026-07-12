@@ -65,7 +65,6 @@ chrome.storage.onChanged.addListener(async (changes, areaName) => {
     }
 });
 
-// Handle runtime messages (like test notification requests)
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'test_notification') {
         (async () => {
@@ -78,6 +77,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         })();
         return true; // Keep message channel open for async response
+    }
+    if (message.action === 'open_fullscreen_editor') {
+        chrome.tabs.create({ url: chrome.runtime.getURL('pages/editor/editor.html?url=' + encodeURIComponent(message.url)) });
+        sendResponse({ success: true });
+        return true;
     }
 });
 

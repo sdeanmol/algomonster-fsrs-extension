@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>FSRS Fullscreen Editor</title>
+    <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+    <div class="editor-container">
+        <!-- Header -->
+        <div class="editor-header">
+            <div class="header-left">
+                <span class="back-arrow" id="header-back-btn" title="Close and return">⬅️ Close</span>
+                <div class="title-info">
+                    <h2 id="problem-title">Loading problem details...</h2>
+                    <span id="problem-url" class="url-subtext">Loading URL...</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <span id="save-status" class="status-indicator">Loading FSRS data...</span>
+            </div>
+        </div>
+
+        <!-- Text Workspace -->
+        <div class="workspace">
+            <textarea id="editor-textarea" class="fullscreen-textarea" placeholder="How did you solve this pattern? Jot down your key insights, complexity analysis, approach steps..."></textarea>
+        </div>
+
+        <!-- Footer -->
+        <div class="editor-footer">
+            <div class="footer-actions">
+                <button id="save-btn" class="btn btn-secondary">💾 Save Progress</button>
+                <button id="save-close-btn" class="btn btn-primary">✅ Save & Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Toast -->
+    <div id="status-toast" class="toast">Progress saved!</div>
+
+    <script src="editor.js"></script>
+</body>
+</html>

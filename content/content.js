@@ -81,11 +81,20 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes.chromeSettings) {
-        chromeSettings = { ...chromeSettings, ...changes.chromeSettings.newValue };
-        if (!chromeSettings.showMarkerPopup) {
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (tooltip) tooltip.style.display = 'none';
+    if (areaName === 'local') {
+        if (changes.chromeSettings) {
+            chromeSettings = { ...chromeSettings, ...changes.chromeSettings.newValue };
+            if (!chromeSettings.showMarkerPopup) {
+                const tooltip = document.getElementById('algo-highlight-tooltip');
+                if (tooltip) tooltip.style.display = 'none';
+            }
+        }
+        if (changes.fsrsCards) {
+            cards = changes.fsrsCards.newValue || [];
+            refreshWidgetState();
+        }
+        if (changes.approachDrafts) {
+            refreshWidgetState();
         }
     }
 });
@@ -490,7 +499,9 @@ function refreshWidgetState() {
 
     if (existingCard) {
         // Card exists: Load data
-        approachArea.value = existingCard.approach || "";
+        if (document.activeElement !== approachArea) {
+            approachArea.value = existingCard.approach || "";
+        }
         actionLabel.innerText = "Card Exists. Review Early or Update Notes:";
         updateTextBtn.style.display = "block";
         saveRatingsContainer.setAttribute('data-existing-id', existingCard.id);
@@ -507,8 +518,14 @@ function refreshWidgetState() {
             }
         });
     } else {
-        // New Card: Reset UI
-        approachArea.value = "";
+        // New Card: Reset UI (check draft in storage)
+        chrome.storage.local.get(['approachDrafts'], (res) => {
+            const drafts = res.approachDrafts || {};
+            // Only update value if the textarea is not currently focused (prevent cursor jumping while typing)
+            if (document.activeElement !== approachArea) {
+                approachArea.value = drafts[cleanUrl] || "";
+            }
+        });
         actionLabel.innerText = "Save & Rate Initial Difficulty:";
         updateTextBtn.style.display = "none";
         saveRatingsContainer.removeAttribute('data-existing-id');
@@ -558,7 +575,10 @@ function createUI() {
             
             <div class="fsrs-approach-header">
                 <label>Your Approach:</label>
-                <button id="fsrs-update-text-btn" class="fsrs-secondary-btn" style="display:none;" title="Save edits without reviewing">💾 Save Edit</button>
+                <div class="fsrs-header-buttons" style="display: flex; gap: 6px;">
+                    <button id="fsrs-fullscreen-btn" class="fsrs-secondary-btn" title="Open in fullscreen new tab">↗️ Fullscreen</button>
+                    <button id="fsrs-update-text-btn" class="fsrs-secondary-btn" style="display:none;" title="Save edits without reviewing">💾 Save Edit</button>
+                </div>
             </div>
             <textarea id="fsrs-approach" class="fsrs-textarea" placeholder="How did you solve this pattern? Jot down your key insights..."></textarea>
             
@@ -595,6 +615,51 @@ function createUI() {
     });
 
     // 4. FSRS APP LOGIC LISTENERS
+    document.getElementById('fsrs-fullscreen-btn').addEventListener('click', () => {
+        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
+        const currentText = document.getElementById('fsrs-approach').value;
+        const existingCard = cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
+
+        if (existingCard) {
+            existingCard.approach = currentText;
+            saveCards();
+        } else {
+            chrome.storage.local.get(['approachDrafts'], (res) => {
+                const drafts = res.approachDrafts || {};
+                drafts[cleanUrl] = currentText;
+                chrome.storage.local.set({ approachDrafts: drafts }, () => {
+                    chrome.runtime.sendMessage({
+                        action: "open_fullscreen_editor",
+                        url: cleanUrl
+                    });
+                });
+            });
+            return;
+        }
+
+        chrome.runtime.sendMessage({
+            action: "open_fullscreen_editor",
+            url: cleanUrl
+        });
+    });
+
+    document.getElementById('fsrs-approach').addEventListener('input', (e) => {
+        const text = e.target.value;
+        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
+        const existingCard = cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
+
+        if (existingCard) {
+            existingCard.approach = text;
+            saveCards();
+        } else {
+            chrome.storage.local.get(['approachDrafts'], (res) => {
+                const drafts = res.approachDrafts || {};
+                drafts[cleanUrl] = text;
+                chrome.storage.local.set({ approachDrafts: drafts });
+            });
+        }
+    });
+
     document.getElementById('fsrs-update-text-btn').addEventListener('click', (e) => {
         const existingId = document.getElementById('fsrs-save-ratings').getAttribute('data-existing-id');
         if (existingId) {
@@ -639,6 +704,16 @@ function createUI() {
             }
 
             saveCards();
+            
+            // Clear draft if it exists
+            chrome.storage.local.get(['approachDrafts'], (res) => {
+                const drafts = res.approachDrafts || {};
+                if (drafts[cleanUrl]) {
+                    delete drafts[cleanUrl];
+                    chrome.storage.local.set({ approachDrafts: drafts });
+                }
+            });
+
             logReviewActivity(); 
             refreshWidgetState(); 
             
