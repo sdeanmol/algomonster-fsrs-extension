@@ -25,14 +25,14 @@ let activeHighlightStyles = new Set();
 let highlightDebounceTimer = null;
 
 // Active ranges map for Hover tracking
-let activeMarkRanges = []; 
+let activeMarkRanges = [];
 let hoveredMarkId = null;
-let hideTooltipTimer = null; 
+let hideTooltipTimer = null;
 
 chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings'], (result) => {
     if (result.fsrsCards) cards = result.fsrsCards;
     if (result.fsrsTopicWeights) topicWeights = result.fsrsTopicWeights;
-    
+
     if (result.marks) marks = result.marks;
     if (result.bookmarks) bookmarks = result.bookmarks;
     if (result.pagecontents) pagecontents = result.pagecontents;
@@ -54,7 +54,7 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
     createUI();
     createHighlighterUI();
     applyHighlightsForCurrentPage();
-    
+
     // 1. NEW: Hyper-Responsive Click Listener
     // Instantly intercepts any click on a link or button to force an immediate widget refresh
     document.addEventListener('click', (e) => {
@@ -62,7 +62,7 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
             // Fire immediately to catch fast SPA transitions
             setTimeout(triggerAggressiveUIUpdate, 50);
             // Fire again shortly after in case the SPA had to fetch data over the network
-            setTimeout(triggerAggressiveUIUpdate, 400); 
+            setTimeout(triggerAggressiveUIUpdate, 400);
         }
     });
 
@@ -109,7 +109,7 @@ chrome.runtime.onMessage.addListener((request) => {
 // NEW: Centralized function to instantly refresh the widget content without destroying it
 function triggerAggressiveUIUpdate() {
     lastCheckedUrl = window.location.href;
-    
+
     if (!document.getElementById('algo-fsrs-container') && document.body) {
         createUI(); // Inject if the SPA accidentally destroyed it
     } else {
@@ -141,23 +141,23 @@ function createHighlighterUI() {
 
         const selection = window.getSelection();
         if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
-            if (hoveredMarkId === null) tooltip.style.display = 'none'; 
+            if (hoveredMarkId === null) tooltip.style.display = 'none';
             return;
         }
 
-        hoveredMarkId = null; 
-        clearTimeout(hideTooltipTimer); 
+        hoveredMarkId = null;
+        clearTimeout(hideTooltipTimer);
         hideTooltipTimer = null;
-        
+
         const range = selection.getRangeAt(0);
-        
+
         // --- NEW POSITIONING: Get the exact last line of the multi-line selection ---
         const rects = range.getClientRects();
         const lastRect = rects[rects.length - 1];
 
-        renderTooltipColors(null, null); 
+        renderTooltipColors(null, null);
         tooltip.style.display = 'flex';
-        
+
         // Anchor to the bottom-right corner where the highlight ends
         tooltip.style.left = `${lastRect.right + window.scrollX}px`;
         tooltip.style.top = `${lastRect.bottom + window.scrollY}px`;
@@ -166,7 +166,7 @@ function createHighlighterUI() {
     // 2. Hover Detection Logic (For EXISTING highlights)
     document.addEventListener('mousemove', (e) => {
         if (!chromeSettings.showMarkerPopup) return;
-        
+
         if (e.target.closest('#algo-highlight-tooltip') || e.target.closest('#algo-fsrs-container')) {
             clearTimeout(hideTooltipTimer);
             hideTooltipTimer = null;
@@ -192,16 +192,16 @@ function createHighlighterUI() {
         if (foundMark) {
             clearTimeout(hideTooltipTimer);
             hideTooltipTimer = null;
-            
+
             if (hoveredMarkId !== foundMark.markId) {
                 hoveredMarkId = foundMark.markId;
                 renderTooltipColors(hoveredMarkId, foundMark.color);
                 tooltip.style.display = 'flex';
-                
+
                 // --- NEW POSITIONING: Snap just below the cursor ---
                 // We add 15px to X so the little triangle pointer perfectly aligns under the cursor
-                tooltip.style.left = `${e.clientX + window.scrollX + 15}px`; 
-                tooltip.style.top = `${e.clientY + window.scrollY}px`; 
+                tooltip.style.left = `${e.clientX + window.scrollX + 15}px`;
+                tooltip.style.top = `${e.clientY + window.scrollY}px`;
             }
         } else {
             if (hoveredMarkId !== null && !hideTooltipTimer) {
@@ -209,7 +209,7 @@ function createHighlighterUI() {
                     hoveredMarkId = null;
                     tooltip.style.display = 'none';
                     hideTooltipTimer = null;
-                }, 400); 
+                }, 400);
             }
         }
     });
@@ -223,7 +223,7 @@ function renderTooltipColors(existingMarkId = null, currentColor = null) {
     const activePalette = chromeSettings.palettes && chromeSettings.palettes[chromeSettings.activePaletteIndex]
         ? chromeSettings.palettes[chromeSettings.activePaletteIndex]
         : { colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] };
-    
+
     const paletteColors = activePalette.colors || [];
 
     // Color Swatches
@@ -231,14 +231,14 @@ function renderTooltipColors(existingMarkId = null, currentColor = null) {
         const swatch = document.createElement('div');
         swatch.className = 'algo-color-swatch';
         swatch.style.backgroundColor = color;
-        
+
         // Mark as active if this swatch matches the highlight color
         if (existingMarkId && color === currentColor) {
             swatch.classList.add('active');
         }
-        
+
         swatch.addEventListener('mousedown', (e) => {
-            e.preventDefault(); 
+            e.preventDefault();
             if (existingMarkId) updateHighlightColor(existingMarkId, color);
             else saveHighlight(color);
         });
@@ -305,11 +305,11 @@ function saveHighlight(color) {
     if (!selection || selection.isCollapsed) return;
 
     const range = selection.getRangeAt(0);
-    const cleanUrl = window.location.href.split('#')[0]; 
+    const cleanUrl = window.location.href.split('#')[0];
     const timestamp = new Date().getTime();
 
     const newMark = {
-        id: `mark_${timestamp}_${Math.random().toString(36).substr(2, 5)}`, 
+        id: `mark_${timestamp}_${Math.random().toString(36).substr(2, 5)}`,
         createdAt: timestamp,
         url: cleanUrl,
         text: selection.toString(),
@@ -321,15 +321,15 @@ function saveHighlight(color) {
     };
 
     marks.push(newMark);
-    
+
     if (!bookmarks.find(b => b.url === cleanUrl)) {
         bookmarks.push({ url: cleanUrl, title: document.title, meta: { favIconUrl: 'https://algo.monster/favicon.ico' } });
     }
-    pagecontents = pagecontents.filter(p => p.url !== cleanUrl); 
+    pagecontents = pagecontents.filter(p => p.url !== cleanUrl);
     pagecontents.push({ url: cleanUrl, description: document.body.innerText.substring(0, 100), length: document.body.innerText.length });
 
     chrome.storage.local.set({ marks, bookmarks, pagecontents });
-    
+
     document.getElementById('algo-highlight-tooltip').style.display = 'none';
     selection.removeAllRanges();
     applyHighlightsForCurrentPage();
@@ -348,7 +348,7 @@ function updateHighlightColor(markId, newColor) {
 function deleteHighlight(markId) {
     marks = marks.filter(m => (m.id || m.createdAt.toString()) !== markId);
     chrome.storage.local.set({ marks });
-    
+
     document.getElementById('algo-highlight-tooltip').style.display = 'none';
     hoveredMarkId = null;
     applyHighlightsForCurrentPage();
@@ -404,34 +404,34 @@ function restoreRangeFromMeta(highlightSource, markText) {
             const range = document.createRange();
             const startOffset = Math.min(highlightSource.startMeta.textOffset, startNode.length || 0);
             const endOffset = Math.min(highlightSource.endMeta.textOffset, endNode.length || 0);
-            
+
             range.setStart(startNode, startOffset);
             range.setEnd(endNode, endOffset);
 
             if (markText) {
                 const rangeTextClean = range.toString().replace(/\s+/g, '');
                 const markTextClean = markText.replace(/\s+/g, '');
-                
+
                 if (rangeTextClean !== markTextClean) {
-                    if (!markTextClean.includes(rangeTextClean) && !rangeTextClean.includes(markTextClean)) return null; 
+                    if (!markTextClean.includes(rangeTextClean) && !rangeTextClean.includes(markTextClean)) return null;
                     if (rangeTextClean.length < (markTextClean.length * 0.5)) return null;
                 }
             }
             return range;
         }
-    } catch (e) {}
+    } catch (e) { }
     return null;
 }
 
 function applyHighlightsForCurrentPage() {
-    if (!('highlights' in CSS)) return; 
-    
+    if (!('highlights' in CSS)) return;
+
     const cleanUrl = window.location.href.split('#')[0];
     const pageMarks = marks.filter(m => m.url === cleanUrl);
-    
+
     CSS.highlights.clear();
     const highlightsByColor = {};
-    activeMarkRanges = []; 
+    activeMarkRanges = [];
 
     pageMarks.forEach(mark => {
         const range = restoreRangeFromMeta(mark.highlightSource, mark.text);
@@ -472,7 +472,7 @@ function getAutoTags() {
             const rawTopic = segments[segments.length - 1];
             return [rawTopic.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')];
         }
-    } catch (e) {}
+    } catch (e) { }
     return ["AlgoMonster"];
 }
 
@@ -490,7 +490,7 @@ function refreshWidgetState() {
 
     const cleanUrl = window.location.href.split('?')[0].split('#')[0];
     const existingCard = cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
-    
+
     const approachArea = document.getElementById('fsrs-approach');
     const actionLabel = document.getElementById('fsrs-action-label');
     const ratingBtns = document.getElementById('fsrs-save-ratings').querySelectorAll('button');
@@ -505,7 +505,7 @@ function refreshWidgetState() {
         actionLabel.innerText = "Card Exists. Review Early or Update Notes:";
         updateTextBtn.style.display = "block";
         saveRatingsContainer.setAttribute('data-existing-id', existingCard.id);
-        
+
         // Highlight the previous rating
         ratingBtns.forEach(btn => {
             const btnRating = parseInt(btn.getAttribute('data-rating'));
@@ -529,7 +529,7 @@ function refreshWidgetState() {
         actionLabel.innerText = "Save & Rate Initial Difficulty:";
         updateTextBtn.style.display = "none";
         saveRatingsContainer.removeAttribute('data-existing-id');
-        
+
         ratingBtns.forEach(btn => {
             btn.style.opacity = "1";
             btn.style.boxShadow = "none";
@@ -543,14 +543,14 @@ function createUI() {
     // 1. CREATE LAUNCHER
     const launcher = document.createElement('div');
     launcher.id = 'algo-fsrs-launcher';
-    launcher.innerText = '🧠'; 
+    launcher.innerText = '🧠';
     document.body.appendChild(launcher);
 
     // 2. CREATE WIDGET CONTAINER
     const container = document.createElement('div');
     container.id = 'algo-fsrs-container';
-    container.style.display = 'none'; 
-    
+    container.style.display = 'none';
+
     container.innerHTML = `
         <div id="fsrs-header">
             <div class="fsrs-title">
@@ -594,24 +594,71 @@ function createUI() {
         </div>
         <div id="fsrs-review-ui" style="display:none;"></div>
     `;
-    
+
     document.body.appendChild(container);
 
     // 3. WIDGET TOGGLE CONTROLS
-    launcher.addEventListener('click', () => {
+    let isDragging = true;
+    let dragStart = { x: 0, y: 0 };
+    let initialPos = { x: 0, y: 0 };
+
+    function onMouseMove(e) {
+        const dx = e.clientX - dragStart.x;
+        const dy = e.clientY - dragStart.y;
+
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+            isDragging = true;
+        }
+
+        if (isDragging) {
+            launcher.style.left = `${initialPos.x + dx}px`;
+            launcher.style.top = `${initialPos.y + dy}px`;
+            launcher.style.right = 'auto';
+            launcher.style.bottom = 'auto';
+            launcher.style.cursor = 'grabbing';
+        }
+    }
+
+    function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        setTimeout(() => {
+            launcher.style.cursor = 'pointer';
+        }, 50);
+    }
+
+    launcher.addEventListener('mousedown', (e) => {
+        isDragging = false;
+        dragStart.x = e.clientX;
+        dragStart.y = e.clientY;
+
+        const rect = launcher.getBoundingClientRect();
+        initialPos.x = rect.left;
+        initialPos.y = rect.top;
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    });
+
+    launcher.addEventListener('click', (e) => {
+        if (isDragging) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
         launcher.style.display = 'none';
         container.style.display = 'block';
         refreshWidgetState();
     });
 
-    document.getElementById('fsrs-min-btn').addEventListener('click', () => { 
-        container.style.display = 'none'; 
-        launcher.style.display = 'flex'; 
+    document.getElementById('fsrs-min-btn').addEventListener('click', () => {
+        container.style.display = 'none';
+        launcher.style.display = 'flex';
     });
-    
-    document.getElementById('fsrs-close-btn').addEventListener('click', () => { 
-        container.style.display = 'none'; 
-        launcher.style.display = 'none'; 
+
+    document.getElementById('fsrs-close-btn').addEventListener('click', () => {
+        container.style.display = 'none';
+        launcher.style.display = 'none';
     });
 
     // 4. FSRS APP LOGIC LISTENERS
@@ -667,7 +714,7 @@ function createUI() {
             if (index > -1) {
                 cards[index].approach = document.getElementById('fsrs-approach').value;
                 saveCards();
-                
+
                 const originalText = e.target.innerText;
                 e.target.innerText = "Saved ✓";
                 e.target.style.background = "#2ecc71";
@@ -683,7 +730,7 @@ function createUI() {
         btn.addEventListener('click', (e) => {
             const approach = document.getElementById('fsrs-approach').value;
             if (!approach) return alert("Please enter your approach.");
-            
+
             const rating = parseInt(e.target.getAttribute('data-rating'));
             const existingId = document.getElementById('fsrs-save-ratings').getAttribute('data-existing-id');
             const cleanUrl = window.location.href.split('?')[0].split('#')[0];
@@ -694,17 +741,17 @@ function createUI() {
                 if (index > -1) {
                     cards[index].approach = approach;
                     cards[index] = fsrs.reviewCard(cards[index], rating);
-                    cards[index].lastRating = rating; 
+                    cards[index].lastRating = rating;
                 }
             } else {
                 let newCard = fsrs.createCard(problemTitle, cleanUrl, "", approach, getAutoTags());
                 newCard = fsrs.reviewCard(newCard, rating);
-                newCard.lastRating = rating; 
+                newCard.lastRating = rating;
                 cards.push(newCard);
             }
 
             saveCards();
-            
+
             // Clear draft if it exists
             chrome.storage.local.get(['approachDrafts'], (res) => {
                 const drafts = res.approachDrafts || {};
@@ -714,9 +761,9 @@ function createUI() {
                 }
             });
 
-            logReviewActivity(); 
-            refreshWidgetState(); 
-            
+            logReviewActivity();
+            refreshWidgetState();
+
             const originalText = e.target.innerText;
             e.target.innerText = "Saved ✓";
             setTimeout(() => e.target.innerText = originalText, 1500);
@@ -782,7 +829,7 @@ function startReview() {
         btn.addEventListener('click', (e) => {
             const index = cards.findIndex(c => c.id === currentCard.id);
             const rating = parseInt(e.target.getAttribute('data-rating'));
-            
+
             // Determine if this card has a tag that matches a custom weight profile
             let customWeightsToApply = null;
             if (currentCard.tags && currentCard.tags.length > 0) {
@@ -797,7 +844,7 @@ function startReview() {
             // Pass the custom weights into the engine
             cards[index] = fsrs.reviewCard(currentCard, rating, customWeightsToApply);
             cards[index].lastRating = rating; // NEW: Save last rating here as well
-            
+
             saveCards();
             logReviewActivity();
 
