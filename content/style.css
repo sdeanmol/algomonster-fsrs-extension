@@ -376,6 +376,22 @@
     border-color: #888;
 }
 
+.fsrs-danger-btn {
+    background-color: #2d2d2d;
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+    padding: 4px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.fsrs-danger-btn:hover {
+    background-color: #e74c3c;
+    color: #fff;
+    border-color: #e74c3c;
+}
+
 .fsrs-rating-section {
     margin-top: 16px;
 }

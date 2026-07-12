@@ -181,6 +181,7 @@ function filterAndRender() {
     }
 
     contentEl.innerHTML += generateCardsTable(filtered, isRetention);
+    bindDeleteButtons();
 }
 
 function generateCardsTable(cardsArray, showLapses = false) {
@@ -193,6 +194,7 @@ function generateCardsTable(cardsArray, showLapses = false) {
         <th>Stability</th>
         <th>Difficulty</th>
         ${showLapses ? '<th>Lapses</th>' : ''}
+        <th>Actions</th>
     </tr></thead><tbody>`;
 
     cardsArray.forEach(card => {
@@ -217,8 +219,26 @@ function generateCardsTable(cardsArray, showLapses = false) {
             <td>${stabilityFormatted}</td>
             <td>${difficultyFormatted}</td>
             ${showLapses ? `<td class="warning">${lapses}</td>` : ''}
+            <td>
+                <button class="delete-card-btn" data-id="${card.id}" title="Remove Card from Reviews">🗑️</button>
+            </td>
         </tr>`;
     });
     
     return table + `</tbody></table>`;
+}
+
+function bindDeleteButtons() {
+    document.querySelectorAll('.delete-card-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const cardId = e.currentTarget.getAttribute('data-id');
+            if (confirm("Are you sure you want to remove this card from future FSRS reviews? This will delete the repetition history for this pattern.")) {
+                allCards = allCards.filter(c => c.id !== cardId);
+                chrome.storage.local.set({ fsrsCards: allCards }, () => {
+                    populateTagsFilter();
+                    filterAndRender();
+                });
+            }
+        });
+    });
 }

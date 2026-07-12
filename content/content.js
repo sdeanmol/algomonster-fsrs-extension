@@ -496,6 +496,7 @@ function refreshWidgetState() {
     const actionLabel = document.getElementById('fsrs-action-label');
     const ratingBtns = document.getElementById('fsrs-save-ratings').querySelectorAll('button');
     const updateTextBtn = document.getElementById('fsrs-update-text-btn');
+    const deleteCardBtn = document.getElementById('fsrs-delete-card-btn');
     const saveRatingsContainer = document.getElementById('fsrs-save-ratings');
 
     if (existingCard) {
@@ -508,6 +509,7 @@ function refreshWidgetState() {
         }
         actionLabel.innerText = "Card Exists. Review Early or Update Notes:";
         updateTextBtn.style.display = "block";
+        if (deleteCardBtn) deleteCardBtn.style.display = "block";
         saveRatingsContainer.setAttribute('data-existing-id', existingCard.id);
         
         // Highlight the previous rating
@@ -544,6 +546,7 @@ function refreshWidgetState() {
         });
         actionLabel.innerText = "Save & Rate Initial Difficulty:";
         updateTextBtn.style.display = "none";
+        if (deleteCardBtn) deleteCardBtn.style.display = "none";
         saveRatingsContainer.removeAttribute('data-existing-id');
         
         ratingBtns.forEach(btn => {
@@ -594,6 +597,7 @@ function createUI() {
                 <label>Your Approach:</label>
                 <div class="fsrs-header-buttons" style="display: flex; gap: 6px;">
                     <button id="fsrs-fullscreen-btn" class="fsrs-secondary-btn" title="Open in fullscreen new tab">↗️ Fullscreen</button>
+                    <button id="fsrs-delete-card-btn" class="fsrs-danger-btn" style="display:none;" title="Remove this card from future reviews">🗑️ Remove</button>
                     <button id="fsrs-update-text-btn" class="fsrs-secondary-btn" style="display:none;" title="Save edits without reviewing">💾 Save Edit</button>
                 </div>
             </div>
@@ -739,6 +743,18 @@ function createUI() {
 
     document.getElementById('fsrs-approach').addEventListener('input', saveDraft);
     document.getElementById('fsrs-tags-input').addEventListener('input', saveDraft);
+
+    document.getElementById('fsrs-delete-card-btn').addEventListener('click', () => {
+        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
+        const existingCard = cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
+        if (existingCard) {
+            if (confirm("Remove this card from future reviews? This will delete the card and its repetition history.")) {
+                cards = cards.filter(c => c.id !== existingCard.id);
+                saveCards();
+                refreshWidgetState();
+            }
+        }
+    });
 
     document.getElementById('fsrs-update-text-btn').addEventListener('click', (e) => {
         const existingId = document.getElementById('fsrs-save-ratings').getAttribute('data-existing-id');

@@ -245,3 +245,22 @@ td a:hover {
     padding: 50px 40px;
     font-size: 15px;
 }
+
+/* Card Delete Action Button */
+.delete-card-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s, transform 0.1s;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.delete-card-btn:hover {
+    background-color: rgba(231, 76, 60, 0.2);
+    transform: scale(1.1);
+}
