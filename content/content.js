@@ -490,8 +490,9 @@ function refreshWidgetState() {
 
     const cleanUrl = window.location.href.split('?')[0].split('#')[0];
     const existingCard = cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
-
+    
     const approachArea = document.getElementById('fsrs-approach');
+    const tagsInput = document.getElementById('fsrs-tags-input');
     const actionLabel = document.getElementById('fsrs-action-label');
     const ratingBtns = document.getElementById('fsrs-save-ratings').querySelectorAll('button');
     const updateTextBtn = document.getElementById('fsrs-update-text-btn');
@@ -502,10 +503,13 @@ function refreshWidgetState() {
         if (document.activeElement !== approachArea) {
             approachArea.value = existingCard.approach || "";
         }
+        if (tagsInput && document.activeElement !== tagsInput) {
+            tagsInput.value = (existingCard.tags || []).join(', ');
+        }
         actionLabel.innerText = "Card Exists. Review Early or Update Notes:";
         updateTextBtn.style.display = "block";
         saveRatingsContainer.setAttribute('data-existing-id', existingCard.id);
-
+        
         // Highlight the previous rating
         ratingBtns.forEach(btn => {
             const btnRating = parseInt(btn.getAttribute('data-rating'));
@@ -521,15 +525,27 @@ function refreshWidgetState() {
         // New Card: Reset UI (check draft in storage)
         chrome.storage.local.get(['approachDrafts'], (res) => {
             const drafts = res.approachDrafts || {};
-            // Only update value if the textarea is not currently focused (prevent cursor jumping while typing)
+            const draft = drafts[cleanUrl];
+            
             if (document.activeElement !== approachArea) {
-                approachArea.value = drafts[cleanUrl] || "";
+                if (typeof draft === 'object' && draft !== null) {
+                    approachArea.value = draft.approach || "";
+                } else {
+                    approachArea.value = draft || "";
+                }
+            }
+            if (tagsInput && document.activeElement !== tagsInput) {
+                if (typeof draft === 'object' && draft !== null && draft.tags !== undefined) {
+                    tagsInput.value = draft.tags;
+                } else {
+                    tagsInput.value = getAutoTags().join(', ');
+                }
             }
         });
         actionLabel.innerText = "Save & Rate Initial Difficulty:";
         updateTextBtn.style.display = "none";
         saveRatingsContainer.removeAttribute('data-existing-id');
-
+        
         ratingBtns.forEach(btn => {
             btn.style.opacity = "1";
             btn.style.boxShadow = "none";
@@ -571,7 +587,7 @@ function createUI() {
         <div id="fsrs-body">
             <div class="fsrs-tags-container">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                <span id="fsrs-current-tags">${getAutoTags().join(', ')}</span>
+                <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" placeholder="Add tags (comma separated)..." value="${getAutoTags().join(', ')}">
             </div>
             
             <div class="fsrs-approach-header">
@@ -599,18 +615,18 @@ function createUI() {
     document.body.appendChild(container);
 
     // 3. WIDGET TOGGLE CONTROLS
-    let isDragging = true;
+    let isDragging = false;
     let dragStart = { x: 0, y: 0 };
     let initialPos = { x: 0, y: 0 };
 
     function onMouseMove(e) {
         const dx = e.clientX - dragStart.x;
         const dy = e.clientY - dragStart.y;
-
+        
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
             isDragging = true;
         }
-
+        
         if (isDragging) {
             launcher.style.left = `${initialPos.x + dx}px`;
             launcher.style.top = `${initialPos.y + dy}px`;
@@ -632,11 +648,11 @@ function createUI() {
         isDragging = false;
         dragStart.x = e.clientX;
         dragStart.y = e.clientY;
-
+        
         const rect = launcher.getBoundingClientRect();
         initialPos.x = rect.left;
         initialPos.y = rect.top;
-
+        
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
     });
@@ -671,18 +687,40 @@ function createUI() {
     });
 
     // 4. FSRS APP LOGIC LISTENERS
-    document.getElementById('fsrs-fullscreen-btn').addEventListener('click', () => {
+    function saveDraft() {
         const cleanUrl = window.location.href.split('?')[0].split('#')[0];
-        const currentText = document.getElementById('fsrs-approach').value;
         const existingCard = cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
+        
+        const text = document.getElementById('fsrs-approach').value;
+        const tagsText = document.getElementById('fsrs-tags-input').value;
 
         if (existingCard) {
-            existingCard.approach = currentText;
+            existingCard.approach = text;
+            existingCard.tags = tagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
             saveCards();
         } else {
             chrome.storage.local.get(['approachDrafts'], (res) => {
                 const drafts = res.approachDrafts || {};
-                drafts[cleanUrl] = currentText;
+                drafts[cleanUrl] = { approach: text, tags: tagsText };
+                chrome.storage.local.set({ approachDrafts: drafts });
+            });
+        }
+    }
+
+    document.getElementById('fsrs-fullscreen-btn').addEventListener('click', () => {
+        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
+        const currentText = document.getElementById('fsrs-approach').value;
+        const currentTagsText = document.getElementById('fsrs-tags-input').value;
+        const existingCard = cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
+
+        if (existingCard) {
+            existingCard.approach = currentText;
+            existingCard.tags = currentTagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            saveCards();
+        } else {
+            chrome.storage.local.get(['approachDrafts'], (res) => {
+                const drafts = res.approachDrafts || {};
+                drafts[cleanUrl] = { approach: currentText, tags: currentTagsText };
                 chrome.storage.local.set({ approachDrafts: drafts }, () => {
                     chrome.runtime.sendMessage({
                         action: "open_fullscreen_editor",
@@ -699,22 +737,8 @@ function createUI() {
         });
     });
 
-    document.getElementById('fsrs-approach').addEventListener('input', (e) => {
-        const text = e.target.value;
-        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
-        const existingCard = cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
-
-        if (existingCard) {
-            existingCard.approach = text;
-            saveCards();
-        } else {
-            chrome.storage.local.get(['approachDrafts'], (res) => {
-                const drafts = res.approachDrafts || {};
-                drafts[cleanUrl] = text;
-                chrome.storage.local.set({ approachDrafts: drafts });
-            });
-        }
-    });
+    document.getElementById('fsrs-approach').addEventListener('input', saveDraft);
+    document.getElementById('fsrs-tags-input').addEventListener('input', saveDraft);
 
     document.getElementById('fsrs-update-text-btn').addEventListener('click', (e) => {
         const existingId = document.getElementById('fsrs-save-ratings').getAttribute('data-existing-id');
@@ -722,6 +746,8 @@ function createUI() {
             const index = cards.findIndex(c => c.id === existingId);
             if (index > -1) {
                 cards[index].approach = document.getElementById('fsrs-approach').value;
+                const tagsVal = document.getElementById('fsrs-tags-input').value;
+                cards[index].tags = tagsVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
                 saveCards();
 
                 const originalText = e.target.innerText;
@@ -740,6 +766,9 @@ function createUI() {
             const approach = document.getElementById('fsrs-approach').value;
             if (!approach) return alert("Please enter your approach.");
 
+            const tagsVal = document.getElementById('fsrs-tags-input').value;
+            const parsedTags = tagsVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
             const rating = parseInt(e.target.getAttribute('data-rating'));
             const existingId = document.getElementById('fsrs-save-ratings').getAttribute('data-existing-id');
             const cleanUrl = window.location.href.split('?')[0].split('#')[0];
@@ -749,13 +778,14 @@ function createUI() {
                 const index = cards.findIndex(c => c.id === existingId);
                 if (index > -1) {
                     cards[index].approach = approach;
+                    cards[index].tags = parsedTags;
                     cards[index] = fsrs.reviewCard(cards[index], rating);
-                    cards[index].lastRating = rating;
+                    cards[index].lastRating = rating; 
                 }
             } else {
-                let newCard = fsrs.createCard(problemTitle, cleanUrl, "", approach, getAutoTags());
+                let newCard = fsrs.createCard(problemTitle, cleanUrl, "", approach, parsedTags);
                 newCard = fsrs.reviewCard(newCard, rating);
-                newCard.lastRating = rating;
+                newCard.lastRating = rating; 
                 cards.push(newCard);
             }
 

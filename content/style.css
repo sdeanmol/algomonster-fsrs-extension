@@ -321,6 +321,18 @@
     border-radius: 4px;
     border: 1px solid #333;
 }
+.fsrs-tags-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #bbb;
+    font-size: 11px;
+    width: 100%;
+    font-family: inherit;
+}
+.fsrs-tags-input:focus {
+    color: #fff;
+}
 .fsrs-approach-header {
     display: flex;
     justify-content: space-between;
