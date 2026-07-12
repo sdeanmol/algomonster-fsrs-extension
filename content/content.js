@@ -543,7 +543,8 @@ function createUI() {
     // 1. CREATE LAUNCHER
     const launcher = document.createElement('div');
     launcher.id = 'algo-fsrs-launcher';
-    launcher.innerText = '🧠';
+    launcher.innerText = '🧠'; 
+    launcher.title = "FSRS Tracker (Drag to move, Right-click to reset position)";
     document.body.appendChild(launcher);
 
     // 2. CREATE WIDGET CONTAINER
@@ -649,6 +650,14 @@ function createUI() {
         launcher.style.display = 'none';
         container.style.display = 'block';
         refreshWidgetState();
+    });
+
+    launcher.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        launcher.style.left = '';
+        launcher.style.top = '';
+        launcher.style.right = '';
+        launcher.style.bottom = '';
     });
 
     document.getElementById('fsrs-min-btn').addEventListener('click', () => {
