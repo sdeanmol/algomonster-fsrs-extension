@@ -58,16 +58,14 @@
             </div>
         </label>
 
-        <button id="open-options-btn" class="btn btn-secondary w-full" style="margin-bottom: 8px;">🎨 Customize
-            Colors</button>
-
+        <button id="open-options-btn" class="btn btn-secondary w-full btn-margin-bottom">🎨 Customize Colors</button>
         <button id="manage-highlights-btn" class="btn btn-primary w-full">View All Highlights</button>
     </div>
 
     <!-- Notification Settings Panel -->
     <div class="panel">
         <div class="panel-header">
-            <span class="panel-title" style="color: #e74c3c;">🔔 Notification Settings</span>
+            <span class="panel-title notification-title">🔔 Notification Settings</span>
         </div>
 
         <label class="toggle-row">
@@ -78,9 +76,9 @@
             </div>
         </label>
 
-        <div class="input-group" style="margin-bottom: 12px; display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
-            <span class="toggle-label" style="font-size: 13px;">Check Interval</span>
-            <select id="notification-interval" class="input-field" style="width: 150px; padding: 4px 8px; margin: 0; background-color: #2d2d2d; cursor: pointer;">
+        <div class="input-group-row">
+            <span class="toggle-label select-label">Check Interval</span>
+            <select id="notification-interval" class="input-field select-field">
                 <option value="1">1 minute (Test/Dev)</option>
                 <option value="15">Every 15 minutes</option>
                 <option value="30">Every 30 minutes</option>
@@ -93,9 +91,9 @@
             </select>
         </div>
 
-        <div id="custom-interval-container" class="input-group" style="display: none; margin-bottom: 12px; align-items: center; justify-content: space-between; flex-direction: row;">
-            <span class="toggle-label" style="font-size: 12px; color: #888;">Custom Minutes</span>
-            <input type="number" id="custom-interval-input" class="input-field" min="1" max="1440" placeholder="60" style="width: 80px; padding: 4px 8px; margin: 0; text-align: center;">
+        <div id="custom-interval-container" class="input-group-row hide-panel">
+            <span class="toggle-label sub-label">Custom Minutes</span>
+            <input type="number" id="custom-interval-input" class="input-field custom-interval-input" min="1" max="1440" placeholder="60">
         </div>
 
         <label class="toggle-row">
@@ -106,7 +104,7 @@
             </div>
         </label>
 
-        <button id="test-notification-btn" class="btn btn-secondary w-full" style="margin-top: 8px;">🔔 Send Test Notification</button>
+        <button id="test-notification-btn" class="btn btn-secondary w-full btn-margin-top">🔔 Send Test Notification</button>
     </div>
 
     <!-- Data & Settings Panel -->
@@ -125,7 +123,7 @@
         </div>
 
         <!-- Advanced Settings Panel (Hidden by default) -->
-        <div id="settings-panel" class="advanced-settings" style="display: none;">
+        <div id="settings-panel" class="advanced-settings hide-panel">
             <div class="settings-subtitle">Custom Topic Weights (FSRS)</div>
             <div class="input-group">
                 <input type="text" id="weight-tag" class="input-field" placeholder="Tag (e.g. Two Pointers)">

@@ -32,6 +32,7 @@ body {
     border-radius: 8px;
     padding: 14px;
     margin-bottom: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 .panel-header {
     display: flex;
@@ -46,6 +47,9 @@ body {
 }
 .highlight-title {
     color: #f1c40f;
+}
+.notification-title {
+    color: #e74c3c;
 }
 
 /* Stats Grid */
@@ -63,11 +67,13 @@ body {
     text-align: center;
     cursor: pointer;
     transition: transform 0.2s, background-color 0.2s, border-color 0.2s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 .stat-box:hover {
     transform: translateY(-2px);
     background-color: #252525;
     border-color: #555;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 .stat-value {
     font-size: 20px;
@@ -133,6 +139,8 @@ body {
 }
 .btn:active { transform: scale(0.98); }
 .w-full { width: 100%; display: block; }
+.btn-margin-bottom { margin-bottom: 8px; }
+.btn-margin-top { margin-top: 8px; }
 
 .btn-primary {
     background-color: #f1c40f;
@@ -225,6 +233,55 @@ input:checked + .slider:before {
     transform: translateX(18px);
 }
 
+/* Form inputs & Select lists */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.input-group-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.select-label {
+    font-size: 13px;
+}
+.sub-label {
+    font-size: 12px;
+    color: #888;
+}
+.input-field {
+    background-color: #121212;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    width: 100%;
+    transition: border-color 0.2s;
+}
+.input-field:focus {
+    outline: none;
+    border-color: #3498db;
+}
+.select-field {
+    width: 150px;
+    padding: 4px 8px;
+    margin: 0;
+    background-color: #2d2d2d;
+    cursor: pointer;
+}
+.custom-interval-input {
+    width: 80px;
+    padding: 4px 8px;
+    margin: 0;
+    text-align: center;
+}
+
 /* Advanced Settings */
 .advanced-settings {
     margin-top: 14px;
@@ -235,25 +292,6 @@ input:checked + .slider:before {
     font-size: 12px;
     color: #888;
     margin-bottom: 10px;
-}
-.input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-.input-field {
-    background-color: #121212;
-    border: 1px solid #444;
-    color: #fff;
-    padding: 8px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    width: 100%;
-}
-.input-field:focus {
-    outline: none;
-    border-color: #3498db;
 }
 .saved-weights-title {
     font-size: 12px;
@@ -275,6 +313,9 @@ input:checked + .slider:before {
 }
 #active-weights-list li:last-child {
     margin-bottom: 0;
+}
+.hide-panel {
+    display: none !important;
 }
 
 /* Status Message Toast */

@@ -9,9 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (toggleSettingsBtn && settingsPanel) {
         toggleSettingsBtn.addEventListener('click', () => {
-            const isHidden = settingsPanel.style.display === 'none' || settingsPanel.style.display === '';
-            settingsPanel.style.display = isHidden ? 'block' : 'none';
-            if (isHidden) loadSavedWeights();
+            const isHidden = settingsPanel.classList.toggle('hide-panel');
+            if (!isHidden) loadSavedWeights();
         });
     }
 
@@ -122,10 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (notifInterval) {
             if (standardOptions.includes(freqStr)) {
                 notifInterval.value = freqStr;
-                if (customIntervalContainer) customIntervalContainer.style.display = 'none';
+                if (customIntervalContainer) customIntervalContainer.classList.add('hide-panel');
             } else {
                 notifInterval.value = 'custom';
-                if (customIntervalContainer) customIntervalContainer.style.display = 'flex';
+                if (customIntervalContainer) customIntervalContainer.classList.remove('hide-panel');
                 if (customIntervalInput) customIntervalInput.value = freqStr;
             }
         }
@@ -144,12 +143,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         notifInterval.addEventListener('change', () => {
             if (notifInterval.value === 'custom') {
-                customIntervalContainer.style.display = 'flex';
+                customIntervalContainer.classList.remove('hide-panel');
                 if (!customIntervalInput.value) {
                     customIntervalInput.value = '60';
                 }
             } else {
-                customIntervalContainer.style.display = 'none';
+                customIntervalContainer.classList.add('hide-panel');
             }
             saveNotificationSettings();
         });
@@ -224,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (storageUpdate.notificationSettings) {
                         updateNotificationUI(storageUpdate.notificationSettings);
                     }
-                    if (settingsPanel && settingsPanel.style.display === 'block') loadSavedWeights();
+                    if (settingsPanel && !settingsPanel.classList.contains('hide-panel')) loadSavedWeights();
                 });
             } catch (err) {
                 showStatus("Error reading file.", true);
