@@ -116,11 +116,11 @@ function renderView() {
                 const displayDate = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
                 
                 container.innerHTML += `
-                    <div class="card clickable-day card-day" data-date="${dateString}" title="View cards reviewed on this day">
-                        <div class="card-title" style="font-size: 14px;">${displayDate}</div>
-                        <div class="card-value" style="font-size: 20px;">${dayData[dateString]}</div>
+                    <div class="card card-day" data-date="${dateString}" title="View cards reviewed on this day">
+                        <div class="card-title">${displayDate}</div>
+                        <div class="card-value">${dayData[dateString]}</div>
                         <div class="card-subtitle">Reviews</div>
-                        <div style="font-size: 11px; color: #3498db; margin-top: 12px; font-weight: bold;">🔗 View Cards</div>
+                        <div class="card-day-link">🔗 View Cards</div>
                     </div>
                 `;
             });

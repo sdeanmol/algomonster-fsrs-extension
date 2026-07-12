@@ -1,87 +1,201 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 body {
     background: #121212;
     color: #e0e0e0;
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 30px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 40px 20px;
 }
-.container { max-width: 1000px; margin: 0 auto; }
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* Header & Breadcrumb */
 .header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
-    border-bottom: 2px solid #333;
-    padding-bottom: 15px;
-    margin-bottom: 25px;
+    align-items: center;
+    border-bottom: 1px solid #333;
+    padding-bottom: 20px;
+    margin-bottom: 35px;
+    flex-wrap: wrap;
+    gap: 20px;
 }
-h1 { color: #4CAF50; margin: 0 0 5px 0; font-size: 24px; }
 
-/* Breadcrumb Navigation */
-.breadcrumb { font-size: 14px; color: #888; }
-.breadcrumb span { cursor: pointer; color: #3498db; }
-.breadcrumb span:hover { text-decoration: underline; }
+h1 {
+    color: #f1c40f;
+    margin: 0 0 6px 0;
+    font-size: 26px;
+    font-weight: 700;
+}
 
-/* Top Controls */
-.controls button {
-    background: #2d2d2d;
-    color: white;
-    border: 1px solid #444;
-    padding: 8px 16px;
-    margin-left: 5px;
+.breadcrumb {
+    font-size: 13px;
+    color: #888;
+    font-weight: 600;
+}
+
+.breadcrumb span {
     cursor: pointer;
-    border-radius: 4px;
-    font-weight: bold;
-    transition: background 0.2s;
+    color: #3498db;
+    transition: color 0.15s ease;
 }
-.controls button.active { background: #4CAF50; border-color: #4CAF50; }
-.controls button:hover:not(.active) { background: #3d3d3d; }
+
+.breadcrumb span:hover {
+    color: #f1c40f;
+    text-decoration: underline;
+}
+
+/* Tab Controls Toolbar */
+.controls {
+    display: flex;
+    gap: 6px;
+    background-color: #1e1e1e;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+.controls button {
+    background: transparent;
+    color: #aaa;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.controls button:hover:not(.active) {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.controls button.active {
+    background-color: #f1c40f;
+    color: #121212;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
 
 /* Grid & Cards */
-.grid { display: grid; gap: 15px; }
-.grid-years { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
-.grid-months { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
-.grid-days { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.grid {
+    display: grid;
+    gap: 20px;
+}
+
+.grid-years {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.grid-months {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+.grid-days {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
 
 .card {
     background: #1e1e1e;
     border: 1px solid #333;
     border-radius: 8px;
-    padding: 20px;
+    padding: 24px;
     text-align: center;
     cursor: pointer;
-    transition: transform 0.2s, border-color 0.2s, background 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
+
 .card:hover {
-    transform: translateY(-3px);
-    border-color: #4CAF50;
-    background: #252525;
+    transform: translateY(-4px);
+    border-color: #f1c40f;
+    background: #232323;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
-.card.no-click { cursor: default; transform: none; border-color: #333; background: #1e1e1e; }
 
-.card-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #fff; }
-.card-value { font-size: 28px; color: #4CAF50; font-weight: bold; }
-.card-subtitle { font-size: 12px; color: #888; margin-top: 5px; }
+.card.no-click {
+    cursor: default;
+    transform: none;
+    border-color: #333;
+    background: #1e1e1e;
+}
 
-.empty-state { text-align: center; color: #888; padding: 40px; grid-column: 1 / -1; }
+.card-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: #fff;
+}
 
-/* NEW: Data Button Styles for History Cards */
+.card-value {
+    font-size: 32px;
+    color: #2ecc71;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.card-subtitle {
+    font-size: 12px;
+    color: #888;
+    margin-top: 8px;
+    line-height: 1.5;
+}
+
+.empty-state {
+    text-align: center;
+    color: #888;
+    padding: 60px 40px;
+    background: #1e1e1e;
+    border-radius: 8px;
+    border: 2px dashed #333;
+    font-size: 15px;
+    grid-column: 1 / -1;
+}
+
+/* Actions inside Cards */
 .view-data-btn {
-    margin-top: 15px;
+    margin-top: 18px;
     background: #2d2d2d;
     color: #3498db;
     border: 1px solid #444;
-    padding: 6px 10px;
-    border-radius: 4px;
+    padding: 8px 12px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 11px;
-    font-weight: bold;
+    font-weight: 700;
     width: 100%;
-    transition: background 0.2s, color 0.2s;
+    transition: all 0.2s;
 }
+
 .view-data-btn:hover {
-    background: #3d3d3d;
-    color: #5dade2;
+    background: #3498db;
+    color: #fff;
+    border-color: #3498db;
 }
-.clickable-day {
-    cursor: pointer;
+
+/* Day Specific Class Styling */
+.card-day-link {
+    font-size: 11px;
+    color: #3498db;
+    margin-top: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: color 0.15s;
+}
+
+.card:hover .card-day-link {
+    color: #5dade2;
 }
