@@ -1,25 +1,9 @@
-/* Base Style & Color Palettes */
-:root {
-    --bg-dark: #121212;
-    --card-bg: #1e1e1e;
-    --border-color: #333;
-    --text-main: #e0e0e0;
-    --text-muted: #888;
-    --accent-blue: #3498db;
-    --accent-green: #2ecc71;
-    --accent-orange: #e67e22;
-    --accent-yellow: #f1c40f;
-    --accent-red: #e74c3c;
-    --glass-bg: rgba(30, 30, 30, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.08);
-}
+/* Help Center CSS overrides */
 
 body {
-    background-color: var(--bg-dark);
-    color: var(--text-main);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
     padding: 24px;
-    margin: 0;
     line-height: 1.6;
 }
 
@@ -34,7 +18,7 @@ body {
     justify-content: space-between;
     align-items: center;
     padding-bottom: 20px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--md-border);
     margin-bottom: 24px;
 }
 
@@ -45,8 +29,15 @@ body {
 }
 
 .header-emoji {
-    font-size: 40px;
-    filter: drop-shadow(0 0 12px rgba(52, 152, 219, 0.4));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.main-logo-icon {
+    width: 44px;
+    height: 44px;
+    stroke: var(--md-primary);
+    filter: drop-shadow(0 4px 12px rgba(168, 199, 250, 0.4));
 }
 
 .header h1 {
@@ -58,7 +49,7 @@ body {
 
 .subtitle {
     font-size: 13px;
-    color: var(--text-muted);
+    color: var(--md-text-low);
     margin: 0;
 }
 
@@ -66,7 +57,7 @@ body {
 .tabs-container {
     display: flex;
     gap: 8px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--md-border);
     margin-bottom: 24px;
     padding-bottom: 8px;
     overflow-x: auto;
@@ -75,14 +66,16 @@ body {
 .tab-btn {
     background: transparent;
     border: none;
-    color: var(--text-muted);
+    color: var(--md-text-low);
     padding: 8px 16px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    border-radius: 8px;
+    border-radius: 20px;
     transition: all 0.2s ease;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
 }
 
 .tab-btn:hover {
@@ -91,9 +84,12 @@ body {
 }
 
 .tab-btn.active {
-    color: var(--accent-blue);
-    background: rgba(52, 152, 219, 0.1);
-    border: 1px solid rgba(52, 152, 219, 0.25);
+    color: var(--md-primary);
+    background: var(--md-primary-container);
+    border: 1px solid rgba(168, 199, 250, 0.15);
+}
+.tab-btn.active svg {
+    stroke: var(--md-primary);
 }
 
 /* Tab panes */
@@ -113,12 +109,16 @@ body {
 
 /* Cards */
 .card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
     padding: 20px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-1);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.card:hover {
+    border-color: var(--md-border-hover);
 }
 
 .card h2 {
@@ -129,40 +129,40 @@ body {
 }
 
 .card h3 {
-    font-size: 14px;
-    font-weight: 600;
-    color: #bbb;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--md-text-med);
     margin: 0 0 14px 0;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .card-hero {
-    background: linear-gradient(135deg, #1e1e1e, #1a2730);
-    border-color: rgba(52, 152, 219, 0.2);
-    box-shadow: 0 8px 24px rgba(52, 152, 219, 0.1);
+    background: linear-gradient(135deg, var(--md-surface), #152438);
+    border-color: rgba(168, 199, 250, 0.2);
+    box-shadow: 0 8px 24px rgba(168, 199, 250, 0.08);
 }
 
 .card-hero h2 {
-    color: var(--accent-blue);
+    color: var(--md-primary);
 }
 
 .card-accent {
-    background: linear-gradient(135deg, #1e1e1e, #1d251f);
-    border-color: rgba(46, 204, 113, 0.2);
+    background: linear-gradient(135deg, var(--md-surface), #132b1e);
+    border-color: rgba(129, 201, 149, 0.2);
 }
 
 .card-accent h3 {
-    color: var(--accent-green);
+    color: var(--md-success);
 }
 
 .card-code {
-    background: #181818;
+    background: #09090b;
 }
 
 .section-intro {
     font-size: 14px;
-    color: #bbb;
+    color: var(--md-text-med);
     margin-bottom: 20px;
 }
 
@@ -183,8 +183,8 @@ body {
 }
 
 .step-num {
-    background: rgba(52, 152, 219, 0.15);
-    color: var(--accent-blue);
+    background: var(--md-primary-container);
+    color: var(--md-primary);
     width: 24px;
     height: 24px;
     border-radius: 50%;
@@ -194,7 +194,7 @@ body {
     font-size: 11px;
     font-weight: 700;
     flex-shrink: 0;
-    border: 1px solid rgba(52, 152, 219, 0.2);
+    border: 1px solid rgba(168, 199, 250, 0.2);
 }
 
 .help-bullet-list {
@@ -205,7 +205,7 @@ body {
 .help-bullet-list li {
     margin-bottom: 8px;
     font-size: 13.5px;
-    color: #ccc;
+    color: var(--md-text-med);
 }
 
 .help-bullet-list li strong {
@@ -224,11 +224,13 @@ body {
 
 .tips-list li {
     font-size: 13px;
-    color: #ccc;
-    background: rgba(255, 255, 255, 0.03);
+    color: var(--md-text-med);
+    background: var(--md-surface-variant);
     padding: 10px 14px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    border: 1px solid var(--md-border);
+    display: flex;
+    align-items: center;
 }
 
 /* Rating Guide */
@@ -243,8 +245,8 @@ body {
 }
 
 .rating-item {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border-color);
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
     border-radius: 10px;
     padding: 14px;
     display: flex;
@@ -262,14 +264,14 @@ body {
     text-transform: uppercase;
 }
 
-.rating-again .rating-badge { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-.rating-hard .rating-badge { background: linear-gradient(135deg, #e67e22, #d35400); }
-.rating-good .rating-badge { background: linear-gradient(135deg, #2ecc71, #27ae60); }
-.rating-easy .rating-badge { background: linear-gradient(135deg, #3498db, #2980b9); }
+.rating-again .rating-badge { background: linear-gradient(135deg, #f28b82, #d93025); }
+.rating-hard .rating-badge { background: linear-gradient(135deg, #fde293, #f9ab00); color: #201a00 !important; }
+.rating-good .rating-badge { background: linear-gradient(135deg, #81c995, #188038); }
+.rating-easy .rating-badge { background: linear-gradient(135deg, #aecbfa, #1a73e8); }
 
 .rating-item p {
     font-size: 12px;
-    color: #bbb;
+    color: var(--md-text-med);
     margin: 0;
     line-height: 1.4;
 }
@@ -289,9 +291,9 @@ body {
 
 /* Gamify Info Cards */
 .gamify-card {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
     padding: 16px;
     text-align: center;
     display: flex;
@@ -301,7 +303,9 @@ body {
 }
 
 .gamify-icon {
-    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .gamify-card h4 {
@@ -313,42 +317,19 @@ body {
 
 .gamify-card p {
     font-size: 11.5px;
-    color: #bbb;
+    color: var(--md-text-med);
     margin: 0;
     line-height: 1.4;
 }
 
-/* Buttons */
-.btn {
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: background 0.2s, transform 0.1s;
-}
-
-.btn:active { transform: scale(0.97); }
-
-.btn-secondary {
-    background: #2d2d2d;
-    color: #fff;
-    border: 1px solid #444;
-}
-
-.btn-secondary:hover {
-    background: #3d3d3d;
-    border-color: #555;
-}
-
 code {
-    background: #2b2b2b;
+    background: var(--md-surface-variant);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    font-family: SFMono-Regular, Consolas, monospace;
     font-size: 12px;
-    color: #f39c12;
+    color: var(--md-warning);
+    border: 1px solid var(--md-border);
 }
 
 /* Responsiveness */

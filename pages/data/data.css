@@ -1,13 +1,8 @@
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
+/* FSRS Cards Data Table CSS overrides */
 
 body {
-    background: #121212;
-    color: #e0e0e0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
     padding: 40px 20px;
 }
 
@@ -21,103 +16,69 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--md-border);
     padding-bottom: 20px;
     margin-bottom: 30px;
 }
 
 h1 {
-    color: #f1c40f;
+    color: var(--md-text-high);
     margin: 0 0 6px 0;
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 700;
 }
 
 .subtitle {
-    color: #888;
-    font-size: 14px;
+    color: var(--md-text-low);
+    font-size: 13.5px;
     margin: 0;
 }
 
-/* Buttons */
-.btn {
-    padding: 10px 18px;
-    font-size: 13px;
-    font-weight: bold;
-    border-radius: 6px;
-    cursor: pointer;
-    border: none;
-    transition: all 0.2s ease;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+/* Search Box wrapper */
+.search-box-wrapper {
+    position: relative;
+    width: 100%;
 }
-
-.btn-secondary {
-    background-color: #2d2d2d;
-    color: white;
-    border: 1px solid #444;
+.search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    stroke: var(--md-text-low);
+    pointer-events: none;
 }
-.btn-secondary:hover {
-    background-color: #3d3d3d;
-    border-color: #555;
-}
-
-.btn-text {
-    background: none;
-    border: none;
-    color: #e74c3c;
-    cursor: pointer;
-    font-size: 12px;
-    padding: 6px 10px;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-.btn-text:hover {
-    background-color: rgba(231, 76, 60, 0.15);
+.search-input {
+    padding-left: 42px !important;
 }
 
 /* Filters Panel */
 .filters-panel {
-    background-color: #1e1e1e;
-    border: 1px solid #333;
-    border-radius: 8px;
+    background-color: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
     padding: 20px;
     margin-bottom: 30px;
     display: flex;
     flex-direction: column;
     gap: 16px;
-}
-
-.search-box {
-    width: 100%;
-}
-
-.input-field {
-    background-color: #121212;
-    border: 1px solid #444;
-    color: #fff;
-    padding: 12px 14px;
-    border-radius: 6px;
-    font-size: 14px;
-    width: 100%;
-    transition: border-color 0.2s;
-}
-.input-field:focus {
-    outline: none;
-    border-color: #3498db;
+    box-shadow: var(--shadow-1);
 }
 
 .select-field {
+    background-color: var(--md-surface-variant);
     cursor: pointer;
-    padding: 10px 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    width: 180px;
 }
 
 .filters-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 16px;
     align-items: flex-end;
 }
 
@@ -127,9 +88,9 @@ h1 {
     gap: 6px;
 }
 .filter-group label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #bbb;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--md-text-low);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -138,22 +99,32 @@ h1 {
     margin-left: auto;
     align-self: center;
 }
+.btn-text {
+    color: var(--md-danger);
+}
+.btn-text:hover {
+    background-color: rgba(242, 139, 130, 0.08);
+}
 
 /* Modern Data Table */
 .data-table-container {
-    background: #1e1e1e;
-    border: 1px solid #333;
-    border-radius: 8px;
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
     overflow: hidden;
     margin-bottom: 40px;
+    box-shadow: var(--shadow-1);
 }
 
 h3 {
-    color: #f1c40f;
-    font-size: 18px;
+    color: var(--md-text-high);
+    font-size: 16px;
+    font-weight: 700;
     padding: 20px 24px 10px 24px;
-    background: #1e1e1e;
+    background: var(--md-surface);
     margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 table {
@@ -163,19 +134,21 @@ table {
 }
 
 th, td {
-    padding: 16px 24px;
+    padding: 14px 20px;
     text-align: left;
-    border-bottom: 1px solid #2d2d2d;
+    border-bottom: 1px solid var(--md-border);
+    font-size: 13.5px;
 }
 
 th {
-    background: #252526;
-    color: #bbb;
-    font-size: 12px;
+    background: var(--md-surface-variant);
+    color: var(--md-text-med);
+    font-size: 11.5px;
     text-transform: uppercase;
     font-weight: 700;
     letter-spacing: 0.5px;
-    border-bottom: 2px solid #333;
+    border-bottom: 2px solid var(--md-border);
+    user-select: none;
 }
 
 tr:last-child td {
@@ -183,24 +156,24 @@ tr:last-child td {
 }
 
 tr:hover td {
-    background: #232323;
+    background: rgba(255, 255, 255, 0.015);
 }
 
 td a {
-    color: #3498db;
+    color: var(--md-primary);
     text-decoration: none;
     font-weight: 600;
     transition: color 0.15s ease;
 }
 td a:hover {
-    color: #5dade2;
+    color: var(--md-text-high);
     text-decoration: underline;
 }
 
 /* Tag Badges */
 .tag {
-    background: rgba(52, 152, 219, 0.12);
-    color: #3498db;
+    background: rgba(168, 199, 250, 0.1);
+    color: var(--md-primary);
     padding: 4px 10px;
     border-radius: 12px;
     font-size: 11px;
@@ -208,7 +181,7 @@ td a:hover {
     margin-right: 6px;
     margin-bottom: 4px;
     display: inline-block;
-    border: 1px solid rgba(52, 152, 219, 0.25);
+    border: 1px solid rgba(168, 199, 250, 0.2);
 }
 
 /* Status Badges */
@@ -223,27 +196,27 @@ td a:hover {
 }
 
 .badge-due {
-    background-color: rgba(231, 76, 60, 0.15);
-    color: #e74c3c;
-    border: 1px solid rgba(231, 76, 60, 0.3);
+    background-color: rgba(242, 139, 130, 0.12);
+    color: var(--md-danger);
+    border: 1px solid rgba(242, 139, 130, 0.25);
 }
 
 .badge-safe {
-    background-color: rgba(46, 204, 113, 0.15);
-    color: #2ecc71;
-    border: 1px solid rgba(46, 204, 113, 0.3);
+    background-color: rgba(129, 201, 149, 0.12);
+    color: var(--md-success);
+    border: 1px solid rgba(129, 201, 149, 0.25);
 }
 
 .warning {
-    color: #e74c3c;
+    color: var(--md-danger);
     font-weight: bold;
 }
 
 .empty-state {
     text-align: center;
-    color: #888;
+    color: var(--md-text-low);
     padding: 50px 40px;
-    font-size: 15px;
+    font-size: 14px;
 }
 
 /* Card Delete Action Button */
@@ -251,16 +224,17 @@ td a:hover {
     background: transparent;
     border: none;
     cursor: pointer;
-    font-size: 14px;
-    padding: 6px;
-    border-radius: 4px;
-    transition: background-color 0.2s, transform 0.1s;
-    line-height: 1;
+    color: var(--md-text-low);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    transition: background-color 0.2s, transform 0.1s, color 0.2s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
 }
 .delete-card-btn:hover {
-    background-color: rgba(231, 76, 60, 0.2);
-    transform: scale(1.1);
+    background-color: var(--md-danger-container);
+    color: var(--md-danger);
+    transform: scale(1.1) rotate(-10deg);
 }

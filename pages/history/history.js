@@ -83,7 +83,10 @@ function renderView() {
                     <div class="card-title">${year}</div>
                     <div class="card-value">${yearData[year].total}</div>
                     <div class="card-subtitle">Patterns Reviewed<br>Active Days: ${yearData[year].activeDays}</div>
-                    <button class="view-data-btn btn-year" data-year="${year}">🔗 View Cards</button>
+                    <button class="view-data-btn btn-year" data-year="${year}">
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                        View Cards
+                    </button>
                 </div>
             `;
         });
@@ -100,7 +103,10 @@ function renderView() {
                         <div class="card-title">${monthNames[mIndex]}</div>
                         <div class="card-value">${monthData[monthKey].total}</div>
                         <div class="card-subtitle">Patterns Reviewed</div>
-                        <button class="view-data-btn btn-month" data-month="${monthKey}">🔗 View Cards</button>
+                        <button class="view-data-btn btn-month" data-month="${monthKey}">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                            View Cards
+                        </button>
                     </div>
                 `;
             });
@@ -120,7 +126,10 @@ function renderView() {
                         <div class="card-title">${displayDate}</div>
                         <div class="card-value">${dayData[dateString]}</div>
                         <div class="card-subtitle">Reviews</div>
-                        <div class="card-day-link">🔗 View Cards</div>
+                        <div class="card-day-link">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; margin-right:4px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                            View Cards
+                        </div>
                     </div>
                 `;
             });

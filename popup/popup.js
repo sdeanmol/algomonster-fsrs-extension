@@ -269,7 +269,7 @@ function loadSavedWeights() {
         for (const [tag, weights] of Object.entries(topicWeights)) {
             const li = document.createElement('li');
             li.style.marginBottom = "4px";
-            li.innerHTML = `<strong>${tag}</strong> <button data-tag="${tag}" class="delete-weight-btn" style="background:none; border:none; color:#e74c3c; cursor:pointer; font-size:10px;">[Delete]</button>`;
+            li.innerHTML = `<strong>${tag}</strong> <button data-tag="${tag}" class="delete-weight-btn" style="background:none; border:none; color:var(--md-danger); cursor:pointer; font-size:11px; display:inline-flex; align-items:center; margin-left:8px; padding:2px;" title="Delete Profile"><svg class="svg-icon" style="width:13px; height:13px;" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>`;
             listEl.appendChild(li);
         }
 
@@ -365,29 +365,38 @@ function loadStats() {
             if (cards.length === 0) {
                 gamificationPanel.innerHTML = `
                     <div class="achievement-state">
-                        <div class="achievement-title" style="color: #888;">📌 Welcome to Spaced Repetitions!</div>
+                        <div class="achievement-title" style="color: var(--md-text-low);">
+                            <svg class="svg-icon" style="stroke: var(--md-text-low); margin-right: 4px;" viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                            Welcome to Spaced Repetitions!
+                        </div>
                         <div class="achievement-subtitle">Highlight text or open FSRS widget on problems to save your first pattern.</div>
                     </div>
                 `;
             } else if (dueToday === 0) {
                 gamificationPanel.innerHTML = `
                     <div class="achievement-state">
-                        <div class="achievement-title">🏆 Inbox Zero Achieved!</div>
-                        <div class="achievement-subtitle">All due cards cleared for today. Great job maintaining consistency! 🔥</div>
+                        <div class="achievement-title">
+                            <svg class="svg-icon" style="stroke: var(--md-success); margin-right: 4px;" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                            Inbox Zero Achieved!
+                        </div>
+                        <div class="achievement-subtitle">All due cards cleared for today. Great job maintaining consistency! <svg class="svg-icon" style="stroke: var(--md-warning); width: 14px; height: 14px; display: inline-block; vertical-align: middle;" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg></div>
                     </div>
                 `;
             } else {
                 const totalDailyGoal = completedToday + dueToday;
                 const progressPercent = totalDailyGoal > 0 ? Math.round((completedToday / totalDailyGoal) * 100) : 100;
                 
-                let motivationMessage = "🎯 Start your daily streak today!";
+                let motivationMessage = `<svg class="svg-icon" style="stroke: var(--md-primary); margin-right: 4px; display: inline-block; vertical-align: middle;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg> Start your daily streak today!`;
                 if (completedToday > 0) {
-                    motivationMessage = `💪 Keep going! Only ${dueToday} patterns left to reach Inbox Zero!`;
+                    motivationMessage = `<svg class="svg-icon" style="stroke: var(--md-success); margin-right: 4px; display: inline-block; vertical-align: middle;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg> Keep going! Only ${dueToday} patterns left to reach Inbox Zero!`;
                 }
 
                 gamificationPanel.innerHTML = `
                     <div class="gamification-header">
-                        <span class="gamification-title">⚡ Daily Review Goal</span>
+                        <span class="gamification-title">
+                            <svg class="svg-icon" style="stroke: var(--md-warning); margin-right: 4px;" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>
+                            Daily Review Goal
+                        </span>
                         <span class="gamification-progress-text">${completedToday} / ${totalDailyGoal} Reviews</span>
                     </div>
                     <div class="gamification-bar">
@@ -463,8 +472,12 @@ function showStatus(msg, isError = false) {
         clearTimeout(statusTimeout);
     }
     
-    el.innerHTML = (isError ? "<span>❌</span>" : "<span>✓</span>") + `<span>${msg}</span>`;
-    el.className = 'status-message show ' + (isError ? 'error' : 'success');
+    const iconHtml = isError
+        ? `<svg class="svg-icon" style="stroke: var(--md-danger); width: 14px; height: 14px;" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`
+        : `<svg class="svg-icon" style="stroke: var(--md-success); width: 14px; height: 14px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    
+    el.innerHTML = iconHtml + `<span>${msg}</span>`;
+    el.className = 'toast show ' + (isError ? 'error' : 'success'); // styled to match base toast
     
     statusTimeout = setTimeout(() => {
         el.classList.remove('show');

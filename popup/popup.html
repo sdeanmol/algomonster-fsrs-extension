@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>AlgoMonster FSRS Dashboard</title>
+    <link rel="stylesheet" href="../pages/base.css">
     <link rel="stylesheet" href="popup.css">
 </head>
 
@@ -11,18 +12,29 @@
     <!-- Header -->
     <div class="header">
         <div class="header-main">
-            <h2>🧠 AlgoMonster</h2>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <button id="help-btn" class="help-btn" title="How it works">❓ Help</button>
+            <h2>
+                <svg class="svg-icon logo-icon" viewBox="0 0 24 24"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>
+                AlgoMonster
+            </h2>
+            <div class="header-right-controls">
+                <button id="help-btn" class="help-btn" title="How it works">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    Help
+                </button>
                 <div id="user-level-badge" class="level-badge">Lv. 1</div>
             </div>
         </div>
         <div class="xp-bar-container" title="XP Progress to Next Level">
             <div id="xp-bar-fill" class="xp-bar-fill"></div>
         </div>
+    </div>
+
     <!-- Notification Permission Warning Banner -->
     <div id="permission-warning-banner" class="permission-warning-banner hide-panel">
-        <span>⚠️ Reminders work best with notifications enabled.</span>
+        <span class="banner-text">
+            <svg class="svg-icon warning-icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <span>Reminders work best with notifications enabled.</span>
+        </span>
         <button id="enable-notifications-btn" class="btn-text-accent">Enable</button>
     </div>
 
@@ -50,8 +62,14 @@
     <!-- Heatmap Panel -->
     <div class="panel">
         <div class="panel-header">
-            <span class="panel-title">📊 Contribution Activity</span>
-            <button id="open-heatmap-tab-btn" class="icon-btn" title="Open full screen heatmap">↗️ Full Screen</button>
+            <span class="panel-title">
+                <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                Contribution Activity
+            </span>
+            <button id="open-heatmap-tab-btn" class="icon-btn-text" title="Open full screen heatmap">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                Full Screen
+            </button>
         </div>
         <div class="heatmap-wrapper">
             <div id="heatmap-grid" class="heatmap"></div>
@@ -65,7 +83,10 @@
     <!-- Highlighter Panel -->
     <div class="panel highlighter-panel">
         <div class="panel-header">
-            <span class="panel-title highlight-title">🖍️ Highlighter Settings</span>
+            <span class="panel-title highlight-title">
+                <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                Highlighter Settings
+            </span>
         </div>
 
         <label class="toggle-row">
@@ -76,14 +97,22 @@
             </div>
         </label>
 
-        <button id="open-options-btn" class="btn btn-secondary w-full btn-margin-bottom">🎨 Customize Colors</button>
-        <button id="manage-highlights-btn" class="btn btn-primary w-full">View All Highlights</button>
+        <button id="open-options-btn" class="btn btn-secondary w-full btn-margin-bottom">
+            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            Customize Colors
+        </button>
+        <button id="manage-highlights-btn" class="btn btn-primary w-full">
+            View All Highlights
+        </button>
     </div>
 
     <!-- Notification Settings Panel -->
     <div class="panel">
         <div class="panel-header">
-            <span class="panel-title notification-title">🔔 Notification Settings</span>
+            <span class="panel-title notification-title">
+                <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                Notification Settings
+            </span>
         </div>
 
         <label class="toggle-row">
@@ -122,20 +151,33 @@
             </div>
         </label>
 
-        <button id="test-notification-btn" class="btn btn-secondary w-full btn-margin-top">🔔 Send Test Notification</button>
+        <button id="test-notification-btn" class="btn btn-secondary w-full btn-margin-top">
+            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            Send Test Notification
+        </button>
     </div>
 
     <!-- Data & Settings Panel -->
     <div class="panel">
         <div class="panel-header">
-            <span class="panel-title">⚙️ Data & Options</span>
-            <button id="toggle-settings-btn" class="icon-btn">Advanced ⚙️</button>
+            <span class="panel-title">
+                <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Data & Options
+            </span>
+            <button id="toggle-settings-btn" class="icon-btn-text">
+                Advanced
+                <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
         </div>
 
         <div class="action-grid">
-            <button id="export-btn" class="btn btn-secondary">💾 Export Backup</button>
+            <button id="export-btn" class="btn btn-secondary">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                Export Backup
+            </button>
             <label class="btn btn-secondary import-btn">
-                📂 Import Backup
+                <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 4px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                Import Backup
                 <input type="file" id="import-file" accept=".json" style="display:none;">
             </label>
         </div>
@@ -146,7 +188,7 @@
             <div class="input-group">
                 <input type="text" id="weight-tag" class="input-field" placeholder="Tag (e.g. Two Pointers)">
                 <input type="text" id="weight-values" class="input-field" placeholder="17 comma-separated values">
-                <button id="save-weights-btn" class="btn btn-accent w-full">Save Array</button>
+                <button id="save-weights-btn" class="btn btn-primary w-full" style="border-radius: 8px;">Save Array</button>
             </div>
 
             <div class="saved-weights">
@@ -157,7 +199,7 @@
     </div>
 
     <!-- Status Message Toast -->
-    <div id="status-msg" class="status-message"></div>
+    <div id="status-msg" class="toast"></div>
 
     <script src="popup.js"></script>
 </body>

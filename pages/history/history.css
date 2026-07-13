@@ -1,13 +1,8 @@
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
+/* History Chart and Cards layout styling */
 
 body {
-    background: #121212;
-    color: #e0e0e0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
     padding: 40px 20px;
 }
 
@@ -21,68 +16,77 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--md-border);
     padding-bottom: 20px;
-    margin-bottom: 35px;
+    margin-bottom: 32px;
     flex-wrap: wrap;
     gap: 20px;
 }
 
 h1 {
-    color: #f1c40f;
+    color: var(--md-text-high);
     margin: 0 0 6px 0;
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.page-header-icon {
+    width: 28px;
+    height: 28px;
+    stroke: var(--md-primary);
 }
 
 .breadcrumb {
     font-size: 13px;
-    color: #888;
+    color: var(--md-text-low);
     font-weight: 600;
 }
 
 .breadcrumb span {
     cursor: pointer;
-    color: #3498db;
+    color: var(--md-primary);
     transition: color 0.15s ease;
 }
 
 .breadcrumb span:hover {
-    color: #f1c40f;
+    color: var(--md-text-high);
     text-decoration: underline;
 }
 
 /* Tab Controls Toolbar */
 .controls {
     display: flex;
-    gap: 6px;
-    background-color: #1e1e1e;
+    gap: 4px;
+    background-color: var(--md-surface-variant);
     padding: 4px;
-    border-radius: 8px;
-    border: 1px solid #333;
+    border-radius: 20px;
+    border: 1px solid var(--md-border);
 }
 
 .controls button {
     background: transparent;
-    color: #aaa;
+    color: var(--md-text-med);
     border: none;
-    padding: 8px 16px;
+    padding: 6px 16px;
     cursor: pointer;
-    border-radius: 6px;
-    font-weight: bold;
+    border-radius: 16px;
+    font-weight: 600;
     font-size: 13px;
     transition: all 0.2s ease;
 }
 
 .controls button:hover:not(.active) {
-    color: #fff;
+    color: var(--md-text-high);
     background-color: rgba(255, 255, 255, 0.05);
 }
 
 .controls button.active {
-    background-color: #f1c40f;
-    color: #121212;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    background-color: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    border: 1px solid rgba(168, 199, 250, 0.15);
+    box-shadow: var(--shadow-1);
 }
 
 /* Grid & Cards */
@@ -104,9 +108,9 @@ h1 {
 }
 
 .card {
-    background: #1e1e1e;
-    border: 1px solid #333;
-    border-radius: 8px;
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
     padding: 24px;
     text-align: center;
     cursor: pointer;
@@ -114,88 +118,95 @@ h1 {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s, border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+    box-shadow: var(--shadow-1);
 }
 
 .card:hover {
     transform: translateY(-4px);
-    border-color: #f1c40f;
-    background: #232323;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    border-color: var(--md-primary);
+    background: var(--md-surface-variant);
+    box-shadow: var(--shadow-2);
 }
 
 .card.no-click {
     cursor: default;
     transform: none;
-    border-color: #333;
-    background: #1e1e1e;
+    border-color: var(--md-border);
+    background: var(--md-surface);
 }
 
 .card-title {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     margin-bottom: 12px;
-    color: #fff;
+    color: var(--md-text-high);
 }
 
 .card-value {
     font-size: 32px;
-    color: #2ecc71;
+    color: var(--md-success);
     font-weight: 800;
     line-height: 1.2;
 }
 
 .card-subtitle {
     font-size: 12px;
-    color: #888;
+    color: var(--md-text-low);
     margin-top: 8px;
     line-height: 1.5;
 }
 
 .empty-state {
     text-align: center;
-    color: #888;
+    color: var(--md-text-low);
     padding: 60px 40px;
-    background: #1e1e1e;
-    border-radius: 8px;
-    border: 2px dashed #333;
-    font-size: 15px;
+    background: var(--md-surface);
+    border-radius: 12px;
+    border: 2px dashed var(--md-border);
+    font-size: 14px;
     grid-column: 1 / -1;
 }
 
 /* Actions inside Cards */
 .view-data-btn {
     margin-top: 18px;
-    background: #2d2d2d;
-    color: #3498db;
-    border: 1px solid #444;
+    background: var(--md-surface-variant);
+    color: var(--md-primary);
+    border: 1px solid var(--md-border);
     padding: 8px 12px;
-    border-radius: 6px;
+    border-radius: 20px;
     cursor: pointer;
     font-size: 11px;
     font-weight: 700;
     width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
     transition: all 0.2s;
 }
 
 .view-data-btn:hover {
-    background: #3498db;
-    color: #fff;
-    border-color: #3498db;
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    border-color: var(--md-primary);
 }
 
 /* Day Specific Class Styling */
 .card-day-link {
     font-size: 11px;
-    color: #3498db;
+    color: var(--md-primary);
     margin-top: 14px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     transition: color 0.15s;
 }
 
 .card:hover .card-day-link {
-    color: #5dade2;
+    color: var(--md-text-high);
 }

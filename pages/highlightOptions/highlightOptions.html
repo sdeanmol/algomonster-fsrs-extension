@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>Highlighter Settings & Palettes</title>
+    <link rel="stylesheet" href="../base.css">
     <link rel="stylesheet" href="highlightOptions.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h2>🖍️ Highlighter Appearance</h2>
+            <h2>
+                <svg class="svg-icon header-icon" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                Highlighter Appearance
+            </h2>
             <p>Customize the default marker color and manage your text selection palettes.</p>
         </div>
 
@@ -28,7 +32,10 @@
 
                 <div class="panel">
                     <div class="panel-header-row">
-                        <h3 class="panel-subtitle">🎨 Palette Creator / Editor</h3>
+                        <h3 class="panel-subtitle">
+                            <svg class="svg-icon section-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm1 4a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0zm4.5 4a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0zm-9 0a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0zm4.5 5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0z"></path></svg>
+                            Palette Creator / Editor
+                        </h3>
                         <span id="palette-count" class="badge">0 / 50</span>
                     </div>
                     <div class="input-group">
@@ -41,11 +48,17 @@
                         <div id="palette-slots-container" class="slots-list">
                             <!-- Slots will be added dynamically here -->
                         </div>
-                        <button id="add-slot-btn" class="btn btn-secondary btn-sm" style="margin-top: 8px;">➕ Add Color Slot</button>
+                        <button id="add-slot-btn" class="btn btn-secondary btn-sm" style="margin-top: 8px;">
+                            <svg class="svg-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Add Color Slot
+                        </button>
                     </div>
 
                     <div class="action-buttons" style="margin-top: 20px;">
-                        <button id="save-palette-btn" class="btn btn-primary">💾 Save Palette</button>
+                        <button id="save-palette-btn" class="btn btn-primary">
+                            <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                            Save Palette
+                        </button>
                     </div>
                 </div>
             </div>
@@ -58,7 +71,10 @@
                         <!-- Custom palettes will render here -->
                     </div>
                     <hr class="divider">
-                    <button id="reset-palettes-btn" class="btn btn-secondary w-full">🔄 Reset to Defaults</button>
+                    <button id="reset-palettes-btn" class="btn btn-secondary w-full">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        Reset to Defaults
+                    </button>
                 </div>
             </div>
         </div>

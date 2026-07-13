@@ -220,7 +220,9 @@ function generateCardsTable(cardsArray, showLapses = false) {
             <td>${difficultyFormatted}</td>
             ${showLapses ? `<td class="warning">${lapses}</td>` : ''}
             <td>
-                <button class="delete-card-btn" data-id="${card.id}" title="Remove Card from Reviews">🗑️</button>
+                <button class="delete-card-btn" data-id="${card.id}" title="Remove Card from Reviews">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
             </td>
         </tr>`;
     });
