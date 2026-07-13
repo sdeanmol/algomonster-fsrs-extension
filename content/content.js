@@ -68,11 +68,22 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
         }
     });
 
-    // 2. Hydration Observer (Updates FSRS UI if the URL secretly changed via scroll)
+    // 2. Hydration Observer (Updates FSRS UI if the URL secretly changed via scroll or DOM wiped by React)
     const domObserver = new MutationObserver(() => {
         clearTimeout(highlightDebounceTimer);
         highlightDebounceTimer = setTimeout(() => {
             applyHighlightsForCurrentPage();
+            
+            // If client-side routing/hydration wiped out our elements, re-inject them
+            if (document.body) {
+                if (!document.getElementById('algo-fsrs-launcher')) {
+                    createUI();
+                }
+                if (!document.getElementById('algo-highlight-tooltip')) {
+                    createHighlighterUI();
+                }
+            }
+            
             // If the URL changed without a click, force an update
             if (window.location.href !== lastCheckedUrl) {
                 triggerAggressiveUIUpdate();
@@ -119,6 +130,13 @@ function triggerAggressiveUIUpdate() {
     if (!document.getElementById('algo-fsrs-container') && document.body) {
         createUI(); // Inject if the SPA accidentally destroyed it
     } else {
+        // Restore launcher display on page transition so it's not permanently lost
+        const launcher = document.getElementById('algo-fsrs-launcher');
+        const container = document.getElementById('algo-fsrs-container');
+        if (launcher && container && container.style.display !== 'block') {
+            launcher.style.display = 'flex';
+        }
+
         // Instantly update the contents of the existing widget
         const tagsEl = document.getElementById('fsrs-current-tags');
         if (tagsEl && typeof getAutoTags === 'function') {
@@ -131,21 +149,29 @@ function triggerAggressiveUIUpdate() {
     applyHighlightsForCurrentPage();
 }
 
-// --- HIGHLIGHTER CORE LOGIC ---
+let isHighlighterListenersBound = false;
 
 function createHighlighterUI() {
-    if (document.getElementById('algo-highlight-tooltip')) return;
+    if (!document.getElementById('algo-highlight-tooltip')) {
+        const tooltip = document.createElement('div');
+        tooltip.id = 'algo-highlight-tooltip';
+        document.body.appendChild(tooltip);
+    }
 
-    const tooltip = document.createElement('div');
-    tooltip.id = 'algo-highlight-tooltip';
-    document.body.appendChild(tooltip);
+    if (isHighlighterListenersBound) {
+        applyThemeClass();
+        return;
+    }
 
-    // 1. Text Selection Logic (For NEW highlights)
-    document.addEventListener('mouseup', (e) => {
+    // 1. Text Selection Logic (For NEW highlights) - Use Capturing Phase and pointerup to bypass LeetCode event cancellation
+    document.addEventListener('pointerup', (e) => {
         if (!chromeSettings.showMarkerPopup) return;
         if (e.target.closest('#algo-highlight-tooltip') || e.target.closest('#algo-fsrs-container')) return;
 
         const selection = window.getSelection();
+        const tooltip = document.getElementById('algo-highlight-tooltip');
+        if (!tooltip) return;
+
         if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
             if (hoveredMarkId === null) tooltip.style.display = 'none';
             return;
@@ -159,7 +185,16 @@ function createHighlighterUI() {
 
         // --- NEW POSITIONING: Get the exact last line of the multi-line selection ---
         const rects = range.getClientRects();
-        const lastRect = rects[rects.length - 1];
+        let lastRect = rects.length > 0 ? rects[rects.length - 1] : null;
+
+        if (!lastRect) {
+            const bounding = range.getBoundingClientRect();
+            if (bounding && (bounding.width > 0 || bounding.height > 0)) {
+                lastRect = bounding;
+            }
+        }
+
+        if (!lastRect) return;
 
         renderTooltipColors(null, null);
         tooltip.style.display = 'flex';
@@ -167,7 +202,7 @@ function createHighlighterUI() {
         // Anchor to the bottom-right corner where the highlight ends
         tooltip.style.left = `${lastRect.right + window.scrollX}px`;
         tooltip.style.top = `${lastRect.bottom + window.scrollY}px`;
-    });
+    }, true);
 
     // 2. Hover Detection Logic (For EXISTING highlights)
     document.addEventListener('mousemove', (e) => {
@@ -195,6 +230,9 @@ function createHighlighterUI() {
             if (foundMark) break;
         }
 
+        const tooltip = document.getElementById('algo-highlight-tooltip');
+        if (!tooltip) return;
+
         if (foundMark) {
             clearTimeout(hideTooltipTimer);
             hideTooltipTimer = null;
@@ -219,6 +257,8 @@ function createHighlighterUI() {
             }
         }
     });
+
+    isHighlighterListenersBound = true;
     applyThemeClass();
 }
 
@@ -312,7 +352,7 @@ function saveHighlight(color) {
     if (!selection || selection.isCollapsed) return;
 
     const range = selection.getRangeAt(0);
-    const cleanUrl = window.location.href.split('#')[0];
+    const cleanUrl = window.location.href.split('?')[0].split('#')[0];
     const timestamp = new Date().getTime();
 
     const newMark = {
@@ -330,7 +370,7 @@ function saveHighlight(color) {
     marks.push(newMark);
 
     if (!bookmarks.find(b => b.url === cleanUrl)) {
-        bookmarks.push({ url: cleanUrl, title: document.title, meta: { favIconUrl: 'https://algo.monster/favicon.ico' } });
+        bookmarks.push({ url: cleanUrl, title: getExtractedProblemTitle(), meta: { favIconUrl: 'https://algo.monster/favicon.ico' } });
     }
     pagecontents = pagecontents.filter(p => p.url !== cleanUrl);
     pagecontents.push({ url: cleanUrl, description: document.body.innerText.substring(0, 100), length: document.body.innerText.length });
@@ -433,7 +473,7 @@ function restoreRangeFromMeta(highlightSource, markText) {
 function applyHighlightsForCurrentPage() {
     if (!('highlights' in CSS)) return;
 
-    const cleanUrl = window.location.href.split('#')[0];
+    const cleanUrl = window.location.href.split('?')[0].split('#')[0];
     const pageMarks = marks.filter(m => m.url === cleanUrl);
 
     CSS.highlights.clear();
@@ -480,7 +520,7 @@ function getAutoTags() {
             return [rawTopic.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')];
         }
     } catch (e) { }
-    return ["AlgoMonster"];
+    return ["AlgoRecall"];
 }
 
 function refreshWidgetState() {
@@ -804,7 +844,7 @@ function createUI() {
             const rating = parseInt(e.target.getAttribute('data-rating'));
             const existingId = document.getElementById('fsrs-save-ratings').getAttribute('data-existing-id');
             const cleanUrl = window.location.href.split('?')[0].split('#')[0];
-            const problemTitle = document.title.replace(' - AlgoMonster', '').trim();
+            const problemTitle = getExtractedProblemTitle();
 
             if (existingId) {
                 const index = cards.findIndex(c => c.id === existingId);
@@ -1076,3 +1116,55 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         applyThemeClass();
     }
 });
+
+function getExtractedProblemTitle() {
+    const url = window.location.href;
+    
+    // LeetCode Explore Cards
+    if (url.includes('leetcode.com/explore/')) {
+        const selectors = [
+            'h1', 'h2', 'h3',
+            '[class*="card-title"]',
+            '[class*="course-title"]',
+            '[class*="title-wrapper"]',
+            '.card-info-title',
+            '.title__3y75'
+        ];
+        for (const selector of selectors) {
+            const el = document.querySelector(selector);
+            if (el && el.innerText && el.innerText.trim().length > 0 && el.innerText.trim().length < 100) {
+                const text = el.innerText.trim();
+                if (!text.toLowerCase().includes('leetcode') || text.toLowerCase().includes('course') || text.toLowerCase().includes('crash')) {
+                    return text;
+                }
+            }
+        }
+        
+        // Fallback: parse URL
+        try {
+            const path = window.location.pathname;
+            const segments = path.split('/').filter(p => p.length > 0);
+            if (segments.length > 0) {
+                let index = segments.length - 1;
+                while (index >= 0 && (/^\d+$/.test(segments[index]) || segments[index] === 'card' || segments[index] === 'featured')) {
+                    index--;
+                }
+                if (index >= 0) {
+                    return segments[index]
+                        .split('-')
+                        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                        .join(' ');
+                }
+            }
+        } catch (e) {}
+    }
+    
+    // General title fallback
+    let title = document.title;
+    title = title.replace(' - AlgoMonster', '');
+    title = title.replace(' - LeetCode', '');
+    title = title.replace(' - Codeforces', '');
+    title = title.replace(' - CodeChef', '');
+    title = title.replace(' - AtCoder', '');
+    return title.trim();
+}

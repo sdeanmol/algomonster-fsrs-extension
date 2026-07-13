@@ -152,13 +152,14 @@ function createSystemTestNotification(settings) {
 }
 
 async function checkDueCards() {
-    const result = await chrome.storage.local.get(['fsrsCards', 'notificationSettings']);
+    const result = await chrome.storage.local.get(['fsrsCards', 'notificationSettings', 'customWebsites']);
     const settings = result.notificationSettings || {
         enabled: true,
         frequency: '60',
         priority: '2',
         requireInteraction: true
     };
+    const customWebsites = result.customWebsites || [];
 
     // If notifications are disabled, do not notify
     if (settings.enabled === false) return;
@@ -172,20 +173,36 @@ async function checkDueCards() {
             let handledInPage = false;
             if (tabs && tabs[0] && tabs[0].id) {
                 const tab = tabs[0];
-                const isMatching = tab.url && (tab.url.includes('algo.monster') || tab.url.includes('systemdesignschool.io'));
-                if (isMatching) {
-                    chrome.tabs.sendMessage(tab.id, {
-                        action: 'show_custom_notification',
-                        title: '🧠 AlgoMonster Reviews Due!',
-                        message: `You have ${dueCards.length} pattern(s) ready for review.`,
-                        type: 'review',
-                        count: dueCards.length
-                    }, (response) => {
-                        if (chrome.runtime.lastError || !response || !response.success) {
-                            createSystemReviewNotification(dueCards.length, settings);
-                        }
-                    });
-                    handledInPage = true;
+                const url = tab.url;
+                if (url) {
+                    const domainList = [
+                        "algo.monster",
+                        "systemdesignschool.io",
+                        "codeforces.com",
+                        "leetcode.com",
+                        "codechef.com",
+                        "atcoder.jp",
+                        "hackerrank.com",
+                        "hackerearth.com",
+                        "codewars.com",
+                        "codingame.com",
+                        ...customWebsites.map(s => s.domain)
+                    ];
+                    const isMatching = domainList.some(domain => url.includes(domain));
+                    if (isMatching) {
+                        chrome.tabs.sendMessage(tab.id, {
+                            action: 'show_custom_notification',
+                            title: '🧠 AlgoRecall Reviews Due!',
+                            message: `You have ${dueCards.length} pattern(s) ready for review.`,
+                            type: 'review',
+                            count: dueCards.length
+                        }, (response) => {
+                            if (chrome.runtime.lastError || !response || !response.success) {
+                                createSystemReviewNotification(dueCards.length, settings);
+                            }
+                        });
+                        handledInPage = true;
+                    }
                 }
             }
             if (!handledInPage) {
@@ -200,7 +217,7 @@ function createSystemReviewNotification(dueCount, settings) {
         chrome.notifications.create('algo-review-notification', {
             type: 'basic',
             iconUrl: '../icons/icon.png',
-            title: '🧠 AlgoMonster Reviews Due!',
+            title: '🧠 AlgoRecall Reviews Due!',
             message: `You have ${dueCount} pattern(s) ready for review.`,
             priority: parseInt(settings.priority, 10) || 2,
             requireInteraction: settings.requireInteraction !== false
@@ -213,6 +230,6 @@ function createSystemReviewNotification(dueCount, settings) {
 }
 
 chrome.notifications.onClicked.addListener((notificationId) => {
-    chrome.tabs.create({ url: 'https://algo.monster' });
+    chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html') });
     chrome.notifications.clear(notificationId);
 });

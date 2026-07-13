@@ -8,12 +8,12 @@
 AlgoRecall: Coding Interview Spaced Repetition
 
 **Short Description**
-Optimizes coding pattern memory retention on AlgoMonster using the FSRS spaced repetition scheduler and a persistent text highlighter.
+Spaced repetition coding pattern tracker & persistent highlighter for LeetCode, Codeforces, AlgoMonster, and custom sites.
 
 **Detailed Description**
 Master programming patterns, not just problems.
 
-AlgoRecall integrates the scientific Free Spaced Repetition Scheduler (FSRS) directly into your LeetCode and AlgoMonster study sessions. Instead of memorizing code solutions that fade in a few days, this tool schedules reviews of problem solving patterns at the exact moment of memory decay, ensuring long-term interview readiness.
+AlgoRecall integrates the scientific Free Spaced Repetition Scheduler (FSRS) directly into your coding study sessions on LeetCode, Codeforces, AlgoMonster, CodeChef, and custom domains. Instead of memorizing code solutions that fade in a few days, this tool schedules reviews of problem solving patterns at the exact moment of memory decay, ensuring long-term interview readiness.
 
 Key Features:
 - Scientific Memory Scheduling: Utilizes Manifest V3 FSRS scheduling routines (Again, Hard, Good, Easy ratings) to optimize review intervals dynamically.
@@ -23,7 +23,7 @@ Key Features:
 - Secure Data Portability: Back up, export, or import progress files locally as structured JSON data with 100% serverless data security.
 
 How to Use:
-1. Complete a pattern question on AlgoMonster or System Design School.
+1. Complete a pattern question on LeetCode, Codeforces, AlgoMonster, or any whitelisted coding site.
 2. Highlight core approaches directly on the document.
 3. Click the floating brain icon in the bottom-right corner to save study notes, tags, and rate the initial difficulty.
 4. Open the popup dashboard to audit upcoming cards or receive automatic due review alerts.
@@ -35,7 +35,7 @@ All data is stored locally in the extension sandbox. Zero tracking codes, no ext
 Developer Tools
 
 **Single Purpose**
-Saves and schedules coding pattern reviews using spaced repetition on AlgoMonster.
+Saves and schedules coding pattern reviews using spaced repetition on LeetCode, Codeforces, AlgoMonster, and custom domains.
 
 **Primary Language**
 English
@@ -64,8 +64,17 @@ English
 | `alarms` | permissions | Runs periodic background checks to verify if any reviews are due without draining battery. |
 | `downloads` | permissions | Downloads the user's statistics backup files as structured JSON locally. |
 | `webNavigation` | permissions | Tracks client-side SPA history modifications to automatically load widgets on page transitions. |
-| `*://*.algo.monster/*` | host_permissions | Restricts document highlights and widget injection exclusively to the AlgoMonster domain. |
-| `*://*.systemdesignschool.io/*` | host_permissions | Restricts highlights and widget injection to the System Design School domain. |
+| `scripting` | permissions | Programmatically injects content scripts dynamically on custom whitelisted sites. |
+| `*://*.algo.monster/*` | host_permissions | Enables document highlights and widget injection on AlgoMonster. |
+| `*://*.leetcode.com/*` | host_permissions | Enables document highlights and widget injection on LeetCode. |
+| `*://*.codeforces.com/*` | host_permissions | Enables document highlights and widget injection on Codeforces. |
+| `*://*.codechef.com/*` | host_permissions | Enables document highlights and widget injection on CodeChef. |
+| `*://*.atcoder.jp/*` | host_permissions | Enables document highlights and widget injection on AtCoder. |
+| `*://*.hackerrank.com/*` | host_permissions | Enables document highlights and widget injection on HackerRank. |
+| `*://*.hackerearth.com/*` | host_permissions | Enables document highlights and widget injection on HackerEarth. |
+| `*://*.codewars.com/*` | host_permissions | Enables document highlights and widget injection on Codewars. |
+| `*://*.codingame.com/*` | host_permissions | Enables document highlights and widget injection on CodinGame. |
+| `*://*.systemdesignschool.io/*` | host_permissions | Enables document highlights and widget injection on System Design School. |
 
 ---
 

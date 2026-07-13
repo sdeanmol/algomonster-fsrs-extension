@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>AlgoMonster FSRS Dashboard</title>
+    <title>AlgoRecall Dashboard</title>
     <script src="../pages/theme-sync.js"></script>
     <link rel="stylesheet" href="../pages/base.css">
     <link rel="stylesheet" href="popup.css">
@@ -246,17 +246,30 @@
         </div>
 
         <!-- Link to Active Platforms Manager -->
-        <button id="manage-platforms-btn" class="btn btn-secondary w-full" style="margin-bottom: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
-            <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary); width: 14px; height: 14px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-            Manage Active Websites
-        </button>
+        <div class="action-grid" style="margin-top: 12px;">
+            <button id="manage-platforms-btn" class="btn btn-secondary w-full"
+                style="margin-bottom: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary); width: 14px; height: 14px;">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                Manage Active Websites
+            </button>
 
-        <!-- App Store Optimization: Proactive ratings trigger -->
-        <a href="https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews" target="_blank" class="btn btn-secondary w-full" style="margin-bottom: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">
-            <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-warning); fill: var(--md-warning); width: 14px; height: 14px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-            Rate on Chrome Web Store
-        </a>
-
+            <!-- App Store Optimization: Proactive ratings trigger -->
+            <a href="https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews" target="_blank"
+                class="btn btn-secondary w-full"
+                style="margin-bottom: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">
+                <svg class="svg-icon" viewBox="0 0 24 24"
+                    style="stroke: var(--md-warning); fill: var(--md-warning); width: 14px; height: 14px;">
+                    <polygon
+                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+                    </polygon>
+                </svg>
+                Rate on Chrome Web Store
+            </a>
+        </div>
         <div class="action-grid">
             <button id="export-btn" class="btn btn-secondary">
                 <svg class="svg-icon" viewBox="0 0 24 24">
@@ -297,7 +310,8 @@
 
     <!-- Footer Branding & Privacy -->
     <div class="footer-privacy-box">
-        AlgoRecall: 100% Private, Local-First. <a href="../pages/help/help.html" target="_blank" style="color: var(--md-primary); text-decoration: none; font-weight: 600;">Privacy Policy</a>
+        AlgoRecall: 100% Private, Local-First. <a href="../pages/help/help.html" target="_blank"
+            style="color: var(--md-primary); text-decoration: none; font-weight: 600;">Privacy Policy</a>
     </div>
 
     <script src="popup.js"></script>
