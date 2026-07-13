@@ -30,7 +30,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === 'checkFsrsReviews') checkDueCards();
+    if (alarm.name === 'checkFsrsReviews' || alarm.name === 'snoozeFsrsReviews') checkDueCards();
 });
 
 // Handle SPA Client-Side Routing for Highlighter
@@ -51,6 +51,7 @@ async function setupAlarm() {
     };
 
     await chrome.alarms.clear('checkFsrsReviews');
+    await chrome.alarms.clear('snoozeFsrsReviews');
 
     if (settings.enabled) {
         const interval = parseInt(settings.frequency, 10) || 60;
@@ -83,6 +84,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true });
         return true;
     }
+    if (message.action === 'snooze_notification') {
+        const minutes = message.minutes || 15;
+        chrome.alarms.create('snoozeFsrsReviews', { delayInMinutes: minutes });
+        sendResponse({ success: true });
+        return true;
+    }
 });
 
 async function showTestNotification() {
@@ -95,20 +102,46 @@ async function showTestNotification() {
     };
 
     return new Promise((resolve) => {
-        chrome.notifications.clear('algo-test-notification', () => {
-            chrome.notifications.create('algo-test-notification', {
-                type: 'basic',
-                iconUrl: '../icons/icon.png',
-                title: '🔔 Notification Test',
-                message: `This is a test. Reviews will check every ${settings.frequency} minutes.`,
-                priority: parseInt(settings.priority, 10) || 2,
-                requireInteraction: settings.requireInteraction !== false
-            }, (id) => {
-                if (chrome.runtime.lastError) {
-                    console.error("Test Notification Error:", chrome.runtime.lastError.message);
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            let handledInPage = false;
+            if (tabs && tabs[0] && tabs[0].id) {
+                const tab = tabs[0];
+                const isMatching = tab.url && (tab.url.includes('algo.monster') || tab.url.includes('systemdesignschool.io'));
+                if (isMatching) {
+                    chrome.tabs.sendMessage(tab.id, {
+                        action: 'show_custom_notification',
+                        title: '🔔 Notification Test',
+                        message: `This is a test. Reviews check every ${settings.frequency} minutes.`,
+                        type: 'test'
+                    }, (response) => {
+                        if (chrome.runtime.lastError || !response || !response.success) {
+                            createSystemTestNotification(settings);
+                        }
+                    });
+                    handledInPage = true;
                 }
-                resolve();
-            });
+            }
+            if (!handledInPage) {
+                createSystemTestNotification(settings);
+            }
+            resolve();
+        });
+    });
+}
+
+function createSystemTestNotification(settings) {
+    chrome.notifications.clear('algo-test-notification', () => {
+        chrome.notifications.create('algo-test-notification', {
+            type: 'basic',
+            iconUrl: '../icons/icon.png',
+            title: '🔔 Notification Test',
+            message: `This is a test. Reviews will check every ${settings.frequency} minutes.`,
+            priority: parseInt(settings.priority, 10) || 2,
+            requireInteraction: settings.requireInteraction !== false
+        }, (id) => {
+            if (chrome.runtime.lastError) {
+                console.error("Test Notification Error:", chrome.runtime.lastError.message);
+            }
         });
     });
 }
@@ -130,21 +163,48 @@ async function checkDueCards() {
     const dueCards = result.fsrsCards.filter(c => c.due <= now);
 
     if (dueCards.length > 0) {
-        chrome.notifications.clear('algo-review-notification', () => {
-            chrome.notifications.create('algo-review-notification', {
-                type: 'basic',
-                iconUrl: '../icons/icon.png',
-                title: '🧠 AlgoMonster Reviews Due!',
-                message: `You have ${dueCards.length} pattern(s) ready for review.`,
-                priority: parseInt(settings.priority, 10) || 2,
-                requireInteraction: settings.requireInteraction !== false
-            }, (id) => {
-                if (chrome.runtime.lastError) {
-                    console.error("Notification Error:", chrome.runtime.lastError.message);
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            let handledInPage = false;
+            if (tabs && tabs[0] && tabs[0].id) {
+                const tab = tabs[0];
+                const isMatching = tab.url && (tab.url.includes('algo.monster') || tab.url.includes('systemdesignschool.io'));
+                if (isMatching) {
+                    chrome.tabs.sendMessage(tab.id, {
+                        action: 'show_custom_notification',
+                        title: '🧠 AlgoMonster Reviews Due!',
+                        message: `You have ${dueCards.length} pattern(s) ready for review.`,
+                        type: 'review',
+                        count: dueCards.length
+                    }, (response) => {
+                        if (chrome.runtime.lastError || !response || !response.success) {
+                            createSystemReviewNotification(dueCards.length, settings);
+                        }
+                    });
+                    handledInPage = true;
                 }
-            });
+            }
+            if (!handledInPage) {
+                createSystemReviewNotification(dueCards.length, settings);
+            }
         });
     }
+}
+
+function createSystemReviewNotification(dueCount, settings) {
+    chrome.notifications.clear('algo-review-notification', () => {
+        chrome.notifications.create('algo-review-notification', {
+            type: 'basic',
+            iconUrl: '../icons/icon.png',
+            title: '🧠 AlgoMonster Reviews Due!',
+            message: `You have ${dueCount} pattern(s) ready for review.`,
+            priority: parseInt(settings.priority, 10) || 2,
+            requireInteraction: settings.requireInteraction !== false
+        }, (id) => {
+            if (chrome.runtime.lastError) {
+                console.error("Notification Error:", chrome.runtime.lastError.message);
+            }
+        });
+    });
 }
 
 chrome.notifications.onClicked.addListener((notificationId) => {

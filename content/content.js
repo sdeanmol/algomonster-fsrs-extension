@@ -100,9 +100,13 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 // 3. Listen for SPA URL changes directly from Chrome Background script
-chrome.runtime.onMessage.addListener((request) => {
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "spa_url_changed") {
         setTimeout(triggerAggressiveUIUpdate, 50);
+    }
+    if (request.action === "show_custom_notification") {
+        showInPageNotification(request.title, request.message, request.type, request.count);
+        if (sendResponse) sendResponse({ success: true });
     }
 });
 
@@ -909,4 +913,115 @@ function startReview() {
             else refreshWidgetState(); // Reset UI cleanly when deck is finished
         });
     });
+}
+
+function showInPageNotification(title, message, type, count) {
+    // Prevent double notifications by removing the old one first
+    const existing = document.getElementById('algo-custom-notification-el');
+    if (existing) {
+        existing.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.id = 'algo-custom-notification-el';
+    notification.className = 'algo-custom-notification';
+    
+    const iconSymbol = type === 'review' ? '🧠' : '🔔';
+    const iconClass = type === 'review' ? 'algo-notif-icon review' : 'algo-notif-icon';
+    
+    let buttonsHtml = '';
+    if (type === 'review') {
+        buttonsHtml = `
+            <div class="algo-notif-buttons">
+                <button id="algo-notif-btn-review" class="algo-notif-btn algo-notif-btn-primary">Review Now</button>
+                <button id="algo-notif-btn-snooze" class="algo-notif-btn algo-notif-btn-secondary">Snooze (15m)</button>
+            </div>
+        `;
+    } else {
+        buttonsHtml = `
+            <div class="algo-notif-buttons">
+                <button id="algo-notif-btn-dismiss" class="algo-notif-btn algo-notif-btn-secondary" style="width: 100%;">Dismiss</button>
+            </div>
+        `;
+    }
+
+    notification.innerHTML = `
+        <div class="algo-notif-header">
+            <div class="algo-notif-header-left">
+                <span class="${iconClass}">${iconSymbol}</span>
+                <span class="algo-notif-title">${title}</span>
+            </div>
+            <button id="algo-notif-btn-close" class="algo-notif-close" title="Close">&times;</button>
+        </div>
+        <p class="algo-notif-message">${message}</p>
+        ${buttonsHtml}
+    `;
+
+    document.body.appendChild(notification);
+
+    // Force style recalculation for smooth transition
+    requestAnimationFrame(() => {
+        notification.classList.add('show');
+    });
+
+    // Helper to dismiss
+    function dismissNotification() {
+        notification.classList.remove('show');
+        notification.addEventListener('transitionend', () => {
+            notification.remove();
+        }, { once: true });
+    }
+
+    // Auto-dismiss after 6 seconds for test notifications, or keep review sticky if required
+    let autoDismissTimer = null;
+    if (type !== 'review') {
+        autoDismissTimer = setTimeout(dismissNotification, 6000);
+    }
+
+    // Event Listeners
+    const closeBtn = notification.querySelector('#algo-notif-btn-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            if (autoDismissTimer) clearTimeout(autoDismissTimer);
+            dismissNotification();
+        });
+    }
+
+    const dismissBtn = notification.querySelector('#algo-notif-btn-dismiss');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', () => {
+            if (autoDismissTimer) clearTimeout(autoDismissTimer);
+            dismissNotification();
+        });
+    }
+
+    const snoozeBtn = notification.querySelector('#algo-notif-btn-snooze');
+    if (snoozeBtn) {
+        snoozeBtn.addEventListener('click', () => {
+            if (autoDismissTimer) clearTimeout(autoDismissTimer);
+            dismissNotification();
+            chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: 15 }, (response) => {
+                // Background handles scheduling snoozeFsrsReviews
+            });
+        });
+    }
+
+    const reviewBtn = notification.querySelector('#algo-notif-btn-review');
+    if (reviewBtn) {
+        reviewBtn.addEventListener('click', () => {
+            if (autoDismissTimer) clearTimeout(autoDismissTimer);
+            dismissNotification();
+            
+            // Open/Show the FSRS container and start the review flow!
+            const launcher = document.getElementById('algo-fsrs-launcher');
+            const container = document.getElementById('algo-fsrs-container');
+            
+            if (launcher) launcher.style.display = 'none';
+            if (container) {
+                container.style.display = 'block';
+                refreshWidgetState();
+                startReview();
+            }
+        });
+    }
 }

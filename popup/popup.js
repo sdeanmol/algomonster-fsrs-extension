@@ -3,6 +3,23 @@ let isLifetimeView = false;
 document.addEventListener('DOMContentLoaded', () => {
     loadStats(); 
     loadHeatmap(isLifetimeView);
+    checkNotificationPermissions();
+
+    const enableBtn = document.getElementById('enable-notifications-btn');
+    if (enableBtn) {
+        enableBtn.addEventListener('click', () => {
+            if (typeof Notification !== 'undefined') {
+                Notification.requestPermission().then((permission) => {
+                    checkNotificationPermissions();
+                    if (permission === 'granted') {
+                        showStatus("Notifications enabled successfully!");
+                    } else {
+                        showStatus("Notifications were not allowed.", true);
+                    }
+                });
+            }
+        });
+    }
 
     const settingsPanel = document.getElementById('settings-panel');
     const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
@@ -436,10 +453,42 @@ function loadHeatmap(lifetime = false) {
     });
 }
 
+let statusTimeout = null;
 function showStatus(msg, isError = false) {
     const el = document.getElementById('status-msg');
     if (!el) return;
-    el.innerText = msg;
-    el.style.color = isError ? "#e74c3c" : "#2ecc71";
-    setTimeout(() => el.innerText = "", 3000);
+    
+    if (statusTimeout) {
+        clearTimeout(statusTimeout);
+    }
+    
+    el.innerHTML = (isError ? "<span>❌</span>" : "<span>✓</span>") + `<span>${msg}</span>`;
+    el.className = 'status-message show ' + (isError ? 'error' : 'success');
+    
+    statusTimeout = setTimeout(() => {
+        el.classList.remove('show');
+    }, 2500);
+}
+
+function checkNotificationPermissions() {
+    if (typeof Notification !== 'undefined') {
+        const warningBanner = document.getElementById('permission-warning-banner');
+        const enableBtn = document.getElementById('enable-notifications-btn');
+        if (!warningBanner) return;
+
+        if (Notification.permission !== 'granted') {
+            warningBanner.classList.remove('hide-panel');
+            if (Notification.permission === 'denied') {
+                if (enableBtn) enableBtn.style.display = 'none';
+                const spanEl = warningBanner.querySelector('span');
+                if (spanEl) spanEl.innerText = "⚠️ Notifications blocked. Enable them in settings for reminders.";
+            } else {
+                if (enableBtn) enableBtn.style.display = 'inline-block';
+                const spanEl = warningBanner.querySelector('span');
+                if (spanEl) spanEl.innerText = "⚠️ Reminders work best with notifications enabled.";
+            }
+        } else {
+            warningBanner.classList.add('hide-panel');
+        }
+    }
 }
