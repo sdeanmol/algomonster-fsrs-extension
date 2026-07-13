@@ -33,7 +33,17 @@ document.addEventListener('DOMContentLoaded', () => {
             isCardExisting = false;
             const bookmark = bookmarks.find(b => b.url.split('?')[0].split('#')[0] === cleanUrl);
             document.getElementById('problem-title').textContent = (bookmark && bookmark.title) || getCleanDisplayUrl(problemUrl);
-            document.getElementById('editor-textarea').value = drafts[cleanUrl] || "";
+            
+            const draftVal = drafts[cleanUrl];
+            let draftText = "";
+            if (draftVal) {
+                if (typeof draftVal === 'object') {
+                    draftText = draftVal.approach || "";
+                } else {
+                    draftText = draftVal;
+                }
+            }
+            document.getElementById('editor-textarea').value = draftText;
             document.getElementById('save-status').textContent = "Loaded draft notes";
         }
     });
@@ -97,7 +107,12 @@ function saveContent(callback) {
             }
         } else {
             const drafts = result.approachDrafts || {};
-            drafts[cleanUrl] = text;
+            const existingDraft = drafts[cleanUrl];
+            if (existingDraft && typeof existingDraft === 'object') {
+                existingDraft.approach = text;
+            } else {
+                drafts[cleanUrl] = text;
+            }
             chrome.storage.local.set({ approachDrafts: drafts }, () => {
                 if (callback) callback();
             });
