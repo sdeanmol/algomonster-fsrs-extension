@@ -223,48 +223,70 @@
             <!-- Advanced Options Tab -->
             <div id="tab-advanced" class="tab-pane">
                 <div class="card">
-                    <h2>⚙️ Personalizing FSRS & Data</h2>
+                    <h2>⚙️ FSRS Customizer Guide & Data</h2>
                     <p class="section-intro">
-                        Tweak intervals and manage extension state cleanly.
+                        Understand the math behind the scheduler and configure FSRS parameters to match your learning speed.
                     </p>
 
+                    <div class="card card-accent" style="margin-bottom: 20px;">
+                        <h3>💡 Understanding FSRS Parameters</h3>
+                        <p>
+                            FSRS (Free Spaced Repetition Scheduler) uses target recall rate and stabilizing coefficients to scale review intervals dynamically:
+                        </p>
+                        <ul class="help-bullet-list" style="margin-top: 10px;">
+                            <li><strong>Target Memory Retention Rate:</strong> The target probability that you will successfully recall the coding pattern. Setting a higher rate (e.g., 95%) yields shorter, more frequent intervals. Setting a lower rate (e.g., 80%) yields longer spacing between reviews. Recommended range: 0.75 - 0.95.</li>
+                            <li><strong>Decay Constant (-0.5):</strong> Represents how quickly retrievability decays exponentially over elapsed time. Standard FSRS optimization anchors this at -0.5.</li>
+                            <li><strong>Factor Constant (19/81 ≈ 0.2346):</strong> Scales stability calculations.</li>
+                        </ul>
+                    </div>
+
                     <div class="grid-2">
-                        <div class="card card-accent">
-                            <h3>📊 Custom Topic Weights</h3>
+                        <div class="card">
+                            <h3>📊 Coefficient Groups (w0 - w16)</h3>
                             <p>
-                                Are you already an expert in <em>Greedy Algorithms</em> but struggle with <em>Dynamic Programming</em>? 
-                                You can customize the FSRS calculations per tag!
+                                FSRS coefficients scale stability and difficulty updates based on your recall rating:
                             </p>
-                            <ol class="help-list" style="margin-top: 10px;">
-                                <li>Open **Advanced Settings** at the bottom of the popup dashboard.</li>
-                                <li>Enter the tag name (e.g. <code>Dynamic Programming</code>).</li>
-                                <li>Input a custom array of 17 FSRS parameter values (e.g. setting lower weights to review DP cards more frequently).</li>
-                                <li>Click **Save Array** to assign this weighting formula to DP tagged problems.</li>
-                            </ol>
+                            <ul class="help-bullet-list" style="margin-top: 10px; font-size: 12.5px;">
+                                <li><strong>Initial Stability (w0 - w3):</strong> Spacing values in days for rating Again, Hard, Good, Easy on your first review.</li>
+                                <li><strong>Initial Difficulty (w4 - w5):</strong> Base difficulty level and rating multiplier.</li>
+                                <li><strong>Stability Boosts (w6 - w10):</strong> Rate of stability increase for correct answers.</li>
+                                <li><strong>Lapse Modifiers (w11 - w14):</strong> Deceleration coefficient when you fail a card.</li>
+                                <li><strong>Easy Bonus (w15 - w16):</strong> Additional scheduling bonus and stability bounds.</li>
+                            </ul>
                         </div>
 
-                        <div class="card">
-                            <h3>💾 Backup & Portability</h3>
+                        <div class="card card-accent">
+                            <h3>🏷️ Tag-Specific Profiles</h3>
                             <p>
-                                Your data is stored locally in extension storage. We support importing and exporting backups to move your patterns between systems:
+                                Have custom weights profiles for specific topics! You can assign dedicated sets of 17 coefficients to specific tags (e.g. <code>Graphs</code> or <code>Sliding Window</code>):
                             </p>
-                            <ul class="help-bullet-list" style="margin-top: 10px;">
-                                <li><strong>Export Backup:</strong> Downloads a full <code>.json</code> file of your cards, highlight coordinates, custom weights, and levels.</li>
-                                <li><strong>Import Backup:</strong> Select a previously exported backup file to hydrate your statistics instantly.</li>
-                            </ul>
+                            <ol class="help-list" style="margin-top: 10px;">
+                                <li>Open **FSRS Customizer** from the popup dashboard.</li>
+                                <li>Scroll to **Tag-Specific Profiles** at the bottom.</li>
+                                <li>Enter the tag name (e.g. <code>Dynamic Programming</code>) and paste the 17 coefficients.</li>
+                                <li>Click **Add Profile**. Coding cards matching this tag will dynamically use these coefficients.</li>
+                            </ol>
                         </div>
                     </div>
 
-                    <div class="card card-accent" style="margin-top: 24px;">
-                        <h3>🔒 Privacy & Data Protection Policy</h3>
-                        <p>
-                            We adhere strictly to the **Chrome Web Store Single Purpose and Privacy Protection policies**.
-                        </p>
-                        <ul class="help-bullet-list" style="margin-top: 10px;">
-                            <li><strong>Local-First Storage:</strong> All data, including flashcards, highlight coordinates, topic settings, and level streaks, is saved exclusively on your local machine using the <code>chrome.storage.local</code> API.</li>
-                            <li><strong>No External Transmission:</strong> Zero network endpoints, analytics trackers, or third-party cookies are used. No user data is collected or sent to external servers.</li>
-                            <li><strong>Scope Isolation:</strong> Host page injection is strictly scoped to study platform domains (<code>*.algo.monster</code>, <code>*.systemdesignschool.io</code>) and is restricted from inspecting other active tabs.</li>
-                        </ul>
+                    <div class="grid-2" style="margin-top: 20px;">
+                        <div class="card">
+                            <h3>💾 Backup & Portability</h3>
+                            <p>
+                                Import and export backups to sync statistics across browsers:
+                            </p>
+                            <ul class="help-bullet-list" style="margin-top: 10px;">
+                                <li><strong>Export Backup:</strong> Downloads a full JSON file containing your active FSRS cards, highlight coordinates, custom weights, and levels.</li>
+                                <li><strong>Import Backup:</strong> Hydrates your statistics from a previously exported backup file instantly.</li>
+                            </ul>
+                        </div>
+
+                        <div class="card card-accent">
+                            <h3>🔒 Privacy & Data Protection Policy</h3>
+                            <p>
+                                All data is local-first. We do not use servers, databases, or tracking codes. Zero data leaves your computer.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
