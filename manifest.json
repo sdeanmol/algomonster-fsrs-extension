@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "AlgoMonster FSRS Pro",
+  "name": "AlgoRecall: Coding Interview Spaced Repetition",
   "version": "3.0",
   "description": "FSRS spaced repetition & SPA-safe Text Highlighter with DOM serialization.",
   "permissions": [
     "storage",
     "activeTab",
+    "tabs",
     "notifications",
     "alarms",
     "downloads",
@@ -29,7 +30,7 @@
     }
   ],
   "action": {
-    "default_title": "AlgoMonster FSRS Dashboard",
+    "default_title": "AlgoRecall Dashboard",
     "default_popup": "popup/popup.html"
   },
   "icons": {
