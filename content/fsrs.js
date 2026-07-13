@@ -33,6 +33,9 @@ class FSRS {
     reviewCard(card, rating, customWeights = null, now = new Date().getTime()) {
         let newCard = { ...card };
         
+        // NEW: Store due date before this review to determine if it was due today
+        newCard.previousDue = card.due;
+        
         // NEW: Add this exact review timestamp to the card's history log
         newCard.historyLog = newCard.historyLog || [];
         newCard.historyLog.push(now);

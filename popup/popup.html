@@ -10,7 +10,13 @@
 <body>
     <!-- Header -->
     <div class="header">
-        <h2>🧠 AlgoMonster</h2>
+        <div class="header-main">
+            <h2>🧠 AlgoMonster</h2>
+            <div id="user-level-badge" class="level-badge">Lv. 1</div>
+        </div>
+        <div class="xp-bar-container" title="XP Progress to Next Level">
+            <div id="xp-bar-fill" class="xp-bar-fill"></div>
+        </div>
     </div>
 
     <!-- Stats Row -->
@@ -27,6 +33,11 @@
             <div class="stat-value" id="retention-rate">-%</div>
             <div class="stat-label">Retention</div>
         </div>
+    </div>
+
+    <!-- Gamification Panel -->
+    <div id="gamification-panel" class="panel gamification-panel">
+        <!-- Progress bar and motivational texts will be injected dynamically -->
     </div>
 
     <!-- Heatmap Panel -->

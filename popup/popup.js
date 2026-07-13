@@ -266,16 +266,19 @@ function loadSavedWeights() {
 }
 
 function loadStats() {
-    chrome.storage.local.get(['fsrsCards'], (result) => {
+    chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result) => {
         const cards = result.fsrsCards || [];
+        const activity = result.fsrsActivity || {};
         const now = new Date().getTime();
         
         const totalEl = document.getElementById('total-cards');
         const dueEl = document.getElementById('due-cards');
         const retentionEl = document.getElementById('retention-rate');
 
+        const dueToday = cards.filter(c => c.due <= now).length;
+
         if (totalEl) totalEl.innerText = cards.length;
-        if (dueEl) dueEl.innerText = cards.filter(c => c.due <= now).length;
+        if (dueEl) dueEl.innerText = dueToday;
         
         let totalReps = 0;
         let totalLapses = 0;
@@ -291,6 +294,90 @@ function loadStats() {
                 retentionStr = Math.round(rate) + "%";
             }
             retentionEl.innerText = retentionStr;
+        }
+
+        // --- Gamification Logic ---
+        
+        // 1. Calculate Levels and XP
+        let totalActivityReviews = 0;
+        Object.values(activity).forEach(count => {
+            totalActivityReviews += count;
+        });
+        
+        const level = Math.floor(totalActivityReviews / 10) + 1;
+        const currentLevelProgress = (totalActivityReviews % 10) * 10; // e.g. 0 to 90%
+        
+        const levelBadge = document.getElementById('user-level-badge');
+        const xpBarFill = document.getElementById('xp-bar-fill');
+        
+        if (levelBadge) {
+            levelBadge.innerText = `Lv. ${level}`;
+            // Add a title helper based on level
+            let levelTitle = "Novice";
+            if (level >= 10) levelTitle = "Grandmaster";
+            else if (level >= 5) levelTitle = "Expert";
+            else if (level >= 3) levelTitle = "Specialist";
+            else if (level >= 2) levelTitle = "Apprentice";
+            levelBadge.title = `${levelTitle} (${totalActivityReviews} Total Reviews)`;
+        }
+        if (xpBarFill) {
+            xpBarFill.style.width = `${currentLevelProgress}%`;
+        }
+
+        // 2. Calculate Daily Goal Progress
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+        const todayEndTime = todayEnd.getTime();
+        
+        let completedToday = 0;
+        cards.forEach(card => {
+            const lastReview = card.historyLog && card.historyLog.length > 0 
+                ? card.historyLog[card.historyLog.length - 1] 
+                : null;
+            const isReviewedToday = lastReview && new Date(lastReview).toDateString() === new Date().toDateString();
+            const wasDueTodayOrEarlier = !card.previousDue || card.previousDue <= todayEndTime;
+            
+            if (isReviewedToday && wasDueTodayOrEarlier) {
+                completedToday++;
+            }
+        });
+        
+        const gamificationPanel = document.getElementById('gamification-panel');
+        if (gamificationPanel) {
+            if (cards.length === 0) {
+                gamificationPanel.innerHTML = `
+                    <div class="achievement-state">
+                        <div class="achievement-title" style="color: #888;">📌 Welcome to Spaced Repetitions!</div>
+                        <div class="achievement-subtitle">Highlight text or open FSRS widget on problems to save your first pattern.</div>
+                    </div>
+                `;
+            } else if (dueToday === 0) {
+                gamificationPanel.innerHTML = `
+                    <div class="achievement-state">
+                        <div class="achievement-title">🏆 Inbox Zero Achieved!</div>
+                        <div class="achievement-subtitle">All due cards cleared for today. Great job maintaining consistency! 🔥</div>
+                    </div>
+                `;
+            } else {
+                const totalDailyGoal = completedToday + dueToday;
+                const progressPercent = totalDailyGoal > 0 ? Math.round((completedToday / totalDailyGoal) * 100) : 100;
+                
+                let motivationMessage = "🎯 Start your daily streak today!";
+                if (completedToday > 0) {
+                    motivationMessage = `💪 Keep going! Only ${dueToday} patterns left to reach Inbox Zero!`;
+                }
+
+                gamificationPanel.innerHTML = `
+                    <div class="gamification-header">
+                        <span class="gamification-title">⚡ Daily Review Goal</span>
+                        <span class="gamification-progress-text">${completedToday} / ${totalDailyGoal} Reviews</span>
+                    </div>
+                    <div class="gamification-bar">
+                        <div class="gamification-fill" style="width: ${progressPercent}%;"></div>
+                    </div>
+                    <div class="gamification-msg">${motivationMessage}</div>
+                `;
+            }
         }
     });
 }
