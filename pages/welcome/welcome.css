@@ -1,0 +1,263 @@
+body {
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.welcome-container {
+    background-color: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 24px;
+    padding: 40px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: var(--shadow-3);
+    text-align: center;
+    transition: background-color 0.25s, border-color 0.25s, box-shadow 0.25s;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+:root.light-theme .welcome-container {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+}
+
+.welcome-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-glow {
+    width: 64px;
+    height: 64px;
+    stroke: var(--md-primary);
+    filter: drop-shadow(0 0 12px rgba(26, 115, 232, 0.2));
+}
+
+.welcome-header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.5px;
+}
+
+.welcome-header .subtitle {
+    font-size: 14px;
+    color: var(--md-text-med);
+    margin: 0;
+}
+
+.step-indicator {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.step-indicator .step {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--md-border);
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+.step-indicator .step.active {
+    background-color: var(--md-primary);
+    transform: scale(1.2);
+}
+
+.card-slider {
+    position: relative;
+    min-height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.step-card {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step-card.active {
+    display: flex;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.step-card h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 12px 0;
+    color: var(--md-text-high);
+}
+
+.step-card p {
+    font-size: 14px;
+    color: var(--md-text-med);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Step 1: Theme Option Buttons */
+.theme-picker {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    margin-top: 16px;
+}
+
+.theme-opt-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 18px;
+    border-radius: 16px;
+    border: 1px solid var(--md-border);
+    background-color: var(--md-surface-variant);
+    color: var(--md-text-high);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.theme-opt-btn svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--md-text-med);
+}
+
+.theme-opt-btn:hover {
+    border-color: var(--md-border-hover);
+}
+
+.theme-opt-btn.active {
+    border-color: var(--md-primary);
+    background-color: rgba(26, 115, 232, 0.08);
+    box-shadow: 0 0 0 1px var(--md-primary);
+}
+
+.theme-opt-btn.active svg {
+    stroke: var(--md-primary);
+}
+
+/* Step 2: Highlighting Guide List */
+.guide-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    margin-top: 8px;
+}
+
+.guide-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background-color: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+}
+
+.guide-number {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.guide-text {
+    font-size: 13px;
+    color: var(--md-text-high);
+    line-height: 1.4;
+}
+
+.guide-text strong {
+    color: var(--md-primary);
+}
+
+/* Step 3: Notifications */
+.notif-box {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    background-color: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.notif-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+}
+
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.status-badge.success {
+    background-color: var(--md-success-container);
+    color: var(--md-success);
+}
+
+.status-badge.error {
+    background-color: var(--md-danger-container);
+    color: var(--md-danger);
+}
+
+/* Navigation Actions */
+.welcome-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+
+.invisible {
+    visibility: hidden;
+}
+
+.w-full {
+    width: 100%;
+}

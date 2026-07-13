@@ -1,4 +1,4 @@
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async (details) => {
     // Initialize default notification settings if they don't exist
     const result = await chrome.storage.local.get(['notificationSettings']);
     if (!result.notificationSettings) {
@@ -14,17 +14,22 @@ chrome.runtime.onInstalled.addListener(async () => {
 
     await setupAlarm();
     
-    chrome.notifications.create('test-install', {
-        type: 'basic',
-        iconUrl: '../icons/icon.png', // Relative path from service worker
-        title: 'FSRS Tracker Active 🧠',
-        message: 'Notifications are working! You will be alerted when reviews are due.',
-        priority: 2
-    }, (id) => {
-        if (chrome.runtime.lastError) {
-            console.error("Notification failed to send:", chrome.runtime.lastError.message);
-        }
-    });
+    // Redirect to Onboarding Welcome page on initial install
+    if (details && details.reason === 'install') {
+        chrome.tabs.create({ url: chrome.runtime.getURL('pages/welcome/welcome.html') });
+    } else {
+        chrome.notifications.create('test-install', {
+            type: 'basic',
+            iconUrl: '../icons/icon.png', // Relative path from service worker
+            title: 'AlgoRecall Active 🧠',
+            message: 'Notifications are working! You will be alerted when reviews are due.',
+            priority: 2
+        }, (id) => {
+            if (chrome.runtime.lastError) {
+                console.error("Notification failed to send:", chrome.runtime.lastError.message);
+            }
+        });
+    }
 
     await checkDueCards();
 });

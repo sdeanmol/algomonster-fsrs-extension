@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to AlgoRecall</title>
+    <link rel="stylesheet" href="../base.css">
+    <link rel="stylesheet" href="welcome.css">
+    <script src="../theme-sync.js"></script>
+</head>
+<body>
+    <div class="welcome-container">
+        <!-- Logo and Branding Header -->
+        <div class="welcome-header">
+            <svg class="svg-icon logo-glow" viewBox="0 0 24 24"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>
+            <h1>Welcome to AlgoRecall</h1>
+            <p class="subtitle">Your FSRS spaced repetition and text highlighter is active!</p>
+        </div>
+
+        <!-- Progress Indicators -->
+        <div class="step-indicator">
+            <span class="step active" id="dot-1"></span>
+            <span class="step" id="dot-2"></span>
+            <span class="step" id="dot-3"></span>
+        </div>
+
+        <!-- Step content -->
+        <div class="card-slider">
+            <!-- Step 1: Theme selection -->
+            <div class="step-card active" id="step-1">
+                <h2>Step 1: Choose Your Theme</h2>
+                <p>Personalize your recall environment. Select your preferred look below:</p>
+                <div class="theme-picker">
+                    <button id="set-dark-btn" class="theme-opt-btn active">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        Material Dark (Default)
+                    </button>
+                    <button id="set-light-btn" class="theme-opt-btn">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                        Material Light
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Highlighting introduction -->
+            <div class="step-card" id="step-2">
+                <h2>Step 2: How to Highlight & Rate</h2>
+                <div class="guide-list">
+                    <div class="guide-item">
+                        <div class="guide-number">1</div>
+                        <div class="guide-text">
+                            <strong>Highlight any text</strong> on supported pages (AlgoMonster, System Design School) to mark key formulas or approaches.
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-number">2</div>
+                        <div class="guide-text">
+                            <strong>Click the brain icon</strong> in the bottom-right corner to open the rating slider.
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <div class="guide-number">3</div>
+                        <div class="guide-text">
+                            <strong>Rate review difficulty</strong> (Again, Hard, Good, Easy) to let the FSRS algorithm calculate the next check interval.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Notifications -->
+            <div class="step-card" id="step-3">
+                <h2>Step 3: Setup Notifications</h2>
+                <p>Ensure you never miss review intervals. Enable OS reminders to alert you when patterns fall due:</p>
+                
+                <div class="notif-box">
+                    <div class="notif-status-row">
+                        <span class="status-label">Notifications Status:</span>
+                        <span id="welcome-notif-status" class="status-badge error">Disabled</span>
+                    </div>
+                    <button id="welcome-enable-btn" class="btn btn-primary w-full">
+                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        Grant Permissions
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Controls -->
+        <div class="welcome-actions">
+            <button id="welcome-prev-btn" class="btn btn-secondary invisible">Back</button>
+            <button id="welcome-next-btn" class="btn btn-primary">Next</button>
+        </div>
+    </div>
+
+    <!-- Status toast -->
+    <div id="status-toast" class="toast"></div>
+
+    <script src="welcome.js"></script>
+</body>
+</html>
