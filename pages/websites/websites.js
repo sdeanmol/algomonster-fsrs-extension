@@ -1,22 +1,19 @@
-const defaultSites = [
-    "algo.monster",
-    "systemdesignschool.io",
-    "codeforces.com",
-    "leetcode.com",
-    "codechef.com",
-    "atcoder.jp",
-    "hackerrank.com",
-    "hackerearth.com",
-    "codewars.com",
-    "codingame.com"
+const defaultSitesList = [
+    { domain: "algo.monster", isDefault: true },
+    { domain: "systemdesignschool.io", isDefault: true },
+    { domain: "codeforces.com", isDefault: true },
+    { domain: "leetcode.com", isDefault: true },
+    { domain: "codechef.com", isDefault: true },
+    { domain: "atcoder.jp", isDefault: true },
+    { domain: "hackerrank.com", isDefault: true },
+    { domain: "hackerearth.com", isDefault: true },
+    { domain: "codewars.com", isDefault: true },
+    { domain: "codingame.com", isDefault: true }
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Render default sites list
-    renderDefaultSites();
-
-    // Render custom sites list
-    loadAndRenderCustomSites();
+    // Initial Render
+    loadAndRenderSites();
 
     // Close button
     document.getElementById('back-to-popup-btn').addEventListener('click', () => {
@@ -30,47 +27,46 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('domain-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleAddWebsite();
     });
+
+    // Restore Defaults button
+    document.getElementById('restore-defaults-btn').addEventListener('click', restoreDefaults);
 });
 
-function renderDefaultSites() {
-    const list = document.getElementById('default-sites-list');
-    if (!list) return;
-    list.innerHTML = defaultSites.map(site => {
-        const monogram = site.substring(0, 1).toUpperCase();
-        return `
-            <li>
-                <div class="site-name-wrapper">
-                    <div class="site-icon-fallback">${monogram}</div>
-                    <span>${site}</span>
-                </div>
-                <span class="site-badge protected">Default</span>
-            </li>
-        `;
-    }).join('');
-}
-
-function loadAndRenderCustomSites() {
-    const list = document.getElementById('custom-sites-list');
+function loadAndRenderSites() {
+    const list = document.getElementById('whitelisted-sites-list');
     if (!list) return;
 
-    chrome.storage.local.get(['customWebsites'], (result) => {
-        const customSites = result.customWebsites || [];
-        if (customSites.length === 0) {
-            list.innerHTML = `<li style="justify-content: center; color: var(--md-text-low); font-style: italic;">No custom websites authorized yet.</li>`;
+    chrome.storage.local.get(['whitelistedWebsites'], (result) => {
+        let sites = result.whitelistedWebsites;
+        if (!sites) {
+            // First time: initialize storage with default list
+            sites = [...defaultSitesList.map(s => ({ ...s }))];
+            chrome.storage.local.set({ whitelistedWebsites: sites });
+        }
+
+        if (sites.length === 0) {
+            list.innerHTML = `<li style="justify-content: center; color: var(--md-text-low); font-style: italic;">No whitelisted websites. Add one to get started!</li>`;
             return;
         }
 
-        list.innerHTML = customSites.map(site => {
-            const monogram = site.substring(0, 1).toUpperCase();
+        list.innerHTML = sites.map(site => {
+            const monogram = site.domain.substring(0, 1).toUpperCase();
+            const badge = site.isDefault 
+                ? `<span class="site-badge protected" style="margin-right: 8px;">Default</span>` 
+                : ``;
+            const colorClass = site.isDefault ? '' : 'style="color: var(--md-success); border-color: rgba(30, 142, 62, 0.15);"';
             return `
                 <li>
                     <div class="site-name-wrapper">
-                        <div class="site-icon-fallback" style="color: var(--md-success); border-color: rgba(30, 142, 62, 0.15);">${monogram}</div>
-                        <span>${site}</span>
+                        <div class="site-icon-fallback" ${colorClass}>${monogram}</div>
+                        <span>${site.domain}</span>
                     </div>
-                    <button class="delete-site-btn" data-site="${site}" title="Revoke permissions and delete website">
-                        <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                    </button>
+                    <div style="display: flex; align-items: center;">
+                        ${badge}
+                        <button class="delete-site-btn" data-site="${site.domain}" title="Delete platform whitelisting">
+                            <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
+                    </div>
                 </li>
             `;
         }).join('');
@@ -79,8 +75,8 @@ function loadAndRenderCustomSites() {
         document.querySelectorAll('.delete-site-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const button = e.currentTarget;
-                const site = button.getAttribute('data-site');
-                handleDeleteWebsite(site);
+                const siteDomain = button.getAttribute('data-site');
+                handleDeleteWebsite(siteDomain);
             });
         });
     });
@@ -91,14 +87,12 @@ function handleAddWebsite() {
     let value = input.value.trim().toLowerCase();
     if (!value) return;
 
-    // Normalize value to a clean hostname
     try {
         if (!value.startsWith('http://') && !value.startsWith('https://')) {
             value = 'https://' + value;
         }
         const url = new URL(value);
         let hostname = url.hostname;
-        // strip leading www.
         if (hostname.startsWith('www.')) {
             hostname = hostname.substring(4);
         }
@@ -108,15 +102,9 @@ function handleAddWebsite() {
             return;
         }
 
-        // Check if already in default or custom list
-        if (defaultSites.includes(hostname)) {
-            showToast("This is a default whitelisted platform!");
-            return;
-        }
-
-        chrome.storage.local.get(['customWebsites'], (result) => {
-            const customSites = result.customWebsites || [];
-            if (customSites.includes(hostname)) {
+        chrome.storage.local.get(['whitelistedWebsites'], (result) => {
+            const sites = result.whitelistedWebsites || [...defaultSitesList.map(s => ({ ...s }))];
+            if (sites.some(s => s.domain === hostname)) {
                 showToast("Website is already whitelisted.");
                 return;
             }
@@ -150,10 +138,10 @@ function handleAddWebsite() {
                         }
 
                         // Save to storage
-                        customSites.push(hostname);
-                        chrome.storage.local.set({ customWebsites: customSites }, () => {
+                        sites.push({ domain: hostname, isDefault: false });
+                        chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
                             input.value = '';
-                            loadAndRenderCustomSites();
+                            loadAndRenderSites();
                             showToast(`Authorized & Whitelisted: ${hostname}`);
                         });
                     });
@@ -167,37 +155,62 @@ function handleAddWebsite() {
     }
 }
 
-function handleDeleteWebsite(site) {
-    const originPattern = `*://*.${site}/*`;
-    const scriptId = `site-${site.replace(/[^a-z0-9]/g, '-')}`;
+function handleDeleteWebsite(siteDomain) {
+    chrome.storage.local.get(['whitelistedWebsites'], (result) => {
+        let sites = result.whitelistedWebsites || [...defaultSitesList.map(s => ({ ...s }))];
+        const site = sites.find(s => s.domain === siteDomain);
+        if (!site) return;
 
-    // 1. Unregister content scripts
-    chrome.scripting.unregisterContentScripts({
-        ids: [scriptId]
-    }, () => {
-        // Safe check: ignore errors if script wasn't registered
-        if (chrome.runtime.lastError) {
-            console.warn("Script unregister warning:", chrome.runtime.lastError.message);
-        }
+        const performStorageDelete = () => {
+            sites = sites.filter(s => s.domain !== siteDomain);
+            chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
+                loadAndRenderSites();
+                showToast(`Removed access for: ${siteDomain}`);
+            });
+        };
 
-        // 2. Remove origin permission
-        chrome.permissions.remove({
-            origins: [originPattern]
-        }, (removed) => {
-            if (chrome.runtime.lastError) {
-                console.warn("Permission remove warning:", chrome.runtime.lastError.message);
-            }
+        if (site.isDefault) {
+            // For default sites, we don't need to unregister script/permissions (they are hardcoded in manifest)
+            // Just delete from whitelistedWebsites storage!
+            performStorageDelete();
+        } else {
+            // For custom sites, revoke dynamic permission and unregister script
+            const originPattern = `*://*.${siteDomain}/*`;
+            const scriptId = `site-${siteDomain.replace(/[^a-z0-9]/g, '-')}`;
 
-            // 3. Remove from storage
-            chrome.storage.local.get(['customWebsites'], (result) => {
-                let customSites = result.customWebsites || [];
-                customSites = customSites.filter(s => s !== site);
+            chrome.scripting.unregisterContentScripts({
+                ids: [scriptId]
+            }, () => {
+                if (chrome.runtime.lastError) {
+                    console.warn("Script unregister warning:", chrome.runtime.lastError.message);
+                }
 
-                chrome.storage.local.set({ customWebsites: customSites }, () => {
-                    loadAndRenderCustomSites();
-                    showToast(`Removed access for: ${site}`);
+                chrome.permissions.remove({
+                    origins: [originPattern]
+                }, (removed) => {
+                    if (chrome.runtime.lastError) {
+                        console.warn("Permission remove warning:", chrome.runtime.lastError.message);
+                    }
+                    performStorageDelete();
                 });
             });
+        }
+    });
+}
+
+function restoreDefaults() {
+    chrome.storage.local.get(['whitelistedWebsites'], (result) => {
+        let currentSites = result.whitelistedWebsites || [];
+        
+        // Find custom sites that we want to keep
+        const customSites = currentSites.filter(s => !s.isDefault);
+        
+        // Merge default list and user's custom sites
+        const restoredList = [...defaultSitesList.map(s => ({ ...s })), ...customSites];
+        
+        chrome.storage.local.set({ whitelistedWebsites: restoredList }, () => {
+            loadAndRenderSites();
+            showToast("Default platforms restored!");
         });
     });
 }

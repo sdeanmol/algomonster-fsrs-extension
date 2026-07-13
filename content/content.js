@@ -30,7 +30,27 @@ let activeMarkRanges = [];
 let hoveredMarkId = null;
 let hideTooltipTimer = null;
 
-chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme'], (result) => {
+chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites'], (result) => {
+    // Verify whitelisting
+    const whitelistedWebsites = result.whitelistedWebsites || [
+        { domain: "algo.monster" },
+        { domain: "systemdesignschool.io" },
+        { domain: "codeforces.com" },
+        { domain: "leetcode.com" },
+        { domain: "codechef.com" },
+        { domain: "atcoder.jp" },
+        { domain: "hackerrank.com" },
+        { domain: "hackerearth.com" },
+        { domain: "codewars.com" },
+        { domain: "codingame.com" }
+    ];
+
+    const currentDomain = window.location.hostname;
+    const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
+    if (!isWhitelisted) {
+        return; // Exit early, disabled by user
+    }
+
     if (result.fsrsCards) cards = result.fsrsCards;
     if (result.fsrsTopicWeights) topicWeights = result.fsrsTopicWeights;
 

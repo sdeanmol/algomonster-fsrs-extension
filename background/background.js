@@ -152,14 +152,25 @@ function createSystemTestNotification(settings) {
 }
 
 async function checkDueCards() {
-    const result = await chrome.storage.local.get(['fsrsCards', 'notificationSettings', 'customWebsites']);
+    const result = await chrome.storage.local.get(['fsrsCards', 'notificationSettings', 'whitelistedWebsites']);
     const settings = result.notificationSettings || {
         enabled: true,
         frequency: '60',
         priority: '2',
         requireInteraction: true
     };
-    const customWebsites = result.customWebsites || [];
+    const whitelistedWebsites = result.whitelistedWebsites || [
+        { domain: "algo.monster" },
+        { domain: "systemdesignschool.io" },
+        { domain: "codeforces.com" },
+        { domain: "leetcode.com" },
+        { domain: "codechef.com" },
+        { domain: "atcoder.jp" },
+        { domain: "hackerrank.com" },
+        { domain: "hackerearth.com" },
+        { domain: "codewars.com" },
+        { domain: "codingame.com" }
+    ];
 
     // If notifications are disabled, do not notify
     if (settings.enabled === false) return;
@@ -175,20 +186,7 @@ async function checkDueCards() {
                 const tab = tabs[0];
                 const url = tab.url;
                 if (url) {
-                    const domainList = [
-                        "algo.monster",
-                        "systemdesignschool.io",
-                        "codeforces.com",
-                        "leetcode.com",
-                        "codechef.com",
-                        "atcoder.jp",
-                        "hackerrank.com",
-                        "hackerearth.com",
-                        "codewars.com",
-                        "codingame.com",
-                        ...customWebsites.map(s => s.domain)
-                    ];
-                    const isMatching = domainList.some(domain => url.includes(domain));
+                    const isMatching = whitelistedWebsites.some(site => url.includes(site.domain));
                     if (isMatching) {
                         chrome.tabs.sendMessage(tab.id, {
                             action: 'show_custom_notification',

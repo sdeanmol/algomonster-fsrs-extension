@@ -43,15 +43,13 @@
             <div class="card">
                 <h2>📋 Whitelisted Platforms</h2>
                 <div class="whitelist-container">
-                    <h3>Custom Platforms</h3>
-                    <ul id="custom-sites-list" class="sites-list">
-                        <!-- Custom whitelisted sites injected dynamically -->
+                    <ul id="whitelisted-sites-list" class="sites-list">
+                        <!-- All whitelisted sites injected dynamically -->
                     </ul>
-
-                    <h3 style="margin-top: 24px;">Default Platforms</h3>
-                    <ul id="default-sites-list" class="sites-list">
-                        <!-- Default protected sites loaded dynamically -->
-                    </ul>
+                    <button id="restore-defaults-btn" class="btn btn-secondary" style="margin-top: 20px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        Restore Default Platforms
+                    </button>
                 </div>
             </div>
         </div>
