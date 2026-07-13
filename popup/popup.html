@@ -164,6 +164,35 @@
         </div>
     </div>
 
+    <!-- Rating Prompt Card -->
+    <div id="rating-prompt-card" class="panel rating-card hide-panel">
+        <!-- State 1: Prompt to Rate -->
+        <div id="rating-prompt-state" class="rating-state-content">
+            <div class="rating-header">
+                <span class="rating-title">Enjoying AlgoRecall? 🌟</span>
+                <span class="rating-subtitle">Rate us 5 stars on Chrome Web Store to help us grow!</span>
+            </div>
+            <div class="rating-actions">
+                <a href="https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews" target="_blank" id="rate-store-btn" class="btn btn-primary rating-primary-btn">
+                    <svg class="svg-icon star-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; display: inline-block; vertical-align: middle; margin-right: 4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                    Rate on Chrome Web Store
+                </a>
+                <div class="rating-secondary-actions">
+                    <button id="snooze-rate-btn" class="btn-link">Snooze (7 days)</button>
+                    <button id="already-rated-btn" class="btn-link">Already Rated</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- State 2: Already Rated -->
+        <div id="rating-thanks-state" class="rating-state-content hide-panel">
+            <div class="rating-thanks-header">
+                <span>Thank you for supporting us! ❤️</span>
+                <button id="edit-rating-btn" class="btn-link-underline">Edit Rating</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Settings Panel -->
     <div class="panel">
         <div class="panel-header">
@@ -246,44 +275,38 @@
         </div>
 
         <!-- Link to Active Platforms Manager -->
-        <div class="action-grid" style="margin-top: 12px;">
-            <button id="manage-platforms-btn" class="btn btn-secondary w-full"
-                style="margin-bottom: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary); width: 14px; height: 14px;">
-                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                    <line x1="8" y1="21" x2="16" y2="21"></line>
-                    <line x1="12" y1="17" x2="12" y2="21"></line>
-                </svg>
-                Manage Active Websites
+        <div class="settings-list" style="margin-top: 8px;">
+            <button id="manage-platforms-btn" class="settings-item-btn">
+                <div class="settings-item-left">
+                    <svg class="svg-icon settings-item-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary);">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                    <span>Manage Active Websites</span>
+                </div>
+                <svg class="svg-icon chevron-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </button>
-
-            <!-- App Store Optimization: Proactive ratings trigger -->
-            <a href="https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews" target="_blank"
-                class="btn btn-secondary w-full"
-                style="margin-bottom: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;">
-                <svg class="svg-icon" viewBox="0 0 24 24"
-                    style="stroke: var(--md-warning); fill: var(--md-warning); width: 14px; height: 14px;">
-                    <polygon
-                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
-                    </polygon>
-                </svg>
-                Rate on Chrome Web Store
-            </a>
         </div>
-        <div class="action-grid">
-            <button id="export-btn" class="btn btn-secondary">
-                <svg class="svg-icon" viewBox="0 0 24 24">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                    <polyline points="7 3 7 8 15 8"></polyline>
-                </svg>
-                Export Backup
+
+        <div class="settings-grid" style="margin-top: 10px;">
+            <button id="export-btn" class="settings-item-btn">
+                <div class="settings-item-left">
+                    <svg class="svg-icon settings-item-icon" viewBox="0 0 24 24" style="stroke: var(--md-success);">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    <span>Export Backup</span>
+                </div>
             </button>
-            <label class="btn btn-secondary import-btn">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 4px;">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                </svg>
-                Import Backup
+            <label id="import-btn-label" class="settings-item-btn" style="cursor: pointer; margin: 0;">
+                <div class="settings-item-left">
+                    <svg class="svg-icon settings-item-icon" viewBox="0 0 24 24" style="stroke: var(--md-danger);">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>Import Backup</span>
+                </div>
                 <input type="file" id="import-file" accept=".json" style="display:none;">
             </label>
         </div>
