@@ -509,3 +509,16 @@ body {
 :root.light-theme .gamification-msg {
     color: var(--md-text-med) !important;
 }
+
+/* Footer Privacy Box */
+.footer-privacy-box {
+    text-align: center;
+    font-size: 10px;
+    color: var(--md-text-low);
+    margin-top: 18px;
+    margin-bottom: 8px;
+    opacity: 0.8;
+}
+.footer-privacy-box a:hover {
+    text-decoration: underline !important;
+}
