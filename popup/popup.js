@@ -61,6 +61,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const managePlatformsBtn = document.getElementById('manage-platforms-btn');
+    if (managePlatformsBtn) {
+        managePlatformsBtn.addEventListener('click', () => {
+            chrome.tabs.create({ url: chrome.runtime.getURL('pages/websites/websites.html') });
+        });
+    }
+
     const saveWeightsBtn = document.getElementById('save-weights-btn');
     if (saveWeightsBtn) {
         saveWeightsBtn.addEventListener('click', () => {

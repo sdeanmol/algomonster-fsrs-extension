@@ -10,11 +10,24 @@
     "notifications",
     "alarms",
     "downloads",
-    "webNavigation"
+    "webNavigation",
+    "scripting"
   ],
   "host_permissions": [
     "*://*.algo.monster/*",
-    "*://*.systemdesignschool.io/*"
+    "*://*.systemdesignschool.io/*",
+    "*://*.codeforces.com/*",
+    "*://*.leetcode.com/*",
+    "*://*.codechef.com/*",
+    "*://*.atcoder.jp/*",
+    "*://*.hackerrank.com/*",
+    "*://*.hackerearth.com/*",
+    "*://*.codewars.com/*",
+    "*://*.codingame.com/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
   ],
   "background": {
     "service_worker": "background/background.js"
@@ -23,7 +36,15 @@
     {
       "matches": [
         "*://*.algo.monster/*",
-        "*://*.systemdesignschool.io/*"
+        "*://*.systemdesignschool.io/*",
+        "*://*.codeforces.com/*",
+        "*://*.leetcode.com/*",
+        "*://*.codechef.com/*",
+        "*://*.atcoder.jp/*",
+        "*://*.hackerrank.com/*",
+        "*://*.hackerearth.com/*",
+        "*://*.codewars.com/*",
+        "*://*.codingame.com/*"
       ],
       "js": ["content/fsrs.js", "content/content.js"],
       "css": ["content/style.css"]
