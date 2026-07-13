@@ -82,6 +82,10 @@ body {
     color: #fff;
     background: rgba(255, 255, 255, 0.05);
 }
+:root.light-theme .tab-btn:hover {
+    color: var(--md-primary);
+    background: rgba(26, 115, 232, 0.08);
+}
 
 .tab-btn.active {
     color: var(--md-primary);
@@ -386,4 +390,74 @@ code {
     .grid-2, .grid-3, .rating-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* ==========================================
+   Google Material Design 3 - Light Theme Overrides
+   ========================================== */
+:root.light-theme {
+    /* Base text colors compatibility adjustment */
+    --md-bg: #f8f9fa;
+    --md-surface: #ffffff;
+    --md-surface-variant: #f1f3f4;
+    --md-border: #dadce0;
+}
+
+:root.light-theme body {
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
+}
+
+/* Text elements */
+:root.light-theme .header h1,
+:root.light-theme .card h2,
+:root.light-theme .gamify-card h4,
+:root.light-theme .help-bullet-list li strong {
+    color: var(--md-text-high) !important;
+}
+
+:root.light-theme .subtitle {
+    color: var(--md-text-low);
+}
+
+/* Card gradients for light theme - MD3 compatible */
+:root.light-theme .card-hero {
+    background: linear-gradient(135deg, #ffffff, #e8f0fe) !important;
+    border-color: rgba(26, 115, 232, 0.18) !important;
+    box-shadow: 0 8px 24px rgba(26, 115, 232, 0.04) !important;
+}
+
+:root.light-theme .card-hero h2 {
+    color: var(--md-primary) !important;
+}
+
+:root.light-theme .card-accent {
+    background: linear-gradient(135deg, #ffffff, #e6f4ea) !important;
+    border-color: rgba(30, 142, 62, 0.18) !important;
+}
+
+:root.light-theme .card-accent h3 {
+    color: var(--md-success) !important;
+}
+
+:root.light-theme .card-code {
+    background: var(--md-surface-variant) !important;
+    border-color: var(--md-border) !important;
+}
+
+/* Gamification & layout elements */
+:root.light-theme .gamify-card,
+:root.light-theme .rating-item {
+    background: var(--md-surface) !important;
+    border-color: var(--md-border) !important;
+}
+
+:root.light-theme .step-num {
+    border-color: rgba(26, 115, 232, 0.15) !important;
+}
+
+:root.light-theme code {
+    background: #fcf1eb !important;
+    color: #b06000 !important;
+    border-color: #f7d2bc !important;
 }
