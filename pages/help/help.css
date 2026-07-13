@@ -1,0 +1,359 @@
+/* Base Style & Color Palettes */
+:root {
+    --bg-dark: #121212;
+    --card-bg: #1e1e1e;
+    --border-color: #333;
+    --text-main: #e0e0e0;
+    --text-muted: #888;
+    --accent-blue: #3498db;
+    --accent-green: #2ecc71;
+    --accent-orange: #e67e22;
+    --accent-yellow: #f1c40f;
+    --accent-red: #e74c3c;
+    --glass-bg: rgba(30, 30, 30, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 24px;
+}
+
+.header-title-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.header-emoji {
+    font-size: 40px;
+    filter: drop-shadow(0 0 12px rgba(52, 152, 219, 0.4));
+}
+
+.header h1 {
+    font-size: 24px;
+    color: #fff;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+}
+
+.subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+/* Tabs */
+.tabs-container {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 24px;
+    padding-bottom: 8px;
+    overflow-x: auto;
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.tab-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+    color: var(--accent-blue);
+    background: rgba(52, 152, 219, 0.1);
+    border: 1px solid rgba(52, 152, 219, 0.25);
+}
+
+/* Tab panes */
+.tab-pane {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cards */
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 12px 0;
+}
+
+.card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #bbb;
+    margin: 0 0 14px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-hero {
+    background: linear-gradient(135deg, #1e1e1e, #1a2730);
+    border-color: rgba(52, 152, 219, 0.2);
+    box-shadow: 0 8px 24px rgba(52, 152, 219, 0.1);
+}
+
+.card-hero h2 {
+    color: var(--accent-blue);
+}
+
+.card-accent {
+    background: linear-gradient(135deg, #1e1e1e, #1d251f);
+    border-color: rgba(46, 204, 113, 0.2);
+}
+
+.card-accent h3 {
+    color: var(--accent-green);
+}
+
+.card-code {
+    background: #181818;
+}
+
+.section-intro {
+    font-size: 14px;
+    color: #bbb;
+    margin-bottom: 20px;
+}
+
+/* Lists and Steps */
+.help-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+}
+
+.help-list li {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.step-num {
+    background: rgba(52, 152, 219, 0.15);
+    color: var(--accent-blue);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    border: 1px solid rgba(52, 152, 219, 0.2);
+}
+
+.help-bullet-list {
+    padding-left: 20px;
+    margin: 0;
+}
+
+.help-bullet-list li {
+    margin-bottom: 8px;
+    font-size: 13.5px;
+    color: #ccc;
+}
+
+.help-bullet-list li strong {
+    color: #fff;
+}
+
+/* Tips and Info */
+.tips-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tips-list li {
+    font-size: 13px;
+    color: #ccc;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Rating Guide */
+.rating-guide {
+    margin-top: 20px;
+}
+
+.rating-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.rating-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rating-badge {
+    align-self: flex-start;
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.rating-again .rating-badge { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+.rating-hard .rating-badge { background: linear-gradient(135deg, #e67e22, #d35400); }
+.rating-good .rating-badge { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+.rating-easy .rating-badge { background: linear-gradient(135deg, #3498db, #2980b9); }
+
+.rating-item p {
+    font-size: 12px;
+    color: #bbb;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Grids */
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+/* Gamify Info Cards */
+.gamify-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.gamify-icon {
+    font-size: 28px;
+}
+
+.gamify-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+}
+
+.gamify-card p {
+    font-size: 11.5px;
+    color: #bbb;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Buttons */
+.btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-secondary {
+    background: #2d2d2d;
+    color: #fff;
+    border: 1px solid #444;
+}
+
+.btn-secondary:hover {
+    background: #3d3d3d;
+    border-color: #555;
+}
+
+code {
+    background: #2b2b2b;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12px;
+    color: #f39c12;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .grid-2, .grid-3, .rating-grid {
+        grid-template-columns: 1fr;
+    }
+}

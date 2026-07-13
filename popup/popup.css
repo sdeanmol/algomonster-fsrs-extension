@@ -383,6 +383,26 @@ input:checked + .slider:before {
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
+.help-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.help-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+.help-btn:active {
+    transform: scale(0.96);
+}
 .xp-bar-container {
     background-color: #2d2d2d;
     height: 4px;

@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- ABSOLUTE PATHS FOR PAGES ---
+    document.getElementById('help-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/help/help.html') }));
     document.getElementById('history-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/history/history.html') }));
     document.getElementById('open-heatmap-tab-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/heatmap/heatmap.html') }));
     document.getElementById('box-total')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/data/data.html?view=total') }));

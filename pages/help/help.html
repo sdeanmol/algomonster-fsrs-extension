@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AlgoMonster FSRS Help Center</title>
+    <link rel="stylesheet" href="help.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title-container">
+                <span class="header-emoji">🧠</span>
+                <div>
+                    <h1>AlgoMonster FSRS Pro</h1>
+                    <p class="subtitle">Ultimate guide to mastering coding patterns with spaced repetition</p>
+                </div>
+            </div>
+            <button id="close-help-btn" class="btn btn-secondary">Close Guide</button>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs-container">
+            <button class="tab-btn active" data-tab="overview">🚀 Overview</button>
+            <button class="tab-btn" data-tab="fsrs">📆 Spaced Repetition</button>
+            <button class="tab-btn" data-tab="highlighter">🖍️ Highlighter</button>
+            <button class="tab-btn" data-tab="gamification">🎮 Levels & Progress</button>
+            <button class="tab-btn" data-tab="advanced">⚙️ Advanced Options</button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="tab-content-container">
+            <!-- Overview Tab -->
+            <div id="tab-overview" class="tab-pane active">
+                <div class="card card-hero">
+                    <h2>Master Patterns, Not Just Problems</h2>
+                    <p>
+                        LeetCode and AlgoMonster are vast, and memorizing solutions is impossible. 
+                        <strong>AlgoMonster FSRS Pro</strong> uses the scientific <strong>Free Spaced Repetition Scheduler (FSRS)</strong> 
+                        to calculate exactly when you should re-solve patterns to maximize long-term retention. 
+                        Coupled with an in-page text highlighter, it is a complete workflow for technical interview prep.
+                    </p>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>🔑 Core Workflow</h3>
+                        <ol class="help-list">
+                            <li>
+                                <span class="step-num">1</span>
+                                <div>
+                                    <strong>Learn:</strong> Browse patterns on AlgoMonster or System Design School. Highlight key insights.
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-num">2</span>
+                                <div>
+                                    <strong>Log:</strong> Click the floating brain icon in the bottom-right corner to save your approach, add tags, and record your initial review.
+                                </div>
+                            </li>
+                            <li>
+                                <span class="step-num">3</span>
+                                <div>
+                                    <strong>Retain:</strong> Receive beautiful notifications when cards are due, then solve them again in the interactive widget.
+                                </div>
+                            </li>
+                        </ol>
+                    </div>
+
+                    <div class="card">
+                        <h3>💡 Quick Pro Tips</h3>
+                        <ul class="tips-list">
+                            <li>🎯 <strong>Inbox Zero:</strong> Clear your "Due Today" list daily in the popup dashboard to build a strong habit loop.</li>
+                            <li>💾 <strong>Backup:</strong> Regularly export your backup JSON file from the popup dashboard to keep your history safe.</li>
+                            <li>🔔 <strong>OS vs Tab:</strong> If you are browsing AlgoMonster, notifications slide in elegantly on your page. If you are away, they pop up safely in the background.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FSRS Tab -->
+            <div id="tab-fsrs" class="tab-pane">
+                <div class="card">
+                    <h2>📅 How Spaced Repetition Works</h2>
+                    <p class="section-intro">
+                        FSRS is a modern spacing algorithm superior to legacy SuperMemo (SM-2) systems. It models your memory decay and customizes intervals based on how you grade your performance.
+                    </p>
+
+                    <div class="rating-guide">
+                        <h3>Grade Your Recall</h3>
+                        <div class="rating-grid">
+                            <div class="rating-item rating-again">
+                                <span class="rating-badge">Again</span>
+                                <p>Complete blackout, or you couldn't identify the pattern. The card is scheduled for immediate re-learning.</p>
+                            </div>
+                            <div class="rating-item rating-hard">
+                                <span class="rating-badge">Hard</span>
+                                <p>You remembered the pattern with extreme effort or made minor mistakes. Spacing interval increases slightly.</p>
+                            </div>
+                            <div class="rating-item rating-good">
+                                <span class="rating-badge">Good</span>
+                                <p>Standard recall. You remembered the solution approach in reasonable time. Interval is expanded optimally.</p>
+                            </div>
+                            <div class="rating-item rating-easy">
+                                <span class="rating-badge">Easy</span>
+                                <p>You knew the solution instantly. The pattern is too trivial. Spacing interval is set far in the future.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-accent" style="margin-top: 20px;">
+                        <h3>🧠 Interactive Reviews</h3>
+                        <p>
+                            When cards are due, you can click the notification or open the review session directly from the page widget. 
+                            The review loads the problem description. Click <strong>Show Approach</strong> to view your past notes, 
+                            re-solve/think through the pattern, and then select your rating to update the card's memory state.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Highlighter Tab -->
+            <div id="tab-highlighter" class="tab-pane">
+                <div class="card">
+                    <h2>🖍️ Text Highlighter & Notes</h2>
+                    <p class="section-intro">
+                        Highlighting critical concepts directly on documentation helps anchor visual memory. The highlighter preserves your selections persistently.
+                    </p>
+
+                    <div class="grid-2">
+                        <div>
+                            <h3>How to Use</h3>
+                            <ul class="help-bullet-list">
+                                <li>Simply select any text on matched pages to open the floating palette.</li>
+                                <li>Click any color circle to immediately apply the color overlay.</li>
+                                <li>Click the custom wheel icon to pick an exact color, or click the red 🗑️ icon to remove a highlight.</li>
+                                <li>All selections are serialized to the DOM and re-injected automatically when you return!</li>
+                            </ul>
+                        </div>
+                        <div class="card card-code">
+                            <h3>Highlighter Customization</h3>
+                            <p>
+                                Visit the **Highlighter Settings** section of the dashboard to:
+                            </p>
+                            <ul class="help-bullet-list" style="margin-top: 8px;">
+                                <li>Enable or disable the floating selection menu.</li>
+                                <li>Click **Customize Colors** to manage palette sets (e.g. Pastels, Sunset Glow) or design your custom palettes.</li>
+                                <li>Click **View All Highlights** to browse, search, and delete snippets globally across all websites.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gamification Tab -->
+            <div id="tab-gamification" class="tab-pane">
+                <div class="card">
+                    <h2>🎮 Level Up Your Algorithmic Mindset</h2>
+                    <p class="section-intro">
+                        To encourage consistency, the extension features gamification elements showing your progress.
+                    </p>
+
+                    <div class="grid-3">
+                        <div class="gamify-card">
+                            <span class="gamify-icon">🛡️</span>
+                            <h4>Level & XP Badge</h4>
+                            <p>Every review activity yields XP points. Rack up reviews to level up your badge (Apprentice, Specialist, Expert, Grandmaster) and track your growth.</p>
+                        </div>
+                        <div class="gamify-card">
+                            <span class="gamify-icon">🎯</span>
+                            <h4>Daily Review Goal</h4>
+                            <p>Track your daily target reviews. Strive to clear all due patterns every day to hit your Inbox Zero consistency award.</p>
+                        </div>
+                        <div class="gamify-card">
+                            <span class="gamify-icon">🔥</span>
+                            <h4>Activity Heatmap</h4>
+                            <p>Visually audit your daily coding contributions. Darker green blocks represent active practice days, similar to GitHub contributions.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Options Tab -->
+            <div id="tab-advanced" class="tab-pane">
+                <div class="card">
+                    <h2>⚙️ Personalizing FSRS & Data</h2>
+                    <p class="section-intro">
+                        Tweak intervals and manage extension state cleanly.
+                    </p>
+
+                    <div class="grid-2">
+                        <div class="card card-accent">
+                            <h3>📊 Custom Topic Weights</h3>
+                            <p>
+                                Are you already an expert in <em>Greedy Algorithms</em> but struggle with <em>Dynamic Programming</em>? 
+                                You can customize the FSRS calculations per tag!
+                            </p>
+                            <ol class="help-list" style="margin-top: 10px;">
+                                <li>Open **Advanced Settings** at the bottom of the popup dashboard.</li>
+                                <li>Enter the tag name (e.g. <code>Dynamic Programming</code>).</li>
+                                <li>Input a custom array of 17 FSRS parameter values (e.g. setting lower weights to review DP cards more frequently).</li>
+                                <li>Click **Save Array** to assign this weighting formula to DP tagged problems.</li>
+                            </ol>
+                        </div>
+
+                        <div class="card">
+                            <h3>💾 Backup & Portability</h3>
+                            <p>
+                                Your data is stored locally in extension storage. We support importing and exporting backups to move your patterns between systems:
+                            </p>
+                            <ul class="help-bullet-list" style="margin-top: 10px;">
+                                <li><strong>Export Backup:</strong> Downloads a full <code>.json</code> file of your cards, highlight coordinates, custom weights, and levels.</li>
+                                <li><strong>Import Backup:</strong> Select a previously exported backup file to hydrate your statistics instantly.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="help.js"></script>
+</body>
+</html>
