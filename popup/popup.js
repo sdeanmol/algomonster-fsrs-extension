@@ -1,6 +1,20 @@
 let isLifetimeView = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Theme Switcher Initialization
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            chrome.storage.local.get(['theme'], (result) => {
+                const currentTheme = result.theme || 'dark';
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                chrome.storage.local.set({ theme: newTheme }, () => {
+                    showStatus(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode!`);
+                });
+            });
+        });
+    }
+
     loadStats(); 
     loadHeatmap(isLifetimeView);
     checkNotificationPermissions();

@@ -3,6 +3,7 @@ const fsrs = new FSRS();
 let cards = [];
 let lastCheckedUrl = window.location.href;
 let topicWeights = {};
+let currentTheme = 'dark';
 
 // --- Highlighter State ---
 let marks = [];
@@ -29,13 +30,14 @@ let activeMarkRanges = [];
 let hoveredMarkId = null;
 let hideTooltipTimer = null;
 
-chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings'], (result) => {
+chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme'], (result) => {
     if (result.fsrsCards) cards = result.fsrsCards;
     if (result.fsrsTopicWeights) topicWeights = result.fsrsTopicWeights;
 
     if (result.marks) marks = result.marks;
     if (result.bookmarks) bookmarks = result.bookmarks;
     if (result.pagecontents) pagecontents = result.pagecontents;
+    if (result.theme) currentTheme = result.theme;
     if (result.chromeSettings) {
         chromeSettings = { ...chromeSettings, ...result.chromeSettings };
     }
@@ -217,6 +219,7 @@ function createHighlighterUI() {
             }
         }
     });
+    applyThemeClass();
 }
 
 function renderTooltipColors(existingMarkId = null, currentColor = null) {
@@ -837,6 +840,7 @@ function createUI() {
             setTimeout(() => e.target.innerText = originalText, 1500);
         });
     });
+    applyThemeClass();
 }
 
 function getDueCards() {
@@ -943,6 +947,9 @@ function showInPageNotification(title, message, type, count) {
     const notification = document.createElement('div');
     notification.id = 'algo-custom-notification-el';
     notification.className = 'algo-custom-notification';
+    if (currentTheme === 'light') {
+        notification.classList.add('light-theme');
+    }
     
     const iconSymbol = type === 'review' 
         ? `<svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary); width:18px; height:18px;"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>`
@@ -1045,3 +1052,27 @@ function showInPageNotification(title, message, type, count) {
         });
     }
 }
+
+// --- Dynamic Theme Support ---
+function applyThemeClass() {
+    const launcher = document.getElementById('algo-fsrs-launcher');
+    const container = document.getElementById('algo-fsrs-container');
+    const tooltip = document.getElementById('algo-highlight-tooltip');
+    
+    const isLight = currentTheme === 'light';
+    
+    if (launcher) launcher.classList.toggle('light-theme', isLight);
+    if (container) container.classList.toggle('light-theme', isLight);
+    if (tooltip) tooltip.classList.toggle('light-theme', isLight);
+    
+    document.querySelectorAll('.algo-custom-notification').forEach(n => {
+        n.classList.toggle('light-theme', isLight);
+    });
+}
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes.theme) {
+        currentTheme = changes.theme.newValue || 'dark';
+        applyThemeClass();
+    }
+});

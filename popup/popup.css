@@ -439,3 +439,57 @@ body {
 .hide-panel {
     display: none !important;
 }
+
+/* Theme Switcher Styles */
+.theme-toggle-btn {
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    color: var(--md-text-high);
+    padding: 6px;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.theme-toggle-btn:hover {
+    background-color: var(--md-border-hover);
+    transform: scale(1.1) rotate(15deg);
+}
+.theme-toggle-btn:active {
+    transform: scale(0.95);
+}
+
+.theme-toggle-btn .sun-icon {
+    display: block;
+    stroke: var(--md-warning);
+}
+.theme-toggle-btn .moon-icon {
+    display: none;
+    fill: var(--md-primary);
+    stroke: var(--md-primary);
+}
+
+/* Light Theme overrides for icons and styling widgets */
+:root.light-theme .theme-toggle-btn .sun-icon {
+    display: none;
+}
+:root.light-theme .theme-toggle-btn .moon-icon {
+    display: block;
+}
+
+/* In light theme, the text accent hover color needs a lighter red-accent */
+:root.light-theme .btn-text-accent:hover {
+    background: #fcd5d2;
+}
+
+/* Vibrancy / Neon shadow styling for active dashboard panels */
+:root.light-theme .card, :root.light-theme .panel {
+    box-shadow: 0 4px 16px rgba(26, 115, 232, 0.05);
+}
+:root.light-theme .xp-bar-container {
+    background-color: var(--md-surface-variant);
+}

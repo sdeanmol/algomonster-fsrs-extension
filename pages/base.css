@@ -1,8 +1,8 @@
-/* Material Design 3 Dark Theme Base & Utility System */
+/* Material Design 3 Base & Utility System */
 :root {
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     
-    /* Core MD3 Dark Palette */
+    /* Core MD3 Dark Palette (Default) */
     --md-bg: #0e0e11;
     --md-surface: #17181c;
     --md-surface-variant: #22232a;
@@ -33,6 +33,45 @@
     --shadow-1: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
     --shadow-2: 0 4px 6px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.2);
     --shadow-3: 0 10px 20px rgba(0,0,0,0.4), 0 6px 6px rgba(0,0,0,0.3);
+}
+
+:root.light-theme {
+    /* Core MD3 Light Palette */
+    --md-bg: #f8f9fc;
+    --md-surface: #ffffff;
+    --md-surface-variant: #f0f4f9;
+    --md-border: #dbe2ef;
+    --md-border-hover: #b9cadc;
+    
+    --md-primary: #1a73e8; /* Vibrant Blue */
+    --md-on-primary: #ffffff;
+    --md-primary-container: #d2e3fc;
+    --md-on-primary-container: #0d1d3a;
+    
+    --md-secondary: #5c6068;
+    --md-on-secondary: #ffffff;
+    --md-secondary-container: #e2e6ee;
+    --md-on-secondary-container: #1b1d22;
+
+    --md-success: #1e8e3e; /* Vibrant Green */
+    --md-success-container: #e6f4ea;
+    --md-warning: #f9ab00; /* Vibrant Orange/Yellow */
+    --md-warning-container: #fef7e0;
+    --md-danger: #d93025; /* Vibrant Red */
+    --md-danger-container: #fce8e6;
+
+    --md-text-high: #1c1c1f;
+    --md-text-med: #45474a;
+    --md-text-low: #75777a;
+
+    --shadow-1: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-2: 0 4px 6px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+    --shadow-3: 0 10px 20px rgba(0,0,0,0.1), 0 6px 6px rgba(0,0,0,0.06);
+}
+
+/* Global Transitions for smooth theme switching */
+body, .panel, .stat-box, .card, .btn, input, select, textarea, .slider {
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease;
 }
 
 /* Base resets */
