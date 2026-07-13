@@ -16,7 +16,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     
     // Redirect to Onboarding Welcome page on initial install
     if (details && details.reason === 'install') {
-        chrome.tabs.create({ url: chrome.runtime.getURL('pages/welcome/welcome.html') });
+        chrome.tabs.create({ url: chrome.runtime.getURL('features/common/welcome/welcome.html') });
     } else {
         chrome.notifications.create('test-install', {
             type: 'basic',
@@ -85,7 +85,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true; // Keep message channel open for async response
     }
     if (message.action === 'open_fullscreen_editor') {
-        chrome.tabs.create({ url: chrome.runtime.getURL('pages/editor/editor.html?url=' + encodeURIComponent(message.url)) });
+        chrome.tabs.create({ url: chrome.runtime.getURL('features/tracker/editor/editor.html?url=' + encodeURIComponent(message.url)) });
         sendResponse({ success: true });
         return true;
     }
@@ -228,6 +228,6 @@ function createSystemReviewNotification(dueCount, settings) {
 }
 
 chrome.notifications.onClicked.addListener((notificationId) => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html') });
+    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/popup/popup.html') });
     chrome.notifications.clear(notificationId);
 });

@@ -1,0 +1,152 @@
+// content/utils.js - Utility functions for content scripts
+
+function getDOMMeta(node, offset) {
+    const parent = node.parentNode;
+    let path = [];
+    let current = parent;
+    while (current && current !== document.body && current !== document.documentElement) {
+        let index = Array.from(current.parentNode.childNodes).indexOf(current);
+        path.unshift(index);
+        current = current.parentNode;
+    }
+
+    return {
+        parentTagName: parent.tagName.toLowerCase(),
+        parentIndex: Array.from(parent.childNodes).indexOf(node),
+        textOffset: offset,
+        parentDomPath: path
+    };
+}
+
+function restoreRangeFromMeta(highlightSource, markText) {
+    try {
+        let startNode = null;
+        let endNode = null;
+ 
+        if (highlightSource.startMeta.parentDomPath && highlightSource.endMeta.parentDomPath) {
+            const resolvePath = (path, childIndex) => {
+                let current = document.body;
+                for (let i = 0; i < path.length; i++) {
+                    if (!current || !current.childNodes) return null;
+                    current = current.childNodes[path[i]];
+                }
+                return current ? current.childNodes[childIndex] : null;
+            };
+
+            startNode = resolvePath(highlightSource.startMeta.parentDomPath, highlightSource.startMeta.parentIndex);
+            endNode = resolvePath(highlightSource.endMeta.parentDomPath, highlightSource.endMeta.parentIndex);
+        }
+
+        if (!startNode || !endNode) {
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while ((node = walker.nextNode())) {
+                const parent = node.parentNode;
+                const parentTagName = parent.tagName.toLowerCase();
+                const parentIndex = Array.from(parent.childNodes).indexOf(node);
+
+                if (!startNode && parentTagName === highlightSource.startMeta.parentTagName && parentIndex === highlightSource.startMeta.parentIndex) startNode = node;
+                if (startNode && parentTagName === highlightSource.endMeta.parentTagName && parentIndex === highlightSource.endMeta.parentIndex) {
+                    endNode = node;
+                    break;
+                }
+            }
+        }
+
+        if (startNode && endNode) {
+            const range = document.createRange();
+            const startOffset = Math.min(highlightSource.startMeta.textOffset, startNode.length || 0);
+            const endOffset = Math.min(highlightSource.endMeta.textOffset, endNode.length || 0);
+
+            range.setStart(startNode, startOffset);
+            range.setEnd(endNode, endOffset);
+
+            if (markText) {
+                const rangeTextClean = range.toString().replace(/\s+/g, '');
+                const markTextClean = markText.replace(/\s+/g, '');
+
+                if (rangeTextClean !== markTextClean) {
+                    if (!markTextClean.includes(rangeTextClean) && !rangeTextClean.includes(markTextClean)) return null;
+                    if (rangeTextClean.length < (markTextClean.length * 0.5)) return null;
+                }
+            }
+            return range;
+        }
+    } catch (e) { }
+    return null;
+}
+
+function ensureHighlightStyle(color) {
+    const colorName = `algo-hl-${color.replace('#', '')}`;
+    if (!activeHighlightStyles.has(colorName)) {
+        const style = document.createElement('style');
+        style.textContent = `::highlight(${colorName}) { background-color: ${color}; color: inherit; }`;
+        document.head.appendChild(style);
+        activeHighlightStyles.add(colorName);
+    }
+    return colorName;
+}
+
+function getAutoTags() {
+    try {
+        const path = window.location.pathname;
+        const segments = path.split('/').filter(p => p.length > 0);
+        if (segments.length > 0) {
+            const rawTopic = segments[segments.length - 1];
+            return [rawTopic.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')];
+        }
+    } catch (e) { }
+    return ["AlgoRecall"];
+}
+
+function getExtractedProblemTitle() {
+    const url = window.location.href;
+    
+    // LeetCode Explore Cards
+    if (url.includes('leetcode.com/explore/')) {
+        const selectors = [
+            'h1', 'h2', 'h3',
+            '[class*="card-title"]',
+            '[class*="course-title"]',
+            '[class*="title-wrapper"]',
+            '.card-info-title',
+            '.title__3y75'
+        ];
+        for (const selector of selectors) {
+            const el = document.querySelector(selector);
+            if (el && el.innerText && el.innerText.trim().length > 0 && el.innerText.trim().length < 100) {
+                const text = el.innerText.trim();
+                if (!text.toLowerCase().includes('leetcode') || text.toLowerCase().includes('course') || text.toLowerCase().includes('crash')) {
+                    return text;
+                }
+            }
+        }
+        
+        // Fallback: parse URL
+        try {
+            const path = window.location.pathname;
+            const segments = path.split('/').filter(p => p.length > 0);
+            if (segments.length > 0) {
+                let index = segments.length - 1;
+                while (index >= 0 && (/^\d+$/.test(segments[index]) || segments[index] === 'card' || segments[index] === 'featured')) {
+                    index--;
+                }
+                if (index >= 0) {
+                    return segments[index]
+                        .split('-')
+                        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                        .join(' ');
+                }
+            }
+        } catch (e) {}
+    }
+    
+    // General title fallback
+    let title = document.title;
+    title = title.replace(' - AlgoMonster', '');
+    title = title.replace(' - LeetCode', '');
+    title = title.replace(' - Codeforces', '');
+    title = title.replace(' - CodeChef', '');
+    title = title.replace(' - AtCoder', '');
+    return title.trim();
+}

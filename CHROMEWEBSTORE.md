@@ -110,7 +110,7 @@ developer-support@algomonster-fsrs.example.com
 
 > [!IMPORTANT]
 > **ASO Checklist - Action Required Post-Upload:**
-> After uploading the initial ZIP package draft to the Chrome Developer Console, retrieve your unique extension ID. Open [popup.html](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/popup/popup.html#L246) and replace the placeholder `YOUR_EXTENSION_ID` in the reviews link so that the "Rate on Chrome Web Store" button routes users directly to your official listing page to collect ratings.
+> After uploading the initial ZIP package draft to the Chrome Developer Console, retrieve your unique extension ID. Open [popup.html](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/dashboard/popup/popup.html#L176) and replace the placeholder `YOUR_EXTENSION_ID` in the reviews link so that the "Rate on Chrome Web Store" button routes users directly to your official listing page to collect ratings.
 
 ---
 

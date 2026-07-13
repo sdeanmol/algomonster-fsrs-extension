@@ -46,13 +46,21 @@
         "*://*.codewars.com/*",
         "*://*.codingame.com/*"
       ],
-      "js": ["content/fsrs.js", "content/content.js"],
-      "css": ["content/style.css"]
+      "js": [
+        "features/tracker/fsrs.js",
+        "content/state.js",
+        "content/utils.js",
+        "features/highlighter/highlighter.js",
+        "content/notifications.js",
+        "features/tracker/tracker.js",
+        "content/content.js"
+      ],
+      "css": ["features/highlighter/style.css"]
     }
   ],
   "action": {
     "default_title": "AlgoRecall Dashboard",
-    "default_popup": "popup/popup.html"
+    "default_popup": "features/dashboard/popup/popup.html"
   },
   "icons": {
     "128": "icons/icon.png"
