@@ -35,16 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const settingsPanel = document.getElementById('settings-panel');
-    const toggleSettingsBtn = document.getElementById('toggle-settings-btn');
-    
-    if (toggleSettingsBtn && settingsPanel) {
-        toggleSettingsBtn.addEventListener('click', () => {
-            const isHidden = settingsPanel.classList.toggle('hide-panel');
-            if (!isHidden) loadSavedWeights();
-        });
-    }
-
     const markerToggle = document.getElementById('toggle-marker-popup');
     if (markerToggle) {
         chrome.storage.local.get(['chromeSettings'], (result) => {
@@ -68,27 +58,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const saveWeightsBtn = document.getElementById('save-weights-btn');
-    if (saveWeightsBtn) {
-        saveWeightsBtn.addEventListener('click', () => {
-            const tag = document.getElementById('weight-tag').value.trim();
-            const valuesStr = document.getElementById('weight-values').value.trim();
-            
-            if (!tag || !valuesStr) return showStatus("Tag and weights are required.", true);
-
-            const weightsArray = valuesStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
-            if (weightsArray.length !== 17) return showStatus(`Invalid array: Found ${weightsArray.length} values. Expected 17.`, true);
-
-            chrome.storage.local.get(['fsrsTopicWeights'], (result) => {
-                const topicWeights = result.fsrsTopicWeights || {};
-                topicWeights[tag] = weightsArray;
-                chrome.storage.local.set({ fsrsTopicWeights: topicWeights }, () => {
-                    showStatus(`Weights saved for tag: ${tag}`);
-                    document.getElementById('weight-tag').value = '';
-                    document.getElementById('weight-values').value = '';
-                    loadSavedWeights();
-                });
-            });
+    const configureFsrsBtn = document.getElementById('configure-fsrs-btn');
+    if (configureFsrsBtn) {
+        configureFsrsBtn.addEventListener('click', () => {
+            chrome.tabs.create({ url: chrome.runtime.getURL('pages/fsrsConfig/fsrsConfig.html') });
         });
     }
 
@@ -262,7 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (storageUpdate.notificationSettings) {
                         updateNotificationUI(storageUpdate.notificationSettings);
                     }
-                    if (settingsPanel && !settingsPanel.classList.contains('hide-panel')) loadSavedWeights();
                 });
             } catch (err) {
                 showStatus("Error reading file.", true);
@@ -277,35 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- Helper Functions ---
 
-function loadSavedWeights() {
-    chrome.storage.local.get(['fsrsTopicWeights'], (result) => {
-        const topicWeights = result.fsrsTopicWeights || {};
-        const listEl = document.getElementById('active-weights-list');
-        if (!listEl) return;
-        
-        listEl.innerHTML = '';
-        
-        if (Object.keys(topicWeights).length === 0) {
-            listEl.innerHTML = '<li>No custom profiles saved. Using standard defaults.</li>';
-            return;
-        }
-
-        for (const [tag, weights] of Object.entries(topicWeights)) {
-            const li = document.createElement('li');
-            li.style.marginBottom = "4px";
-            li.innerHTML = `<strong>${tag}</strong> <button data-tag="${tag}" class="delete-weight-btn" style="background:none; border:none; color:var(--md-danger); cursor:pointer; font-size:11px; display:inline-flex; align-items:center; margin-left:8px; padding:2px;" title="Delete Profile"><svg class="svg-icon" style="width:13px; height:13px;" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>`;
-            listEl.appendChild(li);
-        }
-
-        document.querySelectorAll('.delete-weight-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const targetTag = e.target.getAttribute('data-tag');
-                delete topicWeights[targetTag];
-                chrome.storage.local.set({ fsrsTopicWeights: topicWeights }, loadSavedWeights);
-            });
-        });
-    });
-}
+// Removed loadSavedWeights - managed on dedicated config page
 
 function loadStats() {
     chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result) => {

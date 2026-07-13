@@ -30,7 +30,7 @@ let activeMarkRanges = [];
 let hoveredMarkId = null;
 let hideTooltipTimer = null;
 
-chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites'], (result) => {
+chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result) => {
     // Verify whitelisting
     const whitelistedWebsites = result.whitelistedWebsites || [
         { domain: "algo.monster" },
@@ -49,6 +49,15 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
     const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
     if (!isWhitelisted) {
         return; // Exit early, disabled by user
+    }
+
+    if (result.fsrsGlobalParams) {
+        if (result.fsrsGlobalParams.w) fsrs.w = result.fsrsGlobalParams.w;
+        if (result.fsrsGlobalParams.decay !== undefined) fsrs.decay = result.fsrsGlobalParams.decay;
+        if (result.fsrsGlobalParams.factor !== undefined) fsrs.factor = result.fsrsGlobalParams.factor;
+        if (result.fsrsGlobalParams.requestRetention !== undefined) {
+            fsrs.requestRetention = result.fsrsGlobalParams.requestRetention;
+        }
     }
 
     if (result.fsrsCards) cards = result.fsrsCards;
@@ -866,17 +875,28 @@ function createUI() {
             const cleanUrl = window.location.href.split('?')[0].split('#')[0];
             const problemTitle = getExtractedProblemTitle();
 
+            // Dynamic Topic Weights mapping
+            let customWeights = null;
+            if (topicWeights && parsedTags && parsedTags.length > 0) {
+                for (const tag of parsedTags) {
+                    if (topicWeights[tag]) {
+                        customWeights = topicWeights[tag];
+                        break;
+                    }
+                }
+            }
+
             if (existingId) {
                 const index = cards.findIndex(c => c.id === existingId);
                 if (index > -1) {
                     cards[index].approach = approach;
                     cards[index].tags = parsedTags;
-                    cards[index] = fsrs.reviewCard(cards[index], rating);
+                    cards[index] = fsrs.reviewCard(cards[index], rating, customWeights);
                     cards[index].lastRating = rating; 
                 }
             } else {
                 let newCard = fsrs.createCard(problemTitle, cleanUrl, "", approach, parsedTags);
-                newCard = fsrs.reviewCard(newCard, rating);
+                newCard = fsrs.reviewCard(newCard, rating, customWeights);
                 newCard.lastRating = rating; 
                 cards.push(newCard);
             }

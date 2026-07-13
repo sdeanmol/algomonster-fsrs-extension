@@ -263,18 +263,9 @@
                 </svg>
                 Data & Options
             </span>
-            <button id="toggle-settings-btn" class="icon-btn-text">
-                Advanced
-                <svg class="svg-icon" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path
-                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z">
-                    </path>
-                </svg>
-            </button>
         </div>
 
-        <!-- Link to Active Platforms Manager -->
+        <!-- Link to Active Platforms Manager & FSRS Customizer -->
         <div class="settings-list" style="margin-top: 8px;">
             <button id="manage-platforms-btn" class="settings-item-btn">
                 <div class="settings-item-left">
@@ -284,6 +275,17 @@
                         <line x1="12" y1="17" x2="12" y2="21"></line>
                     </svg>
                     <span>Manage Active Websites</span>
+                </div>
+                <svg class="svg-icon chevron-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            
+            <button id="configure-fsrs-btn" class="settings-item-btn">
+                <div class="settings-item-left">
+                    <svg class="svg-icon settings-item-icon" viewBox="0 0 24 24" style="stroke: var(--md-warning);">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    <span>Configure FSRS Algorithm</span>
                 </div>
                 <svg class="svg-icon chevron-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </button>
@@ -309,22 +311,6 @@
                 </div>
                 <input type="file" id="import-file" accept=".json" style="display:none;">
             </label>
-        </div>
-
-        <!-- Advanced Settings Panel (Hidden by default) -->
-        <div id="settings-panel" class="advanced-settings hide-panel">
-            <div class="settings-subtitle">Custom Topic Weights (FSRS)</div>
-            <div class="input-group">
-                <input type="text" id="weight-tag" class="input-field" placeholder="Tag (e.g. Two Pointers)">
-                <input type="text" id="weight-values" class="input-field" placeholder="17 comma-separated values">
-                <button id="save-weights-btn" class="btn btn-primary w-full" style="border-radius: 8px;">Save
-                    Array</button>
-            </div>
-
-            <div class="saved-weights">
-                <div class="saved-weights-title">Active Profiles:</div>
-                <ul id="active-weights-list"></ul>
-            </div>
         </div>
     </div>
 

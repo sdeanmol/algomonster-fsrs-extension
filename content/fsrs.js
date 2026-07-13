@@ -1,9 +1,24 @@
 class FSRS {
-    constructor() {
+    constructor(params = null) {
         this.w = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
         this.decay = -0.5;
         this.factor = 19 / 81;
         this.requestRetention = 0.90; // Target memory retention rate
+
+        if (params) {
+            if (params.w && Array.isArray(params.w) && params.w.length === 17) {
+                this.w = params.w;
+            }
+            if (params.decay !== undefined && !isNaN(params.decay)) {
+                this.decay = parseFloat(params.decay);
+            }
+            if (params.factor !== undefined && !isNaN(params.factor)) {
+                this.factor = parseFloat(params.factor);
+            }
+            if (params.requestRetention !== undefined && !isNaN(params.requestRetention)) {
+                this.requestRetention = parseFloat(params.requestRetention);
+            }
+        }
     }
 
     createCard(problemTitle, problemUrl, textRead, approach, tags = []) {
