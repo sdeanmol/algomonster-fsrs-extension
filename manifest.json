@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AlgoRecall: Coding Interview Spaced Repetition",
   "version": "3.0",
-  "description": "Spaced repetition coding pattern tracker & persistent highlighter for LeetCode, Codeforces, AlgoMonster, and custom sites.",
+  "description": "Coding Interview Spaced Repetition Tracker & Highlighter for LeetCode & Codeforces - 100% free, local-first, no signup.",
   "permissions": [
     "storage",
     "activeTab",

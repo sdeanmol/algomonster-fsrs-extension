@@ -8,7 +8,7 @@
 AlgoRecall: Coding Interview Spaced Repetition
 
 **Short Description**
-Spaced repetition coding pattern tracker & persistent highlighter for LeetCode, Codeforces, AlgoMonster, and custom sites.
+Coding Interview Spaced Repetition Tracker & Highlighter for LeetCode, Codeforces & AlgoMonster - 100% free, local-first, no signup.
 
 **Detailed Description**
 Master programming patterns, not just problems.
