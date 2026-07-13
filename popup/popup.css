@@ -488,8 +488,24 @@ body {
 
 /* Vibrancy / Neon shadow styling for active dashboard panels */
 :root.light-theme .card, :root.light-theme .panel {
-    box-shadow: 0 4px 16px rgba(26, 115, 232, 0.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.01) !important;
 }
 :root.light-theme .xp-bar-container {
     background-color: var(--md-surface-variant);
+}
+
+/* Gamification panel in light mode needs a warm and vibrant tone */
+:root.light-theme .gamification-panel {
+    border-color: rgba(249, 171, 0, 0.2) !important;
+    background: linear-gradient(135deg, var(--md-surface), #fffbe6) !important;
+    box-shadow: 0 6px 20px rgba(249, 171, 0, 0.06), 0 0 0 1px rgba(249, 171, 0, 0.04) !important;
+}
+:root.light-theme .gamification-title {
+    color: var(--md-text-low) !important;
+}
+:root.light-theme .gamification-progress-text {
+    color: #b06000 !important; /* highly visible brown/amber text */
+}
+:root.light-theme .gamification-msg {
+    color: var(--md-text-med) !important;
 }

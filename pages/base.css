@@ -241,7 +241,7 @@ input:checked + .slider:before {
     bottom: -60px;
     left: 50%;
     transform: translateX(-50%) scale(0.9);
-    background: rgba(23, 24, 28, 0.95);
+    background: var(--md-surface);
     backdrop-filter: blur(12px);
     border: 1px solid var(--md-border);
     border-radius: 12px;
@@ -261,4 +261,15 @@ input:checked + .slider:before {
     bottom: 24px;
     transform: translateX(-50%) scale(1);
     opacity: 1;
+}
+
+/* Light Mode Button Hover Readability overrides */
+:root.light-theme .btn-primary:hover {
+    background-color: #b3d1ff !important;
+}
+:root.light-theme .btn-secondary:hover {
+    background-color: var(--md-border) !important;
+}
+:root.light-theme .btn-danger:hover {
+    background-color: #fbc6c2 !important;
 }
