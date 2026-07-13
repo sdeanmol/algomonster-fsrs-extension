@@ -65,6 +65,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const gamifyDashboardBtn = document.getElementById('gamify-dashboard-btn');
+    if (gamifyDashboardBtn) {
+        gamifyDashboardBtn.addEventListener('click', () => {
+            chrome.tabs.create({ url: chrome.runtime.getURL('pages/gamify/gamify.html') });
+        });
+    }
+
     // --- ABSOLUTE PATHS FOR PAGES ---
     document.getElementById('help-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/help/help.html') }));
     document.getElementById('history-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('pages/history/history.html') }));
@@ -251,7 +258,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Removed loadSavedWeights - managed on dedicated config page
 
+function loadRPGCharacterStats() {
+    chrome.storage.local.get(['fsrsGamification'], (result) => {
+        const gamify = result.fsrsGamification;
+        if (!gamify || !gamify.character) return;
+
+        const level = gamify.character.level || 1;
+        const gold = gamify.character.gold || 0;
+        const hp = gamify.character.hp !== undefined ? gamify.character.hp : 50;
+        const maxHp = gamify.character.maxHp || 50;
+        const xp = gamify.character.xp || 0;
+        const maxXp = level * 100;
+
+        const name = gamify.character.name || "Coding Hero";
+
+        document.getElementById('rpg-player-name').textContent = name;
+        document.getElementById('rpg-player-level').textContent = level;
+        document.getElementById('rpg-gold-val').textContent = gold;
+        document.getElementById('rpg-hp-text').textContent = `${hp} / ${maxHp}`;
+        document.getElementById('rpg-hp-fill').style.width = `${(hp / maxHp) * 100}%`;
+        document.getElementById('rpg-xp-text').textContent = `${xp} / ${maxXp}`;
+        document.getElementById('rpg-xp-fill').style.width = `${(xp / maxXp) * 100}%`;
+
+        const classBadge = document.getElementById('rpg-player-class');
+        if (classBadge) {
+            if (gamify.character.class) {
+                classBadge.textContent = gamify.character.class;
+                classBadge.style.display = 'inline-block';
+            } else {
+                classBadge.style.display = 'none';
+            }
+        }
+
+        const compDisplay = document.getElementById('rpg-companion-display');
+        const compIcon = document.getElementById('rpg-companion-icon-span');
+        const compName = document.getElementById('rpg-companion-name-span');
+
+        if (compDisplay && compIcon && compName) {
+            if (gamify.activeCompanion) {
+                const companionMap = {
+                    "Linear Dragon": { icon: "🐉", name: "Linear Dragon" },
+                    "Recursive Phoenix": { icon: "🐦", name: "Recursive Phoenix" },
+                    "Tree Ent": { icon: "🌲", name: "Tree Ent" },
+                    "Graph Griffin": { icon: "🦅", name: "Graph Griffin" }
+                };
+                const c = companionMap[gamify.activeCompanion];
+                if (c) {
+                    compIcon.textContent = c.icon;
+                    compName.textContent = c.name;
+                    compDisplay.style.display = 'flex';
+                } else {
+                    compDisplay.style.display = 'none';
+                }
+            } else {
+                compDisplay.style.display = 'none';
+            }
+        }
+    });
+}
+
 function loadStats() {
+    loadRPGCharacterStats();
     chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result) => {
         const cards = result.fsrsCards || [];
         const activity = result.fsrsActivity || {};

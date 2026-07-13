@@ -12,6 +12,40 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         });
     }
 
+    // Initialize default gamification stats if they don't exist
+    const gamifyRes = await chrome.storage.local.get(['fsrsGamification']);
+    if (!gamifyRes.fsrsGamification) {
+        await chrome.storage.local.set({
+            fsrsGamification: {
+                character: {
+                    level: 1,
+                    xp: 0,
+                    hp: 50,
+                    maxHp: 50,
+                    gold: 10,
+                    class: null,
+                    statPoints: 0,
+                    stats: { str: 0, int: 0, con: 0, per: 0 },
+                    equipment: {
+                        weapon: null,
+                        armor: null,
+                        head: null
+                    }
+                },
+                inventory: {
+                    eggs: [],
+                    potions: [],
+                    food: []
+                },
+                pets: [],
+                mounts: [],
+                activeCompanion: null,
+                customRewards: [],
+                lastCronCheck: Date.now()
+            }
+        });
+    }
+
     await setupAlarm();
     
     // Redirect to Onboarding Welcome page on initial install
@@ -152,6 +186,9 @@ function createSystemTestNotification(settings) {
 }
 
 async function checkDueCards() {
+    // Check gamification cron first
+    await checkDailyGamifyUpdate();
+
     const result = await chrome.storage.local.get(['fsrsCards', 'notificationSettings', 'whitelistedWebsites']);
     const settings = result.notificationSettings || {
         enabled: true,
@@ -231,3 +268,69 @@ chrome.notifications.onClicked.addListener((notificationId) => {
     chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html') });
     chrome.notifications.clear(notificationId);
 });
+
+async function checkDailyGamifyUpdate() {
+    const res = await chrome.storage.local.get(['fsrsGamification', 'fsrsCards']);
+    const gamify = res.fsrsGamification;
+    if (!gamify || !gamify.character) return;
+
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const lastCheck = gamify.lastCronCheck || now;
+
+    // Check if the calendar day has changed
+    const lastCheckDay = Math.floor(lastCheck / oneDayMs);
+    const currentDay = Math.floor(now / oneDayMs);
+
+    if (currentDay > lastCheckDay) {
+        const cards = res.fsrsCards || [];
+        // Due cards are those whose due timestamp is strictly in the past (before start of today)
+        const startOfToday = currentDay * oneDayMs;
+        const overdueCards = cards.filter(c => c.due < startOfToday);
+
+        if (overdueCards.length > 0) {
+            const baseDamage = overdueCards.length * 2;
+            const con = (gamify.character.stats && gamify.character.stats.con) || 0;
+            const netDamage = Math.max(1, baseDamage - Math.floor(con / 2));
+
+            gamify.character.hp = Math.max(0, gamify.character.hp - netDamage);
+
+            if (gamify.character.hp <= 0) {
+                // Death penalty sequence
+                gamify.character.level = Math.max(1, gamify.character.level - 1);
+                gamify.character.xp = 0;
+                gamify.character.hp = 50;
+                gamify.character.gold = 0;
+
+                // Strip random equipment item
+                const eq = gamify.character.equipment || {};
+                const activeEqKeys = Object.keys(eq).filter(k => eq[k] !== null);
+                if (activeEqKeys.length > 0) {
+                    const dropKey = activeEqKeys[Math.floor(Math.random() * activeEqKeys.length)];
+                    eq[dropKey] = null;
+                }
+
+                // Trigger Death Notification
+                chrome.notifications.create('gamify-death', {
+                    type: 'basic',
+                    iconUrl: '../icons/icon.png',
+                    title: '💀 You Died in AlgoRecall!',
+                    message: `Neglected spacing reviews cost your life! You lost 1 Level, all Gold, and a random gear item.`,
+                    priority: 2
+                });
+            } else {
+                // Warning notification
+                chrome.notifications.create('gamify-damage', {
+                    type: 'basic',
+                    iconUrl: '../icons/icon.png',
+                    title: '⚠️ AlgoRecall Spacing Damage!',
+                    message: `You missed ${overdueCards.length} due review(s) yesterday and took ${netDamage} damage! HP is now ${gamify.character.hp}/${gamify.character.maxHp}.`,
+                    priority: 1
+                });
+            }
+        }
+
+        gamify.lastCronCheck = now;
+        await chrome.storage.local.set({ fsrsGamification: gamify });
+    }
+}

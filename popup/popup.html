@@ -88,6 +88,51 @@
         </div>
     </div>
 
+    <!-- RPG Character Panel -->
+    <div id="rpg-character-panel" class="panel" style="background: linear-gradient(135deg, var(--md-surface), rgba(168, 199, 250, 0.08)); border-color: rgba(168, 199, 250, 0.25);">
+        <div class="panel-header" style="padding-bottom: 8px; border-bottom: none;">
+            <span class="panel-title" style="font-weight: 700; color: var(--md-text-high);">
+                ⚔️ Level <span id="rpg-player-level">1</span> <span id="rpg-player-class" class="badge" style="margin-left:8px; display:none;">Class</span>
+            </span>
+            <span id="rpg-player-gold" style="font-size: 13px; font-weight: 800; color: #f1c40f; display: inline-flex; align-items: center; gap: 4px;">
+                🪙 <span id="rpg-gold-val">10</span> Gold
+            </span>
+        </div>
+        
+        <div class="rpg-stats-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;">
+            <!-- Health progress bar -->
+            <div class="rpg-progress-row">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; margin-bottom: 2px;">
+                    <span style="color: var(--md-danger);">❤️ Health (HP)</span>
+                    <span id="rpg-hp-text" style="color: var(--md-text-med);">50 / 50</span>
+                </div>
+                <div class="gamification-bar" style="background: rgba(231, 76, 60, 0.2); height: 8px;">
+                    <div id="rpg-hp-fill" class="gamification-fill" style="background: #e74c3c; width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- XP progress bar -->
+            <div class="rpg-progress-row">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; margin-bottom: 2px;">
+                    <span style="color: var(--md-primary);">✨ Experience (XP)</span>
+                    <span id="rpg-xp-text" style="color: var(--md-text-med);">0 / 100</span>
+                </div>
+                <div class="gamification-bar" style="background: rgba(26, 115, 232, 0.2); height: 8px;">
+                    <div id="rpg-xp-fill" class="gamification-fill" style="background: var(--md-primary); width: 0%;"></div>
+                </div>
+            </div>
+
+            <!-- Active Companion display -->
+            <div id="rpg-companion-display" style="display: none; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.05); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--md-border); margin-top: 4px;">
+                <span id="rpg-companion-icon-span" style="font-size: 20px;">🐉</span>
+                <div style="display: flex; flex-direction: column; gap: 2px; text-align: left;">
+                    <span id="rpg-companion-name-span" style="font-size: 12px; font-weight: 800; color: var(--md-text-high);">Linear Dragon</span>
+                    <span style="font-size: 10px; color: var(--md-text-low);">Active Algorithm Pet</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Gamification Panel -->
     <div id="gamification-panel" class="panel gamification-panel">
         <!-- Progress bar and motivational texts will be injected dynamically -->
@@ -286,6 +331,18 @@
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
                     <span>Configure FSRS Algorithm</span>
+                </div>
+                <svg class="svg-icon chevron-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
+            <button id="gamify-dashboard-btn" class="settings-item-btn">
+                <div class="settings-item-left">
+                    <svg class="svg-icon settings-item-icon" viewBox="0 0 24 24" style="stroke: var(--md-success);" fill="none" stroke-width="2">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                        <polyline points="2 17 12 22 22 17"></polyline>
+                        <polyline points="2 12 12 17 22 12"></polyline>
+                    </svg>
+                    <span>Gamification Center (RPG)</span>
                 </div>
                 <svg class="svg-icon chevron-icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </button>

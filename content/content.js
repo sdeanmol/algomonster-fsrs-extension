@@ -124,6 +124,9 @@ chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks',
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local') {
+        if (changes.fsrsGamification) {
+            updateCompanionInWidget();
+        }
         if (changes.chromeSettings) {
             chromeSettings = { ...chromeSettings, ...changes.chromeSettings.newValue };
             if (!chromeSettings.showMarkerPopup) {
@@ -630,6 +633,7 @@ function refreshWidgetState() {
             btn.style.boxShadow = "none";
         });
     }
+    updateCompanionInWidget();
 }
 
 function createUI() {
@@ -688,7 +692,14 @@ function createUI() {
             </div>
             <textarea id="fsrs-approach" class="fsrs-textarea" placeholder="How did you solve this pattern? Jot down your key insights..."></textarea>
             
-            <div class="fsrs-rating-section">
+            <div class="fsrs-rating-section" style="position: relative;">
+                <div id="fsrs-companion-widget-container" style="display:none; align-items:center; gap:8px; margin-bottom:8px; padding:6px 10px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:10px;">
+                    <span id="fsrs-companion-icon" style="font-size:16px;"></span>
+                    <div style="display:flex; flex-direction:column; gap:2px; text-align:left;">
+                        <span id="fsrs-companion-name" style="font-size:11px; font-weight:700; color:#fff;"></span>
+                        <span id="fsrs-companion-level" style="font-size:9px; color:#888;"></span>
+                    </div>
+                </div>
                 <p id="fsrs-action-label" class="fsrs-rating-label">Save & Rate Initial Difficulty:</p>
                 <div class="fsrs-rating-buttons" id="fsrs-save-ratings">
                     <button data-rating="1" class="fsrs-btn-again" title="Hard to remember (Shortcut: 1)">Again</button>
@@ -902,6 +913,7 @@ function createUI() {
             }
 
             saveCards();
+            applyGamificationEarnings(rating);
 
             // Clear draft if it exists
             chrome.storage.local.get(['approachDrafts'], (res) => {
@@ -1207,4 +1219,171 @@ function getExtractedProblemTitle() {
     title = title.replace(' - CodeChef', '');
     title = title.replace(' - AtCoder', '');
     return title.trim();
+}
+
+function applyGamificationEarnings(rating) {
+    chrome.storage.local.get(['fsrsGamification'], (result) => {
+        let gamify = result.fsrsGamification;
+        if (!gamify || !gamify.character) return;
+
+        // 1. Calculate XP and Gold bases
+        let xpGained = 0;
+        let goldGained = 0;
+        switch (rating) {
+            case 1: // Again
+                xpGained = 10;
+                goldGained = 2;
+                break;
+            case 2: // Hard
+                xpGained = 20;
+                goldGained = 4;
+                break;
+            case 3: // Good
+                xpGained = 35;
+                goldGained = 8;
+                break;
+            case 4: // Easy
+                xpGained = 50;
+                goldGained = 12;
+                break;
+        }
+
+        // 2. Add Strength Modifier to Gold
+        const str = (gamify.character.stats && gamify.character.stats.str) || 0;
+        goldGained += Math.floor(str / 2);
+
+        // 3. Accumulate stats
+        gamify.character.xp += xpGained;
+        gamify.character.gold += goldGained;
+
+        // 4. Evaluate Level Up
+        const maxXp = gamify.character.level * 100;
+        let levelUpOccurred = false;
+        if (gamify.character.xp >= maxXp) {
+            gamify.character.xp -= maxXp;
+            gamify.character.level += 1;
+            gamify.character.statPoints += 1;
+            gamify.character.hp = gamify.character.maxHp;
+            levelUpOccurred = true;
+        }
+
+        // 5. Evaluate Drops (on Good/Easy reviews)
+        let dropMessage = "";
+        if (rating === 3 || rating === 4) {
+            const per = (gamify.character.stats && gamify.character.stats.per) || 0;
+            const dropChance = 0.10 + per * 0.02; // +2% per Perception point
+            if (Math.random() < dropChance) {
+                const roll = Math.random();
+                if (roll < 0.40) {
+                    // Drop food
+                    const foods = ["Binary Berry", "Greedy Grape", "Dynamic Dragonfruit", "Backtracking Blueberry"];
+                    const item = foods[Math.floor(Math.random() * foods.length)];
+                    gamify.inventory.food = gamify.inventory.food || [];
+                    gamify.inventory.food.push(item);
+                    dropMessage = `Found Food: ${item}! 🍎`;
+                } else if (roll < 0.70) {
+                    // Drop egg
+                    const eggs = ["Linear Dragon", "Recursive Phoenix", "Tree Ent", "Graph Griffin"];
+                    const item = eggs[Math.floor(Math.random() * eggs.length)];
+                    gamify.inventory.eggs = gamify.inventory.eggs || [];
+                    gamify.inventory.eggs.push(item);
+                    dropMessage = `Found Egg: ${item}! 🥚`;
+                } else {
+                    // Drop potion
+                    const potions = ["Dynamic Pink", "Greedy Gold", "Backtracking Black", "BFS Blue"];
+                    const item = potions[Math.floor(Math.random() * potions.length)];
+                    gamify.inventory.potions = gamify.inventory.potions || [];
+                    gamify.inventory.potions.push(item);
+                    dropMessage = `Found Potion: ${item}! 🧪`;
+                }
+            }
+        }
+
+        // 6. Save back to storage
+        chrome.storage.local.set({ fsrsGamification: gamify }, () => {
+            // Show dynamic user-facing message inside widget
+            let notificationText = `+${xpGained} XP | +${goldGained} Gold`;
+            if (levelUpOccurred) {
+                notificationText += ` | LEVEL UP to ${gamify.character.level}! 🎉`;
+            }
+            if (dropMessage) {
+                notificationText += ` | ${dropMessage}`;
+            }
+            showWidgetNotification(notificationText);
+        });
+    });
+}
+
+function showWidgetNotification(text) {
+    const existing = document.getElementById('fsrs-gamify-notification');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'fsrs-gamify-notification';
+    toast.style.cssText = `
+        position: absolute;
+        bottom: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e8e3e;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 20px;
+        z-index: 10000;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        white-space: nowrap;
+        animation: fsrsFadeInOut 2.5s forwards;
+    `;
+    toast.textContent = text;
+    
+    // Inject animation styles if not present
+    if (!document.getElementById('fsrs-gamify-animation-style')) {
+        const style = document.createElement('style');
+        style.id = 'fsrs-gamify-animation-style';
+        style.innerHTML = `
+            @keyframes fsrsFadeInOut {
+                0% { opacity: 0; bottom: 40px; }
+                15% { opacity: 1; bottom: 50px; }
+                85% { opacity: 1; bottom: 50px; }
+                100% { opacity: 0; bottom: 60px; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    const reviewSection = document.querySelector('.fsrs-rating-section');
+    if (reviewSection) {
+        reviewSection.appendChild(toast);
+    }
+}
+
+function updateCompanionInWidget() {
+    chrome.storage.local.get(['fsrsGamification'], (result) => {
+        const gamify = result.fsrsGamification;
+        const container = document.getElementById('fsrs-companion-widget-container');
+        const iconEl = document.getElementById('fsrs-companion-icon');
+        const nameEl = document.getElementById('fsrs-companion-name');
+        const levelEl = document.getElementById('fsrs-companion-level');
+        if (!container || !iconEl || !nameEl || !levelEl) return;
+
+        if (gamify && gamify.activeCompanion) {
+            const companionMap = {
+                "Linear Dragon": { icon: "🐉", name: "Linear Dragon" },
+                "Recursive Phoenix": { icon: "🐦", name: "Recursive Phoenix" },
+                "Tree Ent": { icon: "🌲", name: "Tree Ent" },
+                "Graph Griffin": { icon: "🦅", name: "Graph Griffin" }
+            };
+            const c = companionMap[gamify.activeCompanion];
+            if (c) {
+                iconEl.textContent = c.icon;
+                nameEl.textContent = c.name;
+                levelEl.textContent = `Companion Pet (Player Lvl ${gamify.character.level})`;
+                container.style.display = 'flex';
+                return;
+            }
+        }
+        container.style.display = 'none';
+    });
 }

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gamification Center (RPG) — AlgoRecall</title>
+    <script src="../theme-sync.js"></script>
+    <link rel="stylesheet" href="../base.css">
+    <link rel="stylesheet" href="gamify.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-main">
+                <h1 id="page-title">⚔️ Gamification Center</h1>
+                <p id="page-subtitle" class="subtitle">Complete FSRS spacing reviews to level up, earn gold, breed algorithm companions, and unlock rewards.</p>
+            </div>
+            <div class="header-actions">
+                <button id="back-to-popup-btn" class="btn btn-secondary">
+                    Close Dashboard
+                </button>
+            </div>
+        </div>
+
+        <!-- RPG Tab controls -->
+        <div class="tabs-container">
+            <button class="tab-btn active" data-tab="tab-character">
+                👤 Character Info
+            </button>
+            <button class="tab-btn" data-tab="tab-inventory">
+                🎒 Inventory & Hatching
+            </button>
+            <button class="tab-btn" data-tab="tab-stable">
+                🐉 Companions Stable
+            </button>
+            <button class="tab-btn" data-tab="tab-shop">
+                🪙 Gold Shop & Rewards
+            </button>
+        </div>
+
+        <!-- Tab contents -->
+        <div class="tab-content">
+            <!-- 1. CHARACTER TAB -->
+            <div id="tab-character" class="tab-pane active">
+                <div class="grid-layout">
+                    <!-- Stat Card -->
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h2>👤 Player Profile</h2>
+                            <button id="edit-profile-btn" class="btn btn-secondary" style="font-size:11px; padding:4px 10px;">Edit Profile</button>
+                        </div>
+                        
+                        <!-- Inline Edit Profile Form (hidden by default) -->
+                        <div id="edit-profile-form" style="display:none; background:var(--md-surface-variant); padding:16px; border-radius:12px; border:1px solid var(--md-border); margin-bottom:16px; flex-direction:column; gap:12px;">
+                            <div class="form-group" style="margin-bottom:8px;">
+                                <label for="edit-char-name">Character Name</label>
+                                <input type="text" id="edit-char-name" class="input-field" placeholder="Enter name...">
+                            </div>
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label for="edit-char-avatar">Avatar Emoji</label>
+                                <input type="text" id="edit-char-avatar" class="input-field" style="font-size:18px; width:60px; text-align:center;" maxlength="2" placeholder="👤">
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button id="save-profile-btn" class="btn btn-primary" style="font-size:12px; padding:6px 12px;">Save</button>
+                                <button id="cancel-profile-btn" class="btn btn-secondary" style="font-size:12px; padding:6px 12px;">Cancel</button>
+                            </div>
+                        </div>
+
+                        <div class="profile-summary">
+                            <span class="profile-avatar-large" id="profile-avatar-emoji">👤</span>
+                            <div class="profile-text">
+                                <h3 id="char-name-display" style="margin:0 0 4px 0; font-size:18px;">Coding Hero</h3>
+                                <span class="badge" id="char-class-display">No Class Unlocked</span>
+                                <p style="font-size:12px; color:var(--md-text-med); margin:6px 0 0 0;" id="char-level-display">Level 1 Warrior</p>
+                            </div>
+                        </div>
+
+                        <div class="rpg-bars" style="margin-top:20px;">
+                            <div class="progress-container">
+                                <div class="progress-labels">
+                                    <span style="color:var(--md-danger);">Health (HP)</span>
+                                    <span id="stat-hp-text">50 / 50</span>
+                                </div>
+                                <div class="bar-bg hp-bar-bg">
+                                    <div id="stat-hp-fill" class="bar-fill hp-bar-fill" style="width: 100%;"></div>
+                                </div>
+                            </div>
+                            <div class="progress-container" style="margin-top:12px;">
+                                <div class="progress-labels">
+                                    <span style="color:var(--md-primary);">Experience (XP)</span>
+                                    <span id="stat-xp-text">0 / 100</span>
+                                </div>
+                                <div class="bar-bg xp-bar-bg">
+                                    <div id="stat-xp-fill" class="bar-fill xp-bar-fill" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attribute Stats Allocation -->
+                    <div class="card">
+                        <div class="stats-allocation-header">
+                            <h2>📊 RPG Attribute Allocation</h2>
+                            <div id="stat-points-badge" class="badge" style="background:var(--md-warning-container); color:#b06000;">0 Stat Points</div>
+                        </div>
+                        <p class="section-intro">Assign stat points unlocked at level-up to boost multipliers.</p>
+
+                        <div class="attributes-list">
+                            <div class="attribute-row">
+                                <div class="attribute-left">
+                                    <span class="attribute-icon">💪</span>
+                                    <div>
+                                        <div class="attribute-name">Strength (STR)</div>
+                                        <div class="attribute-desc">Boosts Gold earned on FSRS reviews (+10% per point).</div>
+                                    </div>
+                                </div>
+                                <div class="attribute-actions">
+                                    <span id="val-str" class="attribute-val">0</span>
+                                    <button class="btn-icon-add" data-stat="str">+</button>
+                                </div>
+                            </div>
+
+                            <div class="attribute-row">
+                                <div class="attribute-left">
+                                    <span class="attribute-icon">🧠</span>
+                                    <div>
+                                        <div class="attribute-name">Intelligence (INT)</div>
+                                        <div class="attribute-desc">Boosts FSRS stability intervals modifier slightly.</div>
+                                    </div>
+                                </div>
+                                <div class="attribute-actions">
+                                    <span id="val-int" class="attribute-val">0</span>
+                                    <button class="btn-icon-add" data-stat="int">+</button>
+                                </div>
+                            </div>
+
+                            <div class="attribute-row">
+                                <div class="attribute-left">
+                                    <span class="attribute-icon">🛡️</span>
+                                    <div>
+                                        <div class="attribute-name">Constitution (CON)</div>
+                                        <div class="attribute-desc">Reduces damage taken on daily missed reviews (-1 damage/2 pts).</div>
+                                    </div>
+                                </div>
+                                <div class="attribute-actions">
+                                    <span id="val-con" class="attribute-val">0</span>
+                                    <button class="btn-icon-add" data-stat="con">+</button>
+                                </div>
+                            </div>
+
+                            <div class="attribute-row">
+                                <div class="attribute-left">
+                                    <span class="attribute-icon">👁️</span>
+                                    <div>
+                                        <div class="attribute-name">Perception (PER)</div>
+                                        <div class="attribute-desc">Boosts drop rates for Eggs, Potions, and Food (+2% base chance).</div>
+                                    </div>
+                                </div>
+                                <div class="attribute-actions">
+                                    <span id="val-per" class="attribute-val">0</span>
+                                    <button class="btn-icon-add" data-stat="per">+</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="class-selection-container" id="class-selection-panel" style="display:none; margin-top:20px; border-top:1px solid var(--md-border); padding-top:20px;">
+                            <h3>🎭 Unlock Class Role (Requires Level 10)</h3>
+                            <div class="class-grid">
+                                <button class="btn btn-secondary class-btn" data-class="Warrior">⚔️ Warrior</button>
+                                <button class="btn btn-secondary class-btn" data-class="Healer">💖 Healer</button>
+                                <button class="btn btn-secondary class-btn" data-class="Mage">🔮 Mage</button>
+                                <button class="btn btn-secondary class-btn" data-class="Rogue">🗡️ Rogue</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. INVENTORY TAB -->
+            <div id="tab-inventory" class="tab-pane">
+                <div class="grid-layout">
+                    <!-- Egg Hatching Station -->
+                    <div class="card">
+                        <h2>🥚 Egg Hatching Station</h2>
+                        <p class="section-intro">Combine eggs and potions collected during spacing reviews to hatch companions.</p>
+                        
+                        <div class="hatching-station">
+                            <div class="hatch-selectors">
+                                <div class="selector-box">
+                                    <label>Select Egg</label>
+                                    <select id="hatch-egg-select" class="input-field">
+                                        <option value="">-- No Eggs Available --</option>
+                                    </select>
+                                </div>
+                                <div class="selector-box">
+                                    <label>Select Potion</label>
+                                    <select id="hatch-potion-select" class="input-field">
+                                        <option value="">-- No Potions Available --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button id="hatch-btn" class="btn btn-primary" style="margin-top:16px; width:100%;">⚡ Hatch Egg!</button>
+                        </div>
+                    </div>
+
+                    <!-- Inventory Grid -->
+                    <div class="card">
+                        <h2>🎒 Collected Items Inventory</h2>
+                        <p class="section-intro">Items found as drop rates when practicing cards.</p>
+
+                        <div class="inventory-section">
+                            <h3>Eggs</h3>
+                            <div id="eggs-grid" class="inventory-grid"></div>
+
+                            <h3 style="margin-top:16px;">Potions</h3>
+                            <div id="potions-grid" class="inventory-grid"></div>
+
+                            <h3 style="margin-top:16px;">Food</h3>
+                            <div id="food-grid" class="inventory-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. STABLE TAB -->
+            <div id="tab-stable" class="tab-pane">
+                <div class="card">
+                    <h2>🐉 Companions Stable</h2>
+                    <p class="section-intro">Hatched algorithm pets can be set as active companions to accompany you on browser widgets.</p>
+                    
+                    <div class="active-companion-banner" id="active-companion-banner">
+                        <span>Active Companion: <strong id="active-companion-name">None</strong></span>
+                    </div>
+
+                    <div id="companions-list" class="companions-grid">
+                        <!-- Hatch pets render here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. SHOP & REWARDS TAB -->
+            <div id="tab-shop" class="tab-pane">
+                <div class="grid-layout">
+                    <!-- Standard Shop Card -->
+                    <div class="card">
+                        <h2>🪙 Gold Shop</h2>
+                        <p class="section-intro">Purchase potions and hatching elements using earned Gold.</p>
+                        
+                        <div class="shop-grid">
+                            <div class="shop-item">
+                                <span class="shop-icon">🧪</span>
+                                <div>
+                                    <div class="shop-item-name">Health Potion</div>
+                                    <div class="shop-item-desc">Restores 15 HP instantly.</div>
+                                </div>
+                                <button class="btn btn-primary buy-btn" data-item="potion" data-cost="25">25 🪙</button>
+                            </div>
+                            <div class="shop-item">
+                                <span class="shop-icon">🥚</span>
+                                <div>
+                                    <div class="shop-item-name">Mystic Egg</div>
+                                    <div class="shop-item-desc">Hatch random pets.</div>
+                                </div>
+                                <button class="btn btn-primary buy-btn" data-item="egg" data-cost="50">50 🪙</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Rewards Card -->
+                    <div class="card">
+                        <h2>🏷️ Custom Rewards Shop</h2>
+                        <p class="section-intro">Incentivize your coding routines by trading practice Gold for real-life breaks.</p>
+
+                        <div class="rewards-adder">
+                            <input type="text" id="reward-name-input" class="input-field" placeholder="Reward description (e.g. 1hr Video Games)">
+                            <input type="number" id="reward-cost-input" class="input-field" style="width: 100px;" placeholder="Cost (Gold)">
+                            <button id="add-reward-btn" class="btn btn-primary">Add</button>
+                        </div>
+
+                        <div class="custom-rewards-section" style="margin-top: 20px;">
+                            <h3>Active Rewards</h3>
+                            <ul id="custom-rewards-list" class="rewards-list">
+                                <!-- User rewards will load here -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status message toast -->
+    <div id="status-toast" class="toast"></div>
+
+    <script src="gamify.js"></script>
+</body>
+</html>
