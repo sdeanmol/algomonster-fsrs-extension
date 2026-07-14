@@ -1,7 +1,8 @@
 /**
  * @file features/common/data/data.js
  * @description Manages database tables listing saved patterns.
- * Supports keyword search, filter dropdown updates (status, tag categories),
+ * Supports keyword search, filter dropdown updates (status, tag, platform, FSRS state),
+ * sorting, bulk actions (R2.7), inline card editing (R2.9),
  * overall memory retention rates calculations, stacked distribution bars, and card deletion events.
  */
 class FSRSDataDashboard {
@@ -13,7 +14,13 @@ class FSRSDataDashboard {
         this.searchQuery = '';
         this.selectedTag = 'all';
         this.selectedStatus = 'all';
+        this.selectedPlatform = 'all';
+        this.selectedState = 'all';
+        this.sortBy = 'due-asc';
         this.chromeSettings = {};
+
+        // R2.7: Bulk selection tracking
+        this.selectedCardIds = new Set();
     }
 
     /**
@@ -24,13 +31,26 @@ class FSRSDataDashboard {
         this.currentView = urlParams.get('view') || 'total';
         this.targetDate = urlParams.get('date');
 
+        // R2.6: Pre-select tag from URL if provided (linked from analytics donut chart)
+        const urlTag = urlParams.get('tag');
+        if (urlTag) {
+            this.selectedTag = urlTag;
+        }
+
         chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result) => {
             this.allCards = result.fsrsCards || [];
             this.chromeSettings = result.chromeSettings || {};
             
             // Dynamic Filter Populators
             this.populateTagsFilter();
+            this.populatePlatformFilter();
             
+            // Pre-select tag filter from URL
+            if (urlTag) {
+                const tagSelect = document.getElementById('tag-select');
+                if (tagSelect) tagSelect.value = urlTag;
+            }
+
             // Register Listeners
             this.bindEvents();
 
@@ -67,18 +87,91 @@ class FSRSDataDashboard {
             });
         }
 
+        // R2.6: Platform filter
+        const platformSelect = document.getElementById('platform-select');
+        if (platformSelect) {
+            platformSelect.addEventListener('change', (e) => {
+                this.selectedPlatform = e.target.value;
+                this.filterAndRender();
+            });
+        }
+
+        // R2.6: FSRS State filter
+        const stateSelect = document.getElementById('state-select');
+        if (stateSelect) {
+            stateSelect.addEventListener('change', (e) => {
+                this.selectedState = e.target.value;
+                this.filterAndRender();
+            });
+        }
+
+        // R2.8: Sort dropdown
+        const sortSelect = document.getElementById('sort-select');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => {
+                this.sortBy = e.target.value;
+                this.filterAndRender();
+            });
+        }
+
         const clearBtn = document.getElementById('clear-filters-btn');
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
                 this.searchQuery = '';
                 this.selectedTag = 'all';
                 this.selectedStatus = 'all';
+                this.selectedPlatform = 'all';
+                this.selectedState = 'all';
+                this.sortBy = 'due-asc';
 
                 if (searchInput) searchInput.value = '';
                 if (tagSelect) tagSelect.value = 'all';
                 if (statusSelect) statusSelect.value = 'all';
+                if (platformSelect) platformSelect.value = 'all';
+                if (stateSelect) stateSelect.value = 'all';
+                if (sortSelect) sortSelect.value = 'due-asc';
 
                 this.filterAndRender();
+            });
+        }
+
+        // R2.7: Bulk action buttons
+        const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.addEventListener('click', () => this.bulkDelete());
+        }
+
+        const bulkRetagBtn = document.getElementById('bulk-retag-btn');
+        if (bulkRetagBtn) {
+            bulkRetagBtn.addEventListener('click', () => this.bulkRetag());
+        }
+
+        const bulkRescheduleBtn = document.getElementById('bulk-reschedule-btn');
+        if (bulkRescheduleBtn) {
+            bulkRescheduleBtn.addEventListener('click', () => this.bulkReschedule());
+        }
+
+        const bulkDeselectBtn = document.getElementById('bulk-deselect-btn');
+        if (bulkDeselectBtn) {
+            bulkDeselectBtn.addEventListener('click', () => {
+                this.selectedCardIds.clear();
+                this.updateBulkActionsBar();
+                this.filterAndRender();
+            });
+        }
+
+        // R2.9: Inline edit modal bindings
+        const editCloseBtn = document.getElementById('edit-close-btn');
+        const editCancelBtn = document.getElementById('edit-cancel-btn');
+        const editSaveBtn = document.getElementById('edit-save-btn');
+        const editOverlay = document.getElementById('inline-edit-overlay');
+
+        if (editCloseBtn) editCloseBtn.addEventListener('click', () => this.closeEditModal());
+        if (editCancelBtn) editCancelBtn.addEventListener('click', () => this.closeEditModal());
+        if (editSaveBtn) editSaveBtn.addEventListener('click', () => this.saveCardEdit());
+        if (editOverlay) {
+            editOverlay.addEventListener('click', (e) => {
+                if (e.target === editOverlay) this.closeEditModal();
             });
         }
     }
@@ -102,7 +195,7 @@ class FSRSDataDashboard {
         });
 
         // Populate select
-        tagsSet.forEach(tag => {
+        [...tagsSet].sort().forEach(tag => {
             const option = document.createElement('option');
             option.value = tag;
             option.textContent = tag;
@@ -111,8 +204,74 @@ class FSRSDataDashboard {
     }
 
     /**
-     * Filters the cards collection by search keywords, active tags, and due statuses,
-     * and calls the rendering templates.
+     * R2.6: Populates platform filter dropdown by extracting hostnames from card URLs.
+     */
+    populatePlatformFilter() {
+        const platformSelect = document.getElementById('platform-select');
+        if (!platformSelect) return;
+
+        platformSelect.innerHTML = '<option value="all">All Platforms</option>';
+
+        const platformNames = {
+            'leetcode.com': 'LeetCode',
+            'codeforces.com': 'Codeforces',
+            'codechef.com': 'CodeChef',
+            'atcoder.jp': 'AtCoder',
+            'hackerrank.com': 'HackerRank',
+            'hackerearth.com': 'HackerEarth',
+            'codewars.com': 'Codewars',
+            'codingame.com': 'CodinGame',
+            'algo.monster': 'AlgoMonster',
+            'systemdesignschool.io': 'System Design School'
+        };
+
+        const platforms = new Set();
+        this.allCards.forEach(card => {
+            const platform = this.extractPlatform(card.problemUrl);
+            if (platform) platforms.add(platform);
+        });
+
+        [...platforms].sort().forEach(platform => {
+            const option = document.createElement('option');
+            option.value = platform;
+            option.textContent = platformNames[platform] || platform;
+            platformSelect.appendChild(option);
+        });
+    }
+
+    /**
+     * Extracts platform hostname from a URL.
+     * @param {string} url - Card's problem URL.
+     * @returns {string|null} Domain hostname or null.
+     */
+    extractPlatform(url) {
+        if (!url || url.startsWith('#')) return null;
+        try {
+            const hostname = new URL(url).hostname.replace(/^www\./, '');
+            // Normalize subdomains
+            const parts = hostname.split('.');
+            if (parts.length > 2) {
+                return parts.slice(-2).join('.');
+            }
+            return hostname;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * FSRS state to human label.
+     * @param {number} state - FSRS state integer (0-3).
+     * @returns {string} Human-readable state label.
+     */
+    getStateLabel(state) {
+        const labels = { 0: 'New', 1: 'Learning', 2: 'Review', 3: 'Relearning' };
+        return labels[state] || 'Unknown';
+    }
+
+    /**
+     * Filters the cards collection by search keywords, active tags, due statuses,
+     * platform, FSRS state, sorts them, and calls the rendering templates.
      */
     filterAndRender() {
         const titleEl = document.getElementById('page-title');
@@ -199,13 +358,23 @@ class FSRSDataDashboard {
                                   (this.selectedStatus === 'due' && isCardDue) || 
                                   (this.selectedStatus === 'safe' && !isCardDue);
 
-            return matchesSearch && matchesTag && matchesStatus;
+            // R2.6: Platform filter
+            const cardPlatform = this.extractPlatform(card.problemUrl);
+            const matchesPlatform = this.selectedPlatform === 'all' || cardPlatform === this.selectedPlatform;
+
+            // R2.6: FSRS State filter
+            const matchesState = this.selectedState === 'all' || String(card.state || 0) === this.selectedState;
+
+            return matchesSearch && matchesTag && matchesStatus && matchesPlatform && matchesState;
         });
 
+        // R2.8: Sort the filtered results
+        filtered = this.sortCards(filtered);
+
         // 3. Toggle reset button
-        const isFilterActive = this.searchQuery !== '' || this.selectedTag !== 'all' || this.selectedStatus !== 'all';
+        const isFilterActive = this.searchQuery !== '' || this.selectedTag !== 'all' || this.selectedStatus !== 'all' || this.selectedPlatform !== 'all' || this.selectedState !== 'all' || this.sortBy !== 'due-asc';
         if (clearFiltersBtn) {
-            clearFiltersBtn.style.display = isFilterActive ? 'inline-block' : 'none';
+            clearFiltersBtn.style.display = isFilterActive ? 'inline-flex' : 'none';
         }
 
         // 4. Subtitle Stats
@@ -252,20 +421,64 @@ class FSRSDataDashboard {
 
         contentEl.innerHTML += this.generateCardsTable(filtered, isRetention);
         this.bindDeleteButtons();
+        this.bindCheckboxes();
+        this.bindEditButtons();
+    }
+
+    /**
+     * R2.8: Sorts the filtered cards array based on current sort selection.
+     * @param {Object[]} cards - Array of FSRS card objects.
+     * @returns {Object[]} Sorted array.
+     */
+    sortCards(cards) {
+        const sorted = [...cards];
+        switch (this.sortBy) {
+            case 'due-asc':
+                return sorted.sort((a, b) => (a.due || 0) - (b.due || 0));
+            case 'due-desc':
+                return sorted.sort((a, b) => (b.due || 0) - (a.due || 0));
+            case 'difficulty-desc':
+                return sorted.sort((a, b) => (b.difficulty || 0) - (a.difficulty || 0));
+            case 'stability-desc':
+                return sorted.sort((a, b) => (b.stability || 0) - (a.stability || 0));
+            case 'stability-asc':
+                return sorted.sort((a, b) => (a.stability || 0) - (b.stability || 0));
+            case 'lapses-desc':
+                return sorted.sort((a, b) => (b.lapses || 0) - (a.lapses || 0));
+            case 'created-desc':
+                return sorted.sort((a, b) => {
+                    const aCreated = a.historyLog && a.historyLog.length > 0 ? a.historyLog[0] : 0;
+                    const bCreated = b.historyLog && b.historyLog.length > 0 ? b.historyLog[0] : 0;
+                    return bCreated - aCreated;
+                });
+            case 'created-asc':
+                return sorted.sort((a, b) => {
+                    const aCreated = a.historyLog && a.historyLog.length > 0 ? a.historyLog[0] : 0;
+                    const bCreated = b.historyLog && b.historyLog.length > 0 ? b.historyLog[0] : 0;
+                    return aCreated - bCreated;
+                });
+            default:
+                return sorted;
+        }
     }
 
     /**
      * Builds table rows summarizing problem titles, tags, due statuses, and FSRS metrics.
+     * Enhanced with R2.7 checkboxes, R2.6 state badges, and R2.9 edit buttons.
      * @param {Object[]} cardsArray - List of FSRS cards.
      * @param {boolean} [showLapses=false] - If true, appends columns indicating lapse occurrences.
      * @returns {string} Rendered table markup.
      */
     generateCardsTable(cardsArray, showLapses = false) {
         const now = new Date().getTime();
+        const allChecked = cardsArray.length > 0 && cardsArray.every(c => this.selectedCardIds.has(c.id));
+
         let table = `<table><thead><tr>
+            <th class="th-checkbox"><input type="checkbox" id="select-all-checkbox" class="card-checkbox" ${allChecked ? 'checked' : ''}></th>
             <th>Problem Title</th>
             <th>Tags</th>
             <th>Next Due</th>
+            <th>State</th>
             <th>Reviews</th>
             <th>Stability</th>
             <th>Difficulty</th>
@@ -282,20 +495,32 @@ class FSRSDataDashboard {
             const tagsHtml = (card.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
             const reps = card.reps || 0;
             const lapses = card.lapses || 0;
+            const state = card.state || 0;
             
-            // Format FSRS stats beautifully
+            // Format FSRS stats
             const stabilityFormatted = card.stability > 0 ? `${card.stability.toFixed(1)}d` : 'New';
             const difficultyFormatted = card.difficulty > 0 ? `${card.difficulty.toFixed(1)}/10` : 'N/A';
 
-            table += `<tr>
-                <td><a href="${card.problemUrl}" target="_blank">${card.problemTitle}</a></td>
+            // State badge with color coding
+            const stateLabel = this.getStateLabel(state);
+            const stateClass = `state-${state}`;
+
+            const isChecked = this.selectedCardIds.has(card.id);
+
+            table += `<tr class="${isChecked ? 'row-selected' : ''}">
+                <td class="td-checkbox"><input type="checkbox" class="card-checkbox row-checkbox" data-id="${card.id}" ${isChecked ? 'checked' : ''}></td>
+                <td><a href="${card.problemUrl}" target="_blank">${card.problemTitle || 'Untitled'}</a></td>
                 <td>${tagsHtml}</td>
                 <td>${statusBadge}</td>
+                <td><span class="badge badge-state ${stateClass}">${stateLabel}</span></td>
                 <td>${reps}</td>
                 <td>${stabilityFormatted}</td>
                 <td>${difficultyFormatted}</td>
                 ${showLapses ? `<td class="warning">${lapses}</td>` : ''}
-                <td>
+                <td class="td-actions">
+                    <button class="edit-card-btn" data-id="${card.id}" title="Edit Card">
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    </button>
                     <button class="delete-card-btn" data-id="${card.id}" title="Remove Card from Reviews">
                         <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
@@ -312,17 +537,222 @@ class FSRSDataDashboard {
     bindDeleteButtons() {
         document.querySelectorAll('.delete-card-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const cardId = e.currentTarget.getAttribute('data-id');
                 if (confirm("Are you sure you want to remove this card from future FSRS reviews? This will delete the repetition history for this pattern.")) {
                     this.allCards = this.allCards.filter(c => c.id !== cardId);
+                    this.selectedCardIds.delete(cardId);
                     chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
                         this.populateTagsFilter();
+                        this.populatePlatformFilter();
+                        this.updateBulkActionsBar();
                         this.filterAndRender();
                     });
                 }
             });
         });
     }
+
+    // ========================================================================
+    // R2.7: Bulk Actions
+    // ========================================================================
+
+    /**
+     * Binds checkbox change events for bulk selection.
+     */
+    bindCheckboxes() {
+        // Select-all checkbox
+        const selectAll = document.getElementById('select-all-checkbox');
+        if (selectAll) {
+            selectAll.addEventListener('change', (e) => {
+                const allCheckboxes = document.querySelectorAll('.row-checkbox');
+                allCheckboxes.forEach(cb => {
+                    cb.checked = e.target.checked;
+                    const cardId = cb.dataset.id;
+                    if (e.target.checked) {
+                        this.selectedCardIds.add(cardId);
+                    } else {
+                        this.selectedCardIds.delete(cardId);
+                    }
+                    cb.closest('tr').classList.toggle('row-selected', e.target.checked);
+                });
+                this.updateBulkActionsBar();
+            });
+        }
+
+        // Individual row checkboxes
+        document.querySelectorAll('.row-checkbox').forEach(cb => {
+            cb.addEventListener('change', (e) => {
+                const cardId = e.target.dataset.id;
+                if (e.target.checked) {
+                    this.selectedCardIds.add(cardId);
+                } else {
+                    this.selectedCardIds.delete(cardId);
+                }
+                e.target.closest('tr').classList.toggle('row-selected', e.target.checked);
+                this.updateBulkActionsBar();
+
+                // Update select-all checkbox state
+                const allCheckboxes = document.querySelectorAll('.row-checkbox');
+                const allChecked = [...allCheckboxes].every(c => c.checked);
+                if (selectAll) selectAll.checked = allChecked;
+            });
+        });
+    }
+
+    /**
+     * Updates the bulk actions bar visibility and selected count display.
+     */
+    updateBulkActionsBar() {
+        const bar = document.getElementById('bulk-actions-bar');
+        const countEl = document.getElementById('bulk-count');
+        if (!bar) return;
+
+        const count = this.selectedCardIds.size;
+        if (count > 0) {
+            bar.style.display = 'flex';
+            if (countEl) countEl.textContent = count;
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+
+    /**
+     * R2.7: Bulk delete selected cards.
+     */
+    bulkDelete() {
+        const count = this.selectedCardIds.size;
+        if (count === 0) return;
+
+        if (confirm(`Are you sure you want to delete ${count} selected card(s)? This cannot be undone.`)) {
+            this.allCards = this.allCards.filter(c => !this.selectedCardIds.has(c.id));
+            this.selectedCardIds.clear();
+            chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
+                this.populateTagsFilter();
+                this.populatePlatformFilter();
+                this.updateBulkActionsBar();
+                this.filterAndRender();
+            });
+        }
+    }
+
+    /**
+     * R2.7: Bulk re-tag selected cards.
+     */
+    bulkRetag() {
+        const count = this.selectedCardIds.size;
+        if (count === 0) return;
+
+        const newTagsStr = prompt(`Enter new tags for ${count} selected card(s) (comma-separated).\nThis will REPLACE existing tags:`, '');
+        if (newTagsStr === null) return; // Cancelled
+
+        const newTags = newTagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+        this.allCards.forEach(card => {
+            if (this.selectedCardIds.has(card.id)) {
+                card.tags = newTags;
+            }
+        });
+
+        this.selectedCardIds.clear();
+        chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
+            this.populateTagsFilter();
+            this.updateBulkActionsBar();
+            this.filterAndRender();
+        });
+    }
+
+    /**
+     * R2.7: Bulk reschedule selected cards (reset due date to now).
+     */
+    bulkReschedule() {
+        const count = this.selectedCardIds.size;
+        if (count === 0) return;
+
+        if (confirm(`Reschedule ${count} selected card(s) to be due now? This resets their due date to today.`)) {
+            const now = Date.now();
+            this.allCards.forEach(card => {
+                if (this.selectedCardIds.has(card.id)) {
+                    card.due = now;
+                }
+            });
+
+            this.selectedCardIds.clear();
+            chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
+                this.updateBulkActionsBar();
+                this.filterAndRender();
+            });
+        }
+    }
+
+    // ========================================================================
+    // R2.9: Inline Card Editing
+    // ========================================================================
+
+    /**
+     * Binds click events for edit buttons on each card row.
+     */
+    bindEditButtons() {
+        document.querySelectorAll('.edit-card-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const cardId = e.currentTarget.getAttribute('data-id');
+                this.openEditModal(cardId);
+            });
+        });
+    }
+
+    /**
+     * Opens the inline edit modal for a specific card.
+     * @param {string} cardId - ID of the card to edit.
+     */
+    openEditModal(cardId) {
+        const card = this.allCards.find(c => c.id === cardId);
+        if (!card) return;
+
+        document.getElementById('edit-card-id').value = cardId;
+        document.getElementById('edit-title').value = card.problemTitle || '';
+        document.getElementById('edit-tags').value = (card.tags || []).join(', ');
+        document.getElementById('edit-approach').value = card.approach || '';
+        document.getElementById('edit-time-complexity').value = card.timeComplexity || '';
+        document.getElementById('edit-space-complexity').value = card.spaceComplexity || '';
+
+        const overlay = document.getElementById('inline-edit-overlay');
+        if (overlay) overlay.style.display = 'flex';
+    }
+
+    /**
+     * Closes the inline edit modal.
+     */
+    closeEditModal() {
+        const overlay = document.getElementById('inline-edit-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    /**
+     * Saves edits from the inline edit modal to storage.
+     */
+    saveCardEdit() {
+        const cardId = document.getElementById('edit-card-id').value;
+        const card = this.allCards.find(c => c.id === cardId);
+        if (!card) return;
+
+        card.problemTitle = document.getElementById('edit-title').value.trim() || card.problemTitle;
+        card.tags = document.getElementById('edit-tags').value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        card.approach = document.getElementById('edit-approach').value;
+        card.timeComplexity = document.getElementById('edit-time-complexity').value.trim();
+        card.spaceComplexity = document.getElementById('edit-space-complexity').value.trim();
+
+        chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
+            this.closeEditModal();
+            this.populateTagsFilter();
+            this.filterAndRender();
+        });
+    }
+
+    // ========================================================================
+    // Analytics Panel (unchanged from original)
+    // ========================================================================
 
     /**
      * Renders statistical cards and distributions of card states.

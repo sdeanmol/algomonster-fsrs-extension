@@ -30,6 +30,7 @@ export class AlgoRecallDashboard {
             boxRetention: document.getElementById('box-retention'),
             manageHighlightsBtn: document.getElementById('manage-highlights-btn'),
             openOptionsBtn: document.getElementById('open-options-btn'),
+            analyticsBtn: document.getElementById('analytics-btn'),
             forecastBtn: document.getElementById('forecast-btn'),
             exportBtn: document.getElementById('export-btn'),
             importFile: document.getElementById('import-file'),
@@ -157,6 +158,7 @@ export class AlgoRecallDashboard {
         this.dom.boxRetention?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=retention') }));
         this.dom.manageHighlightsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/manager/highlights.html') }));
         this.dom.openOptionsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/options/highlightOptions.html') }));
+        this.dom.analyticsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/analytics/analytics.html') }));
         this.dom.forecastBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/forecast/forecast.html') }));
 
         // Standard JSON database backup export logic
