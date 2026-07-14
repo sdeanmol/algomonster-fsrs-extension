@@ -1,21 +1,24 @@
+window.AlgoRecall = window.AlgoRecall || {};
+
 /**
- * @file features/common/markdown.js
+ * @class Markdown
  * @description Lightweight Markdown rendering wrapper utilizing the marked.js parser library.
  * Implements fallback rendering when marked is unavailable and performs structural regex-based sanitization
  * of potential XSS vectors (unsafe tags, inline attributes, javascript: URIs).
- * Upstream dependencies: features/common/marked.min.js (vendor parser library).
- * Downstream dependencies: features/tracker/tracker.js, features/tracker/editor/editor.js, features/dashboard/popup/popup.js.
  */
-
-(function() {
-    // Configure marked for safe, minimal output
-    if (typeof marked !== 'undefined') {
-        marked.setOptions({
-            breaks: true,       // Convert \n to <br>
-            gfm: true,          // GitHub Flavored Markdown (tables, strikethrough)
-            headerIds: false,   // Don't generate id attributes on headings
-            mangle: false       // Don't mangle email addresses
-        });
+window.AlgoRecall.Markdown = class Markdown {
+    /**
+     * Configures the marked options if loaded.
+     */
+    static init() {
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({
+                breaks: true,       // Convert \n to <br>
+                gfm: true,          // GitHub Flavored Markdown (tables, strikethrough)
+                headerIds: false,   // Don't generate id attributes on headings
+                mangle: false       // Don't mangle email addresses
+            });
+        }
     }
 
     /**
@@ -24,7 +27,7 @@
      * @param {string} text - Raw Markdown text.
      * @returns {string} Rendered and sanitized HTML string.
      */
-    window.renderMarkdown = function(text) {
+    static render(text) {
         if (!text || typeof text !== 'string') return '';
         
         if (typeof marked === 'undefined') {
@@ -57,6 +60,11 @@
                 .replace(/>/g, '&gt;')
                 .replace(/\n/g, '<br>');
         }
-    };
-})();
+    }
+};
 
+// Initialize configurations
+window.AlgoRecall.Markdown.init();
+
+// Maintain legacy global binding for safety/backwards compatibility
+window.renderMarkdown = window.AlgoRecall.Markdown.render;
