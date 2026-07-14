@@ -132,6 +132,7 @@
         </div>
         <div class="panel-actions">
             <button id="toggle-lifetime-btn" class="btn-text">Show Lifetime</button>
+            <button id="forecast-btn" class="btn-text">Review Forecast</button>
             <button id="history-btn" class="btn-text">Activity History</button>
         </div>
     </div>
@@ -324,6 +325,33 @@
                     <span>Import Backup</span>
                 </div>
                 <input type="file" id="import-file" accept=".json" style="display:none;">
+            </label>
+        </div>
+
+        <!-- R9.1: Anki Export/Import -->
+        <div class="settings-grid" style="margin-top: 6px;">
+            <button id="anki-export-btn" class="settings-item-btn">
+                <div class="settings-item-left">
+                    <svg class="svg-icon settings-item-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary);">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>Export to Anki (.txt)</span>
+                </div>
+            </button>
+            <label class="settings-item-btn" style="cursor: pointer; margin: 0;">
+                <div class="settings-item-left">
+                    <svg class="svg-icon settings-item-icon" viewBox="0 0 24 24" style="stroke: #9b59b6;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>Import from Anki (.txt)</span>
+                </div>
+                <input type="file" id="anki-import-file" accept=".txt,.tsv" style="display:none;">
             </label>
         </div>
     </div>

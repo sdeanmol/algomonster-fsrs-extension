@@ -119,6 +119,33 @@ function filterAndRender() {
         }
         titleEl.innerText = `Activity for ${dateDisplay}`;
     }
+    // R2.2: Forecast view — cards due on a specific future date
+    else if (currentView === 'forecast' && targetDate) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const dayOffset = parseInt(urlParams.get('offset') || '0');
+
+        // Build day boundaries for the target date
+        const targetParts = targetDate.split('-');
+        const targetDayStart = new Date(parseInt(targetParts[0]), parseInt(targetParts[1]) - 1, parseInt(targetParts[2]));
+        const targetDayEnd = new Date(targetDayStart);
+        targetDayEnd.setDate(targetDayEnd.getDate() + 1);
+
+        const targetStartTime = targetDayStart.getTime();
+        const targetEndTime = targetDayEnd.getTime();
+
+        if (dayOffset === 0) {
+            // Today: cards due now (due <= end of today) — includes past-due
+            baseCards = allCards.filter(c => c.due < targetEndTime);
+        } else {
+            // Future day: cards due within [dayStart, dayEnd)
+            baseCards = allCards.filter(c => c.due >= targetStartTime && c.due < targetEndTime);
+        }
+
+        baseCards.sort((a, b) => a.due - b.due);
+
+        const dateDisplay = new Date(targetDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        titleEl.innerText = `Cards Due — ${dateDisplay}`;
+    }
 
     // 2. Filter base dataset
     let filtered = baseCards.filter(card => {
@@ -163,6 +190,10 @@ function filterAndRender() {
         subtitleEl.innerText = `Overall Memory Retention: ${retentionRate}% (${totalReps} total reviews, ${totalLapses} forgotten patterns).`;
     } else if (currentView === 'history') {
         subtitleEl.innerText = `You reviewed ${filtered.length} unique pattern(s) during this period.`;
+    } else if (currentView === 'forecast') {
+        subtitleEl.innerText = isFilterActive
+            ? `Showing ${filtered.length} matching pattern(s) out of ${baseCards.length} due on this date.`
+            : `${baseCards.length} pattern(s) scheduled for review on this date.`;
     }
 
     // 5. Render

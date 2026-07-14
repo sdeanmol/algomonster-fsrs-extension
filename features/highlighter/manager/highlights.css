@@ -266,3 +266,18 @@ h1 {
     border: 2px dashed var(--md-border);
     font-size: 14px;
 }
+
+/* R7.1: Annotation Note Preview */
+.highlight-note-preview {
+    font-size: 12px;
+    color: var(--md-text-med);
+    font-style: italic;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    background: var(--md-surface-variant);
+    border-radius: 6px;
+    border-left: 2px solid var(--md-primary);
+}

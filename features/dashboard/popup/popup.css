@@ -343,6 +343,8 @@ body {
     text-transform: uppercase;
     font-size: 9px;
     letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
 }
 .gamification-progress-text {
     font-weight: 700;
@@ -367,6 +369,163 @@ body {
     color: var(--md-text-med);
     line-height: 1.4;
     font-style: italic;
+}
+
+/* R3.1: SVG Progress Ring */
+.goal-ring-container {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.goal-ring-wrap {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+}
+
+.goal-ring-svg {
+    width: 80px;
+    height: 80px;
+    transform: rotate(-90deg);
+}
+
+.goal-ring-bg {
+    fill: none;
+    stroke: var(--md-surface-variant);
+    stroke-width: 6;
+}
+
+.goal-ring-fill {
+    fill: none;
+    stroke: var(--md-warning);
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.goal-ring-fill-complete {
+    stroke: var(--md-success);
+}
+
+.goal-ring-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+}
+
+.goal-ring-count {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--md-text-high);
+    letter-spacing: -0.5px;
+}
+
+.goal-ring-label {
+    font-size: 9px;
+    color: var(--md-text-low);
+    font-weight: 600;
+    margin-top: 1px;
+}
+
+.goal-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+/* Goal Editor */
+.goal-edit-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--md-text-low);
+    padding: 2px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+}
+
+.goal-edit-btn:hover {
+    color: var(--md-text-high);
+}
+
+.goal-editor {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.goal-input {
+    width: 52px;
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 6px;
+    color: var(--md-text-high);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 6px;
+    text-align: center;
+    outline: none;
+    font-family: inherit;
+}
+
+.goal-input:focus {
+    border-color: var(--md-primary);
+}
+
+.goal-save-btn {
+    background: var(--md-primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.15s;
+}
+
+.goal-save-btn:hover {
+    opacity: 0.85;
+}
+
+/* R3.2: Streak Badge */
+.streak-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 3px 0;
+}
+
+.streak-fire {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.streak-text {
+    font-weight: 700;
+    color: var(--md-warning);
+}
+
+.streak-best {
+    font-size: 10px;
+    color: var(--md-text-low);
+    font-weight: 500;
+    margin-left: 2px;
 }
 
 /* Dynamic Goal States */

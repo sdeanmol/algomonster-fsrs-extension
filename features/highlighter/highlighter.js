@@ -170,6 +170,36 @@ function renderTooltipColors(existingMarkId = null, currentColor = null) {
             deleteHighlight(existingMarkId);
         });
         tooltip.appendChild(deleteBtn);
+
+        // R7.1: Annotation note input
+        const existingMark = marks.find(m => (m.id || m.createdAt.toString()) === existingMarkId);
+        const noteSection = document.createElement('div');
+        noteSection.className = 'algo-note-section';
+
+        const noteInput = document.createElement('input');
+        noteInput.type = 'text';
+        noteInput.className = 'algo-note-input';
+        noteInput.placeholder = 'Add note...';
+        noteInput.value = existingMark?.note || '';
+        noteInput.maxLength = 200;
+
+        noteInput.addEventListener('mousedown', (e) => e.stopPropagation());
+        noteInput.addEventListener('click', (e) => e.stopPropagation());
+
+        const saveNote = () => {
+            saveMarkNote(existingMarkId, noteInput.value);
+        };
+        noteInput.addEventListener('blur', saveNote);
+        noteInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveNote();
+                noteInput.blur();
+            }
+        });
+
+        noteSection.appendChild(noteInput);
+        tooltip.appendChild(noteSection);
     }
 }
 
@@ -193,6 +223,7 @@ function saveHighlight(color) {
         url: cleanUrl,
         text: selection.toString(),
         color: color,
+        note: '',
         highlightSource: {
             startMeta: getDOMMeta(range.startContainer, range.startOffset),
             endMeta: getDOMMeta(range.endContainer, range.endOffset)
@@ -231,6 +262,15 @@ function deleteHighlight(markId) {
     document.getElementById('algo-highlight-tooltip').style.display = 'none';
     hoveredMarkId = null;
     applyHighlightsForCurrentPage();
+}
+
+// R7.1: Save annotation note for a highlight
+function saveMarkNote(markId, noteText) {
+    const markIndex = marks.findIndex(m => (m.id || m.createdAt.toString()) === markId);
+    if (markIndex > -1) {
+        marks[markIndex].note = noteText.trim();
+        chrome.storage.local.set({ marks });
+    }
 }
 
 function applyHighlightsForCurrentPage() {

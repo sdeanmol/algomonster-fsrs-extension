@@ -79,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('box-retention')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=retention') }));
     document.getElementById('manage-highlights-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/manager/highlights.html') }));
     document.getElementById('open-options-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/options/highlightOptions.html') }));
+    document.getElementById('forecast-btn')?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/forecast/forecast.html') }));
 
     const toggleLifetimeBtn = document.getElementById('toggle-lifetime-btn');
     if (toggleLifetimeBtn) {
@@ -157,6 +158,63 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         reader.readAsText(file);
+    });
+
+    // R9.1: Anki Export
+    document.getElementById('anki-export-btn')?.addEventListener('click', () => {
+        chrome.storage.local.get(['fsrsCards'], (result) => {
+            const cards = result.fsrsCards || [];
+            if (cards.length === 0) {
+                showStatus('No cards to export.', true);
+                return;
+            }
+            const ankiText = exportToAnkiText(cards);
+            const blob = new Blob([ankiText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            chrome.downloads.download({
+                url: url,
+                filename: `algorecall_anki_${new Date().toISOString().split('T')[0]}.txt`,
+                saveAs: true
+            });
+            showStatus(`Exported ${cards.length} cards for Anki!`);
+        });
+    });
+
+    // R9.1: Anki Import
+    document.getElementById('anki-import-file')?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const text = event.target.result;
+                const newCards = importFromAnkiText(text);
+
+                if (newCards.length === 0) {
+                    showStatus('No valid cards found in file.', true);
+                    return;
+                }
+
+                chrome.storage.local.get(['fsrsCards'], (result) => {
+                    const existing = result.fsrsCards || [];
+                    const existingTitles = new Set(existing.map(c => c.problemTitle?.toLowerCase()));
+
+                    // Skip duplicates by title
+                    const unique = newCards.filter(c => !existingTitles.has(c.problemTitle?.toLowerCase()));
+                    const merged = [...existing, ...unique];
+
+                    chrome.storage.local.set({ fsrsCards: merged }, () => {
+                        showStatus(`Imported ${unique.length} cards from Anki! (${newCards.length - unique.length} duplicates skipped)`);
+                        loadStats();
+                    });
+                });
+            } catch (err) {
+                showStatus('Error reading Anki file.', true);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // Reset file input
     });
 
     initRatingPrompt();
@@ -289,4 +347,102 @@ function renderQuickSearch() {
 
     resultsContainer.style.display = 'block';
     resultsContainer.innerHTML = html;
+}
+
+// ========== R9.1: Anki Export/Import Utilities ==========
+
+/**
+ * Export FSRS cards to Anki-compatible tab-separated text.
+ * Format: Front<TAB>Back<TAB>Tags
+ * Includes Anki header directives for auto-configuration on import.
+ */
+function exportToAnkiText(cards) {
+    const lines = [];
+    
+    // Anki header directives
+    lines.push('#separator:tab');
+    lines.push('#html:false');
+    lines.push('#tags column:3');
+    lines.push('#deck:AlgoRecall');
+    lines.push('#notetype:Basic');
+    lines.push('');
+
+    cards.forEach(card => {
+        const front = (card.problemTitle || 'Untitled').replace(/\t/g, ' ').replace(/\n/g, ' ');
+        const back = (card.approach || '').replace(/\t/g, '    '); // Keep newlines for Anki markdown
+        const tags = (card.tags || []).map(t => `algorecall::${t.replace(/\s+/g, '_')}`).join(' ');
+        
+        // Add URL as part of front if available
+        const frontWithUrl = card.problemUrl 
+            ? `${front}\n[URL: ${card.problemUrl}]`
+            : front;
+
+        lines.push(`${frontWithUrl}\t${back}\t${tags}`);
+    });
+
+    return lines.join('\n');
+}
+
+/**
+ * Import Anki tab-separated text into FSRS card objects.
+ * Expects: Front<TAB>Back<TAB>Tags (optional)
+ */
+function importFromAnkiText(text) {
+    const lines = text.split('\n');
+    const cards = [];
+    const now = Date.now();
+
+    for (const line of lines) {
+        // Skip Anki header directives and empty lines
+        if (!line.trim() || line.startsWith('#')) continue;
+
+        const parts = line.split('\t');
+        if (parts.length < 2) continue;
+
+        let front = parts[0].trim();
+        const back = parts[1].trim();
+        const tagsStr = parts[2] ? parts[2].trim() : '';
+
+        if (!front) continue;
+
+        // Extract URL from front if present (format: [URL: ...])
+        let problemUrl = '';
+        const urlMatch = front.match(/\[URL:\s*(.*?)\]/);
+        if (urlMatch) {
+            problemUrl = urlMatch[1].trim();
+            front = front.replace(/\n?\[URL:.*?\]/, '').trim();
+        }
+
+        // Parse tags: remove algorecall:: prefix, convert underscores back to spaces
+        const tags = tagsStr
+            ? tagsStr.split(/\s+/)
+                .map(t => t.replace(/^algorecall::/, '').replace(/_/g, ' '))
+                .filter(t => t)
+            : [];
+
+        // Create stub FSRS card
+        const card = {
+            id: `imported_${now}_${Math.random().toString(36).substr(2, 8)}`,
+            problemTitle: front,
+            problemUrl: problemUrl || `#imported-${encodeURIComponent(front.substring(0, 50))}`,
+            approach: back,
+            tags: tags,
+            due: now, // Due immediately for first review
+            stability: 0,
+            difficulty: 0,
+            elapsedDays: 0,
+            scheduledDays: 0,
+            reps: 0,
+            lapses: 0,
+            state: 0, // New
+            lastReview: null,
+            lastRating: null,
+            historyLog: [],
+            previousDue: null
+        };
+
+        cards.push(card);
+    }
+
+    return cards;
 }

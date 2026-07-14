@@ -350,9 +350,42 @@
     gap: 8px;
     box-shadow: 0 8px 24px var(--w-shadow) !important;
     align-items: center;
+    flex-wrap: wrap;
     transform: translate(-100%, 8px);
     margin: 0;
     animation: algo-fade-in-scale 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    max-width: 280px;
+}
+
+/* R7.1: Note annotation section inside tooltip */
+.algo-note-section {
+    width: 100%;
+    padding-top: 4px;
+    border-top: 1px solid var(--w-border);
+    margin-top: 2px;
+}
+
+.algo-note-input {
+    width: 100%;
+    background: var(--w-bg-dark);
+    border: 1px solid var(--w-border);
+    border-radius: 6px;
+    color: var(--w-text);
+    font-size: 11px;
+    font-family: inherit;
+    padding: 4px 8px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.algo-note-input:focus {
+    border-color: var(--w-primary);
+}
+
+.algo-note-input::placeholder {
+    color: var(--w-text-low);
+    font-style: italic;
 }
 
 @keyframes algo-fade-in-scale {
