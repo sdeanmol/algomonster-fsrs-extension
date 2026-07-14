@@ -1,6 +1,10 @@
 // features/highlighter/highlighter.js - Highlighter feature UI & logic
 let isHighlighterListenersBound = false;
 
+/**
+ * Initializes the highlight tooltip node and registers page-level event listeners.
+ * Binds pointerup for selections, mousemove for hover detection, and sets up themes.
+ */
 function createHighlighterUI() {
     if (!document.getElementById('algo-highlight-tooltip')) {
         const tooltip = document.createElement('div');
@@ -112,6 +116,13 @@ function createHighlighterUI() {
     applyThemeClass();
 }
 
+/**
+ * Renders the color palette bubble swatches, custom input color-picker, delete button,
+ * and text-note inputs for annotations in the highlighting tooltip.
+ * 
+ * @param {string|null} existingMarkId - The targeted highlight ID if editing, or null if creating new.
+ * @param {string|null} currentColor - Active hex color code of selection.
+ */
 function renderTooltipColors(existingMarkId = null, currentColor = null) {
     const tooltip = document.getElementById('algo-highlight-tooltip');
     tooltip.innerHTML = '';
@@ -209,6 +220,12 @@ function updateRecentColors(newColor) {
     chrome.storage.local.set({ chromeSettings });
 }
 
+/**
+ * Captures user text selection, serializes coordinates, saves the mark info to local storage,
+ * and triggers CSS Custom Highlights rendering on page content.
+ * 
+ * @param {string} color - Hex color code.
+ */
 function saveHighlight(color) {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) return;
@@ -255,6 +272,11 @@ function updateHighlightColor(markId, newColor) {
     }
 }
 
+/**
+ * Removes a highlight mark from list arrays, sets storage, and clears highlight ranges.
+ * 
+ * @param {string} markId 
+ */
 function deleteHighlight(markId) {
     marks = marks.filter(m => (m.id || m.createdAt.toString()) !== markId);
     chrome.storage.local.set({ marks });
@@ -264,7 +286,12 @@ function deleteHighlight(markId) {
     applyHighlightsForCurrentPage();
 }
 
-// R7.1: Save annotation note for a highlight
+/**
+ * Saves and updates the text annotation note attached to a highlight mark.
+ * 
+ * @param {string} markId 
+ * @param {string} noteText 
+ */
 function saveMarkNote(markId, noteText) {
     const markIndex = marks.findIndex(m => (m.id || m.createdAt.toString()) === markId);
     if (markIndex > -1) {

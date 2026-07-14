@@ -1,5 +1,14 @@
 // content/utils.js - Utility functions for content scripts
 
+/**
+ * Serializes the DOM path coordinates of a given text node.
+ * Loops parent elements up to the body/document root to produce a unique node path index list,
+ * allowing highlight selections to survive page reloads and edits on dynamic web content.
+ * 
+ * @param {Node} node - The targeted DOM text node.
+ * @param {number} offset - The cursor text range index offset within the text node.
+ * @returns {Object} JSON meta coordinates schema.
+ */
 function getDOMMeta(node, offset) {
     const parent = node.parentNode;
     let path = [];
@@ -18,6 +27,15 @@ function getDOMMeta(node, offset) {
     };
 }
 
+/**
+ * Restores a DOM selection range from serialized meta coordinates.
+ * Attempts precise tree path traversal first, with a fallback text tree walker
+ * search based on tag names and indices if page elements changed.
+ * 
+ * @param {Object} highlightSource - Serialized start/end coordinates object.
+ * @param {string} markText - The original highlighted text snippet to verify correctness.
+ * @returns {Range|null} Restored DOM Range object, or null if restoration failed.
+ */
 function restoreRangeFromMeta(highlightSource, markText) {
     try {
         let startNode = null;
@@ -76,6 +94,13 @@ function restoreRangeFromMeta(highlightSource, markText) {
     return null;
 }
 
+/**
+ * Dynamically registers highlight style rules using CSS Custom Highlights API.
+ * Ensures the document has a matching ::highlight(name) ruleset for the hex color.
+ * 
+ * @param {string} color - Hex color code.
+ * @returns {string} The registered highlight class name.
+ */
 function ensureHighlightStyle(color) {
     const colorName = `algo-hl-${color.replace('#', '')}`;
     if (!activeHighlightStyles.has(colorName)) {

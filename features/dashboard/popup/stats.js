@@ -1,5 +1,14 @@
-// features/dashboard/popup/stats.js - Statistics, daily goals (R3.1), and streak tracking (R3.2)
+/**
+ * features/dashboard/popup/stats.js
+ * 
+ * Statistics, daily goal calculations, progress rings, and streak tracking logic.
+ * Manages rendering of the gamification panel in the options popup.
+ */
 
+/**
+ * Loads FSRS card data and activity logs, computes overall stats,
+ * and renders both the level progression badge and the daily goal progress ring.
+ */
 function loadStats() {
     chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'dailyGoalTarget', 'longestStreak'], (result) => {
         const cards = result.fsrsCards || [];
@@ -8,15 +17,18 @@ function loadStats() {
         const storedLongestStreak = result.longestStreak || 0;
         const now = new Date().getTime();
         
+        // DOM targets
         const totalEl = document.getElementById('total-cards');
         const dueEl = document.getElementById('due-cards');
         const retentionEl = document.getElementById('retention-rate');
 
+        // Filter cards scheduled for today or earlier
         const dueToday = cards.filter(c => c.due <= now).length;
 
         if (totalEl) totalEl.innerText = cards.length;
         if (dueEl) dueEl.innerText = dueToday;
         
+        // Calculate memory retention rate: (Total Reps - Lapses) / Total Reps
         let totalReps = 0;
         let totalLapses = 0;
         cards.forEach(card => {
@@ -33,16 +45,17 @@ function loadStats() {
             retentionEl.innerText = retentionStr;
         }
 
-        // --- Gamification Logic ---
-        
-        // 1. Calculate Levels and XP
+        // ========================================================
+        // 1. Level & XP Progression Logic
+        // ========================================================
+        // Level is computed as: Floor(Total Reviews / 10) + 1
         let totalActivityReviews = 0;
         Object.values(activity).forEach(count => {
             totalActivityReviews += count;
         });
         
         const level = Math.floor(totalActivityReviews / 10) + 1;
-        const currentLevelProgress = (totalActivityReviews % 10) * 10;
+        const currentLevelProgress = (totalActivityReviews % 10) * 10; // Progress scale (0% to 90%)
         
         const levelBadge = document.getElementById('user-level-badge');
         const xpBarFill = document.getElementById('xp-bar-fill');
@@ -60,15 +73,20 @@ function loadStats() {
             xpBarFill.style.width = `${currentLevelProgress}%`;
         }
 
-        // 2. R3.2 — Streak Calculation
+        // ========================================================
+        // 2. Daily Streak Calculation
+        // ========================================================
         const streakData = calculateStreaks(activity);
         const longestStreak = Math.max(streakData.longest, storedLongestStreak);
-        // Persist longest streak
+        
+        // Persist longest streak if it surpasses previous record
         if (longestStreak > storedLongestStreak) {
             chrome.storage.local.set({ longestStreak });
         }
 
-        // 3. R3.1 — Daily Goal Progress (with configurable target)
+        // ========================================================
+        // 3. Daily Goals Progress Summary
+        // ========================================================
         const todayEnd = new Date();
         todayEnd.setHours(23, 59, 59, 999);
         const todayEndTime = todayEnd.getTime();
@@ -78,7 +96,11 @@ function loadStats() {
             const lastReview = card.historyLog && card.historyLog.length > 0 
                 ? card.historyLog[card.historyLog.length - 1] 
                 : null;
+            
+            // Check if card has been reviewed today
             const isReviewedToday = lastReview && new Date(lastReview).toDateString() === new Date().toDateString();
+            
+            // Ensure card was actually scheduled for today or earlier (prevent early review goal credit)
             const wasDueTodayOrEarlier = !card.previousDue || card.previousDue <= todayEndTime;
             
             if (isReviewedToday && wasDueTodayOrEarlier) {
@@ -86,10 +108,11 @@ function loadStats() {
             }
         });
         
-        // 4. Render Gamification Panel
+        // Renders different gamification states based on deck size and review progress
         const gamificationPanel = document.getElementById('gamification-panel');
         if (gamificationPanel) {
             if (cards.length === 0) {
+                // Empty State: Welcome panel
                 gamificationPanel.innerHTML = `
                     <div class="achievement-state">
                         <div class="achievement-title" style="color: var(--md-text-low);">
@@ -100,12 +123,14 @@ function loadStats() {
                     </div>
                 `;
             } else if (dueToday === 0 && completedToday >= dailyGoalTarget) {
+                // Goal Completed State: Inbox zero achieved and target review count met
                 gamificationPanel.innerHTML = renderGoalComplete(completedToday, dailyGoalTarget, streakData.current, longestStreak);
             } else {
+                // Active State: Progress ring displaying daily completions
                 gamificationPanel.innerHTML = renderGoalProgress(completedToday, dailyGoalTarget, dueToday, streakData.current, longestStreak);
             }
 
-            // Wire goal editor toggle
+            // Wire inline daily goal editor logic
             const goalEditBtn = gamificationPanel.querySelector('#goal-edit-btn');
             const goalEditor = gamificationPanel.querySelector('#goal-editor');
             const goalInput = gamificationPanel.querySelector('#goal-input');
@@ -122,7 +147,7 @@ function loadStats() {
                     if (val && val > 0 && val <= 999) {
                         chrome.storage.local.set({ dailyGoalTarget: val }, () => {
                             goalEditor.style.display = 'none';
-                            loadStats(); // Refresh
+                            loadStats(); // Re-render stats UI
                         });
                     }
                 };
@@ -136,12 +161,18 @@ function loadStats() {
     });
 }
 
-// R3.2: Calculate current and longest streaks from activity data
+/**
+ * Calculates current and longest streaks based on calendar days reviewed.
+ * Utilizes local-timezone formatted keys to match chronological dates.
+ * 
+ * @param {Object} activity - Object mapping YYYY-MM-DD strings to count values.
+ * @returns {Object} { current: number, longest: number }
+ */
 function calculateStreaks(activity) {
     const sortedDates = Object.keys(activity).filter(k => activity[k] > 0).sort();
     if (sortedDates.length === 0) return { current: 0, longest: 0 };
 
-    // Current streak: count backwards from today
+    // Calculate current consecutive days backwards from today
     let currentStreak = 0;
     const today = new Date();
     const checkDate = new Date(today);
@@ -152,7 +183,7 @@ function calculateStreaks(activity) {
             currentStreak++;
             checkDate.setDate(checkDate.getDate() - 1);
         } else {
-            // If today has no activity yet, check if yesterday was active (streak continues until you miss a day)
+            // Allow streak continuation if today has no activity yet, but yesterday was active
             if (i === 0) {
                 checkDate.setDate(checkDate.getDate() - 1);
                 continue;
@@ -161,7 +192,7 @@ function calculateStreaks(activity) {
         }
     }
 
-    // Longest streak: iterate chronologically
+    // Calculate longest consecutive days sequence in activity history
     let longestStreak = 0;
     let tempStreak = 0;
     let prevDate = null;
@@ -188,11 +219,20 @@ function calculateStreaks(activity) {
     return { current: currentStreak, longest: longestStreak };
 }
 
+/**
+ * Generates local timezone date key string (YYYY-MM-DD).
+ * 
+ * @param {Date} date 
+ * @returns {string} YYYY-MM-DD
+ */
 function formatDateKey(date) {
     return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 }
 
-// R3.1: SVG Progress Ring + Goal Editor
+/**
+ * Renders the goal progress template including the SVG progress ring circle indicator.
+ * Circle circumference is calculated as 2 * PI * R (R=42, circumference ~ 263.89).
+ */
 function renderGoalProgress(completed, target, dueRemaining, currentStreak, longestStreak) {
     const pct = Math.min(Math.round((completed / target) * 100), 100);
     const circumference = 2 * Math.PI * 42; // r=42
@@ -200,6 +240,7 @@ function renderGoalProgress(completed, target, dueRemaining, currentStreak, long
 
     const streakHtml = renderStreakBadge(currentStreak, longestStreak);
 
+    // Goal motivation banner selection
     let motivationMsg = `<svg class="svg-icon" style="stroke: var(--md-primary); margin-right: 4px; display: inline-block; vertical-align: middle;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg> Start your daily streak today!`;
     if (completed > 0 && completed < target) {
         motivationMsg = `<svg class="svg-icon" style="stroke: var(--md-success); margin-right: 4px; display: inline-block; vertical-align: middle;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg> Keep going! ${target - completed} more to hit your goal!`;
@@ -242,6 +283,9 @@ function renderGoalProgress(completed, target, dueRemaining, currentStreak, long
     `;
 }
 
+/**
+ * Renders the goal complete success template with checkmark indicator.
+ */
 function renderGoalComplete(completed, target, currentStreak, longestStreak) {
     const circumference = 2 * Math.PI * 42;
     const streakHtml = renderStreakBadge(currentStreak, longestStreak);
@@ -283,7 +327,9 @@ function renderGoalComplete(completed, target, currentStreak, longestStreak) {
     `;
 }
 
-// R3.2: Streak badge renderer
+/**
+ * Helper to render the streak pill badge containing fire icons.
+ */
 function renderStreakBadge(current, longest) {
     if (current === 0 && longest === 0) return '';
     

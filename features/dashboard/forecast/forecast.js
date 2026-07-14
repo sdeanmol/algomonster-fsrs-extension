@@ -8,6 +8,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/**
+ * Orchestrates the grouping of cards by due date, calculates peak/total workload stats,
+ * and renders both the workload forecast chart and the 30-day forecast calendar.
+ * 
+ * @param {Array} cards - All FSRS saved problem cards.
+ */
 function renderForecast(cards) {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -145,6 +151,14 @@ function formatDateKey(date) {
     return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 }
 
+/**
+ * Renders the Workload Forecast chart using dynamic CSS height columns.
+ * Bars are color-coded based on count volume to indicate upcoming peak study days.
+ * 
+ * @param {Object} dueCounts - Binned counts of cards due per day offset (index 0 = today).
+ * @param {Date} todayStart - Start date object of today.
+ * @param {number} daysToShow - Forecast range length (e.g. 30 days).
+ */
 function renderForecastChart(dueCounts, todayStart, daysToShow) {
     const chartWrapper = document.getElementById('forecast-chart-wrapper');
     if (!chartWrapper) return;
