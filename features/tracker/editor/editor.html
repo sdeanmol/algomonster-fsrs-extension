@@ -22,13 +22,18 @@
                 </div>
             </div>
             <div class="header-right">
+                <button id="preview-toggle-btn" class="btn btn-secondary btn-sm" title="Toggle Markdown Preview">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    Preview
+                </button>
                 <span id="save-status" class="status-indicator">Loading FSRS data...</span>
             </div>
         </div>
 
-        <!-- Text Workspace -->
         <div class="workspace">
-            <textarea id="editor-textarea" class="fullscreen-textarea" placeholder="How did you solve this pattern? Jot down your key insights, complexity analysis, approach steps..."></textarea>
+            <textarea id="editor-textarea" class="fullscreen-textarea" placeholder="How did you solve this pattern? Jot down your key insights, complexity analysis, approach steps...
+Supports Markdown: **bold**, *italic*, `code`, ```code blocks```, ## headings, - lists"></textarea>
+            <div id="editor-preview" class="editor-preview fsrs-markdown" style="display: none;"></div>
         </div>
 
         <!-- Footer -->
@@ -49,6 +54,8 @@
     <!-- Feedback Toast -->
     <div id="status-toast" class="toast">Progress saved!</div>
 
+    <script src="../../common/marked.min.js"></script>
+    <script src="../../common/markdown.js"></script>
     <script src="editor.js"></script>
 </body>
 </html>

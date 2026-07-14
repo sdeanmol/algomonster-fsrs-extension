@@ -385,96 +385,278 @@ function saveDraft() {
     }
 }
 
-function getDueCards() {
+// Active review filter state
+let activeReviewFilter = null;
+let _reviewKeyHandler = null;
+
+function getDueCards(filterTag) {
     const now = new Date().getTime();
-    return cards.filter(c => c.due <= now).sort((a, b) => a.due - b.due);
+    let due = cards.filter(c => c.due <= now);
+    if (filterTag && filterTag !== '__all__') {
+        due = due.filter(c => c.tags && c.tags.includes(filterTag));
+    }
+    return due.sort((a, b) => a.due - b.due);
 }
 
+// Show tag picker before starting review, or start directly if no tags
 function startReview() {
-    const dueCards = getDueCards();
-    if (dueCards.length === 0) {
+    const allDue = getDueCards();
+    if (allDue.length === 0) {
         alert("No cards due right now!");
         return;
     }
 
-    let currentCard = dueCards[0];
+    // Collect unique tags from due cards
+    const tagSet = new Set();
+    allDue.forEach(c => { if (c.tags) c.tags.forEach(t => tagSet.add(t)); });
+    const uniqueTags = [...tagSet].sort();
+
+    // If only one tag (or none), skip picker and go straight to review
+    if (uniqueTags.length <= 1) {
+        activeReviewFilter = null;
+        _startReviewSession();
+        return;
+    }
+
+    // Show tag picker UI
     const reviewUi = document.getElementById('fsrs-review-ui');
     document.getElementById('fsrs-body').style.display = 'none';
     reviewUi.style.display = 'block';
 
-    const tagsHtml = currentCard.tags?.length ? `<div style="font-size: 11px; color: #888; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
-        <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: #888; width: 13px; height: 13px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-        <span>${currentCard.tags.join(', ')}</span>
-    </div>` : '';
+    const tagChipsHtml = uniqueTags.map(tag => {
+        const count = allDue.filter(c => c.tags && c.tags.includes(tag)).length;
+        return `<button class="fsrs-tag-chip" data-tag="${tag}">${tag} <span class="fsrs-tag-count">${count}</span></button>`;
+    }).join('');
 
-    // FIX 2: Added Back Button inside the Review UI Header
     reviewUi.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
-            <h4 style="margin:0;">${currentCard.problemTitle}</h4>
-            <button id="fsrs-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px;">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                Back
+        <div class="fsrs-tag-picker">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="margin:0; font-size: 13px;">Select Topics to Review</h4>
+                <button id="fsrs-picker-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px;">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Back
+                </button>
+            </div>
+            <div class="fsrs-tag-chips-container">
+                <button class="fsrs-tag-chip fsrs-tag-chip-active" data-tag="__all__">All Topics <span class="fsrs-tag-count">${allDue.length}</span></button>
+                ${tagChipsHtml}
+            </div>
+            <button id="fsrs-start-filtered-btn" class="fsrs-primary-btn" style="margin-top: 14px;">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Start Review
             </button>
         </div>
-        ${tagsHtml}
-        <p style="margin-bottom: 15px;">
-            <a href="${currentCard.problemUrl}" target="_blank" style="color: #4CAF50; text-decoration: none; font-weight: bold; border-bottom: 1px solid #4CAF50; display: inline-flex; align-items: center; gap: 4px;">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: #4CAF50; width: 13px; height: 13px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                Open Problem Page
-            </a>
-        </p>
-        <div id="fsrs-approach-answer" style="display:none;">
-            <p><strong>Your Approach:</strong><br>${currentCard.approach}</p>
-            <div class="fsrs-rating-buttons">
-                <button data-rating="1" style="background:#e74c3c;">Again</button>
-                <button data-rating="2" style="background:#e67e22;">Hard</button>
-                <button data-rating="3" style="background:#2ecc71;">Good</button>
-                <button data-rating="4" style="background:#3498db;">Easy</button>
-            </div>
-        </div>
-        <button id="fsrs-show-answer-btn" class="fsrs-primary-btn">Show Approach</button>
     `;
 
-    // Handle Back Button Click
-    document.getElementById('fsrs-back-btn').addEventListener('click', () => {
+    // Tag chip selection logic
+    const chips = reviewUi.querySelectorAll('.fsrs-tag-chip');
+    chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            chips.forEach(c => c.classList.remove('fsrs-tag-chip-active'));
+            chip.classList.add('fsrs-tag-chip-active');
+        });
+    });
+
+    // Back button
+    document.getElementById('fsrs-picker-back-btn').addEventListener('click', () => {
         reviewUi.style.display = 'none';
         reviewUi.innerHTML = '';
         document.getElementById('fsrs-body').style.display = 'block';
         refreshWidgetState();
     });
 
-    document.getElementById('fsrs-show-answer-btn').addEventListener('click', (e) => {
-        e.target.style.display = 'none';
-        document.getElementById('fsrs-approach-answer').style.display = 'block';
+    // Start button
+    document.getElementById('fsrs-start-filtered-btn').addEventListener('click', () => {
+        const activeChip = reviewUi.querySelector('.fsrs-tag-chip-active');
+        activeReviewFilter = activeChip ? activeChip.getAttribute('data-tag') : null;
+        if (activeReviewFilter === '__all__') activeReviewFilter = null;
+        _startReviewSession();
     });
+}
 
-    reviewUi.querySelectorAll('.fsrs-rating-buttons button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const index = cards.findIndex(c => c.id === currentCard.id);
-            const rating = parseInt(e.target.getAttribute('data-rating'));
+// Internal: run the actual review session with the current filter
+function _startReviewSession() {
+    const dueCards = getDueCards(activeReviewFilter);
+    if (dueCards.length === 0) {
+        alert("No cards due for this filter!");
+        activeReviewFilter = null;
+        return;
+    }
 
-            // Determine if this card has a tag that matches a custom weight profile
-            let customWeightsToApply = null;
-            if (currentCard.tags && currentCard.tags.length > 0) {
-                for (const tag of currentCard.tags) {
-                    if (topicWeights[tag]) {
-                        customWeightsToApply = topicWeights[tag];
-                        break; // Use the first matching profile
-                    }
-                }
+    const totalToReview = dueCards.length;
+    let reviewIndex = 0;
+
+    function showCard() {
+        const remaining = getDueCards(activeReviewFilter);
+        if (remaining.length === 0) {
+            _cleanupReviewKeyboard();
+            const reviewUi = document.getElementById('fsrs-review-ui');
+            reviewUi.style.display = 'none';
+            reviewUi.innerHTML = '';
+            document.getElementById('fsrs-body').style.display = 'block';
+            activeReviewFilter = null;
+            refreshWidgetState();
+            return;
+        }
+
+        reviewIndex++;
+        const currentCard = remaining[0];
+        const reviewUi = document.getElementById('fsrs-review-ui');
+        document.getElementById('fsrs-body').style.display = 'none';
+        reviewUi.style.display = 'block';
+
+        const tagsHtml = currentCard.tags?.length ? `<div style="font-size: 11px; color: #888; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
+            <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: #888; width: 13px; height: 13px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+            <span>${currentCard.tags.join(', ')}</span>
+        </div>` : '';
+
+        const filterBadge = activeReviewFilter 
+            ? `<div class="fsrs-filter-badge">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 11px; height: 11px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                ${activeReviewFilter}
+               </div>` 
+            : '';
+
+        const progressPct = Math.round((reviewIndex / totalToReview) * 100);
+
+        // Render approach with Markdown
+        const approachHtml = typeof renderMarkdown === 'function' 
+            ? renderMarkdown(currentCard.approach) 
+            : currentCard.approach.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+
+        reviewUi.innerHTML = `
+            <div class="fsrs-review-header">
+                <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;">
+                    <h4 style="margin:0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${currentCard.problemTitle}</h4>
+                    ${filterBadge}
+                </div>
+                <button id="fsrs-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Back
+                </button>
+            </div>
+            <div class="fsrs-progress-bar">
+                <div class="fsrs-progress-fill" style="width: ${progressPct}%;"></div>
+            </div>
+            <div class="fsrs-review-meta">
+                <span class="fsrs-progress-text">${reviewIndex} of ${totalToReview}</span>
+            </div>
+            ${tagsHtml}
+            <p style="margin-bottom: 15px;">
+                <a href="${currentCard.problemUrl}" target="_blank" style="color: #4CAF50; text-decoration: none; font-weight: bold; border-bottom: 1px solid #4CAF50; display: inline-flex; align-items: center; gap: 4px;">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: #4CAF50; width: 13px; height: 13px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                    Open Problem Page
+                </a>
+            </p>
+            <div id="fsrs-approach-answer" style="display:none;">
+                <div class="fsrs-markdown"><strong>Your Approach:</strong>${approachHtml}</div>
+                <div class="fsrs-rating-buttons">
+                    <div class="fsrs-rating-btn-wrapper">
+                        <button data-rating="1" style="background:#e74c3c;">Again</button>
+                        <kbd class="fsrs-kbd-hint">1</kbd>
+                    </div>
+                    <div class="fsrs-rating-btn-wrapper">
+                        <button data-rating="2" style="background:#e67e22;">Hard</button>
+                        <kbd class="fsrs-kbd-hint">2</kbd>
+                    </div>
+                    <div class="fsrs-rating-btn-wrapper">
+                        <button data-rating="3" style="background:#2ecc71;">Good</button>
+                        <kbd class="fsrs-kbd-hint">3</kbd>
+                    </div>
+                    <div class="fsrs-rating-btn-wrapper">
+                        <button data-rating="4" style="background:#3498db;">Easy</button>
+                        <kbd class="fsrs-kbd-hint">4</kbd>
+                    </div>
+                </div>
+            </div>
+            <button id="fsrs-show-answer-btn" class="fsrs-primary-btn">
+                <span>Show Approach</span>
+                <kbd class="fsrs-kbd-hint" style="margin-left: 8px;">Space</kbd>
+            </button>
+        `;
+
+        // Handle Back Button Click
+        document.getElementById('fsrs-back-btn').addEventListener('click', () => {
+            _cleanupReviewKeyboard();
+            reviewUi.style.display = 'none';
+            reviewUi.innerHTML = '';
+            document.getElementById('fsrs-body').style.display = 'block';
+            activeReviewFilter = null;
+            refreshWidgetState();
+        });
+
+        document.getElementById('fsrs-show-answer-btn').addEventListener('click', (e) => {
+            e.currentTarget.style.display = 'none';
+            document.getElementById('fsrs-approach-answer').style.display = 'block';
+        });
+
+        // Rating button click handlers
+        reviewUi.querySelectorAll('.fsrs-rating-buttons button[data-rating]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                handleRating(currentCard, parseInt(e.currentTarget.getAttribute('data-rating')));
+                showCard();
+            });
+        });
+
+        // Keyboard shortcuts
+        _cleanupReviewKeyboard();
+        _reviewKeyHandler = function(e) {
+            // Don't intercept if user is typing in an input/textarea
+            const active = document.activeElement;
+            if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+
+            const showBtn = document.getElementById('fsrs-show-answer-btn');
+            const answerDiv = document.getElementById('fsrs-approach-answer');
+
+            // Space or Enter to show answer
+            if ((e.code === 'Space' || e.code === 'Enter') && showBtn && showBtn.style.display !== 'none') {
+                e.preventDefault();
+                showBtn.style.display = 'none';
+                if (answerDiv) answerDiv.style.display = 'block';
+                return;
             }
 
-            // Pass the custom weights into the engine
-            cards[index] = fsrs.reviewCard(currentCard, rating, customWeightsToApply);
-            cards[index].lastRating = rating; // Save last rating
+            // 1-4 for ratings (only when answer is visible)
+            if (answerDiv && answerDiv.style.display !== 'none') {
+                const ratingMap = { 'Digit1': 1, 'Digit2': 2, 'Digit3': 3, 'Digit4': 4, 'Numpad1': 1, 'Numpad2': 2, 'Numpad3': 3, 'Numpad4': 4 };
+                const rating = ratingMap[e.code];
+                if (rating) {
+                    e.preventDefault();
+                    handleRating(currentCard, rating);
+                    showCard();
+                }
+            }
+        };
+        document.addEventListener('keydown', _reviewKeyHandler);
+    }
 
-            saveCards();
-            logReviewActivity();
+    function handleRating(card, rating) {
+        const index = cards.findIndex(c => c.id === card.id);
+        if (index === -1) return;
 
-            reviewUi.style.display = 'none';
-            document.getElementById('fsrs-body').style.display = 'block';
-            if (getDueCards().length > 0) startReview();
-            else refreshWidgetState(); // Reset UI cleanly when deck is finished
-        });
-    });
+        // Determine if this card has a tag that matches a custom weight profile
+        let customWeightsToApply = null;
+        if (card.tags && card.tags.length > 0) {
+            for (const tag of card.tags) {
+                if (topicWeights[tag]) {
+                    customWeightsToApply = topicWeights[tag];
+                    break;
+                }
+            }
+        }
+
+        cards[index] = fsrs.reviewCard(card, rating, customWeightsToApply);
+        cards[index].lastRating = rating;
+        saveCards();
+        logReviewActivity();
+    }
+
+    showCard();
+}
+
+function _cleanupReviewKeyboard() {
+    if (_reviewKeyHandler) {
+        document.removeEventListener('keydown', _reviewKeyHandler);
+        _reviewKeyHandler = null;
+    }
 }

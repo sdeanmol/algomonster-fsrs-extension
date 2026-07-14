@@ -47,6 +47,8 @@
         "*://*.codingame.com/*"
       ],
       "js": [
+        "features/common/marked.min.js",
+        "features/common/markdown.js",
         "features/tracker/fsrs.js",
         "content/state.js",
         "content/utils.js",

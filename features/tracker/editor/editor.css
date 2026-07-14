@@ -115,3 +115,113 @@ body {
     display: flex;
     gap: 12px;
 }
+
+/* R1.5: Markdown Preview */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-sm {
+    padding: 4px 12px !important;
+    font-size: 12px !important;
+}
+
+.editor-preview {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 0 4px;
+}
+
+/* Markdown styles for editor preview (using dashboard theme tokens) */
+.editor-preview.fsrs-markdown {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--md-text-high);
+}
+
+.editor-preview.fsrs-markdown h1 { font-size: 24px; margin: 16px 0 8px; font-weight: 700; color: var(--md-text-high); }
+.editor-preview.fsrs-markdown h2 { font-size: 20px; margin: 14px 0 6px; font-weight: 700; color: var(--md-text-high); }
+.editor-preview.fsrs-markdown h3 { font-size: 17px; margin: 12px 0 6px; font-weight: 600; color: var(--md-text-high); }
+
+.editor-preview.fsrs-markdown p { margin: 0 0 12px; }
+
+.editor-preview.fsrs-markdown strong { font-weight: 700; }
+.editor-preview.fsrs-markdown em { font-style: italic; }
+
+.editor-preview.fsrs-markdown code {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, Consolas, monospace;
+    font-size: 14px;
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+.editor-preview.fsrs-markdown pre {
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 12px 0;
+}
+
+.editor-preview.fsrs-markdown pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.editor-preview.fsrs-markdown ul,
+.editor-preview.fsrs-markdown ol {
+    padding-left: 24px;
+    margin: 8px 0;
+}
+
+.editor-preview.fsrs-markdown li { margin-bottom: 4px; }
+
+.editor-preview.fsrs-markdown blockquote {
+    border-left: 3px solid var(--md-primary);
+    padding-left: 14px;
+    margin: 12px 0;
+    color: var(--md-text-med);
+    font-style: italic;
+}
+
+.editor-preview.fsrs-markdown table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+}
+
+.editor-preview.fsrs-markdown th,
+.editor-preview.fsrs-markdown td {
+    border: 1px solid var(--md-border);
+    padding: 6px 12px;
+    text-align: left;
+}
+
+.editor-preview.fsrs-markdown th {
+    background: var(--md-surface-variant);
+    font-weight: 600;
+}
+
+.editor-preview.fsrs-markdown a {
+    color: var(--md-primary);
+    text-decoration: none;
+}
+
+.editor-preview.fsrs-markdown a:hover {
+    text-decoration: underline;
+}
+
+.editor-preview.fsrs-markdown hr {
+    border: none;
+    border-top: 1px solid var(--md-border);
+    margin: 16px 0;
+}

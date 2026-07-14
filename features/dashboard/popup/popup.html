@@ -88,6 +88,20 @@
         </div>
     </div>
 
+    <!-- Quick Search Panel (R2.6) -->
+    <div class="panel search-panel">
+        <div class="search-bar-row">
+            <div class="popup-search-wrapper">
+                <svg class="svg-icon search-icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="popup-search-input" class="popup-search-input" placeholder="Search patterns...">
+            </div>
+            <select id="popup-tag-filter" class="popup-tag-filter">
+                <option value="all">All Tags</option>
+            </select>
+        </div>
+        <div id="popup-search-results" class="popup-search-results"></div>
+    </div>
+
     <!-- Gamification Panel -->
     <div id="gamification-panel" class="panel gamification-panel">
         <!-- Progress bar and motivational texts will be injected dynamically -->
