@@ -36,6 +36,9 @@ export class AlgoRecallDashboard {
             importFile: document.getElementById('import-file'),
             ankiExportBtn: document.getElementById('anki-export-btn'),
             ankiImportFile: document.getElementById('anki-import-file'),
+            studyplanBtn: document.getElementById('studyplan-btn'),
+            pomodoroBtn: document.getElementById('pomodoro-btn'),
+            weeklyDigestToggle: document.getElementById('toggle-weekly-digest'),
             statusMsg: document.getElementById('status-msg'),
         };
 
@@ -160,6 +163,8 @@ export class AlgoRecallDashboard {
         this.dom.openOptionsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/options/highlightOptions.html') }));
         this.dom.analyticsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/analytics/analytics.html') }));
         this.dom.forecastBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/forecast/forecast.html') }));
+        this.dom.studyplanBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/studyplan/studyplan.html') }));
+        this.dom.pomodoroBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/pomodoro/pomodoro.html') }));
 
         // Standard JSON database backup export logic
         if (this.dom.exportBtn) {

@@ -2,7 +2,8 @@
  * @file background/background.js
  * @description Extension background service worker (Manifest V3) implemented as an OOP class.
  * Manages background alarms for checking FSRS card due times, schedules/delivers OS notifications,
- * handles custom whitelisted website routing messages, and reacts to SPA client-side history state updates.
+ * handles custom whitelisted website routing messages, reacts to SPA client-side history state updates,
+ * and sends weekly summary digest notifications (R3.6).
  */
 class AlgoRecallBackground {
     constructor() {
@@ -47,6 +48,7 @@ class AlgoRecallBackground {
         }
 
         await this.setupAlarm();
+        await this.setupWeeklySummaryAlarm();
         
         // Redirect to Onboarding Welcome page on initial install
         if (details && details.reason === 'install') {
@@ -75,6 +77,8 @@ class AlgoRecallBackground {
     handleAlarm(alarm) {
         if (alarm.name === 'checkFsrsReviews' || alarm.name === 'snoozeFsrsReviews') {
             this.checkDueCards();
+        } else if (alarm.name === 'weeklySummary') {
+            this.handleWeeklySummary();
         }
     }
 
@@ -111,6 +115,45 @@ class AlgoRecallBackground {
     }
 
     /**
+     * R3.6: Sets up the weekly summary alarm.
+     * Fires every Monday at 9:00 AM local time (approximately).
+     */
+    async setupWeeklySummaryAlarm() {
+        const result = await chrome.storage.local.get(['weeklySummaryEnabled']);
+        const enabled = result.weeklySummaryEnabled !== false; // Default true
+
+        await chrome.alarms.clear('weeklySummary');
+
+        if (enabled) {
+            // Calculate minutes until next Monday 9:00 AM
+            const now = new Date();
+            const target = new Date(now);
+            
+            // Find next Monday
+            const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+            let daysUntilMonday = (1 - dayOfWeek + 7) % 7;
+            if (daysUntilMonday === 0) {
+                // If today is Monday, check if we're past 9am
+                if (now.getHours() >= 9) {
+                    daysUntilMonday = 7; // Next Monday
+                }
+            }
+
+            target.setDate(target.getDate() + daysUntilMonday);
+            target.setHours(9, 0, 0, 0);
+
+            const delayMs = target.getTime() - now.getTime();
+            const delayMinutes = Math.max(1, Math.ceil(delayMs / (1000 * 60)));
+
+            // Period: 7 days = 10080 minutes
+            chrome.alarms.create('weeklySummary', {
+                delayInMinutes: delayMinutes,
+                periodInMinutes: 10080
+            });
+        }
+    }
+
+    /**
      * Watches for changes in settings to dynamically reschedule the alarm.
      * @param {Object} changes - Object describing key storage differences.
      * @param {string} areaName - The name of the storage area.
@@ -118,6 +161,9 @@ class AlgoRecallBackground {
     async handleStorageChanged(changes, areaName) {
         if (areaName === 'local' && changes.notificationSettings) {
             await this.setupAlarm();
+        }
+        if (areaName === 'local' && changes.weeklySummaryEnabled) {
+            await this.setupWeeklySummaryAlarm();
         }
     }
 
@@ -149,6 +195,14 @@ class AlgoRecallBackground {
             const minutes = message.minutes || 15;
             chrome.alarms.create('snoozeFsrsReviews', { delayInMinutes: minutes });
             sendResponse({ success: true });
+            return true;
+        }
+        // R3.6: Toggle weekly summary alarm
+        if (message.action === 'toggle_weekly_summary') {
+            (async () => {
+                await this.setupWeeklySummaryAlarm();
+                sendResponse({ success: true });
+            })();
             return true;
         }
     }
@@ -298,6 +352,84 @@ class AlgoRecallBackground {
                 }
             });
         });
+    }
+
+    // ========================================================================
+    // R3.6: Weekly Summary Notification
+    // ========================================================================
+
+    /**
+     * Computes weekly review statistics and fires a digest notification.
+     * Summarizes: reviews this week, active days, current streak, upcoming load.
+     */
+    async handleWeeklySummary() {
+        try {
+            const result = await chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'weeklySummaryEnabled']);
+            
+            // Check if still enabled
+            if (result.weeklySummaryEnabled === false) return;
+
+            const activity = result.fsrsActivity || {};
+            const cards = result.fsrsCards || [];
+            const now = Date.now();
+
+            // Calculate this week's stats (last 7 days)
+            let weekReviews = 0;
+            let activeDays = 0;
+            const today = new Date();
+
+            for (let i = 0; i < 7; i++) {
+                const checkDate = new Date(today);
+                checkDate.setDate(checkDate.getDate() - i);
+                const dateKey = new Date(checkDate.getTime() - (checkDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                
+                if (activity[dateKey] && activity[dateKey] > 0) {
+                    weekReviews += activity[dateKey];
+                    activeDays++;
+                }
+            }
+
+            // Calculate previous week's stats for comparison
+            let prevWeekReviews = 0;
+            for (let i = 7; i < 14; i++) {
+                const checkDate = new Date(today);
+                checkDate.setDate(checkDate.getDate() - i);
+                const dateKey = new Date(checkDate.getTime() - (checkDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                
+                if (activity[dateKey] && activity[dateKey] > 0) {
+                    prevWeekReviews += activity[dateKey];
+                }
+            }
+
+            // Upcoming load (cards due in next 7 days)
+            const nextWeekEnd = now + (7 * 24 * 60 * 60 * 1000);
+            const upcomingDue = cards.filter(c => c.due > now && c.due <= nextWeekEnd).length;
+            const currentlyDue = cards.filter(c => c.due <= now).length;
+
+            // Build message
+            const trend = weekReviews > prevWeekReviews ? '📈' : (weekReviews < prevWeekReviews ? '📉' : '➡️');
+            const trendText = prevWeekReviews > 0
+                ? ` ${trend} ${weekReviews > prevWeekReviews ? '+' : ''}${weekReviews - prevWeekReviews} vs last week.`
+                : '';
+
+            const message = `This week: ${weekReviews} reviews across ${activeDays} day(s).${trendText} Upcoming: ${upcomingDue} cards due next week${currentlyDue > 0 ? `, ${currentlyDue} overdue now` : ''}.`;
+
+            chrome.notifications.create('algo-weekly-summary', {
+                type: 'basic',
+                iconUrl: '../icons/icon.png',
+                title: '📊 AlgoRecall Weekly Summary',
+                message: message,
+                priority: 1,
+                requireInteraction: false
+            }, (id) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Weekly Summary Notification Error:", chrome.runtime.lastError.message);
+                }
+            });
+
+        } catch (error) {
+            console.error("Error generating weekly summary:", error);
+        }
     }
 
     /**

@@ -1017,3 +1017,70 @@ body {
     color: #5a9cf5;
     text-decoration: underline;
 }
+
+/* ========== R3.3: Confetti Canvas ========== */
+.confetti-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 99999;
+}
+
+/* R3.3: Milestone Toast */
+.milestone-toast {
+    position: fixed;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.9);
+    background: linear-gradient(135deg, #1b3d75, var(--md-primary-container));
+    border: 1px solid rgba(168, 199, 250, 0.4);
+    border-radius: 14px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--md-on-primary-container);
+    z-index: 100000;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(168, 199, 250, 0.15);
+    opacity: 0;
+    transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.milestone-toast.show {
+    top: 12px;
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+:root.light-theme .milestone-toast {
+    background: linear-gradient(135deg, #d2e3fc, #e8f0fe);
+    border-color: rgba(26, 115, 232, 0.3);
+    color: var(--md-on-primary-container);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* R3.4: Exam Countdown Pill */
+.exam-countdown-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: rgba(242, 139, 130, 0.1);
+    border: 1px solid rgba(242, 139, 130, 0.2);
+    color: var(--md-danger);
+    font-weight: 700;
+}
+
+.exam-countdown-pill.safe {
+    background: rgba(129, 201, 149, 0.1);
+    border-color: rgba(129, 201, 149, 0.2);
+    color: var(--md-success);
+}

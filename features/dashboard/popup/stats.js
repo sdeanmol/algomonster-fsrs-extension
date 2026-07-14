@@ -19,11 +19,13 @@ export class StatsComponent extends DashboardComponent {
      */
     async load() {
         try {
-            const result = await chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'dailyGoalTarget', 'longestStreak']);
+            const result = await chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'dailyGoalTarget', 'longestStreak', 'lastCelebratedMilestone', 'studyPlanSettings']);
             const cards = result.fsrsCards || [];
             const activity = result.fsrsActivity || {};
             this.dailyGoalTarget = result.dailyGoalTarget || 10;
             const storedLongestStreak = result.longestStreak || 0;
+            const lastCelebratedMilestone = result.lastCelebratedMilestone || 0;
+            const studyPlanSettings = result.studyPlanSettings || null;
             const now = new Date().getTime();
             
             // DOM targets
@@ -133,9 +135,60 @@ export class StatsComponent extends DashboardComponent {
                     gamificationPanel.innerHTML = this.renderGoalProgress(completedToday, this.dailyGoalTarget, dueToday, streakData.current, this.longestStreak);
                 }
 
+                // R3.4: Append exam countdown pill if exam mode is active
+                if (studyPlanSettings && studyPlanSettings.isActive && studyPlanSettings.examDate) {
+                    const examTime = new Date(studyPlanSettings.examDate + 'T23:59:59').getTime();
+                    const daysLeft = Math.max(0, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
+                    const pillClass = daysLeft <= 3 ? '' : 'safe';
+                    const goalInfo = gamificationPanel.querySelector('.goal-info') || gamificationPanel;
+                    const pillHtml = document.createElement('div');
+                    pillHtml.className = `exam-countdown-pill ${pillClass}`;
+                    pillHtml.innerHTML = `
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px;height:12px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        ${daysLeft === 0 ? 'Exam is today!' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} until exam`}
+                    `;
+                    goalInfo.appendChild(pillHtml);
+                }
+
                 // Wire inline daily goal editor logic
                 this.bindEditorEvents(gamificationPanel);
             }
+
+            // R3.3: Milestone Detection & Celebration
+            const streakMilestones = [7, 14, 30, 50, 100, 365];
+            const reviewMilestones = [50, 100, 250, 500, 1000, 5000];
+
+            // Check streak milestones
+            let newMilestone = null;
+            for (const milestone of streakMilestones) {
+                if (streakData.current >= milestone && lastCelebratedMilestone < milestone) {
+                    newMilestone = { type: 'streak', value: milestone };
+                }
+            }
+
+            // Check review count milestones (only if no streak milestone triggered)
+            if (!newMilestone) {
+                for (const milestone of reviewMilestones) {
+                    if (totalActivityReviews >= milestone && lastCelebratedMilestone < milestone) {
+                        newMilestone = { type: 'reviews', value: milestone };
+                    }
+                }
+            }
+
+            if (newMilestone) {
+                const milestoneKey = newMilestone.value;
+                await chrome.storage.local.set({ lastCelebratedMilestone: milestoneKey });
+
+                // Small delay to let the UI render first
+                setTimeout(() => {
+                    const label = newMilestone.type === 'streak'
+                        ? `🔥 ${milestoneKey}-Day Streak!`
+                        : `⭐ ${milestoneKey} Reviews!`;
+                    this.showMilestoneToast(label);
+                    this.showConfetti();
+                }, 300);
+            }
+
         } catch (error) {
             console.error("Error loading stats:", error);
         }
@@ -380,5 +433,116 @@ export class StatsComponent extends DashboardComponent {
                 ${bestText ? `<span class="streak-best">${bestText}</span>` : ''}
             </div>
         `;
+    }
+
+    // ========================================================================
+    // R3.3: Confetti & Milestone Celebrations
+    // ========================================================================
+
+    /**
+     * Displays a milestone toast notification at the top of the popup.
+     * @param {string} message - Milestone celebration message text.
+     */
+    showMilestoneToast(message) {
+        const toast = document.getElementById('milestone-toast');
+        const toastText = document.getElementById('milestone-toast-text');
+        if (!toast || !toastText) return;
+
+        toastText.textContent = message;
+        toast.classList.add('show');
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3500);
+    }
+
+    /**
+     * Renders a canvas-based confetti particle animation.
+     * Generates 60 colored particles with physics (gravity, rotation, fade) over ~2.5 seconds.
+     */
+    showConfetti() {
+        const canvas = document.getElementById('confetti-canvas');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+
+        const colors = [
+            '#a8c7fa', // primary blue
+            '#f9ab00', // warning gold
+            '#81c995', // success green
+            '#f28b82', // danger red
+            '#c58af9', // purple
+            '#4ecdc4', // teal
+            '#ff6b6b', // coral
+            '#ffe66d', // yellow
+        ];
+
+        const particles = [];
+        const particleCount = 60;
+
+        for (let i = 0; i < particleCount; i++) {
+            particles.push({
+                x: canvas.width * Math.random(),
+                y: canvas.height * -0.1 * Math.random(),
+                w: 4 + Math.random() * 6,
+                h: 3 + Math.random() * 4,
+                vx: (Math.random() - 0.5) * 4,
+                vy: 1 + Math.random() * 3,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 10,
+                opacity: 1,
+                shape: Math.random() > 0.5 ? 'rect' : 'circle',
+            });
+        }
+
+        let frame = 0;
+        const maxFrames = 150; // ~2.5 seconds at 60fps
+
+        const animate = () => {
+            frame++;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (frame > maxFrames) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+
+            // Start fading at 70% through
+            const fadeStart = maxFrames * 0.7;
+
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.vy += 0.05; // gravity
+                p.y += p.vy;
+                p.rotation += p.rotationSpeed;
+
+                if (frame > fadeStart) {
+                    p.opacity = Math.max(0, 1 - (frame - fadeStart) / (maxFrames - fadeStart));
+                }
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate((p.rotation * Math.PI) / 180);
+                ctx.globalAlpha = p.opacity;
+                ctx.fillStyle = p.color;
+
+                if (p.shape === 'rect') {
+                    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            });
+
+            requestAnimationFrame(animate);
+        };
+
+        requestAnimationFrame(animate);
     }
 }

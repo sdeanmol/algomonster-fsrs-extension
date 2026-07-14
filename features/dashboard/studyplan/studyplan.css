@@ -1,0 +1,369 @@
+/*
+ * @file features/dashboard/studyplan/studyplan.css
+ * @description Styling for the Exam Countdown Mode page.
+ * Upstream dependency: features/common/base.css
+ */
+body {
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
+    padding: 40px 20px;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.header {
+    border-bottom: 1px solid var(--md-border);
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+h1 {
+    color: var(--md-text-high);
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.header-icon {
+    width: 28px;
+    height: 28px;
+    stroke: var(--md-primary);
+}
+
+.subtitle {
+    color: var(--md-text-low);
+    font-size: 13.5px;
+    margin: 0;
+}
+
+/* Setup Panel */
+.setup-panel {
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: var(--shadow-1);
+}
+
+.panel-title-lg {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--md-text-high);
+    margin: 0 0 8px 0;
+}
+
+.panel-description {
+    color: var(--md-text-low);
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin: 0 0 24px 0;
+}
+
+.setup-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--md-text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.date-input {
+    font-family: inherit;
+    color-scheme: dark;
+}
+
+:root.light-theme .date-input {
+    color-scheme: light;
+}
+
+/* Setup Preview */
+.setup-preview {
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.preview-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    text-align: center;
+}
+
+.preview-stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--md-primary);
+    letter-spacing: -0.5px;
+}
+
+.preview-stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--md-text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+.btn-lg {
+    width: 100%;
+    padding: 14px 24px !important;
+    font-size: 15px !important;
+    border-radius: 14px !important;
+    font-weight: 700;
+}
+
+/* Active Exam Panel */
+.active-panel {
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: var(--shadow-1);
+}
+
+/* Countdown Section */
+.countdown-section {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    margin-bottom: 32px;
+}
+
+.countdown-ring-wrap {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    flex-shrink: 0;
+}
+
+.countdown-ring-svg {
+    width: 140px;
+    height: 140px;
+    transform: rotate(-90deg);
+}
+
+.countdown-ring-bg {
+    fill: none;
+    stroke: var(--md-surface-variant);
+    stroke-width: 8;
+}
+
+.countdown-ring-fill {
+    fill: none;
+    stroke: var(--md-primary);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
+}
+
+.countdown-ring-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+}
+
+.countdown-days {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--md-text-high);
+    letter-spacing: -1px;
+}
+
+.countdown-label {
+    font-size: 11px;
+    color: var(--md-text-low);
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.countdown-info {
+    flex: 1;
+}
+
+.countdown-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--md-text-high);
+    margin: 0 0 6px 0;
+}
+
+.countdown-meta {
+    font-size: 13px;
+    color: var(--md-text-low);
+    margin-bottom: 16px;
+}
+
+.countdown-stats-row {
+    display: flex;
+    gap: 24px;
+}
+
+.countdown-stat {
+    display: flex;
+    flex-direction: column;
+}
+
+.countdown-stat-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--md-text-high);
+}
+
+.countdown-stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--md-text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Schedule Table */
+.section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--md-text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 12px 0;
+}
+
+.schedule-table-wrap {
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 28px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--md-border);
+    font-size: 13px;
+}
+
+th {
+    background: rgba(0,0,0,0.1);
+    color: var(--md-text-low);
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr.today-row td {
+    background: rgba(168, 199, 250, 0.06);
+    font-weight: 700;
+}
+
+tr.past-row td {
+    opacity: 0.5;
+}
+
+.badge {
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.badge-complete {
+    background: rgba(129, 201, 149, 0.12);
+    color: var(--md-success);
+    border: 1px solid rgba(129, 201, 149, 0.25);
+}
+
+.badge-today {
+    background: rgba(168, 199, 250, 0.12);
+    color: var(--md-primary);
+    border: 1px solid rgba(168, 199, 250, 0.25);
+}
+
+.badge-upcoming {
+    background: rgba(255,255,255,0.04);
+    color: var(--md-text-low);
+    border: 1px solid var(--md-border);
+}
+
+/* Deactivate Section */
+.active-actions {
+    text-align: center;
+}
+
+.deactivate-note {
+    font-size: 11px;
+    color: var(--md-text-low);
+    margin-top: 8px;
+}
+
+/* Urgency Colors */
+.countdown-ring-fill.urgent {
+    stroke: var(--md-danger);
+}
+
+.countdown-ring-fill.warning {
+    stroke: var(--md-warning);
+}
+
+/* Light Theme */
+:root.light-theme th {
+    background: rgba(0,0,0,0.03);
+}
+
+:root.light-theme tr.today-row td {
+    background: rgba(26, 115, 232, 0.04);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .countdown-section {
+        flex-direction: column;
+        text-align: center;
+    }
+    .countdown-stats-row {
+        justify-content: center;
+    }
+    .setup-form {
+        grid-template-columns: 1fr;
+    }
+}

@@ -140,6 +140,8 @@
             <button id="analytics-btn" class="btn-text">Analytics</button>
             <button id="forecast-btn" class="btn-text">Review Forecast</button>
             <button id="history-btn" class="btn-text">Activity History</button>
+            <button id="studyplan-btn" class="btn-text">Exam Mode</button>
+            <button id="pomodoro-btn" class="btn-text">Pomodoro</button>
         </div>
     </div>
 
@@ -263,6 +265,14 @@
             </div>
         </label>
 
+        <label class="toggle-row">
+            <span class="toggle-label">Weekly Digest Summary</span>
+            <div class="toggle-switch">
+                <input type="checkbox" id="toggle-weekly-digest" checked>
+                <span class="slider"></span>
+            </div>
+        </label>
+
         <button id="test-notification-btn" class="btn btn-secondary w-full btn-margin-top">
             <svg class="svg-icon" viewBox="0 0 24 24">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -372,6 +382,13 @@
 
     <!-- Status Message Toast -->
     <div id="status-msg" class="toast"></div>
+
+    <!-- R3.3: Confetti Canvas Overlay -->
+    <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
+    <!-- R3.3: Milestone Toast -->
+    <div id="milestone-toast" class="milestone-toast">
+        <span id="milestone-toast-text"></span>
+    </div>
 
     <!-- Footer Branding & Privacy -->
     <div class="footer-privacy-box">

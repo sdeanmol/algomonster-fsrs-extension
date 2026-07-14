@@ -1,0 +1,356 @@
+/*
+ * @file features/dashboard/pomodoro/pomodoro.css
+ * @description Styling for the Pomodoro Study Timer page.
+ * Upstream dependency: features/common/base.css
+ */
+body {
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
+    padding: 40px 20px;
+    transition: background-color 0.5s ease;
+}
+
+/* Phase-based background tinting */
+body.phase-focus {
+    background: linear-gradient(180deg, var(--md-bg), rgba(168, 199, 250, 0.03));
+}
+
+body.phase-break {
+    background: linear-gradient(180deg, var(--md-bg), rgba(129, 201, 149, 0.03));
+}
+
+.container {
+    max-width: 480px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Phase Indicator Pills */
+.phase-indicator {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 40px;
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 16px;
+    padding: 5px;
+}
+
+.phase-pill {
+    padding: 7px 18px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--md-text-low);
+    cursor: default;
+    transition: all 0.3s ease;
+    letter-spacing: 0.3px;
+}
+
+.phase-pill.active {
+    background: var(--md-primary);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(168, 199, 250, 0.3);
+}
+
+.phase-pill.active.break-active {
+    background: var(--md-success);
+    box-shadow: 0 2px 8px rgba(129, 201, 149, 0.3);
+}
+
+/* Timer Ring */
+.timer-section {
+    margin-bottom: 36px;
+}
+
+.timer-ring-wrap {
+    position: relative;
+    width: 240px;
+    height: 240px;
+}
+
+.timer-ring-svg {
+    width: 240px;
+    height: 240px;
+    transform: rotate(-90deg);
+    filter: drop-shadow(0 4px 20px rgba(168, 199, 250, 0.15));
+}
+
+.timer-ring-bg {
+    fill: none;
+    stroke: var(--md-surface-variant);
+    stroke-width: 8;
+}
+
+.timer-ring-fill {
+    fill: none;
+    stroke: var(--md-primary);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear, stroke 0.5s ease;
+}
+
+.timer-ring-fill.break-ring {
+    stroke: var(--md-success);
+}
+
+.timer-display {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.timer-time {
+    font-size: 52px;
+    font-weight: 800;
+    color: var(--md-text-high);
+    letter-spacing: -2px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.timer-phase-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--md-text-low);
+    margin-top: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+}
+
+.btn-round {
+    width: 64px;
+    height: 64px;
+    border-radius: 50% !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.btn-round:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(168, 199, 250, 0.3);
+}
+
+.btn-round:active {
+    transform: scale(0.95);
+}
+
+.btn-round-sm {
+    width: 44px;
+    height: 44px;
+    border-radius: 50% !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+}
+
+/* Session Counter */
+.session-counter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+.session-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--md-text-low);
+}
+
+.session-dots {
+    display: flex;
+    gap: 6px;
+}
+
+.session-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.session-dot.active {
+    background: var(--md-primary);
+    border-color: var(--md-primary);
+    transform: scale(1.15);
+}
+
+.session-dot.complete {
+    background: var(--md-success);
+    border-color: var(--md-success);
+}
+
+.session-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--md-text-med);
+}
+
+/* Today's Stats */
+.today-stats {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 32px;
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
+    padding: 16px 28px;
+    box-shadow: var(--shadow-1);
+}
+
+.today-stat {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.today-stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--md-text-high);
+}
+
+.today-stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--md-text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+/* Settings Panel */
+.settings-panel {
+    width: 100%;
+    max-width: 420px;
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-1);
+}
+
+.settings-toggle {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--md-text-low);
+    cursor: pointer;
+    list-style: none;
+    transition: color 0.2s;
+}
+
+.settings-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.settings-toggle:hover {
+    color: var(--md-text-high);
+}
+
+.settings-body {
+    padding: 0 20px 20px;
+}
+
+.settings-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.setting-group label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--md-text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.setting-input {
+    text-align: center;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.btn-sm {
+    padding: 7px 16px !important;
+    font-size: 12px !important;
+    border-radius: 10px !important;
+}
+
+/* Light Theme Overrides */
+:root.light-theme .timer-ring-svg {
+    filter: drop-shadow(0 4px 20px rgba(26, 115, 232, 0.1));
+}
+
+:root.light-theme .btn-round:hover {
+    box-shadow: 0 4px 16px rgba(26, 115, 232, 0.2);
+}
+
+:root.light-theme body.phase-focus {
+    background: linear-gradient(180deg, var(--md-bg), rgba(26, 115, 232, 0.02));
+}
+
+:root.light-theme body.phase-break {
+    background: linear-gradient(180deg, var(--md-bg), rgba(52, 168, 83, 0.02));
+}
+
+/* Pulse animation for active timer */
+@keyframes timerPulse {
+    0%, 100% { filter: drop-shadow(0 4px 20px rgba(168, 199, 250, 0.15)); }
+    50% { filter: drop-shadow(0 4px 30px rgba(168, 199, 250, 0.3)); }
+}
+
+.timer-ring-svg.running {
+    animation: timerPulse 2s ease-in-out infinite;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .timer-ring-wrap {
+        width: 200px;
+        height: 200px;
+    }
+    .timer-ring-svg {
+        width: 200px;
+        height: 200px;
+    }
+    .timer-time {
+        font-size: 42px;
+    }
+    .settings-row {
+        grid-template-columns: 1fr;
+    }
+}

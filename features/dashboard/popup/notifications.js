@@ -175,5 +175,19 @@ export class NotificationsComponent extends DashboardComponent {
                 });
             });
         }
+
+        // R3.6: Weekly Digest Toggle
+        const weeklyDigestToggle = document.getElementById('toggle-weekly-digest');
+        if (weeklyDigestToggle) {
+            // Load saved preference
+            chrome.storage.local.get(['weeklySummaryEnabled'], (result) => {
+                weeklyDigestToggle.checked = result.weeklySummaryEnabled !== false;
+            });
+            weeklyDigestToggle.addEventListener('change', () => {
+                const enabled = weeklyDigestToggle.checked;
+                chrome.storage.local.set({ weeklySummaryEnabled: enabled });
+                chrome.runtime.sendMessage({ action: 'toggle_weekly_summary', enabled });
+            });
+        }
     }
 }
