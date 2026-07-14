@@ -165,7 +165,18 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
             }
             if (changes.whitelistedWebsites) {
                 const currentDomain = window.location.hostname;
-                const whitelistedWebsites = changes.whitelistedWebsites.newValue || [];
+                const whitelistedWebsites = changes.whitelistedWebsites.newValue || [
+                    { domain: "algo.monster" },
+                    { domain: "systemdesignschool.io" },
+                    { domain: "codeforces.com" },
+                    { domain: "leetcode.com" },
+                    { domain: "codechef.com" },
+                    { domain: "atcoder.jp" },
+                    { domain: "hackerrank.com" },
+                    { domain: "hackerearth.com" },
+                    { domain: "codewars.com" },
+                    { domain: "codingame.com" }
+                ];
                 const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
                 if (!isWhitelisted) {
                     this.highlighter.removeHighlighterUI();
