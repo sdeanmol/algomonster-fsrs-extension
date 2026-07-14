@@ -174,12 +174,14 @@ export class BackupManager {
                 chromeSettings: raw.chromeSettings || {},
                 notificationSettings: raw.notificationSettings || {},
                 theme: raw.theme || 'dark',
-                whitelistedWebsites: raw.whitelistedWebsites || [],
                 fsrsGlobalParams: raw.fsrsGlobalParams || {},
                 ratingPromptState: raw.ratingPromptState || {},
                 dailyGoalTarget: raw.dailyGoalTarget || null,
                 longestStreak: raw.longestStreak || 0
             };
+            if (raw.whitelistedWebsites !== undefined) {
+                settings.whitelistedWebsites = raw.whitelistedWebsites;
+            }
             yield JSON.stringify({ type: "settings", data: settings });
         }
 
@@ -349,12 +351,17 @@ export class BackupManager {
                 chromeSettings: settings.chromeSettings || {},
                 notificationSettings: settings.notificationSettings || {},
                 theme: settings.theme || 'dark',
-                whitelistedWebsites: settings.whitelistedWebsites || [],
                 fsrsGlobalParams: settings.fsrsGlobalParams || {},
                 ratingPromptState: settings.ratingPromptState || {},
                 dailyGoalTarget: settings.dailyGoalTarget || null,
                 longestStreak: settings.longestStreak || 0
             };
+            
+            if (settings.whitelistedWebsites && settings.whitelistedWebsites.length > 0) {
+                storageUpdate.whitelistedWebsites = settings.whitelistedWebsites;
+            } else {
+                await chrome.storage.local.remove('whitelistedWebsites');
+            }
 
             await chrome.storage.local.set(storageUpdate);
             onStatus("Backup restored successfully!");
@@ -456,7 +463,11 @@ export class BackupManager {
                     if (imported.notificationSettings) storageUpdate.notificationSettings = imported.notificationSettings;
 
                     if (imported.theme) storageUpdate.theme = imported.theme;
-                    if (imported.whitelistedWebsites) storageUpdate.whitelistedWebsites = imported.whitelistedWebsites;
+                    if (imported.whitelistedWebsites && imported.whitelistedWebsites.length > 0) {
+                        storageUpdate.whitelistedWebsites = imported.whitelistedWebsites;
+                    } else if (imported.whitelistedWebsites && imported.whitelistedWebsites.length === 0) {
+                        await chrome.storage.local.remove('whitelistedWebsites');
+                    }
                     if (imported.fsrsGlobalParams) storageUpdate.fsrsGlobalParams = imported.fsrsGlobalParams;
                     if (imported.ratingPromptState) storageUpdate.ratingPromptState = imported.ratingPromptState;
                     if (imported.dailyGoalTarget !== undefined) storageUpdate.dailyGoalTarget = imported.dailyGoalTarget;

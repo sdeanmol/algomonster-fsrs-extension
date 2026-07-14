@@ -150,6 +150,40 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
                 this.state.cards = changes.fsrsCards.newValue || [];
                 this.tracker.refreshWidgetState();
             }
+            if (changes.fsrsTopicWeights) {
+                this.state.topicWeights = changes.fsrsTopicWeights.newValue || {};
+            }
+            if (changes.marks) {
+                this.state.marks = changes.marks.newValue || [];
+                this.highlighter.applyHighlightsForCurrentPage();
+            }
+            if (changes.bookmarks) {
+                this.state.bookmarks = changes.bookmarks.newValue || [];
+            }
+            if (changes.pagecontents) {
+                this.state.pagecontents = changes.pagecontents.newValue || [];
+            }
+            if (changes.whitelistedWebsites) {
+                const currentDomain = window.location.hostname;
+                const whitelistedWebsites = changes.whitelistedWebsites.newValue || [];
+                const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
+                if (!isWhitelisted) {
+                    this.highlighter.removeHighlighterUI();
+                    this.tracker.removeUI();
+                } else {
+                    if (!document.getElementById('algo-fsrs-overlay') && document.body) {
+                        this.tracker.createUI();
+                        this.highlighter.createHighlighterUI();
+                    }
+                }
+            }
+            if (changes.fsrsGlobalParams) {
+                const params = changes.fsrsGlobalParams.newValue || {};
+                if (params.w) this.state.fsrs.w = params.w;
+                if (params.decay !== undefined) this.state.fsrs.decay = params.decay;
+                if (params.factor !== undefined) this.state.fsrs.factor = params.factor;
+                if (params.requestRetention !== undefined) this.state.fsrs.requestRetention = params.requestRetention;
+            }
             if (changes.approachDrafts) {
                 this.tracker.refreshWidgetState();
             }
