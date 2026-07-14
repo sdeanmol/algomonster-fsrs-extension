@@ -52,6 +52,7 @@ class FSRS {
      * @returns {Object} Newly initialized FSRS card schema.
      */
     createCard(problemTitle, problemUrl, textRead, approach, tags = []) {
+        if (window.Logger) window.Logger.debug('FSRS', 'Creating new card', { problemTitle, problemUrl });
         const now = new Date().getTime();
         return {
             id: Date.now().toString(),
@@ -98,6 +99,7 @@ class FSRS {
      * @returns {Object} A copy of the card with updated metrics.
      */
     reviewCard(card, rating, customWeights = null, now = new Date().getTime()) {
+        if (window.Logger) window.Logger.debug('FSRS', `Reviewing card: ${card.problemTitle} with rating ${rating}`);
         let newCard = { ...card };
         
         // Store due date before this review to determine if it was due today

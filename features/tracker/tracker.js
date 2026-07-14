@@ -43,6 +43,7 @@ window.AlgoRecall.Tracker = class Tracker {
      * Commits the current cards array to Chrome local storage sync.
      */
     saveCards() {
+        if (window.Logger) window.Logger.info('Tracker', `Saving ${this.state.cards.length} FSRS cards to storage`);
         chrome.storage.local.set({ fsrsCards: this.state.cards });
     }
 
@@ -57,6 +58,7 @@ window.AlgoRecall.Tracker = class Tracker {
             const dateString = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
             activity[dateString] = (activity[dateString] || 0) + 1;
             chrome.storage.local.set({ fsrsActivity: activity });
+            if (window.Logger) window.Logger.debug('Tracker', `Logged review activity for ${dateString}: ${activity[dateString]} reviews`);
         });
     }
 
@@ -67,6 +69,8 @@ window.AlgoRecall.Tracker = class Tracker {
     refreshWidgetState() {
         const container = document.getElementById('algo-fsrs-container');
         if (!container) return;
+        
+        if (window.Logger) window.Logger.debug('Tracker', 'Refreshing widget state...');
 
         // Reset to default view on SPA navigation
         const reviewUi = document.getElementById('fsrs-review-ui');

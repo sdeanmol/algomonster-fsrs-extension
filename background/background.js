@@ -5,6 +5,17 @@
  * handles custom whitelisted website routing messages, reacts to SPA client-side history state updates,
  * and sends weekly summary digest notifications (R3.6).
  */
+import { Logger } from '../features/common/logger.js';
+
+self.onerror = function(message, source, lineno, colno, error) {
+    Logger.error('Background', 'Unhandled runtime error', { message, source, lineno, colno, error });
+    return false;
+};
+
+self.onunhandledrejection = function(event) {
+    Logger.error('Background', 'Unhandled promise rejection', event.reason);
+};
+
 class AlgoRecallBackground {
     constructor() {
         this.init();
@@ -14,7 +25,10 @@ class AlgoRecallBackground {
      * Initializes the service worker listeners and settings.
      */
     async init() {
+        Logger.info('Background', 'Initializing background service worker...');
+        Logger.time('Background', 'Startup');
         this.bindEvents();
+        Logger.timeEnd('Background', 'Startup');
     }
 
     /**
@@ -49,6 +63,7 @@ class AlgoRecallBackground {
 
         await this.setupAlarm();
         await this.setupWeeklySummaryAlarm();
+        Logger.debug('Background', `Extension installed/updated. Reason: ${details ? details.reason : 'unknown'}`);
         
         // Redirect to Onboarding Welcome page on initial install
         if (details && details.reason === 'install') {
@@ -62,7 +77,9 @@ class AlgoRecallBackground {
                 priority: 2
             }, (id) => {
                 if (chrome.runtime.lastError) {
-                    console.error("Notification failed to send:", chrome.runtime.lastError.message);
+                    Logger.error('Background', "Notification failed to send", chrome.runtime.lastError.message);
+                } else {
+                    Logger.debug('Background', `Test install notification sent with ID: ${id}`);
                 }
             });
         }
@@ -87,10 +104,13 @@ class AlgoRecallBackground {
      * @param {Object} details - Navigation history update details.
      */
     handleHistoryStateUpdated(details) {
+        Logger.debug('Background', `History state updated for tab ${details.tabId}`, { url: details.url });
         chrome.tabs.sendMessage(details.tabId, { 
             action: "spa_url_changed", 
             url: details.url 
-        }).catch(() => {});
+        }).catch((e) => {
+            Logger.debug('Background', `Failed to send spa_url_changed to tab ${details.tabId} (it might not be a whitelisted site or script not injected yet).`);
+        });
     }
 
     /**
@@ -111,6 +131,9 @@ class AlgoRecallBackground {
         if (settings.enabled) {
             const interval = parseInt(settings.frequency, 10) || 60;
             chrome.alarms.create('checkFsrsReviews', { periodInMinutes: interval });
+            Logger.info('Background', `Scheduled checkFsrsReviews alarm every ${interval} minutes.`);
+        } else {
+            Logger.info('Background', `Notifications are disabled, cleared review alarms.`);
         }
     }
 
@@ -159,6 +182,7 @@ class AlgoRecallBackground {
      * @param {string} areaName - The name of the storage area.
      */
     async handleStorageChanged(changes, areaName) {
+        Logger.debug('Background', `Storage changed in ${areaName}`, Object.keys(changes));
         if (areaName === 'local' && changes.notificationSettings) {
             await this.setupAlarm();
         }
@@ -174,13 +198,14 @@ class AlgoRecallBackground {
      * @param {Function} sendResponse - Callback for routing replies.
      */
     handleMessage(message, sender, sendResponse) {
+        Logger.debug('Background', `Received message: ${message.action}`, { senderId: sender.id, tabId: sender.tab?.id });
         if (message.action === 'test_notification') {
             (async () => {
                 try {
                     await this.showTestNotification();
                     sendResponse({ success: true });
                 } catch (err) {
-                    console.error(err);
+                    Logger.error('Background', `Error in test_notification`, err);
                     sendResponse({ success: false, error: err.message });
                 }
             })();
@@ -263,7 +288,9 @@ class AlgoRecallBackground {
                 requireInteraction: settings.requireInteraction !== false
             }, (id) => {
                 if (chrome.runtime.lastError) {
-                    console.error("Test Notification Error:", chrome.runtime.lastError.message);
+                    Logger.error('Background', "Test Notification Error", chrome.runtime.lastError.message);
+                } else {
+                    Logger.debug('Background', `System test notification sent with ID: ${id}`);
                 }
             });
         });
@@ -348,7 +375,9 @@ class AlgoRecallBackground {
                 requireInteraction: settings.requireInteraction !== false
             }, (id) => {
                 if (chrome.runtime.lastError) {
-                    console.error("Notification Error:", chrome.runtime.lastError.message);
+                    Logger.error('Background', "Review Notification Error", chrome.runtime.lastError.message);
+                } else {
+                    Logger.debug('Background', `System review notification sent with ID: ${id}`);
                 }
             });
         });
@@ -423,12 +452,14 @@ class AlgoRecallBackground {
                 requireInteraction: false
             }, (id) => {
                 if (chrome.runtime.lastError) {
-                    console.error("Weekly Summary Notification Error:", chrome.runtime.lastError.message);
+                    Logger.error('Background', "Weekly Summary Notification Error", chrome.runtime.lastError.message);
+                } else {
+                    Logger.debug('Background', `Weekly summary notification sent with ID: ${id}`);
                 }
             });
 
         } catch (error) {
-            console.error("Error generating weekly summary:", error);
+            Logger.error('Background', "Error generating weekly summary", error);
         }
     }
 

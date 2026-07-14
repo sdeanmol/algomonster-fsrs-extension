@@ -30,7 +30,8 @@
     "https://*/*"
   ],
   "background": {
-    "service_worker": "background/background.js"
+    "service_worker": "background/background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
@@ -47,6 +48,7 @@
         "*://*.codingame.com/*"
       ],
       "js": [
+        "features/common/logger.js",
         "features/common/marked.min.js",
         "features/common/markdown.js",
         "features/tracker/fsrs.js",

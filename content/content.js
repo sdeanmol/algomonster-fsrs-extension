@@ -8,6 +8,9 @@ window.AlgoRecall = window.AlgoRecall || {};
  */
 window.AlgoRecall.Orchestrator = class Orchestrator {
     constructor() {
+        if (window.Logger) {
+            window.Logger.info('ContentScript', 'Orchestrator initializing...');
+        }
         this.state = window.AlgoRecall.state;
         this.utils = window.AlgoRecall.Utils;
         this.notifier = window.AlgoRecall.Notifier;
@@ -23,7 +26,9 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
      * Initializes the orchestrator and components.
      */
     async init() {
+        if (window.Logger) window.Logger.time('ContentScript', 'Init Storage Load');
         chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result) => {
+            if (window.Logger) window.Logger.timeEnd('ContentScript', 'Init Storage Load');
             // Verify whitelisting
             const whitelistedWebsites = result.whitelistedWebsites || [
                 { domain: "algo.monster" },
@@ -41,8 +46,10 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
             const currentDomain = window.location.hostname;
             const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
             if (!isWhitelisted) {
+                if (window.Logger) window.Logger.info('ContentScript', `Domain ${currentDomain} is not whitelisted. Exiting.`);
                 return; // Exit early, disabled by user
             }
+            if (window.Logger) window.Logger.debug('ContentScript', `Domain ${currentDomain} is whitelisted. Proceeding with init.`);
 
             if (result.fsrsGlobalParams) {
                 if (result.fsrsGlobalParams.w) this.state.fsrs.w = result.fsrsGlobalParams.w;
@@ -138,6 +145,7 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
      * @param {string} areaName - Storage classification bucket name.
      */
     handleStorageChanged(changes, areaName) {
+        if (window.Logger) window.Logger.debug('ContentScript', `Storage changed in ${areaName}`, Object.keys(changes));
         if (areaName === 'local') {
             if (changes.chromeSettings) {
                 this.state.chromeSettings = { ...this.state.chromeSettings, ...changes.chromeSettings.newValue };
@@ -212,12 +220,18 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
      * @param {Function} sendResponse - Callback function routing replies.
      */
     handleMessage(request, sender, sendResponse) {
+        if (window.Logger) window.Logger.debug('ContentScript', `Received message: ${request.action}`);
         if (request.action === "spa_url_changed") {
             setTimeout(this.triggerAggressiveUIUpdate.bind(this), 50);
         }
         if (request.action === "show_custom_notification") {
-            this.notifier.showPageNotification(request.title, request.message, request.type, request.count);
-            if (sendResponse) sendResponse({ success: true });
+            try {
+                this.notifier.showPageNotification(request.title, request.message, request.type, request.count);
+                if (sendResponse) sendResponse({ success: true });
+            } catch (e) {
+                if (window.Logger) window.Logger.error('ContentScript', 'Failed to show page notification', e);
+                if (sendResponse) sendResponse({ success: false, error: e.message });
+            }
         }
     }
 
@@ -282,3 +296,16 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
         window.AlgoRecall.orchestrator.init();
     }
 }
+
+// Global Error Handlers for Content Script Isolation
+window.addEventListener('error', function(event) {
+    if (window.Logger && event.filename && event.filename.includes(chrome.runtime.id)) {
+        window.Logger.error('ContentScript', 'Unhandled runtime error', { message: event.message, filename: event.filename, lineno: event.lineno, colno: event.colno, error: event.error });
+    }
+});
+
+window.addEventListener('unhandledrejection', function(event) {
+    if (window.Logger) {
+        window.Logger.error('ContentScript', 'Unhandled promise rejection', event.reason);
+    }
+});

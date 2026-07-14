@@ -4,6 +4,7 @@ import { NotificationsComponent } from './notifications.js';
 import { RatingComponent } from './rating.js';
 import { QuickSearchComponent } from './search.js';
 import { BackupManager } from '../../common/data/backupManager.js';
+import { Logger } from '../../common/logger.js';
 
 /**
  * @class AlgoRecallDashboard
@@ -20,6 +21,7 @@ export class AlgoRecallDashboard {
             themeToggleBtn: document.getElementById('theme-toggle-btn'),
             markerToggle: document.getElementById('toggle-marker-popup'),
             chartsToggle: document.getElementById('toggle-show-charts'),
+            devModeToggle: document.getElementById('toggle-dev-mode'),
             managePlatformsBtn: document.getElementById('manage-platforms-btn'),
             configureFsrsBtn: document.getElementById('configure-fsrs-btn'),
             helpBtn: document.getElementById('help-btn'),
@@ -40,6 +42,8 @@ export class AlgoRecallDashboard {
             pomodoroBtn: document.getElementById('pomodoro-btn'),
             weeklyDigestToggle: document.getElementById('toggle-weekly-digest'),
             statusMsg: document.getElementById('status-msg'),
+            devModeActions: document.getElementById('dev-mode-actions'),
+            exportDebugLogsBtn: document.getElementById('export-debug-logs-btn'),
         };
 
         // Subclass Components instantiation
@@ -54,6 +58,8 @@ export class AlgoRecallDashboard {
      * Initializes the dashboard, binds page event listeners, and boots sub-components.
      */
     async init() {
+        Logger.info('Popup', 'Popup initialized.');
+        Logger.time('Popup', 'init');
         this.bindEvents();
 
         // Boot component lifecycle steps
@@ -65,6 +71,7 @@ export class AlgoRecallDashboard {
 
         // Perform initial loading from storage databases
         await this.loadAll();
+        Logger.timeEnd('Popup', 'init');
     }
 
     /**
@@ -95,7 +102,7 @@ export class AlgoRecallDashboard {
                     await chrome.storage.local.set({ theme: newTheme });
                     this.showStatus(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode!`);
                 } catch (error) {
-                    console.error("Error toggling theme settings:", error);
+                    Logger.error('Popup', "Error toggling theme settings", error);
                 }
             });
         }
@@ -114,7 +121,7 @@ export class AlgoRecallDashboard {
                     settings.showMarkerPopup = e.target.checked;
                     await chrome.storage.local.set({ chromeSettings: settings });
                 } catch (error) {
-                    console.error("Error setting showMarkerPopup config:", error);
+                    Logger.error('Popup', "Error setting showMarkerPopup config", error);
                 }
             });
         }
@@ -135,9 +142,59 @@ export class AlgoRecallDashboard {
                     await chrome.storage.local.set({ chromeSettings: settings });
                     this.showStatus(`Visual charts ${e.target.checked ? 'enabled' : 'disabled'}!`);
                 } catch (error) {
-                    console.error("Error setting showCharts config:", error);
+                    Logger.error('Popup', "Error setting showCharts config", error);
                 }
             });
+        }
+
+        // Developer mode display switch setup
+        if (this.dom.devModeToggle) {
+            chrome.storage.local.get(['chromeSettings'], (result) => {
+                const devMode = result.chromeSettings && result.chromeSettings.developerMode !== undefined
+                    ? result.chromeSettings.developerMode
+                    : false;
+                this.dom.devModeToggle.checked = devMode;
+                if (this.dom.devModeActions) {
+                    this.dom.devModeActions.style.display = devMode ? 'block' : 'none';
+                }
+            });
+            this.dom.devModeToggle.addEventListener('change', async (e) => {
+                try {
+                    const result = await chrome.storage.local.get(['chromeSettings']);
+                    let settings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                    settings.developerMode = e.target.checked;
+                    await chrome.storage.local.set({ chromeSettings: settings });
+                    if (this.dom.devModeActions) {
+                        this.dom.devModeActions.style.display = e.target.checked ? 'block' : 'none';
+                    }
+                    this.showStatus(`Developer mode ${e.target.checked ? 'enabled' : 'disabled'}!`);
+                } catch (error) {
+                    Logger.error('Popup', "Error setting developerMode config", error);
+                }
+            });
+            
+            if (this.dom.exportDebugLogsBtn) {
+                this.dom.exportDebugLogsBtn.addEventListener('click', () => {
+                    chrome.storage.local.get(['debugLogs'], (result) => {
+                        const logs = result.debugLogs || [];
+                        if (logs.length === 0) {
+                            this.showStatus('No debug logs found.', true);
+                            return;
+                        }
+                        
+                        const logLines = logs.map(l => JSON.stringify(l)).join('\n');
+                        const blob = new Blob([logLines], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        chrome.downloads.download({
+                            url: url,
+                            filename: `algorecall_debug_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
+                            saveAs: true
+                        });
+                        this.showStatus(`Exported ${logs.length} debug logs!`);
+                    });
+                });
+            }
         }
 
         // Webpage page redirection setups
@@ -174,7 +231,7 @@ export class AlgoRecallDashboard {
                     await BackupManager.exportBackup();
                     this.showStatus("Backup exported successfully!");
                 } catch (err) {
-                    console.error("Backup export failed:", err);
+                    Logger.error('Popup', "Backup export failed", err);
                     this.showStatus("Export failed: " + err.message, true);
                 }
             });
@@ -199,6 +256,9 @@ export class AlgoRecallDashboard {
                                 }
                                 if (result.chromeSettings.showCharts !== undefined && this.dom.chartsToggle) {
                                     this.dom.chartsToggle.checked = result.chromeSettings.showCharts;
+                                }
+                                if (result.chromeSettings.developerMode !== undefined && this.dom.devModeToggle) {
+                                    this.dom.devModeToggle.checked = result.chromeSettings.developerMode;
                                 }
                             }
                         });

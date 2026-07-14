@@ -2,7 +2,9 @@
  * @file features/common/data/backupManager.js
  * @description Highly optimized backup and restoration manager for AlgoRecall.
  * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
+ * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
  */
+import { Logger } from '../logger.js';
 
 /**
  * Incremental 32-bit FNV-1a Hasher for integrity verification.
@@ -62,6 +64,8 @@ export class BackupManager {
      * Yields output chunks using a ReadableStream and triggers a download.
      */
     static async exportBackup() {
+        Logger.time('Backup', 'exportBackup');
+        Logger.info('Backup', 'Starting backup export process...');
         const raw = await chrome.storage.local.get(null);
 
         // Extract and deduplicate URLs across bookmarks, cards, marks, pagecontents
@@ -224,6 +228,8 @@ export class BackupManager {
             filename: filename,
             saveAs: true
         });
+        Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
+        Logger.timeEnd('Backup', 'exportBackup');
     }
 
     /**
@@ -233,6 +239,8 @@ export class BackupManager {
      * @param {Function} onStatus 
      */
     static async importBackup(file, onStatus) {
+        Logger.time('Backup', 'importBackup');
+        Logger.info('Backup', `Starting backup import from file: ${file.name} (${file.size} bytes)`);
         try {
             // 1. Detect format using magic bytes
             const headerBuffer = await file.slice(0, 2).arrayBuffer();
@@ -365,8 +373,11 @@ export class BackupManager {
 
             await chrome.storage.local.set(storageUpdate);
             onStatus("Backup restored successfully!");
+            Logger.info('Backup', 'Backup restored successfully!');
+            Logger.timeEnd('Backup', 'importBackup');
 
         } catch (err) {
+            Logger.error('Backup', 'Backup restoration failed', err);
             console.error("Backup restoration failed:", err);
             onStatus("Restoration failed: " + err.message, true);
         }
@@ -475,9 +486,12 @@ export class BackupManager {
 
                     await chrome.storage.local.set(storageUpdate);
                     onStatus("Legacy backup imported successfully!");
+                    Logger.info('Backup', 'Legacy backup imported successfully!');
+                    Logger.timeEnd('Backup', 'importBackup');
                     resolve();
                 } catch (err) {
-                    console.error("Legacy backup parse failed:", err);
+                    Logger.error('Backup', 'Legacy backup restoration failed', err);
+                    console.error("Legacy Backup Error:", err);
                     onStatus("Failed to parse legacy JSON backup file.", true);
                     reject(err);
                 }

@@ -316,6 +316,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
      * @param {string} markId - The ID of the targeted mark.
      */
     deleteHighlight(markId) {
+        if (window.Logger) window.Logger.debug('Highlighter', `Deleting highlight ID: ${markId}`);
         this.state.marks = this.state.marks.filter(m => (m.id || m.createdAt.toString()) !== markId);
         chrome.storage.local.set({ marks: this.state.marks });
 
@@ -344,7 +345,12 @@ window.AlgoRecall.Highlighter = class Highlighter {
      * via the standard CSS Custom Highlights API.
      */
     applyHighlightsForCurrentPage() {
-        if (!('highlights' in CSS)) return;
+        if (!('highlights' in CSS)) {
+            if (window.Logger) window.Logger.warn('Highlighter', 'CSS Custom Highlights API not supported in this browser.');
+            return;
+        }
+
+        if (window.Logger) window.Logger.time('Highlighter', 'applyHighlightsForCurrentPage');
 
         const cleanUrl = window.location.href.split('?')[0].split('#')[0];
         const pageMarks = this.state.marks.filter(m => m.url === cleanUrl);
@@ -368,5 +374,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
         for (const [colorName, ranges] of Object.entries(highlightsByColor)) {
             CSS.highlights.set(colorName, new Highlight(...ranges));
         }
+
+        if (window.Logger) window.Logger.timeEnd('Highlighter', 'applyHighlightsForCurrentPage');
     }
 };
