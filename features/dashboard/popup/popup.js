@@ -1,4 +1,11 @@
-// features/dashboard/popup/popup.js - Central options dashboard manager
+/**
+ * @file features/dashboard/popup/popup.js
+ * @description Central coordinator for the AlgoRecall popup options dashboard page.
+ * Manages configuration updates (theme, highlighting visibility), page data backup (import/export),
+ * Anki deck exchange utilities, and in-popup quick search pattern filters.
+ * Upstream dependencies: features/dashboard/popup/stats.js (invokes loadStats), features/dashboard/popup/heatmap.js (invokes loadHeatmap), features/dashboard/popup/notifications.js (invokes initNotificationSettings, checkNotificationPermissions).
+ * Downstream dependencies: chrome.storage, chrome.downloads (sends download jobs).
+ */
 
 let isLifetimeView = false;
 let statusTimeout = null;
@@ -243,6 +250,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initRatingPrompt();
 });
 
+/**
+ * Triggers a status message toast at the top of the popup dashboard.
+ * @param {string} msg - Descriptive message string.
+ * @param {boolean} [isError=false] - Signals if the status indicates an error.
+ */
 function showStatus(msg, isError = false) {
     const el = document.getElementById('status-msg');
     if (!el) return;
@@ -267,6 +279,9 @@ function showStatus(msg, isError = false) {
 let _quickSearchCards = [];
 let _quickSearchDebounce = null;
 
+/**
+ * Initializes quick search input and tag selectors from the dashboard.
+ */
 function initQuickSearch() {
     const searchInput = document.getElementById('popup-search-input');
     const tagFilter = document.getElementById('popup-tag-filter');
@@ -303,6 +318,9 @@ function initQuickSearch() {
     tagFilter.addEventListener('change', () => renderQuickSearch());
 }
 
+/**
+ * Renders filtered card quick search items matching text query and topic tag fields.
+ */
 function renderQuickSearch() {
     const searchInput = document.getElementById('popup-search-input');
     const tagFilter = document.getElementById('popup-tag-filter');
@@ -378,6 +396,8 @@ function renderQuickSearch() {
  * Export FSRS cards to Anki-compatible tab-separated text.
  * Format: Front<TAB>Back<TAB>Tags
  * Includes Anki header directives for auto-configuration on import.
+ * @param {Object[]} cards - Array of FSRS cards.
+ * @returns {string} Anki-compatible text data.
  */
 function exportToAnkiText(cards) {
     const lines = [];
@@ -409,6 +429,8 @@ function exportToAnkiText(cards) {
 /**
  * Import Anki tab-separated text into FSRS card objects.
  * Expects: Front<TAB>Back<TAB>Tags (optional)
+ * @param {string} text - The raw Anki-formatted text content.
+ * @returns {Object[]} Created stub FSRS card objects.
  */
 function importFromAnkiText(text) {
     const lines = text.split('\n');

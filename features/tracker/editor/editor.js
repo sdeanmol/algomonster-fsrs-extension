@@ -1,3 +1,12 @@
+/**
+ * @file features/tracker/editor/editor.js
+ * @description Manages the markdown notes editor panel.
+ * Provides real-time rendering previews, auto-save triggers,
+ * and updates review card approach files or fallback draft directories.
+ * Upstream dependencies: features/common/markdown.js (uses renderMarkdown).
+ * Downstream dependencies: chrome.storage (reads/writes fsrsCards, approachDrafts).
+ */
+
 let problemUrl = '';
 let cleanUrl = '';
 let isCardExisting = false;
@@ -119,6 +128,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/**
+ * Saves current text field content as card approach data or fallback drafts.
+ * @param {Function} [callback] - Invoked on completed storage transactions.
+ */
 function saveContent(callback) {
     const text = document.getElementById('editor-textarea').value;
     
@@ -149,6 +162,11 @@ function saveContent(callback) {
     });
 }
 
+/**
+ * Normalizes complex raw URLs into short hostnames for labels.
+ * @param {string} url - Raw URL string.
+ * @returns {string} Hostname and path segments.
+ */
 function getCleanDisplayUrl(url) {
     try {
         const u = new URL(url);
@@ -158,6 +176,10 @@ function getCleanDisplayUrl(url) {
     }
 }
 
+/**
+ * Renders status feedback messages using temporary toasts.
+ * @param {string} message - Text feedback string.
+ */
 function showToast(message) {
     const toast = document.getElementById('status-toast');
     if (!toast) return;
@@ -167,3 +189,4 @@ function showToast(message) {
         toast.classList.remove('show');
     }, 2000);
 }
+

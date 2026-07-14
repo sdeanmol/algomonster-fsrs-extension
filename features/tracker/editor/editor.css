@@ -1,5 +1,8 @@
-/* Insights Fullscreen Editor CSS overrides */
-
+/*
+ * @file features/tracker/editor/editor.css
+ * @description Styling rules for fullscreen rich markdown notes editor view.
+ * Upstream dependency: features/common/base.css
+ */
 body {
     background-color: var(--md-bg);
     color: var(--md-text-high);

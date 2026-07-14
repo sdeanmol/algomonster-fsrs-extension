@@ -1,4 +1,11 @@
-// features/dashboard/heatmap/heatmap.js - Main full-screen contribution heatmap page controller
+/**
+ * @file features/dashboard/heatmap/heatmap.js
+ * @description Main controller for the dedicated full-screen contribution heatmap page.
+ * Manages calendar date cascades, filters (lifetime, yearly, monthly, weekly), SVG cell grids,
+ * and handles click events to query historical reviews details for specific days.
+ * Upstream dependencies: features/dashboard/heatmap/heatmap-stats.js (invokes renderStatsDashboard).
+ * Downstream dependencies: chrome.storage (reads fsrsActivity).
+ */
 
 let activityData = {};
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -11,6 +18,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/**
+ * Initializes and wires select dropdown filter nodes (year, month, day selectors)
+ * dynamically based on years populated in activity data history.
+ */
 function setupFilters() {
     const typeSelect = document.getElementById('filter-type');
     const yearSelect = document.getElementById('select-year');
@@ -97,6 +108,10 @@ function setupFilters() {
     daySelect.addEventListener('change', renderHeatmap);
 }
 
+/**
+ * Computes grid sizing bounds based on selected filters, resets grid contents,
+ * and appends interactive cells with visual colors matching review activity levels.
+ */
 function renderHeatmap() {
     const grid = document.getElementById('full-heatmap-grid');
     const summaryText = document.getElementById('filter-summary-text');

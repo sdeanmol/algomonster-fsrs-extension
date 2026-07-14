@@ -1,5 +1,8 @@
-/* History Chart and Cards layout styling */
-
+/*
+ * @file features/dashboard/history/history.css
+ * @description Styling rules for review activity history cards, drill-downs, and columns.
+ * Upstream dependency: features/common/base.css
+ */
 body {
     background-color: var(--md-bg);
     color: var(--md-text-high);

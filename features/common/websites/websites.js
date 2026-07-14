@@ -1,3 +1,12 @@
+/**
+ * @file features/common/websites/websites.js
+ * @description Manages whitelist configurations for sites where the extension content scripts are active.
+ * Integrates dynamic permissions requests for custom domains, and registers content scripts
+ * programmatically using the Chrome Extension Scripting API.
+ * Upstream dependencies: None.
+ * Downstream dependencies: chrome.storage (reads/writes whitelistedWebsites), chrome.permissions, chrome.scripting.
+ */
+
 const defaultSitesList = [
     { domain: "algo.monster", isDefault: true },
     { domain: "systemdesignschool.io", isDefault: true },
@@ -32,6 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('restore-defaults-btn').addEventListener('click', restoreDefaults);
 });
 
+/**
+ * Loads authorized website structures from storage and builds whitelist list rows.
+ */
 function loadAndRenderSites() {
     const list = document.getElementById('whitelisted-sites-list');
     if (!list) return;
@@ -82,6 +94,10 @@ function loadAndRenderSites() {
     });
 }
 
+/**
+ * Validates domain input strings, requests host permission rules,
+ * and dynamically registers associated content script matches.
+ */
 function handleAddWebsite() {
     const input = document.getElementById('domain-input');
     let value = input.value.trim().toLowerCase();
@@ -155,6 +171,10 @@ function handleAddWebsite() {
     }
 }
 
+/**
+ * Revokes host origin permissions and dynamic scripts, then updates storage list.
+ * @param {string} siteDomain - Normalized domain name.
+ */
 function handleDeleteWebsite(siteDomain) {
     chrome.storage.local.get(['whitelistedWebsites'], (result) => {
         let sites = result.whitelistedWebsites || [...defaultSitesList.map(s => ({ ...s }))];
@@ -198,6 +218,9 @@ function handleDeleteWebsite(siteDomain) {
     });
 }
 
+/**
+ * Restores initial hardcoded whitelisted platforms.
+ */
 function restoreDefaults() {
     chrome.storage.local.get(['whitelistedWebsites'], (result) => {
         let currentSites = result.whitelistedWebsites || [];
@@ -215,6 +238,10 @@ function restoreDefaults() {
     });
 }
 
+/**
+ * Shows temporary toast alerts.
+ * @param {string} msg - Message payload.
+ */
 function showToast(msg) {
     const toast = document.getElementById('status-toast');
     if (!toast) return;
@@ -224,3 +251,4 @@ function showToast(msg) {
         toast.className = 'toast';
     }, 2500);
 }
+

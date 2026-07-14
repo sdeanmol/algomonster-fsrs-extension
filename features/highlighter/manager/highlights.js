@@ -1,4 +1,11 @@
-// features/highlighter/manager/highlights.js - Highlights page controller
+/**
+ * @file features/highlighter/manager/highlights.js
+ * @description Main controller for the saved page highlights manager screen.
+ * Handles loading selections, text searches, dropdown category grouping,
+ * color bubble selection, and list sorting mechanisms.
+ * Upstream dependencies: features/highlighter/manager/highlights-helpers.js (uses copyToClipboard, escapeHtml, highlightSearchMatch, getCleanDisplayUrl).
+ * Downstream dependencies: chrome.storage (reads/writes marks, bookmarks).
+ */
 
 let loadedMarks = [];
 let loadedBookmarks = [];
@@ -55,6 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/**
+ * Loads highlights and bookmark records from storage, populating filters and lists.
+ */
 function loadHighlights() {
     chrome.storage.local.get(['marks', 'bookmarks'], (result) => {
         loadedMarks = result.marks || [];
@@ -68,6 +78,9 @@ function loadHighlights() {
     });
 }
 
+/**
+ * Parses marks list, collecting unique source URLs to populate the webpage select dropdown.
+ */
 function populateWebpageSelect() {
     const select = document.getElementById('webpage-select');
     if (!select) return;
@@ -94,6 +107,9 @@ function populateWebpageSelect() {
     select.value = activePageFilter;
 }
 
+/**
+ * Dynamic rendering of round color buttons reflecting used highlight colors.
+ */
 function renderColorFilters() {
     const container = document.getElementById('color-filters-container');
     if (!container) return;
@@ -130,6 +146,9 @@ function renderColorFilters() {
     });
 }
 
+/**
+ * Filter and sort results before generating card preview elements.
+ */
 function filterAndRender() {
     const container = document.getElementById('highlights-container');
     const subtitle = document.getElementById('highlight-subtitle');
@@ -263,6 +282,10 @@ function filterAndRender() {
     });
 }
 
+/**
+ * Removes highlight object indices from storage and triggers dashboard reload.
+ * @param {string} markId - Identifier of targeted highlight.
+ */
 function deleteHighlight(markId) {
     if (confirm("Are you sure you want to delete this highlight?")) {
         chrome.storage.local.get(['marks'], (result) => {

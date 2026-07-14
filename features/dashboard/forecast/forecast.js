@@ -1,4 +1,11 @@
-// features/dashboard/forecast/forecast.js — Review Forecast Calendar (R2.2)
+/**
+ * @file features/dashboard/forecast/forecast.js
+ * @description Main controller for the dedicated forecast future workloads dashboard.
+ * Projects upcoming review volumes up to 30 days based on scheduled FSRS card due dates,
+ * rendering column charts and interactive calendars.
+ * Upstream dependencies: None.
+ * Downstream dependencies: chrome.storage (reads fsrsCards, chromeSettings).
+ */
 
 document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result) => {
@@ -139,14 +146,29 @@ function renderForecast(cards) {
     calendar.parentElement.appendChild(legend);
 }
 
+/**
+ * Returns a short formatted date string (e.g., 'Jul 14').
+ * @param {Date} date - Date object.
+ * @returns {string} Short formatted date.
+ */
 function formatDateShort(date) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/**
+ * Returns a full formatted date string (e.g., 'Tue, Jul 14').
+ * @param {Date} date - Date object.
+ * @returns {string} Full formatted date.
+ */
 function formatDateFull(date) {
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+/**
+ * Formats a Date object to local YYYY-MM-DD key.
+ * @param {Date} date - Date object.
+ * @returns {string} YYYY-MM-DD formatted date string.
+ */
 function formatDateKey(date) {
     return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 }
@@ -275,4 +297,5 @@ function renderForecastChart(dueCounts, todayStart, daysToShow) {
     chartContainerInner.appendChild(viewport);
     chartWrapper.appendChild(chartContainerInner);
 }
+
 

@@ -1,4 +1,11 @@
-// content.js - Orchestrate initialization, MutationObservers, and messaging listeners
+/**
+ * @file content/content.js
+ * @description Main content script orchestrator injected into whitelisted coding domains.
+ * Initializes settings, cards, and styling configurations from storage, boots the highlighter and tracker UI overlays,
+ * registers click triggers for SPA client-side navigations, and monitors DOM updates via MutationObserver.
+ * Upstream dependencies: content/state.js, content/utils.js, features/highlighter/highlighter.js, content/notifications.js, features/tracker/tracker.js.
+ * Downstream dependencies: background/background.js (via chrome.runtime messaging).
+ */
 
 chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result) => {
     // Verify whitelisting
@@ -122,7 +129,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// Centralized function to instantly refresh the widget content without destroying it
+/**
+ * Centrally updates the floating widgets' layout values when URL adjustments or navigations occur.
+ * Restores launcher buttons and re-reads tag configurations.
+ */
 function triggerAggressiveUIUpdate() {
     lastCheckedUrl = window.location.href;
 
@@ -148,7 +158,10 @@ function triggerAggressiveUIUpdate() {
     applyHighlightsForCurrentPage();
 }
 
-// --- Dynamic Theme Support ---
+/**
+ * Updates visual class names (light-theme toggle) on active extension container elements
+ * to match the user's color scheme settings.
+ */
 function applyThemeClass() {
     const launcher = document.getElementById('algo-fsrs-launcher');
     const container = document.getElementById('algo-fsrs-container');

@@ -1,3 +1,11 @@
+/**
+ * @file features/common/welcome/welcome.js
+ * @description Controls the step-by-step interactive welcome onboarding workflow.
+ * Manages steps pagination, initial theme configuration, and notification permission requests.
+ * Upstream dependencies: None.
+ * Downstream dependencies: chrome.storage (writes theme).
+ */
+
 let currentStep = 1;
 const totalSteps = 3;
 
@@ -61,6 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/**
+ * Navigates visual onboarding cards to target step number.
+ * @param {number} step - Target card index (1-indexed).
+ */
 function goToStep(step) {
     // Toggle active card
     document.getElementById(`step-${currentStep}`).classList.remove('active');
@@ -89,6 +101,10 @@ function goToStep(step) {
     }
 }
 
+/**
+ * Renders UI toggle buttons as active/selected matching requested theme.
+ * @param {string} theme - 'dark' or 'light'.
+ */
 function setActiveThemeButton(theme) {
     const darkBtn = document.getElementById('set-dark-btn');
     const lightBtn = document.getElementById('set-light-btn');
@@ -102,6 +118,10 @@ function setActiveThemeButton(theme) {
     }
 }
 
+/**
+ * Persists theme configuration changes and updates UI buttons.
+ * @param {string} theme - Theme selection: 'dark' or 'light'.
+ */
 function setThemePreference(theme) {
     chrome.storage.local.set({ theme: theme }, () => {
         setActiveThemeButton(theme);
@@ -109,6 +129,9 @@ function setThemePreference(theme) {
     });
 }
 
+/**
+ * Checks system notification permissions and toggles onboarding badge indicators.
+ */
 function checkNotificationState() {
     const badge = document.getElementById('welcome-notif-status');
     const btn = document.getElementById('welcome-enable-btn');
@@ -127,6 +150,10 @@ function checkNotificationState() {
     }
 }
 
+/**
+ * Displays status feedback messages in onboarding page container.
+ * @param {string} msg - Message payload.
+ */
 function showToast(msg) {
     const toast = document.getElementById('status-toast');
     if (!toast) return;
@@ -136,3 +163,4 @@ function showToast(msg) {
         toast.className = 'toast';
     }, 2000);
 }
+

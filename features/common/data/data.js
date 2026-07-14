@@ -1,3 +1,12 @@
+/**
+ * @file features/common/data/data.js
+ * @description Manages database tables listing saved patterns.
+ * Supports keyword search, filter dropdown updates (status, tag categories),
+ * overall memory retention rates calculations, stacked distribution bars, and card deletion events.
+ * Upstream dependencies: None.
+ * Downstream dependencies: chrome.storage (reads/writes fsrsCards, chromeSettings).
+ */
+
 let allCards = [];
 let currentView = 'total';
 let targetDate = null;
@@ -54,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/**
+ * Searches the collection of card objects and populates tag select options dynamically.
+ */
 function populateTagsFilter() {
     const tagSelect = document.getElementById('tag-select');
     if (!tagSelect) return;
@@ -75,6 +87,10 @@ function populateTagsFilter() {
     });
 }
 
+/**
+ * Filters the cards collection by search keywords, active tags, and due statuses,
+ * and calls the rendering templates.
+ */
 function filterAndRender() {
     const titleEl = document.getElementById('page-title');
     const subtitleEl = document.getElementById('page-subtitle');
@@ -219,6 +235,12 @@ function filterAndRender() {
     bindDeleteButtons();
 }
 
+/**
+ * Builds table rows summarizing problem titles, tags, due statuses, and FSRS metrics.
+ * @param {Object[]} cardsArray - List of FSRS cards.
+ * @param {boolean} [showLapses=false] - If true, appends columns indicating lapse occurrences.
+ * @returns {string} Rendered table markup.
+ */
 function generateCardsTable(cardsArray, showLapses = false) {
     const now = new Date().getTime();
     let table = `<table><thead><tr>
@@ -265,6 +287,9 @@ function generateCardsTable(cardsArray, showLapses = false) {
     return table + `</tbody></table>`;
 }
 
+/**
+ * Binds click listener events to table delete buttons to remove cards.
+ */
 function bindDeleteButtons() {
     document.querySelectorAll('.delete-card-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -280,6 +305,10 @@ function bindDeleteButtons() {
     });
 }
 
+/**
+ * Renders statistical cards and distributions of card states.
+ * @param {Object[]} cards - Saved cards database array.
+ */
 function renderAnalyticsPanel(cards) {
     const panel = document.getElementById('analytics-panel');
     if (!panel) return;

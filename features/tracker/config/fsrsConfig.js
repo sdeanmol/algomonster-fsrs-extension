@@ -1,3 +1,12 @@
+/**
+ * @file features/tracker/config/fsrsConfig.js
+ * @description Manages configuration preferences for the Free Spaced Repetition Scheduler (FSRS).
+ * Allows customized requests retention sliders, custom coefficients weights (17 parameters w0-w16),
+ * and custom per-topic profiles mapped directly to tags.
+ * Upstream dependencies: None.
+ * Downstream dependencies: chrome.storage (reads/writes fsrsGlobalParams, fsrsTopicWeights).
+ */
+
 const defaultWeights = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
 const defaultDecay = -0.5;
 const defaultFactor = 0.234567;
@@ -49,6 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('add-tag-profile-btn').addEventListener('click', handleAddTagProfile);
 });
 
+/**
+ * Loads current settings from local storage and initiates rendering of panels.
+ */
 function loadFSRSConfig() {
     chrome.storage.local.get(['fsrsGlobalParams', 'fsrsTopicWeights'], (result) => {
         const params = result.fsrsGlobalParams || {};
@@ -71,6 +83,10 @@ function loadFSRSConfig() {
     });
 }
 
+/**
+ * Dynamically builds HTML number input fields for the 17 mathematical w-weights.
+ * @param {number[]} weightsArray - Array of current w-weights.
+ */
 function injectWeightsInputs(weightsArray) {
     const container = document.getElementById('weights-inputs-container');
     if (!container) return;
@@ -84,7 +100,7 @@ function injectWeightsInputs(weightsArray) {
         div.innerHTML = `
             <div class="weight-label-wrapper">
                 <span class="weight-index">w${i}</span>
-                <svg class="svg-icon weight-info-trigger" viewBox="0 0 24 24" title="${helpText}" fill="none" stroke="currentColor" stroke-width="2">
+                <svg class="svg-icon" viewBox="0 0 24 24" title="${helpText}" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="12" y1="16" x2="12" y2="12"></line>
                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -96,6 +112,10 @@ function injectWeightsInputs(weightsArray) {
     }
 }
 
+/**
+ * Renders lists of active custom topic/tag FSRS weights overrides.
+ * @param {Object} topicWeights - Key-value map of tag to weights coefficients array.
+ */
 function renderTagProfiles(topicWeights) {
     const list = document.getElementById('active-tag-profiles-list');
     if (!list) return;
@@ -132,6 +152,9 @@ function renderTagProfiles(topicWeights) {
     });
 }
 
+/**
+ * Validates and saves global FSRS configuration parameters back to storage.
+ */
 function saveGlobalConfig() {
     const retention = parseFloat(document.getElementById('retention-slider').value);
     const decay = parseFloat(document.getElementById('decay-input').value);
@@ -164,6 +187,9 @@ function saveGlobalConfig() {
     });
 }
 
+/**
+ * Restores global parameters to algorithmic baseline defaults.
+ */
 function restoreDefaults() {
     if (confirm("Restore all FSRS parameters and coefficients to standard default values?")) {
         const newParams = {
@@ -180,6 +206,9 @@ function restoreDefaults() {
     }
 }
 
+/**
+ * Validates inputs and binds a new 17-coefficient custom profile to a specific tag filter.
+ */
 function handleAddTagProfile() {
     const tagInput = document.getElementById('new-tag-name');
     const weightsInput = document.getElementById('new-tag-weights');
@@ -211,6 +240,10 @@ function handleAddTagProfile() {
     });
 }
 
+/**
+ * Deletes custom tag profile bindings from database storage.
+ * @param {string} tag - Target tag name.
+ */
 function handleDeleteTagProfile(tag) {
     chrome.storage.local.get(['fsrsTopicWeights'], (result) => {
         const topicWeights = result.fsrsTopicWeights || {};
@@ -223,6 +256,11 @@ function handleDeleteTagProfile(tag) {
     });
 }
 
+/**
+ * Triggers a status toast element.
+ * @param {string} msg - Message.
+ * @param {boolean} [isError=false] - Signals if the status indicates an error.
+ */
 function showToast(msg, isError = false) {
     const toast = document.getElementById('status-toast');
     if (!toast) return;
@@ -232,3 +270,4 @@ function showToast(msg, isError = false) {
         toast.className = 'toast';
     }, 2500);
 }
+

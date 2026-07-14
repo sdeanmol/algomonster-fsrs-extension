@@ -1,5 +1,8 @@
-/* Highlighter Appearance CSS overrides */
-
+/*
+ * @file features/highlighter/options/highlightOptions.css
+ * @description Styling rules for default highlight color selection grids and custom color slot controls.
+ * Upstream dependency: features/common/base.css
+ */
 body {
     background-color: var(--md-bg);
     color: var(--md-text-high);

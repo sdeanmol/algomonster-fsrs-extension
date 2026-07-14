@@ -1,5 +1,8 @@
-/* FSRS Cards Data Table CSS overrides */
-
+/*
+ * @file features/common/data/data.css
+ * @description Styling rules for tabular representation of saved cards and analytics breakdown sections.
+ * Upstream dependency: features/common/base.css
+ */
 body {
     background-color: var(--md-bg);
     color: var(--md-text-high);

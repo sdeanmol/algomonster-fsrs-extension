@@ -1,5 +1,15 @@
-// features/dashboard/heatmap/heatmap-stats.js - Streak and active days stats calculator
+/**
+ * @file features/dashboard/heatmap/heatmap-stats.js
+ * @description Computes study streak statistics and renders the statistics card panels
+ * inside the full-screen heatmap page.
+ * Upstream dependencies: None.
+ * Downstream dependencies: features/dashboard/heatmap/heatmap.js (invokes renderStatsDashboard).
+ */
 
+/**
+ * Calculates current streak, longest streak, active days, and max reviews in a day,
+ * and renders the corresponding HTML templates into the stats container.
+ */
 function renderStatsDashboard() {
     const container = document.getElementById('heatmap-stats-container');
     if (!container) return;
@@ -50,6 +60,11 @@ function renderStatsDashboard() {
     `;
 }
 
+/**
+ * Calculates current and historical maximum streaks, active days,
+ * and maximum daily review load metrics from the global activity data.
+ * @returns {Object} Metric values structure: { currentStreak: number, longestStreak: number, activeDays: number, maxReviews: number }.
+ */
 function getStreakStats() {
     const dates = Object.keys(activityData).filter(d => activityData[d] > 0).sort();
     if (dates.length === 0) {
@@ -115,3 +130,4 @@ function getStreakStats() {
     
     return { currentStreak, longestStreak, activeDays, maxReviews };
 }
+

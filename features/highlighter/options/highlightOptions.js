@@ -1,3 +1,12 @@
+/**
+ * @file features/highlighter/options/highlightOptions.js
+ * @description Manages highlighter style options.
+ * Allows users to set default highlight colors, create custom color palettes,
+ * activate specific palette sets, and edit color hex values.
+ * Upstream dependencies: None.
+ * Downstream dependencies: chrome.storage (reads/writes chromeSettings).
+ */
+
 const DEFAULT_PALETTES = [
     { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
     { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
@@ -129,7 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Helper: Renders input slots for color picker selection dynamically
+/**
+ * Helper: Renders input slots for color picker selection dynamically.
+ */
 function renderEditorSlots() {
     const container = document.getElementById('palette-slots-container');
     if (!container) return;
@@ -178,7 +189,9 @@ function renderEditorSlots() {
     }
 }
 
-// Helper: Renders list of available/saved custom palettes
+/**
+ * Helper: Renders list of available/saved custom palettes.
+ */
 function renderPalettesList() {
     const container = document.getElementById('palettes-list-container');
     if (!container) return;
@@ -281,6 +294,10 @@ function renderPalettesList() {
     });
 }
 
+/**
+ * Commits current settings back to Chrome storage and re-renders lists.
+ * @param {string} [message=null] - Text message shown inside toast alerts.
+ */
 function saveSettings(message = null) {
     chrome.storage.local.set({ chromeSettings }, () => {
         renderPalettesList();
@@ -288,6 +305,10 @@ function saveSettings(message = null) {
     });
 }
 
+/**
+ * Renders status toast feedback indicators.
+ * @param {string} message - Feedback message.
+ */
 function showToast(message) {
     const toast = document.getElementById('status-toast');
     if (!toast) return;

@@ -1,5 +1,16 @@
-// features/dashboard/popup/heatmap.js - Contribution activity heatmap grid rendering
+/**
+ * @file features/dashboard/popup/heatmap.js
+ * @description Renders a contribution activity heatmap grid inside the dashboard popup.
+ * Calculates review volume metrics grouped by calendar date string in user's timezone.
+ * Upstream dependencies: None.
+ * Downstream dependencies: features/dashboard/popup/popup.js (invokes loadHeatmap).
+ */
 
+/**
+ * Loads FSRS review activity counts from storage and renders heat cells inside grid containers.
+ * Supports showing lifetime counts or constraints to the last 12 weeks.
+ * @param {boolean} [lifetime=false] - If true, scales from the oldest recorded review date; otherwise, shows last 12 weeks.
+ */
 function loadHeatmap(lifetime = false) {
     chrome.storage.local.get(['fsrsActivity'], (result) => {
         const activity = result.fsrsActivity || {};
@@ -53,3 +64,4 @@ function loadHeatmap(lifetime = false) {
         }, 10);
     });
 }
+

@@ -1,5 +1,16 @@
-// features/dashboard/popup/rating.js - Rating prompts handling
+/**
+ * @file features/dashboard/popup/rating.js
+ * @description Manages feedback/rating prompts shown to users in the popup options dashboard.
+ * Checks interaction milestones (at least 1 FSRS card exists), handles snooze states (delay for 7 days),
+ * and dynamically swaps in Chrome Web Store rating links.
+ * Upstream dependencies: None.
+ * Downstream dependencies: features/dashboard/popup/popup.js (invokes initRatingPrompt).
+ */
 
+/**
+ * Initializes CWS feedback banner elements, sets up action button hooks (snooze, rated),
+ * and reads rating configurations from local storage.
+ */
 function initRatingPrompt() {
     const card = document.getElementById('rating-prompt-card');
     const promptState = document.getElementById('rating-prompt-state');
@@ -83,3 +94,4 @@ function initRatingPrompt() {
         });
     });
 }
+

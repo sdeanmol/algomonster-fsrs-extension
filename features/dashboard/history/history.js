@@ -1,3 +1,12 @@
+/**
+ * @file features/dashboard/history/history.js
+ * @description Main controller for the dedicated contribution history dashboard.
+ * Aggregates review logs by year, month, or day, and displays grid list drill-downs
+ * with interactive CSS charts tracking user activity metrics.
+ * Upstream dependencies: None.
+ * Downstream dependencies: chrome.storage (reads fsrsActivity, chromeSettings).
+ */
+
 let activityData = {};
 let currentView = 'year'; 
 let selectedYear = null;
@@ -14,12 +23,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/**
+ * Attaches click event listeners to basic static view filter buttons.
+ */
 function attachListeners() {
     document.getElementById('view-year').addEventListener('click', () => setView('year'));
     document.getElementById('view-month').addEventListener('click', () => setView('month'));
     document.getElementById('view-day').addEventListener('click', () => setView('day'));
 }
 
+/**
+ * Updates current dashboard view mode and sets target drill-down scope variables.
+ * @param {string} view - View modes: 'year', 'month', or 'day'.
+ * @param {string} [targetYear=null] - Year string filter context.
+ * @param {string} [targetMonth=null] - Month key string filter context.
+ */
 function setView(view, targetYear = null, targetMonth = null) {
     currentView = view;
     if (view === 'year') {
@@ -34,21 +52,38 @@ function setView(view, targetYear = null, targetMonth = null) {
     renderView();
 }
 
+/**
+ * Retrieves the most recent year string from aggregated data.
+ * @returns {string} The most recent year.
+ */
 function getMostRecentYear() {
     const years = Object.keys(aggregateByYear());
     return years.length > 0 ? years.sort().reverse()[0] : new Date().getFullYear().toString();
 }
 
+/**
+ * Retrieves the most recent month string for a given year.
+ * @param {string} year - Year filter context.
+ * @returns {string} The most recent month key.
+ */
 function getMostRecentMonth(year) {
     const months = Object.keys(aggregateByMonth(year));
     return months.length > 0 ? months.sort().reverse()[0] : `${year}-01`;
 }
 
+/**
+ * Navigates users to a list view of card entities matching the specific date filter.
+ * @param {string} dateRange - ISO date string or year/month key prefix.
+ * @param {Event} [event] - The trigger event.
+ */
 function openDataTab(dateRange, event) {
     if (event) event.stopPropagation(); 
     chrome.tabs.create({ url: `features/common/data/data.html?view=history&date=${dateRange}` });
 }
 
+/**
+ * Builds breadcrumbs and renders the container panels/grid cards matching active view modes.
+ */
 function renderView() {
     ['year', 'month', 'day'].forEach(v => {
         document.getElementById(`view-${v}`).classList.toggle('active', v === currentView);
@@ -144,6 +179,9 @@ function renderView() {
     bindDynamicListeners();
 }
 
+/**
+ * Computes datapoints based on active view modes and renders column chart bars.
+ */
 function renderHistoryChart() {
     const chartWrapper = document.getElementById('history-chart-wrapper');
     if (!chartWrapper) return;
@@ -274,8 +312,10 @@ function renderHistoryChart() {
     chartWrapper.appendChild(chartContainerInner);
 }
 
-
-// NEW: Dynamically binds events safely to avoid Chrome CSP violations
+/**
+ * Safely binds click listener events to dynamically added DOM elements
+ * avoiding security/CSP issues.
+ */
 function bindDynamicListeners() {
     // Breadcrumb Listeners
     document.querySelectorAll('.bc-year').forEach(el => {
@@ -311,6 +351,10 @@ function bindDynamicListeners() {
     });
 }
 
+/**
+ * Aggregates review metrics by year keys.
+ * @returns {Object} Year mapping counts.
+ */
 function aggregateByYear() {
     const years = {};
     for (const [dateString, count] of Object.entries(activityData)) {
@@ -322,6 +366,11 @@ function aggregateByYear() {
     return years;
 }
 
+/**
+ * Aggregates review metrics by month keys.
+ * @param {string} targetYear - Year filter context.
+ * @returns {Object} Month mapping counts.
+ */
 function aggregateByMonth(targetYear) {
     const months = {};
     for (const [dateString, count] of Object.entries(activityData)) {
@@ -334,6 +383,11 @@ function aggregateByMonth(targetYear) {
     return months;
 }
 
+/**
+ * Aggregates review metrics by day keys.
+ * @param {string} targetMonth - Month filter context.
+ * @returns {Object} Day mapping counts.
+ */
 function aggregateByDay(targetMonth) {
     const days = {};
     for (const [dateString, count] of Object.entries(activityData)) {

@@ -1,5 +1,16 @@
-// features/dashboard/popup/notifications.js - Notification settings & testing
+/**
+ * @file features/dashboard/popup/notifications.js
+ * @description Controls notification and reminder configuration panels inside the dashboard popup.
+ * Checks active browser notification permissions, binds listeners to toggles (enable, snooze interval),
+ * and routes test notifications through runtime messages to the background script.
+ * Upstream dependencies: None.
+ * Downstream dependencies: features/dashboard/popup/popup.js (invokes checkNotificationPermissions, initNotificationSettings), background/background.js (via chrome.runtime messaging).
+ */
 
+/**
+ * Checks Chrome/HTML Notification permissions, toggling permission warning banners
+ * and adjusting action button visibility appropriately.
+ */
 function checkNotificationPermissions() {
     if (typeof Notification !== 'undefined') {
         const warningBanner = document.getElementById('permission-warning-banner');
@@ -23,6 +34,10 @@ function checkNotificationPermissions() {
     }
 }
 
+/**
+ * Initializes notification toggles, frequency select dropdowns, and test triggers.
+ * Sets up local change listeners to sync preferences back to storage databases.
+ */
 function initNotificationSettings() {
     const notifToggle = document.getElementById('toggle-notifications');
     const notifInterval = document.getElementById('notification-interval');
@@ -31,6 +46,10 @@ function initNotificationSettings() {
     const notifStickyToggle = document.getElementById('toggle-sticky-notification');
     const testNotifBtn = document.getElementById('test-notification-btn');
 
+    /**
+     * Refreshes the HTML control inputs to match current settings values.
+     * @param {Object} settings - Active notification settings structure.
+     */
     function updateNotificationUI(settings) {
         if (!notifToggle) return;
         notifToggle.checked = settings.enabled !== false;
@@ -92,6 +111,9 @@ function initNotificationSettings() {
             });
         });
 
+        /**
+         * Commits modified configurations from panel inputs back to storage database.
+         */
         function saveNotificationSettings() {
             chrome.storage.local.get(['notificationSettings'], (result) => {
                 const oldSettings = result.notificationSettings || { priority: '2' };
@@ -113,3 +135,4 @@ function initNotificationSettings() {
         }
     }
 }
+

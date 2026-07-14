@@ -1,6 +1,8 @@
-/* Modern Material Design 3 Styling for In-Page Widget and Tooltips */
-
-/* Scoped Theme Variables */
+/*
+ * @file features/highlighter/style.css
+ * @description Styling rules for in-page widgets, tooltip overlays, and highlighting popups.
+ * Upstream dependency: None
+ */
 #algo-fsrs-launcher,
 #algo-fsrs-container,
 #algo-highlight-tooltip,

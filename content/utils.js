@@ -1,4 +1,12 @@
-// content/utils.js - Utility functions for content scripts
+/**
+ * @file content/utils.js
+ * @description General helper utilities for in-page content scripts.
+ * Contains DOM serialization routines for highlights persistence across tab reloads,
+ * dynamic theme styling injections (CSS Custom Highlights API), and heuristic parsing
+ * of problem tags and titles across coding environments (LeetCode, AlgoMonster, AtCoder).
+ * Upstream dependencies: content/state.js (references activeHighlightStyles).
+ * Downstream dependencies: features/highlighter/highlighter.js, features/tracker/tracker.js, content/content.js.
+ */
 
 /**
  * Serializes the DOM path coordinates of a given text node.
@@ -112,6 +120,12 @@ function ensureHighlightStyle(color) {
     return colorName;
 }
 
+/**
+ * Extracts default tags from the current window path segment.
+ * If the path ends in a structured topic (e.g. dynamic_programming),
+ * returns it formatted as title case words ("Dynamic Programming").
+ * @returns {string[]} Array of extracted topic tags.
+ */
 function getAutoTags() {
     try {
         const path = window.location.pathname;
@@ -124,6 +138,12 @@ function getAutoTags() {
     return ["AlgoRecall"];
 }
 
+/**
+ * Heuristically parses the DOM structure or document title to extract
+ * the active coding problem title, stripping known branding strings.
+ * Supports specialized selector matching for LeetCode Explore card layouts.
+ * @returns {string} Cleansed coding problem title.
+ */
 function getExtractedProblemTitle() {
     const url = window.location.href;
     
@@ -175,3 +195,4 @@ function getExtractedProblemTitle() {
     title = title.replace(' - AtCoder', '');
     return title.trim();
 }
+

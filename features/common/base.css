@@ -1,4 +1,8 @@
-/* Material Design 3 Base & Utility System */
+/*
+ * @file features/common/base.css
+ * @description Core Material Design 3 theme tokens, CSS custom properties, and shared component styles.
+ * Upstream dependency: None
+ */
 :root {
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     

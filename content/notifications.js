@@ -1,5 +1,20 @@
-// content/notifications.js - In-page notification alerts injection
+/**
+ * @file content/notifications.js
+ * @description Injects and manages interactive alerts and notifications directly inside the host page DOM.
+ * Handles user actions such as dismissing, snoozing reviews for 15 minutes, or instantly expanding
+ * the review widget panel on active tabs.
+ * Upstream dependencies: content/state.js (reads currentTheme).
+ * Downstream dependencies: content/content.js (invokes notifications on incoming background messages).
+ */
 
+/**
+ * Creates and appends an interactive custom floating notification popup card inside the current tab body.
+ * Auto-dismisses standard alert flags after 6 seconds; review reminder flags remain sticky.
+ * @param {string} title - The header title string of the notification.
+ * @param {string} message - Descriptive text message.
+ * @param {string} type - Notification type: 'review' (displays review options) or 'test'/other (simple alert).
+ * @param {number} [count] - Optional counter indicating total due review items.
+ */
 function showInPageNotification(title, message, type, count) {
     // Prevent double notifications by removing the old one first
     const existing = document.getElementById('algo-custom-notification-el');
@@ -115,3 +130,4 @@ function showInPageNotification(title, message, type, count) {
         });
     }
 }
+

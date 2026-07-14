@@ -1,3 +1,12 @@
+/**
+ * @file background/background.js
+ * @description Extension background service worker (Manifest V3).
+ * Manages background alarms for checking FSRS card due times, schedules/delivers OS notifications,
+ * handles custom whitelisted website routing messages, and reacts to SPA client-side history state updates.
+ * Upstream dependencies: None.
+ * Downstream dependencies: content/notifications.js (sends show_custom_notification message).
+ */
+
 chrome.runtime.onInstalled.addListener(async (details) => {
     // Initialize default notification settings if they don't exist
     const result = await chrome.storage.local.get(['notificationSettings']);
@@ -46,6 +55,10 @@ chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
     }).catch(() => {});
 });
 
+/**
+ * Reads user configurations from storage and schedules/reschedules the review check alarms.
+ * Uses 'checkFsrsReviews' and 'snoozeFsrsReviews' alarms.
+ */
 async function setupAlarm() {
     const result = await chrome.storage.local.get(['notificationSettings']);
     const settings = result.notificationSettings || {
@@ -97,6 +110,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
+/**
+ * Triggers a test notification. Attempts to deliver an in-page DOM alert inside the active tab
+ * if it matches whitelisted coding domains; otherwise, triggers a standard system tray OS notification.
+ */
 async function showTestNotification() {
     const result = await chrome.storage.local.get(['notificationSettings']);
     const settings = result.notificationSettings || {
@@ -134,6 +151,13 @@ async function showTestNotification() {
     });
 }
 
+/**
+ * Generates and triggers a standard Google Chrome system tray test notification.
+ * @param {Object} settings - Active notification configurations.
+ * @param {string} settings.frequency - Check interval minutes string.
+ * @param {string} settings.priority - Notification urgency level.
+ * @param {boolean} settings.requireInteraction - If notification remains visible until user action.
+ */
 function createSystemTestNotification(settings) {
     chrome.notifications.clear('algo-test-notification', () => {
         chrome.notifications.create('algo-test-notification', {
@@ -151,6 +175,10 @@ function createSystemTestNotification(settings) {
     });
 }
 
+/**
+ * Queries the list of FSRS cards in storage, filters due items, and prompts the user.
+ * Delivers alerts either through an in-page notification frame or a native system notification.
+ */
 async function checkDueCards() {
     const result = await chrome.storage.local.get(['fsrsCards', 'notificationSettings', 'whitelistedWebsites']);
     const settings = result.notificationSettings || {
@@ -210,6 +238,13 @@ async function checkDueCards() {
     }
 }
 
+/**
+ * Triggers a native system alert signaling due cards are waiting for study.
+ * @param {number} dueCount - The number of cards currently due.
+ * @param {Object} settings - Active notification configurations.
+ * @param {string} settings.priority - Notification urgency level.
+ * @param {boolean} settings.requireInteraction - If notification remains visible until user action.
+ */
 function createSystemReviewNotification(dueCount, settings) {
     chrome.notifications.clear('algo-review-notification', () => {
         chrome.notifications.create('algo-review-notification', {

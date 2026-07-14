@@ -1,5 +1,8 @@
-/* Help Center CSS overrides */
-
+/*
+ * @file features/common/help/help.css
+ * @description Styling rules for help guides, instruction steps, and shortcut cards.
+ * Upstream dependency: features/common/base.css
+ */
 body {
     background-color: var(--md-bg);
     color: var(--md-text-high);

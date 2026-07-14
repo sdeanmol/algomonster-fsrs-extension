@@ -1,3 +1,10 @@
+/**
+ * @file features/common/help/help.js
+ * @description Controls help panels and instructions guides display tabs.
+ * Upstream dependencies: None.
+ * Downstream dependencies: None.
+ */
+
 document.addEventListener('DOMContentLoaded', () => {
     // Tab switching logic
     const tabButtons = document.querySelectorAll('.tab-btn');
@@ -28,3 +35,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+

@@ -1,8 +1,9 @@
 /**
- * features/dashboard/popup/stats.js
- * 
- * Statistics, daily goal calculations, progress rings, and streak tracking logic.
- * Manages rendering of the gamification panel in the options popup.
+ * @file features/dashboard/popup/stats.js
+ * @description Manages progress tracking, daily goals, gamification elements, and streaking metrics inside the options popup.
+ * Computes level progressions, renders visual progress rings via SVG, and calculates consecutive study day streaks.
+ * Upstream dependencies: None.
+ * Downstream dependencies: features/dashboard/popup/popup.js (invokes loadStats).
  */
 
 /**
@@ -45,9 +46,7 @@ function loadStats() {
             retentionEl.innerText = retentionStr;
         }
 
-        // ========================================================
         // 1. Level & XP Progression Logic
-        // ========================================================
         // Level is computed as: Floor(Total Reviews / 10) + 1
         let totalActivityReviews = 0;
         Object.values(activity).forEach(count => {
@@ -73,9 +72,7 @@ function loadStats() {
             xpBarFill.style.width = `${currentLevelProgress}%`;
         }
 
-        // ========================================================
         // 2. Daily Streak Calculation
-        // ========================================================
         const streakData = calculateStreaks(activity);
         const longestStreak = Math.max(streakData.longest, storedLongestStreak);
         
@@ -84,9 +81,7 @@ function loadStats() {
             chrome.storage.local.set({ longestStreak });
         }
 
-        // ========================================================
         // 3. Daily Goals Progress Summary
-        // ========================================================
         const todayEnd = new Date();
         todayEnd.setHours(23, 59, 59, 999);
         const todayEndTime = todayEnd.getTime();
@@ -166,7 +161,7 @@ function loadStats() {
  * Utilizes local-timezone formatted keys to match chronological dates.
  * 
  * @param {Object} activity - Object mapping YYYY-MM-DD strings to count values.
- * @returns {Object} { current: number, longest: number }
+ * @returns {Object} Streak metrics containing { current: number, longest: number }.
  */
 function calculateStreaks(activity) {
     const sortedDates = Object.keys(activity).filter(k => activity[k] > 0).sort();
@@ -222,8 +217,8 @@ function calculateStreaks(activity) {
 /**
  * Generates local timezone date key string (YYYY-MM-DD).
  * 
- * @param {Date} date 
- * @returns {string} YYYY-MM-DD
+ * @param {Date} date - Source JavaScript Date object.
+ * @returns {string} Date key string formatted as YYYY-MM-DD.
  */
 function formatDateKey(date) {
     return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -232,6 +227,12 @@ function formatDateKey(date) {
 /**
  * Renders the goal progress template including the SVG progress ring circle indicator.
  * Circle circumference is calculated as 2 * PI * R (R=42, circumference ~ 263.89).
+ * @param {number} completed - Number of reviews completed today.
+ * @param {number} target - Targeted daily goal count.
+ * @param {number} dueRemaining - Due review items left.
+ * @param {number} currentStreak - Active review streak day count.
+ * @param {number} longestStreak - Historical maximum review streak.
+ * @returns {string} Rendered progress HTML string.
  */
 function renderGoalProgress(completed, target, dueRemaining, currentStreak, longestStreak) {
     const pct = Math.min(Math.round((completed / target) * 100), 100);
@@ -285,6 +286,11 @@ function renderGoalProgress(completed, target, dueRemaining, currentStreak, long
 
 /**
  * Renders the goal complete success template with checkmark indicator.
+ * @param {number} completed - Number of reviews completed today.
+ * @param {number} target - Targeted daily goal count.
+ * @param {number} currentStreak - Active review streak day count.
+ * @param {number} longestStreak - Historical maximum review streak.
+ * @returns {string} Rendered complete HTML string.
  */
 function renderGoalComplete(completed, target, currentStreak, longestStreak) {
     const circumference = 2 * Math.PI * 42;
@@ -329,6 +335,9 @@ function renderGoalComplete(completed, target, currentStreak, longestStreak) {
 
 /**
  * Helper to render the streak pill badge containing fire icons.
+ * @param {number} current - Active review streak day count.
+ * @param {number} longest - Historical maximum review streak.
+ * @returns {string} Rendered streak badge HTML.
  */
 function renderStreakBadge(current, longest) {
     if (current === 0 && longest === 0) return '';
@@ -347,3 +356,4 @@ function renderStreakBadge(current, longest) {
         </div>
     `;
 }
+

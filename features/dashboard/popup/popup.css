@@ -1,5 +1,8 @@
-/* Popup CSS overriding/extending Base Theme */
-
+/*
+ * @file features/dashboard/popup/popup.css
+ * @description Styling rules for main popup extension panel container elements.
+ * Upstream dependency: features/common/base.css
+ */
 body {
     width: 360px; /* Standard comfortable extension width */
     padding: 16px;

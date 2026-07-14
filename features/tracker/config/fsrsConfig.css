@@ -1,3 +1,8 @@
+/*
+ * @file features/tracker/config/fsrsConfig.css
+ * @description Styling rules for FSRS parameters customization page layout elements.
+ * Upstream dependency: features/common/base.css
+ */
 .container {
     max-width: 960px !important;
     margin: 40px auto;

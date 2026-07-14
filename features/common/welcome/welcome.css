@@ -1,3 +1,8 @@
+/*
+ * @file features/common/welcome/welcome.css
+ * @description Styling rules for onboarding welcome guide wizard components.
+ * Upstream dependency: features/common/base.css
+ */
 body {
     background-color: var(--md-bg);
     color: var(--md-text-high);

@@ -1,5 +1,8 @@
-/* Forecast Calendar Styles (R2.2) */
-
+/*
+ * @file features/dashboard/forecast/forecast.css
+ * @description Styling rules for visual review workload forecast grids and calendars.
+ * Upstream dependency: features/common/base.css
+ */
 body {
     padding: 24px;
 }

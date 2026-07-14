@@ -1,4 +1,12 @@
-// features/highlighter/highlighter.js - Highlighter feature UI & logic
+/**
+ * @file features/highlighter/highlighter.js
+ * @description Controller for the webpage text highlighting system.
+ * Captures user text selection ranges, displays color-picker annotation popups,
+ * and renders highlighting decorations using the CSS Custom Highlights API.
+ * Upstream dependencies: content/state.js (reads/writes marks, bookmarks, pagecontents, chromeSettings, activeHighlightStyles), content/utils.js (invokes getDOMMeta, restoreRangeFromMeta, ensureHighlightStyle).
+ * Downstream dependencies: content/content.js.
+ */
+
 let isHighlighterListenersBound = false;
 
 /**
@@ -37,7 +45,7 @@ function createHighlighterUI() {
 
         const range = selection.getRangeAt(0);
 
-        // --- NEW POSITIONING: Get the exact last line of the multi-line selection ---
+        // Positioning: Get the exact last line of the multi-line selection
         const rects = range.getClientRects();
         let lastRect = rects.length > 0 ? rects[rects.length - 1] : null;
 
@@ -96,7 +104,7 @@ function createHighlighterUI() {
                 renderTooltipColors(hoveredMarkId, foundMark.color);
                 tooltip.style.display = 'flex';
 
-                // --- NEW POSITIONING: Snap just below the cursor ---
+                // Positioning: Snap just below the cursor
                 // We add 15px to X so the little triangle pointer perfectly aligns under the cursor
                 tooltip.style.left = `${e.clientX + window.scrollX + 15}px`;
                 tooltip.style.top = `${e.clientY + window.scrollY}px`;
@@ -182,7 +190,7 @@ function renderTooltipColors(existingMarkId = null, currentColor = null) {
         });
         tooltip.appendChild(deleteBtn);
 
-        // R7.1: Annotation note input
+        // Annotation note input
         const existingMark = marks.find(m => (m.id || m.createdAt.toString()) === existingMarkId);
         const noteSection = document.createElement('div');
         noteSection.className = 'algo-note-section';
@@ -214,6 +222,11 @@ function renderTooltipColors(existingMarkId = null, currentColor = null) {
     }
 }
 
+/**
+ * Updates the default highlighted color parameter and recent colors array.
+ * Saves the settings list back to chrome local storage.
+ * @param {string} newColor - Hex color code.
+ */
 function updateRecentColors(newColor) {
     chromeSettings.defaultHighlightColor = newColor;
     chromeSettings.recentColors = [newColor, ...chromeSettings.recentColors.filter(c => c !== newColor)].slice(0, 4);
@@ -262,6 +275,12 @@ function saveHighlight(color) {
     applyHighlightsForCurrentPage();
 }
 
+/**
+ * Updates the highlight color of an existing mark in memory and storage,
+ * and triggers a full page highlights refresh.
+ * @param {string} markId - The ID of the targeted mark.
+ * @param {string} newColor - The new hex color value.
+ */
 function updateHighlightColor(markId, newColor) {
     const markIndex = marks.findIndex(m => (m.id || m.createdAt.toString()) === markId);
     if (markIndex > -1) {
@@ -275,7 +294,7 @@ function updateHighlightColor(markId, newColor) {
 /**
  * Removes a highlight mark from list arrays, sets storage, and clears highlight ranges.
  * 
- * @param {string} markId 
+ * @param {string} markId - The ID of the targeted mark.
  */
 function deleteHighlight(markId) {
     marks = marks.filter(m => (m.id || m.createdAt.toString()) !== markId);
@@ -289,8 +308,8 @@ function deleteHighlight(markId) {
 /**
  * Saves and updates the text annotation note attached to a highlight mark.
  * 
- * @param {string} markId 
- * @param {string} noteText 
+ * @param {string} markId - The ID of the targeted mark.
+ * @param {string} noteText - Annotated note string.
  */
 function saveMarkNote(markId, noteText) {
     const markIndex = marks.findIndex(m => (m.id || m.createdAt.toString()) === markId);
@@ -300,6 +319,11 @@ function saveMarkNote(markId, noteText) {
     }
 }
 
+/**
+ * Restores all highlight meta coordinates for the active page URL from storage,
+ * registers custom styles using ensureHighlightStyle, and applies highlights
+ * via the standard CSS Custom Highlights API.
+ */
 function applyHighlightsForCurrentPage() {
     if (!('highlights' in CSS)) return;
 
@@ -326,3 +350,4 @@ function applyHighlightsForCurrentPage() {
         CSS.highlights.set(colorName, new Highlight(...ranges));
     }
 }
+

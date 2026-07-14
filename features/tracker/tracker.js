@@ -1,9 +1,23 @@
-// features/tracker/tracker.js - Spaced repetition tracker UI widget & logic
+/**
+ * @file features/tracker/tracker.js
+ * @description Main Spaced Repetition floating widget interface injected inside target domains.
+ * Provides controls for recording approaches, entering study card notes, assigning initial difficulty,
+ * tagging, drag positioning toggles, and executing interactive revision card sessions with hotkeys.
+ * Upstream dependencies: content/state.js (reads/writes cards, topicWeights, currentTheme), content/utils.js (invokes getAutoTags, getExtractedProblemTitle), features/common/markdown.js (invokes renderMarkdown).
+ * Downstream dependencies: content/content.js.
+ */
 
+/**
+ * Commits the current cards array to Chrome local storage sync.
+ */
 function saveCards() {
     chrome.storage.local.set({ fsrsCards: cards });
 }
 
+/**
+ * Registers a revision event in review activity logs in storage.
+ * Records counts grouped by calendar date string in user's timezone.
+ */
 function logReviewActivity() {
     chrome.storage.local.get(['fsrsActivity'], (result) => {
         const activity = result.fsrsActivity || {};
@@ -14,11 +28,15 @@ function logReviewActivity() {
     });
 }
 
+/**
+ * Synchronizes the floating widget UI status to align with page states.
+ * Re-reads active problem card status to toggle note-saving button modes or display rating metrics.
+ */
 function refreshWidgetState() {
     const container = document.getElementById('algo-fsrs-container');
     if (!container) return;
 
-    // FIX 1: Aggressively reset to default view on SPA navigation
+    // Reset to default view on SPA navigation
     const reviewUi = document.getElementById('fsrs-review-ui');
     if (reviewUi) {
         reviewUi.style.display = 'none';
@@ -94,6 +112,10 @@ function refreshWidgetState() {
     }
 }
 
+/**
+ * Creates and injects the floating launcher icon and FSRS details container widget
+ * inside the document body. Binds drag handlers, action events, and navigation click list hooks.
+ */
 function createUI() {
     if (document.getElementById('algo-fsrs-container')) return;
 
@@ -365,6 +387,10 @@ function createUI() {
     applyThemeClass();
 }
 
+/**
+ * Saves a draft copy of the active editor contents (approach notes + tags)
+ * to local storage, ensuring content is retained during inadvertent navigation.
+ */
 function saveDraft() {
     const cleanUrl = window.location.href.split('?')[0].split('#')[0];
     const existingCard = cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
@@ -389,6 +415,12 @@ function saveDraft() {
 let activeReviewFilter = null;
 let _reviewKeyHandler = null;
 
+/**
+ * Returns a sorted list of due study cards based on the scheduled FSRS timestamp.
+ * Optionally filters cards matching a target tag chip selection.
+ * @param {string} [filterTag] - Optional tag name identifier. Use '__all__' to bypass filter.
+ * @returns {Object[]} Sorted list of due card schemas.
+ */
 function getDueCards(filterTag) {
     const now = new Date().getTime();
     let due = cards.filter(c => c.due <= now);
@@ -398,7 +430,10 @@ function getDueCards(filterTag) {
     return due.sort((a, b) => a.due - b.due);
 }
 
-// Show tag picker before starting review, or start directly if no tags
+/**
+ * Initiates the revision session sequence. Collects unique tags from due cards
+ * and prompts users with a tag-based topics picker menu if multiple topics are due.
+ */
 function startReview() {
     const allDue = getDueCards();
     if (allDue.length === 0) {
@@ -474,7 +509,11 @@ function startReview() {
     });
 }
 
-// Internal: run the actual review session with the current filter
+/**
+ * Launches the review queue display sequence, looping cards in the due stack.
+ * Manages card detail rendering, answer displays, and keypress event hooks.
+ * @private
+ */
 function _startReviewSession() {
     const dueCards = getDueCards(activeReviewFilter);
     if (dueCards.length === 0) {
@@ -486,6 +525,9 @@ function _startReviewSession() {
     const totalToReview = dueCards.length;
     let reviewIndex = 0;
 
+    /**
+     * Renders the next due card details, binding ratings listeners and key navigation hooks.
+     */
     function showCard() {
         const remaining = getDueCards(activeReviewFilter);
         if (remaining.length === 0) {
@@ -630,6 +672,12 @@ function _startReviewSession() {
         document.addEventListener('keydown', _reviewKeyHandler);
     }
 
+    /**
+     * Applies the review rating to a target card, calculates new FSRS scheduler values,
+     * updates storage databases, and logs activity increments.
+     * @param {Object} card - The card structure being rated.
+     * @param {number} rating - The target study quality rating (1-4).
+     */
     function handleRating(card, rating) {
         const index = cards.findIndex(c => c.id === card.id);
         if (index === -1) return;
@@ -654,9 +702,14 @@ function _startReviewSession() {
     showCard();
 }
 
+/**
+ * Removes global document event listeners for hotkeys bound during card reviews.
+ * @private
+ */
 function _cleanupReviewKeyboard() {
     if (_reviewKeyHandler) {
         document.removeEventListener('keydown', _reviewKeyHandler);
         _reviewKeyHandler = null;
     }
 }
+
