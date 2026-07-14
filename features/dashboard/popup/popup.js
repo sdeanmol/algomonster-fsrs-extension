@@ -3,6 +3,7 @@ import { HeatmapComponent } from './heatmap.js';
 import { NotificationsComponent } from './notifications.js';
 import { RatingComponent } from './rating.js';
 import { QuickSearchComponent } from './search.js';
+import { BackupManager } from '../../common/data/backupManager.js';
 
 /**
  * @class AlgoRecallDashboard
@@ -160,69 +161,43 @@ export class AlgoRecallDashboard {
 
         // Standard JSON database backup export logic
         if (this.dom.exportBtn) {
-            this.dom.exportBtn.addEventListener('click', () => {
-                chrome.storage.local.get(null, (result) => { 
-                    const backupData = {
-                        cards: result.fsrsCards || [],
-                        activity: result.fsrsActivity || {},
-                        weights: result.fsrsTopicWeights || {},
-                        marks: result.marks || [],
-                        bookmarks: result.bookmarks || [],
-                        pagecontents: result.pagecontents || [],
-                        chromeSettings: result.chromeSettings || {},
-                        notificationSettings: result.notificationSettings || {}
-                    };
-                    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    chrome.downloads.download({
-                        url: url,
-                        filename: `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json`,
-                        saveAs: true
-                    });
+            this.dom.exportBtn.addEventListener('click', async () => {
+                this.showStatus("Exporting backup...");
+                try {
+                    await BackupManager.exportBackup();
                     this.showStatus("Backup exported successfully!");
-                });
+                } catch (err) {
+                    console.error("Backup export failed:", err);
+                    this.showStatus("Export failed: " + err.message, true);
+                }
             });
         }
 
         // Standard JSON backup import setup
         if (this.dom.importFile) {
-            this.dom.importFile.addEventListener('change', (e) => {
+            this.dom.importFile.addEventListener('change', async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
 
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                    try {
-                        const imported = JSON.parse(event.target.result);
-                        
-                        const storageUpdate = {
-                            fsrsCards: Array.isArray(imported) ? imported : (imported.cards || []),
-                            fsrsActivity: Array.isArray(imported) ? {} : (imported.activity || {}),
-                            fsrsTopicWeights: Array.isArray(imported) ? {} : (imported.weights || {})
-                        };
-
-                        if (imported.marks) storageUpdate.marks = imported.marks;
-                        if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks;
-                        if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
-                        if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
-                        if (imported.notificationSettings) storageUpdate.notificationSettings = imported.notificationSettings;
-
-                        await chrome.storage.local.set(storageUpdate);
-                        this.showStatus("Data imported successfully!");
+                this.showStatus("Restoring backup...");
+                await BackupManager.importBackup(file, async (msg, isError) => {
+                    this.showStatus(msg, isError);
+                    if (!isError && msg.includes("successfully")) {
                         await this.loadAll();
-                        
-                        if (storageUpdate.chromeSettings && storageUpdate.chromeSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
-                            this.dom.markerToggle.checked = storageUpdate.chromeSettings.showMarkerPopup;
-                        }
-                        if (storageUpdate.chromeSettings && storageUpdate.chromeSettings.showCharts !== undefined && this.dom.chartsToggle) {
-                            this.dom.chartsToggle.checked = storageUpdate.chromeSettings.showCharts;
-                        }
-                    } catch (err) {
-                        this.showStatus("Error reading file.", true);
+                        // Update UI settings toggles in case they changed
+                        chrome.storage.local.get(['chromeSettings'], (result) => {
+                            if (result.chromeSettings) {
+                                if (result.chromeSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
+                                    this.dom.markerToggle.checked = result.chromeSettings.showMarkerPopup;
+                                }
+                                if (result.chromeSettings.showCharts !== undefined && this.dom.chartsToggle) {
+                                    this.dom.chartsToggle.checked = result.chromeSettings.showCharts;
+                                }
+                            }
+                        });
                     }
-                };
-                reader.readAsText(file);
+                });
+                e.target.value = ''; // Reset file input
             });
         }
 

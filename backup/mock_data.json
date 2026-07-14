@@ -1,0 +1,1616 @@
+{
+  "cards": [
+    {
+      "approach": "Used hashmap. Using two pointers will need a sorted array.",
+      "difficulty": 7.510000000000001,
+      "due": 1783948968781,
+      "elapsed_days": 0,
+      "historyLog": [
+        1781868938503,
+        1781868938503,
+        1781868939718,
+        1782804622730,
+        1783603368781
+      ],
+      "id": "1781868938503",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "1. Two Sum - In-Depth Explanation",
+      "problemUrl": "https://algo.monster/liteproblems/1",
+      "reps": 4,
+      "scheduled_days": 4,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "1"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "This is a game of carry and digit. You can use divmod function for it. Using of dummynode is gamechanger.",
+      "difficulty": 9.309999999999999,
+      "due": 1784467353828,
+      "elapsed_days": 0,
+      "historyLog": [
+        1781868987536,
+        1781868987536,
+        1783600930825,
+        1783603346405,
+        1783603348462,
+        1783603353828
+      ],
+      "id": "1781868987536",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "2. Add Two Numbers - In-Depth Explanation",
+      "problemUrl": "https://algo.monster/liteproblems/2",
+      "reps": 5,
+      "scheduled_days": 10,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "2"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Something like longest substring uses sliding window. Using of Counter function is a good strategy.",
+      "difficulty": 5.869999999999999,
+      "due": 1782905826161,
+      "elapsed_days": 0,
+      "historyLog": [
+        1781869026161,
+        1781869026161
+      ],
+      "id": "1781869026161",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "3. Longest Substring Without Repeating Characters - In-Depth Explanation",
+      "problemUrl": "https://algo.monster/liteproblems/3",
+      "reps": 1,
+      "scheduled_days": 12,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "3"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Use the learning/remembering technique. Check Obsidian",
+      "difficulty": 5.79,
+      "due": 1783238230845,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782278202098,
+        1782278202098,
+        1782806230845
+      ],
+      "id": "1782278202098",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Intro to Sorting",
+      "problemUrl": "https://algo.monster/problems/sorting_intro",
+      "reps": 2,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Sorting Intro"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Use the learning/remembering technique. Check Obsidian",
+      "difficulty": 5.79,
+      "due": 1783240561408,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782278219112,
+        1782278219112,
+        1782808561408
+      ],
+      "id": "1782278219112",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Advanced Sorting Algorithms - Merge Sort | Quick Sort",
+      "problemUrl": "https://algo.monster/problems/advanced_sorting",
+      "reps": 2,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Advanced Sorting"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Check the video of Tushar Roy on Youtube",
+      "difficulty": 1.3299999999999998,
+      "due": 1783005728017,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782296926879,
+        1782296926879,
+        1782832914637,
+        1782832928017
+      ],
+      "id": "1782296926879",
+      "lapses": 1,
+      "lastRating": 3,
+      "problemTitle": "The Skyline Problem",
+      "problemUrl": "https://algo.monster/problems/skyline_problem",
+      "reps": 3,
+      "scheduled_days": 2,
+      "stability": 1.573853515985422,
+      "state": 2,
+      "tags": [
+        "Skyline Problem"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Loop started from 1 because we are checking s[i] with s[i-1]",
+      "difficulty": 5.869999999999999,
+      "due": 1783608188302,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782571388302,
+        1782571388302
+      ],
+      "id": "1782571388302",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "String Compression",
+      "problemUrl": "https://algo.monster/courses/foundation/string_compression",
+      "reps": 1,
+      "scheduled_days": 12,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "String Compression"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "This is the main part (i+k)%len(nums)",
+      "difficulty": 5.869999999999999,
+      "due": 1783608216799,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782571416799,
+        1782571416799
+      ],
+      "id": "1782571416799",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Rotate Array",
+      "problemUrl": "https://algo.monster/courses/foundation/rotate_array",
+      "reps": 1,
+      "scheduled_days": 12,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "Rotate Array"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "position=1 and running loop to position<n-1 is the main thing",
+      "difficulty": 4.93,
+      "due": 1783003458798,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782571458798,
+        1782571458798
+      ],
+      "id": "1782571458798",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Remove N-th Node from Linked List",
+      "problemUrl": "https://algo.monster/courses/foundation/remove_nth_node",
+      "reps": 1,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Remove Nth Node"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Assigning a dummy temp head and doing current = current.next inside else block is main stuff.",
+      "difficulty": 4.93,
+      "due": 1783003573732,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782571573732,
+        1782571573732
+      ],
+      "id": "1782571573732",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Delete All Occurrences from Linked List",
+      "problemUrl": "https://algo.monster/courses/foundation/delete_all_occurrences",
+      "reps": 1,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Delete All Occurrences"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "1-Always remember to run loop until \n(position-1) for such kind of deletion operation. if loop ranges from 1 to (position-1) then it will always end up at previous node.\n\n2-If loop starts at 0 and ends at position-1 then it will always end up at current node to be deleted.",
+      "difficulty": 4.93,
+      "due": 1783005612093,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782573612093,
+        1782573612093
+      ],
+      "id": "1782573612093",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Delete Node Without Head Access",
+      "problemUrl": "https://algo.monster/courses/foundation/delete_node_without_head",
+      "reps": 1,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Delete Node Without Head"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "The problem is not very hard but thinking about it in an interview might be difficult because you have to update multiple pointers.",
+      "difficulty": 5.71,
+      "due": 1784113554895,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782618428037,
+        1782618428037,
+        1782813675871,
+        1784027154895
+      ],
+      "id": "1782618428037",
+      "lapses": 0,
+      "lastRating": 4,
+      "previousDue": 1782900075871,
+      "problemTitle": "Doubly Linked Lists",
+      "problemUrl": "https://algo.monster/courses/foundation/doubly_linked_lists",
+      "reps": 3,
+      "scheduled_days": 1,
+      "stability": 0.6,
+      "state": 2,
+      "tags": [
+        "Doubly Linked Lists"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "The approach is the main thing. You don't have to use queue in this. It's just a thinking pattern where approach matters",
+      "difficulty": 4.93,
+      "due": 1783088510361,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782656510361,
+        1782656510361
+      ],
+      "id": "1782656510361",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Time Needed to Buy Tickets",
+      "problemUrl": "https://algo.monster/courses/foundation/time_needed_to_buy_tickets",
+      "reps": 1,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Time Needed To Buy Tickets"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Classical example of queue. It is just the depth of your imagination with which you can relate one stuff with another. Relating it with Queue is creative imagination.",
+      "difficulty": 4.93,
+      "due": 1783088598808,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782656598808,
+        1782656598808
+      ],
+      "id": "1782656598808",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Josephus Problem",
+      "problemUrl": "https://algo.monster/courses/foundation/josephus_problem",
+      "reps": 1,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Josephus Problem"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "It is wasy when you know that it can be done using stack",
+      "difficulty": 4.93,
+      "due": 1783235715133,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782803715133,
+        1782803715133
+      ],
+      "id": "1782803715133",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Valid Parentheses",
+      "problemUrl": "https://algo.monster/courses/foundation/valid_parentheses",
+      "reps": 1,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Valid Parentheses"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "It is wasy when you know that it can be done using stack",
+      "difficulty": 4.93,
+      "due": 1783235723500,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782803723500,
+        1782803723500
+      ],
+      "id": "1782803723500",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Remove Adjacent Duplicates in String",
+      "problemUrl": "https://algo.monster/courses/foundation/remove_adjacent_duplicates_in_string",
+      "reps": 1,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Remove Adjacent Duplicates In String"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Converting to string and comparing a+b with b+a is all it takes for this.",
+      "difficulty": 5.869999999999999,
+      "due": 1783838849473,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782888449473,
+        1782888449473
+      ],
+      "id": "1782888449473",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Largest Number from Array",
+      "problemUrl": "https://algo.monster/courses/foundation/largest_number_from_array",
+      "reps": 1,
+      "scheduled_days": 11,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "Largest Number From Array"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "You have to create index and then sorting will work.",
+      "difficulty": 5.869999999999999,
+      "due": 1783926058171,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782889258171,
+        1782889258171
+      ],
+      "id": "1782889258171",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Relative Sort Array",
+      "problemUrl": "https://algo.monster/courses/foundation/relative_sort_array",
+      "reps": 1,
+      "scheduled_days": 12,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "Relative Sort Array"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "You can use binary search whenever you make a binary decision to shrink the search range. This is the main learning point. Creating another variable before right = mid-1 is a master stroke here.",
+      "difficulty": 5.79,
+      "due": 1784007173358,
+      "elapsed_days": 0,
+      "historyLog": [
+        1782991293292,
+        1782991293293,
+        1783575173358
+      ],
+      "id": "1782991293292",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Binary Search Boundary Search Explained",
+      "problemUrl": "https://algo.monster/problems/binary_search_boundary",
+      "reps": 2,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Binary Search Boundary"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "This is a good topic for revision and for learning templates",
+      "difficulty": 6.7299999999999995,
+      "due": 1784698394425,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783002058013,
+        1783002058013,
+        1783575194425
+      ],
+      "id": "1783002058013",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Monotonic Function",
+      "problemUrl": "https://algo.monster/problems/binary-search-monotonic",
+      "reps": 2,
+      "scheduled_days": 13,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "Binary-search-monotonic"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "If you know bionary search template then it is very easy",
+      "difficulty": 6.7299999999999995,
+      "due": 1784700066608,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783002652215,
+        1783002652215,
+        1783576866608
+      ],
+      "id": "1783002652215",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "First Element Not Smaller Than Target",
+      "problemUrl": "https://algo.monster/problems/binary_search_first_element_not_smaller_than_target",
+      "reps": 2,
+      "scheduled_days": 13,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "Binary Search First Element Not Smaller Than Target"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Note that the feasible function checks whether the element is greater than or equal to the target. But the question asks for the index of the first element exactly equal to the target. Our template updates ans = mid whenever arr[mid] >= target. Therefore, we have to make a small modification to the template and move ans = mid to only when arr[mid] == target and not arr[mid] >= target.",
+      "difficulty": 6.7299999999999995,
+      "due": 1784527332027,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783009646633,
+        1783009646633,
+        1783576932027
+      ],
+      "id": "1783009646633",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Binary Search for Duplicate Elements",
+      "problemUrl": "https://algo.monster/problems/binary_search_duplicates",
+      "reps": 2,
+      "scheduled_days": 11,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "Binary Search Duplicates"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Check the two approaches. One is present as notes",
+      "difficulty": 5.79,
+      "due": 1783922599658,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783069894011,
+        1783069894011,
+        1783576999658
+      ],
+      "id": "1783069894011",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Square Root Estimation",
+      "problemUrl": "https://algo.monster/problems/sqrt",
+      "reps": 2,
+      "scheduled_days": 4,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Sqrt"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "You have to identify the pattern. If we plot the numbers against their index then we can identify the pattern and can reduce the problem to binary search. Concentrate on finding the feasible function and write logic to find the first True.",
+      "difficulty": 7.510000000000001,
+      "due": 1783922961157,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783267322937,
+        1783267322937,
+        1783307764614,
+        1783577182842,
+        1783577361157
+      ],
+      "id": "1783267322937",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Minimum in Rotated Sorted Array",
+      "problemUrl": "https://algo.monster/problems/min_in_rotated_sorted_array",
+      "reps": 4,
+      "scheduled_days": 4,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Min In Rotated Sorted Array"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Converting this to an array of [F,F,FT,T] is a creativity problem. You have to be creative. Write down the problem and array numbers with index. Check if it creates any pattern, check if you create a certain feasible function condition then it creates a pattern.\nImmediate task: turn “find the peak” into “find the first index where some condition becomes true.”\nGuiding question: what local comparison tells you whether you’re on the increasing side or the decreasing side?\n\nA practical checklist:\n\nNotice the structure words: “increases then decreases”, “mountain”, “single peak”.\nThat screams: there’s a single turning point (a boundary).",
+      "difficulty": 5.71,
+      "due": 1783663895108,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783269215240,
+        1783269215240,
+        1783308236111,
+        1783577495108
+      ],
+      "id": "1783269215240",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Peak of Mountain Array",
+      "problemUrl": "https://algo.monster/problems/peak_of_mountain_array",
+      "reps": 3,
+      "scheduled_days": 1,
+      "stability": 0.6,
+      "state": 2,
+      "tags": [
+        "Peak Of Mountain Array"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Read the notes. I have crerated a very good explanation there.",
+      "difficulty": 3.05,
+      "due": 1783670681912,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783322544309,
+        1783322544309,
+        1783581115506,
+        1783584281912
+      ],
+      "id": "1783322544309",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Newspapers",
+      "problemUrl": "https://algo.monster/problems/newspapers_split",
+      "reps": 3,
+      "scheduled_days": 1,
+      "stability": 0.4,
+      "state": 2,
+      "tags": [
+        "Newspapers Split"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Use of dummy node is a strategic move for such kind of questions which make the solution easy and avoids writing edge case logic.",
+      "difficulty": 4.93,
+      "due": 1783763626125,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783418026101,
+        1783418026101,
+        1783418026125
+      ],
+      "id": "1783418026101",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Remove N-th Node from End of Linked List",
+      "problemUrl": "https://algo.monster/problems/remove_nth_from_end",
+      "reps": 2,
+      "scheduled_days": 4,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Remove Nth From End"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Easy if you remember that it uses two pointers",
+      "difficulty": 6.7299999999999995,
+      "due": 1784554051062,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783431597825,
+        1783431597825,
+        1783603651062
+      ],
+      "id": "1783431597825",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Container With Most Water",
+      "problemUrl": "https://algo.monster/problems/container_with_most_water",
+      "reps": 2,
+      "scheduled_days": 11,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "Container With Most Water"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "It's easy if you know sliding window. Check fixed size sliding window template",
+      "difficulty": 6.7299999999999995,
+      "due": 1784809386209,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783434560558,
+        1783434560558,
+        1783599786209
+      ],
+      "id": "1783434560558",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Subarray Sum - Fixed",
+      "problemUrl": "https://algo.monster/problems/subarray_sum_fixed",
+      "reps": 2,
+      "scheduled_days": 14,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "Subarray Sum Fixed"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Window and check_counter can be assigned as [0]*26 and set the characters as 1. Use ord function to get ascii code.",
+      "difficulty": 5.79,
+      "due": 1784118014693,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783488166342,
+        1783488166342,
+        1783599614693
+      ],
+      "id": "1783488166342",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Find All Anagrams in a String",
+      "problemUrl": "https://algo.monster/problems/find_all_anagrams",
+      "reps": 2,
+      "scheduled_days": 6,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Find All Anagrams"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "You have to remember how for loop works. If we use else block then that particular iteration is processed by else block and you might have to repeat code. We don't use else block in such kind of questions and use for loop with while to simplify the code. Try this alternative question also https://leetcode.com/problems/minimum-size-subarray-sum/",
+      "difficulty": 4.93,
+      "due": 1783936703323,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783504575031,
+        1783504575031,
+        1783504699970,
+        1783504703323
+      ],
+      "id": "1783504575031",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Sliding Window - Longest",
+      "problemUrl": "https://algo.monster/problems/subarray_sum_longest",
+      "reps": 3,
+      "scheduled_days": 5,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Subarray Sum Longest"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "Sliding window with a set as a window which tracks current seen chars.\nCheck sliding window-longest template",
+      "difficulty": 6.65,
+      "due": 1784117699155,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783509772059,
+        1783509772059,
+        1783597922302,
+        1783599299155
+      ],
+      "id": "1783509772059",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Longest Substring without Repeating Characters",
+      "problemUrl": "https://algo.monster/problems/longest_substring_without_repeating_characters",
+      "reps": 3,
+      "scheduled_days": 6,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Longest Substring Without Repeating Characters"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "you have to practice and remember where to put the answer  building step of calculating minimum length. We build the answer when the window becomes valid. Check sliding window-shortest template",
+      "difficulty": 5.79,
+      "due": 1784117258619,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783518516473,
+        1783518516473,
+        1783526422007,
+        1783598858619
+      ],
+      "id": "1783518516473",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Sliding Window - Shortest",
+      "problemUrl": "https://algo.monster/problems/subarray_sum_shortest",
+      "reps": 3,
+      "scheduled_days": 6,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Subarray Sum Shortest"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "we are building the answer when windows become valid. Check sliding window-shortest template and make sure you follow template so that you can remember code.",
+      "difficulty": 7.510000000000001,
+      "due": 1784119095883,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783526498367,
+        1783526498367,
+        1783599960980,
+        1783599969736,
+        1783600695883
+      ],
+      "id": "1783526498367",
+      "lapses": 0,
+      "lastRating": 4,
+      "problemTitle": "Least Consecutive Cards to Match",
+      "problemUrl": "https://algo.monster/problems/least_consecutive_cards_to_match",
+      "reps": 4,
+      "scheduled_days": 6,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Least Consecutive Cards To Match"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "You have to remember details of prefix_sum strategy after which this problem is easy.\nCheck https://leetcode.com/problems/subarray-sum-equals-k/description/",
+      "difficulty": 4.93,
+      "due": 1784345310165,
+      "elapsed_days": 0,
+      "historyLog": [
+        1783822988421,
+        1783822988421,
+        1783826910165
+      ],
+      "id": "1783822988421",
+      "lapses": 0,
+      "lastRating": 3,
+      "problemTitle": "Subarray Sum Equals Target",
+      "problemUrl": "https://algo.monster/problems/subarray_sum",
+      "reps": 2,
+      "scheduled_days": 6,
+      "stability": 2.4,
+      "state": 2,
+      "tags": [
+        "Subarray Sum"
+      ],
+      "textRead": ""
+    },
+    {
+      "approach": "For recursion it is base case and for loop it is cur = cur.prev",
+      "difficulty": 5.869999999999999,
+      "due": 1785231446511,
+      "elapsed_days": 0,
+      "historyLog": [
+        1784021846511,
+        1784021846511
+      ],
+      "id": "1784021846511",
+      "lapses": 0,
+      "lastRating": 4,
+      "previousDue": 1784021846511,
+      "problemTitle": "Reverse a Doubly Linked List",
+      "problemUrl": "https://algo.monster/courses/foundation/reverse_doubly_linked_list",
+      "reps": 1,
+      "scheduled_days": 14,
+      "stability": 5.8,
+      "state": 2,
+      "tags": [
+        "Reverse Doubly Linked List"
+      ],
+      "textRead": ""
+    }
+  ],
+  "activity": {
+    "2026-06-19": 4,
+    "2026-06-24": 3,
+    "2026-06-27": 5,
+    "2026-06-28": 3,
+    "2026-06-30": 8,
+    "2026-07-01": 2,
+    "2026-07-02": 4,
+    "2026-07-03": 1,
+    "2026-07-05": 2,
+    "2026-07-06": 3,
+    "2026-07-07": 3,
+    "2026-07-08": 8,
+    "2026-07-09": 26,
+    "2026-07-12": 6,
+    "2026-07-13": 1,
+    "2026-07-14": 2
+  },
+  "weights": {},
+  "marks": [
+    {
+      "color": "#6cb48b",
+      "createdAt": 1783267100758,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            2,
+            1,
+            0,
+            4
+          ],
+          "parentIndex": 2,
+          "parentTagName": "p",
+          "textOffset": 1
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            2,
+            1,
+            0,
+            4
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783267100758_ussve",
+      "text": "But remember binary search can work beyond sorted arrays, as long as there is a binary decision we can use to shrink the search range.",
+      "url": "https://algo.monster/problems/min_in_rotated_sorted_array"
+    },
+    {
+      "color": "#134515",
+      "createdAt": 1783316577007,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            3,
+            1,
+            0,
+            4
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 223
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            3,
+            1,
+            0,
+            4
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783316577007_mvc7p",
+      "text": "This transforms the problem. We're no longer searching through distribution patterns. We're searching through possible time limits. For any time limit, we can quickly check if it works by simulating the greedy distribution.",
+      "url": "https://algo.monster/problems/newspapers_split"
+    },
+    {
+      "color": "#134515",
+      "createdAt": 1783322894122,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            4
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 144
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            4
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783322894122_qubdu",
+      "text": "Find the minimum time needed to read all newspapers. Since workers read in parallel, the total time equals the time taken by the slowest worker.",
+      "url": "https://algo.monster/problems/newspapers_split"
+    },
+    {
+      "color": "#134515",
+      "createdAt": 1783402715865,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            10
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 160
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            10
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783402715865_zstu3",
+      "text": "The algorithm is allowed to change values, move pointers, and update state, but this statement must be true again when the loop is ready for the next iteration.",
+      "url": "https://algo.monster/problems/two_pointers_invariants"
+    },
+    {
+      "color": "#134515",
+      "createdAt": 1783405859746,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            22
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 192
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            22
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783405859746_qo88y",
+      "text": "That is what makes these problems feel different from opposite-direction scans. You are not searching from both sides. You are building the answer progressively as you sweep through the input.",
+      "url": "https://algo.monster/problems/same_direction_family_map"
+    },
+    {
+      "color": "#134515",
+      "createdAt": 1783406634540,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            74,
+            0
+          ],
+          "parentIndex": 0,
+          "parentTagName": "strong",
+          "textOffset": 60
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            72
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783406634540_pqjzk",
+      "text": "As you go through the following problems, pay attention to one question:\n\nWhat does the region before the slow pointer mean right now?",
+      "url": "https://algo.monster/problems/same_direction_family_map"
+    },
+    {
+      "color": "#134515",
+      "createdAt": 1783513861749,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            58
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 66
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            52
+          ],
+          "parentIndex": 0,
+          "parentTagName": "h2",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783513861749_o6dcb",
+      "text": "Bringing This Back to Two Pointers\nTwo-pointer problems become much easier once you stop memorizing pointer motion and start asking:\n\nwhat must still be true after these pointers move?\n\nThat is why invariants are worth learning as a general tool first.",
+      "url": "https://algo.monster/problems/two_pointers_invariants"
+    },
+    {
+      "color": "#134515",
+      "createdAt": 1783574657317,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            6,
+            20
+          ],
+          "parentIndex": 2,
+          "parentTagName": "p",
+          "textOffset": 44
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            6,
+            20
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783574657317_zog71",
+      "text": "Interestingly, binary search works beyond sorted arrays. You can use binary search whenever you make a binary decision to shrink the search range. We will see this in the following modules.",
+      "url": "https://algo.monster/problems/binary_search_intro"
+    },
+    {
+      "color": "#134515",
+      "createdAt": 1783574734550,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            14
+          ],
+          "parentIndex": 4,
+          "parentTagName": "p",
+          "textOffset": 9
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            14
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783574734550_80hin",
+      "text": "We repeat this process until we find the target. Instead of picking a random element, we always pick the middle element in the current search range. This way, we can discard half of the options and shrink the search range by half each time. This gives us O(log(N)) runtime.",
+      "url": "https://algo.monster/problems/binary_search_intro"
+    },
+    {
+      "color": "#134515",
+      "createdAt": 1783575265301,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            2
+          ],
+          "parentIndex": 8,
+          "parentTagName": "p",
+          "textOffset": 1
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            2
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783575265301_ruigt",
+      "text": "In the preceding binary search problems, the arrays are always sorted. We stated that we can use binary search whenever we make a binary decision to shrink the search range. This might sound a little abstract. In this module, we will dive a little further into when we can use binary search. The key question is: if a guess works, do all larger guesses also work, or do all smaller guesses also work? For example, if Koko can finish eating bananas at speed k, then any speed larger than k also works. That means the answers line up like False False False True True True, and binary search can find the first True.",
+      "url": "https://algo.monster/problems/binary-search-monotonic"
+    },
+    {
+      "color": "#134515",
+      "createdAt": 1783766210622,
+      "highlightSource": {
+        "endMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            2
+          ],
+          "parentIndex": 4,
+          "parentTagName": "p",
+          "textOffset": 31
+        },
+        "startMeta": {
+          "parentDomPath": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            2
+          ],
+          "parentIndex": 0,
+          "parentTagName": "p",
+          "textOffset": 0
+        }
+      },
+      "id": "mark_1783766210622_ee9u0",
+      "text": "Prefix sum removes that repetition. You spend O(n) once to precompute running totals, and afterward every range sum collapses into a single subtraction that runs in O(1), no matter how wide the range.",
+      "url": "https://algo.monster/problems/prefix_sum_intro"
+    }
+  ],
+  "bookmarks": [
+    {
+      "meta": {
+        "favIconUrl": "https://algo.monster/favicon.ico"
+      },
+      "title": "Minimum in Rotated Sorted Array",
+      "url": "https://algo.monster/problems/min_in_rotated_sorted_array"
+    },
+    {
+      "meta": {
+        "favIconUrl": "https://algo.monster/favicon.ico"
+      },
+      "title": "Peak of Mountain Array",
+      "url": "https://algo.monster/problems/peak_of_mountain_array"
+    },
+    {
+      "meta": {
+        "favIconUrl": "https://algo.monster/favicon.ico"
+      },
+      "title": "Newspapers",
+      "url": "https://algo.monster/problems/newspapers_split"
+    },
+    {
+      "meta": {
+        "favIconUrl": "https://algo.monster/favicon.ico"
+      },
+      "title": "Understanding Invariants",
+      "url": "https://algo.monster/problems/two_pointers_invariants"
+    },
+    {
+      "meta": {
+        "favIconUrl": "https://algo.monster/favicon.ico"
+      },
+      "title": "Same Direction Family Map",
+      "url": "https://algo.monster/problems/same_direction_family_map"
+    },
+    {
+      "meta": {
+        "favIconUrl": "https://algo.monster/favicon.ico"
+      },
+      "title": "Binary Search Algorithm Explained",
+      "url": "https://algo.monster/problems/binary_search_intro"
+    },
+    {
+      "meta": {
+        "favIconUrl": "https://algo.monster/favicon.ico"
+      },
+      "title": "Monotonic Function",
+      "url": "https://algo.monster/problems/binary-search-monotonic"
+    },
+    {
+      "meta": {
+        "favIconUrl": "https://algo.monster/favicon.ico"
+      },
+      "title": "Introduction",
+      "url": "https://algo.monster/problems/prefix_sum_intro"
+    },
+    {
+      "meta": {
+        "favIconUrl": "https://algo.monster/favicon.ico"
+      },
+      "title": "Fast and Slow Family Map",
+      "url": "https://algo.monster/problems/fast_slow_family_map"
+    }
+  ],
+  "pagecontents": [
+    {
+      "description": "System Design School\nLearn\nPractice\nPrimer\nAsk AI Tutor\nMore\nAll\nFav\n0%\n\nIntroduction\n\nBASICS\n\nIntro",
+      "length": 10594,
+      "url": "https://systemdesignschool.io/fundamentals/what-is-system-design-interview"
+    },
+    {
+      "description": "You are on level: Jr Engineer 2\n\n30%\n\nGetting Started\n\nBinary Search\n\nBASICS\n\nBinary Search Intro\nFi",
+      "length": 3576,
+      "url": "https://algo.monster/problems/min_in_rotated_sorted_array"
+    },
+    {
+      "description": "Dashboard\nStart Here\nLearning\nTemplates & Tools\nPractices\nAI Coding\nAsk AI\nMy Notes\nMore\n\nYou are on",
+      "length": 4052,
+      "url": "https://algo.monster/problems/peak_of_mountain_array"
+    },
+    {
+      "description": "Dashboard\nStart Here\nLearning\nTemplates & Tools\nPractices\nAI Coding\nAsk AI\nMy Notes\nMore\n\nYou are on",
+      "length": 7939,
+      "url": "https://algo.monster/problems/newspapers_split"
+    },
+    {
+      "description": "Dashboard\nStart Here\nLearning\nTemplates & Tools\nPractices\nAI Coding\nAsk AI\nMy Notes\nMore\n\nYou are on",
+      "length": 4121,
+      "url": "https://algo.monster/problems/same_direction_family_map"
+    },
+    {
+      "description": "Dashboard\nStart Here\nLearning\nTemplates & Tools\nPractices\nAI Coding\nAsk AI\nMy Notes\nMore\n\nYou are on",
+      "length": 3970,
+      "url": "https://algo.monster/problems/two_pointers_invariants"
+    },
+    {
+      "description": "Dashboard\nStart Here\nLearning\nTemplates & Tools\nPractices\nAI Coding\nAsk AI\nMy Notes\nMore\n\nYou are on",
+      "length": 6338,
+      "url": "https://algo.monster/problems/binary_search_intro"
+    },
+    {
+      "description": "Dashboard\nStart Here\nLearning\nTemplates & Tools\nPractices\nAI Coding\nAsk AI\nMy Notes\nMore\n\nYou are on",
+      "length": 3202,
+      "url": "https://algo.monster/problems/binary-search-monotonic"
+    },
+    {
+      "description": "Dashboard\nStart Here\nLearning\nTemplates & Tools\nPractices\nAI Coding\nAsk AI\nMy Notes\nMore\n\nYou are on",
+      "length": 4806,
+      "url": "https://algo.monster/problems/prefix_sum_intro"
+    },
+    {
+      "description": "Dashboard\nStart Here\nLearning\nTemplates & Tools\nPractices\nAI Coding\nAsk AI\nMy Notes\nMore\n\nYou are on",
+      "length": 4060,
+      "url": "https://algo.monster/problems/fast_slow_family_map"
+    }
+  ],
+  "chromeSettings": {
+    "activePaletteIndex": 5,
+    "defaultHighlightColor": "#ab8236",
+    "palettes": [
+      {
+        "colors": [
+          "#f1c40f",
+          "#e74c3c",
+          "#3498db",
+          "#2ecc71",
+          "#9b59b6"
+        ],
+        "name": "Default"
+      },
+      {
+        "colors": [
+          "#ffadad",
+          "#ffd6a5",
+          "#fdffb6",
+          "#caffbf",
+          "#9bf6ff"
+        ],
+        "name": "Warm Pastels"
+      },
+      {
+        "colors": [
+          "#a8dadc",
+          "#457b9d",
+          "#1d3557",
+          "#e63946",
+          "#f1faee"
+        ],
+        "name": "Ocean Breeze"
+      },
+      {
+        "colors": [
+          "#2d6a4f",
+          "#40916c",
+          "#52b788",
+          "#74c69d",
+          "#95d5b2"
+        ],
+        "name": "Forest Moss"
+      },
+      {
+        "colors": [
+          "#f72585",
+          "#7209b7",
+          "#3f0712",
+          "#f77f00",
+          "#fcbf49"
+        ],
+        "name": "Sunset Glow"
+      },
+      {
+        "colors": [
+          "#6cb48b",
+          "#ab8236",
+          "#134515",
+          "#2ecc71",
+          "#9b59b6"
+        ],
+        "name": "Anmol"
+      }
+    ],
+    "recentColors": [
+      "#6cb48b",
+      "#ab8236",
+      "#134515",
+      "#2ecc71",
+      "#9b59b6"
+    ],
+    "showCharts": false,
+    "showMarkerPopup": true
+  },
+  "notificationSettings": {
+    "enabled": true,
+    "frequency": "120",
+    "priority": "2",
+    "requireInteraction": true
+  }
+}
