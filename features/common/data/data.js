@@ -11,8 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
     currentView = urlParams.get('view') || 'total';
     targetDate = urlParams.get('date');
 
-    chrome.storage.local.get(['fsrsCards'], (result) => {
+    chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result) => {
         allCards = result.fsrsCards || [];
+        window.chromeSettings = result.chromeSettings || {};
         
         // Dynamic Filter Populators
         populateTagsFilter();
@@ -196,7 +197,10 @@ function filterAndRender() {
             : `${baseCards.length} pattern(s) scheduled for review on this date.`;
     }
 
-    // 5. Render
+    // 5. Render Analytics Panel
+    renderAnalyticsPanel(allCards);
+
+    // 6. Render
     contentEl.innerHTML = '';
     
     // Retention Specific title insertion
@@ -274,4 +278,111 @@ function bindDeleteButtons() {
             }
         });
     });
+}
+
+function renderAnalyticsPanel(cards) {
+    const panel = document.getElementById('analytics-panel');
+    if (!panel) return;
+
+    const showCharts = window.chromeSettings && window.chromeSettings.showCharts !== undefined
+        ? window.chromeSettings.showCharts
+        : true;
+
+    if (currentView !== 'total' || cards.length === 0 || !showCharts) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    panel.style.display = 'grid';
+    panel.innerHTML = '';
+
+    // 1. Calculate card states
+    let newCount = 0;      // reps === 0
+    let learningCount = 0; // reps > 0 && stability < 3
+    let reviewCount = 0;   // reps > 0 && stability >= 3
+    let lapsedCount = 0;   // lapses > 0
+
+    cards.forEach(c => {
+        const reps = c.reps || 0;
+        const stability = c.stability || 0;
+        const lapses = c.lapses || 0;
+
+        if (lapses > 0) lapsedCount++;
+        else if (reps === 0) newCount++;
+        else if (reps > 0 && stability < 3) learningCount++;
+        else if (reps > 0 && stability >= 3) reviewCount++;
+    });
+
+    const total = cards.length;
+    const newPct = Math.round((newCount / total) * 100) || 0;
+    const learningPct = Math.round((learningCount / total) * 100) || 0;
+    const reviewPct = Math.round((reviewCount / total) * 100) || 0;
+    const lapsedPct = Math.round((lapsedCount / total) * 100) || 0;
+
+    // 2. Calculate top tags
+    const tagCounts = {};
+    cards.forEach(c => {
+        if (c.tags && Array.isArray(c.tags)) {
+            c.tags.forEach(t => {
+                tagCounts[t] = (tagCounts[t] || 0) + 1;
+            });
+        }
+    });
+
+    const sortedTags = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4); // top 4 tags
+
+    const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
+
+    // Left Card: Card States Distribution
+    const stateCard = document.createElement('div');
+    stateCard.className = 'analytics-card';
+    stateCard.innerHTML = `
+        <h3 class="analytics-card-title">Card States Breakdown</h3>
+        <div class="stacked-bar">
+            ${newCount > 0 ? `<div class="bar-segment seg-new" style="width: ${newPct}%;" title="New: ${newCount} cards (${newPct}%)"></div>` : ''}
+            ${learningCount > 0 ? `<div class="bar-segment seg-learning" style="width: ${learningPct}%;" title="Learning: ${learningCount} cards (${learningPct}%)"></div>` : ''}
+            ${reviewCount > 0 ? `<div class="bar-segment seg-review" style="width: ${reviewPct}%;" title="Review: ${reviewCount} cards (${reviewPct}%)"></div>` : ''}
+            ${lapsedCount > 0 ? `<div class="bar-segment seg-lapsed" style="width: ${lapsedPct}%;" title="Lapsed: ${lapsedCount} cards (${lapsedPct}%)"></div>` : ''}
+        </div>
+        <div class="analytics-legend">
+            <div class="legend-item"><span class="legend-dot dot-new"></span> New: <strong>${newCount}</strong> <span class="legend-pct">(${newPct}%)</span></div>
+            <div class="legend-item"><span class="legend-dot dot-learning"></span> Learning: <strong>${learningCount}</strong> <span class="legend-pct">(${learningPct}%)</span></div>
+            <div class="legend-item"><span class="legend-dot dot-review"></span> Review: <strong>${reviewCount}</strong> <span class="legend-pct">(${reviewPct}%)</span></div>
+            <div class="legend-item"><span class="legend-dot dot-lapsed"></span> Lapsed: <strong>${lapsedCount}</strong> <span class="legend-pct">(${lapsedPct}%)</span></div>
+        </div>
+    `;
+
+    // Right Card: Top Tags Breakdown
+    const tagsCard = document.createElement('div');
+    tagsCard.className = 'analytics-card';
+    
+    let tagsHtml = '';
+    if (sortedTags.length === 0) {
+        tagsHtml = '<div class="empty-analytics-msg">No tags added yet.</div>';
+    } else {
+        tagsHtml = '<div class="tags-bars-container">';
+        sortedTags.forEach(([tag, count]) => {
+            const pct = Math.round((count / maxTagCount) * 100);
+            tagsHtml += `
+                <div class="tag-bar-row">
+                    <span class="tag-bar-name" title="${tag}">${tag}</span>
+                    <div class="tag-bar-track">
+                        <div class="tag-bar-fill" style="width: ${pct}%;"></div>
+                    </div>
+                    <span class="tag-bar-value">${count}</span>
+                </div>
+            `;
+        });
+        tagsHtml += '</div>';
+    }
+
+    tagsCard.innerHTML = `
+        <h3 class="analytics-card-title">Top Tag Distribution</h3>
+        ${tagsHtml}
+    `;
+
+    panel.appendChild(stateCard);
+    panel.appendChild(tagsCard);
 }

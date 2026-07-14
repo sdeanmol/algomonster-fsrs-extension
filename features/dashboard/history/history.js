@@ -6,8 +6,9 @@ let selectedMonth = null;
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 document.addEventListener('DOMContentLoaded', () => {
-    chrome.storage.local.get(['fsrsActivity'], (result) => {
+    chrome.storage.local.get(['fsrsActivity', 'chromeSettings'], (result) => {
         activityData = result.fsrsActivity || {};
+        window.chromeSettings = result.chromeSettings || {};
         attachListeners();
         renderView();
     });
@@ -136,9 +137,143 @@ function renderView() {
         }
     }
 
-    // 3. Attach Dynamic Listeners to injected elements safely
+    // 3. Render Chart
+    renderHistoryChart();
+
+    // 4. Attach Dynamic Listeners to injected elements safely
     bindDynamicListeners();
 }
+
+function renderHistoryChart() {
+    const chartWrapper = document.getElementById('history-chart-wrapper');
+    if (!chartWrapper) return;
+
+    const showCharts = window.chromeSettings && window.chromeSettings.showCharts !== undefined
+        ? window.chromeSettings.showCharts
+        : true;
+
+    if (!showCharts || Object.keys(activityData).length === 0) {
+        chartWrapper.style.display = 'none';
+        return;
+    }
+
+    chartWrapper.style.display = 'block';
+    chartWrapper.innerHTML = '';
+
+    let dataPoints = [];
+    if (currentView === 'year') {
+        const yearData = aggregateByYear();
+        const years = Object.keys(yearData).sort();
+        dataPoints = years.map(yr => ({
+            label: yr,
+            value: yearData[yr].total,
+            action: () => setView('month', yr)
+        }));
+    } else if (currentView === 'month') {
+        const monthData = aggregateByMonth(selectedYear);
+        for (let m = 1; m <= 12; m++) {
+            const mStr = m.toString().padStart(2, '0');
+            const monthKey = `${selectedYear}-${mStr}`;
+            const count = monthData[monthKey] ? monthData[monthKey].total : 0;
+            dataPoints.push({
+                label: monthNames[m - 1].substring(0, 3),
+                value: count,
+                action: () => setView('day', selectedYear, monthKey),
+                tooltip: `${monthNames[m - 1]} ${selectedYear}: ${count} reviews`
+            });
+        }
+    } else if (currentView === 'day') {
+        const dayData = aggregateByDay(selectedMonth);
+        const [year, month] = selectedMonth.split('-');
+        const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+        
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dStr = d.toString().padStart(2, '0');
+            const dateStr = `${selectedMonth}-${dStr}`;
+            const count = dayData[dateStr] || 0;
+            dataPoints.push({
+                label: d.toString(),
+                value: count,
+                action: (e) => openDataTab(dateStr, e),
+                tooltip: `${new Date(dateStr + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${count} reviews`
+            });
+        }
+    }
+
+    const maxVal = Math.max(...dataPoints.map(p => p.value), 1);
+    
+    // Create title
+    const title = document.createElement('h3');
+    title.className = 'chart-title-label';
+    title.innerText = currentView === 'year' 
+        ? 'Reviews per Year' 
+        : currentView === 'month' 
+            ? `Reviews in ${selectedYear}`
+            : `Reviews in ${monthNames[parseInt(selectedMonth.split('-')[1]) - 1]} ${selectedMonth.split('-')[0]}`;
+    chartWrapper.appendChild(title);
+
+    const chartContainerInner = document.createElement('div');
+    chartContainerInner.className = 'chart-container-inner';
+
+    // Viewport
+    const viewport = document.createElement('div');
+    viewport.className = 'chart-viewport';
+
+    // Grid lines
+    const gridLines = document.createElement('div');
+    gridLines.className = 'chart-grid-lines';
+    gridLines.innerHTML = `
+        <div class="grid-line" style="bottom: 0%;"><span>0</span></div>
+        <div class="grid-line" style="bottom: 50%;"><span>${Math.round(maxVal / 2)}</span></div>
+        <div class="grid-line" style="bottom: 100%;"><span>${maxVal}</span></div>
+    `;
+    viewport.appendChild(gridLines);
+
+    // Bars
+    const barsContainer = document.createElement('div');
+    barsContainer.className = 'chart-bars';
+
+    dataPoints.forEach(dp => {
+        const barCol = document.createElement('div');
+        barCol.className = 'chart-bar-col';
+        if (dp.value > 0) barCol.classList.add('has-value');
+
+        const heightPct = (dp.value / maxVal) * 100;
+
+        const bar = document.createElement('div');
+        bar.className = 'chart-bar';
+        bar.style.height = `${Math.max(heightPct, 3)}%`; // Min 3% for visibility
+
+        if (dp.value === 0) {
+            bar.classList.add('zero-bar');
+        }
+
+        const tooltipText = dp.tooltip || `${dp.label}: ${dp.value} reviews`;
+        const tooltip = document.createElement('div');
+        tooltip.className = 'chart-bar-tooltip';
+        tooltip.innerText = tooltipText;
+        bar.appendChild(tooltip);
+
+        const barLabel = document.createElement('div');
+        barLabel.className = 'chart-bar-label';
+        barLabel.innerText = dp.label;
+
+        barCol.appendChild(bar);
+        barCol.appendChild(barLabel);
+
+        if (dp.value > 0 || currentView !== 'day') {
+            barCol.style.cursor = 'pointer';
+            barCol.addEventListener('click', dp.action);
+        }
+
+        barsContainer.appendChild(barCol);
+    });
+
+    viewport.appendChild(barsContainer);
+    chartContainerInner.appendChild(viewport);
+    chartWrapper.appendChild(chartContainerInner);
+}
+
 
 // NEW: Dynamically binds events safely to avoid Chrome CSP violations
 function bindDynamicListeners() {

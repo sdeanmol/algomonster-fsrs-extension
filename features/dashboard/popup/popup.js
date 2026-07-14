@@ -56,6 +56,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const chartsToggle = document.getElementById('toggle-show-charts');
+    if (chartsToggle) {
+        chrome.storage.local.get(['chromeSettings'], (result) => {
+            const showCharts = result.chromeSettings && result.chromeSettings.showCharts !== undefined
+                ? result.chromeSettings.showCharts
+                : true;
+            chartsToggle.checked = showCharts;
+        });
+        chartsToggle.addEventListener('change', (e) => {
+            chrome.storage.local.get(['chromeSettings'], (result) => {
+                let settings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                settings.showCharts = e.target.checked;
+                chrome.storage.local.set({ chromeSettings: settings }, () => {
+                    showStatus(`Visual charts ${e.target.checked ? 'enabled' : 'disabled'}!`);
+                });
+            });
+        });
+    }
+
     const managePlatformsBtn = document.getElementById('manage-platforms-btn');
     if (managePlatformsBtn) {
         managePlatformsBtn.addEventListener('click', () => {
@@ -146,6 +165,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const markerToggle = document.getElementById('toggle-marker-popup');
                     if (storageUpdate.chromeSettings && storageUpdate.chromeSettings.showMarkerPopup !== undefined && markerToggle) {
                         markerToggle.checked = storageUpdate.chromeSettings.showMarkerPopup;
+                    }
+                    const chartsToggle = document.getElementById('toggle-show-charts');
+                    if (storageUpdate.chromeSettings && storageUpdate.chromeSettings.showCharts !== undefined && chartsToggle) {
+                        chartsToggle.checked = storageUpdate.chromeSettings.showCharts;
                     }
                     
                     // We must dynamically query notifications module update logic if present

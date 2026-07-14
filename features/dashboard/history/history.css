@@ -210,3 +210,149 @@ h1 {
 .card:hover .card-day-link {
     color: var(--md-text-high);
 }
+
+/* History Chart CSS Styles */
+.chart-panel {
+    background: linear-gradient(135deg, var(--md-surface), #1b1e24);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow-1);
+}
+
+:root.light-theme .chart-panel {
+    background: linear-gradient(135deg, var(--md-surface), #fffbe6) !important;
+    border-color: rgba(249, 171, 0, 0.2) !important;
+}
+
+.chart-title-label {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--md-text-high);
+}
+
+.chart-container-inner {
+    position: relative;
+    padding-left: 28px;
+    margin-top: 10px;
+}
+
+.chart-viewport {
+    position: relative;
+    height: 180px;
+    width: 100%;
+}
+
+/* Grid lines & Y Axis labels */
+.chart-grid-lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.grid-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-bottom: 1px dashed var(--md-border);
+    opacity: 0.5;
+}
+
+.grid-line span {
+    position: absolute;
+    left: -28px;
+    transform: translateY(50%);
+    font-size: 10px;
+    color: var(--md-text-low);
+    font-weight: 600;
+    text-align: right;
+    width: 20px;
+}
+
+/* Bars */
+.chart-bars {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 6px;
+    z-index: 2;
+}
+
+.chart-bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+    position: relative;
+}
+
+.chart-bar {
+    width: 100%;
+    max-width: 32px;
+    background: linear-gradient(to top, var(--md-primary), #3498db);
+    border-radius: 4px 4px 0 0;
+    position: relative;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s;
+}
+
+.chart-bar.zero-bar {
+    background: var(--md-surface-variant);
+    opacity: 0.3;
+}
+
+.chart-bar-col.has-value:hover .chart-bar {
+    transform: scaleY(1.03);
+    filter: brightness(1.15) drop-shadow(0 0 8px rgba(52, 152, 219, 0.3));
+}
+
+.chart-bar-label {
+    font-size: 9px;
+    color: var(--md-text-low);
+    font-weight: 700;
+    margin-top: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    text-align: center;
+}
+
+/* Tooltips */
+.chart-bar-tooltip {
+    position: absolute;
+    bottom: 105%;
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    color: var(--md-text-high);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+}
+
+.chart-bar-col:hover .chart-bar-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
