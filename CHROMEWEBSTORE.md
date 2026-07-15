@@ -57,6 +57,7 @@ English
 
 | Permission | Type | Justification |
 |------------|------|---------------|
+| `identity` | permissions | Required for Google OAuth authentication to sync user accounts. |
 | `storage` | permissions | Preserves FSRS stats, serializations, color parameters, and custom topic weights locally. |
 | `activeTab` | permissions | Accesses the active tab context when clicked by the user to execute script context. |
 | `tabs` | permissions | Queries the active tab URL in background scripts to route due review notifications in-page. |
@@ -65,6 +66,8 @@ English
 | `downloads` | permissions | Downloads the user's statistics backup files as structured JSON locally. |
 | `webNavigation` | permissions | Tracks client-side SPA history modifications to automatically load widgets on page transitions. |
 | `scripting` | permissions | Programmatically injects content scripts dynamically on custom whitelisted sites. |
+| `https://*.firebaseapp.com/*` | host_permissions | Enables Firebase Authentication for Cloud Sync features. |
+| `https://*.googleapis.com/*` | host_permissions | Enables Firebase Firestore to backup study progress to the cloud. |
 | `*://*.algo.monster/*` | host_permissions | Enables document highlights and widget injection on AlgoMonster. |
 | `*://*.leetcode.com/*` | host_permissions | Enables document highlights and widget injection on LeetCode. |
 | `*://*.codeforces.com/*` | host_permissions | Enables document highlights and widget injection on Codeforces. |
@@ -92,7 +95,7 @@ English
 ---
 
 ## Privacy Policy
-100% local extension. No user tracking is implemented. Privacy Policy can be hosted on a public GitHub pages repository if needed.
+AlgoRecall provides an optional Pro tier with Cloud Sync. For users who create an account, their Email Address and Display Name (via Google OAuth) are stored securely using Firebase Authentication. User study data (FSRS ratings, highlights) for Pro users is securely backed up to Firebase Firestore. We do NOT sell this data or track users across sites. For free-tier users who do not authenticate, 100% of the data remains strictly local to the browser sandbox.
 
 ---
 
