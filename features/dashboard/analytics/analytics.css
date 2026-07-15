@@ -3,7 +3,7 @@
 .dashboard-layout {
     display: flex;
     height: 100vh;
-    background-color: var(--md-bg-base);
+    background-color: var(--md-bg);
     color: var(--md-text-high);
     overflow: hidden;
 }
@@ -11,7 +11,7 @@
 /* Sidebar */
 .sidebar {
     width: 240px;
-    background-color: var(--md-bg-elevated);
+    background-color: var(--md-surface);
     border-right: 1px solid var(--md-border);
     display: flex;
     flex-direction: column;
@@ -68,7 +68,7 @@
 }
 
 .nav-btn:hover {
-    background-color: var(--md-bg-hover);
+    background-color: var(--md-surface-variant);
     color: var(--md-text-high);
 }
 
@@ -143,7 +143,7 @@
 }
 
 .ana-panel-wide, .overview-panel {
-    background-color: var(--md-bg-elevated);
+    background-color: var(--md-surface);
     border: 1px solid var(--md-border);
     border-radius: 12px;
     padding: 20px;
@@ -287,7 +287,7 @@
 }
 
 .kpi-card {
-    background: var(--md-bg-base);
+    background: var(--md-bg);
     border: 1px solid var(--md-border);
     border-radius: 8px;
     padding: 16px;
@@ -372,7 +372,7 @@
 }
 
 .retention-dot {
-    stroke: var(--md-bg-elevated);
+    stroke: var(--md-surface);
     stroke-width: 1.5;
     cursor: pointer;
     transition: r 0.2s;
@@ -408,7 +408,7 @@
     margin-top: 16px;
     padding: 12px;
     border-radius: 6px;
-    background: var(--md-bg-base);
+    background: var(--md-bg);
     color: var(--md-text-med);
     font-size: 0.9rem;
     text-align: center;
@@ -443,7 +443,7 @@
 }
 
 .tag-badge {
-    background: var(--md-bg-base);
+    background: var(--md-bg);
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 0.85rem;
@@ -653,7 +653,7 @@
     width: 40px;
     display: flex;
     align-items: flex-end;
-    background: var(--md-bg-base);
+    background: var(--md-bg);
     border-radius: 6px;
     overflow: hidden;
 }
@@ -685,7 +685,7 @@
     padding: 40px;
     text-align: center;
     color: var(--md-text-low);
-    background: var(--md-bg-base);
+    background: var(--md-bg);
     border-radius: 8px;
     border: 1px dashed var(--md-border);
 }
@@ -694,7 +694,7 @@
     padding: 6px 12px;
     border-radius: 6px;
     border: 1px solid var(--md-border);
-    background: var(--md-bg-base);
+    background: var(--md-bg);
     color: var(--md-text-high);
     font-size: 0.9rem;
     cursor: pointer;
@@ -710,7 +710,7 @@
 .forecast-day-card {
     flex: 1;
     min-width: 80px;
-    background: var(--md-bg-base);
+    background: var(--md-bg);
     border: 1px solid var(--md-border);
     border-radius: 8px;
     display: flex;
@@ -763,7 +763,7 @@
     display: flex;
     justify-content: space-around;
     padding: 16px;
-    background: var(--md-bg-base);
+    background: var(--md-bg);
     border: 1px solid var(--md-border);
     border-radius: 8px;
     margin-bottom: 24px;
@@ -891,7 +891,7 @@
     top: 130%; /* Pop downwards instead of upwards to prevent top clipping */
     left: 50%;
     transform: translateX(-50%);
-    background: var(--md-bg-elevated);
+    background: var(--md-surface);
     color: var(--md-text-high);
     padding: 8px 12px;
     border-radius: 6px;
