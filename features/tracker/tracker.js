@@ -67,6 +67,10 @@ window.AlgoRecall.Tracker = class Tracker {
      * Re-reads active problem card status to toggle note-saving button modes or display rating metrics.
      */
     refreshWidgetState() {
+        if (!chrome.runtime?.id) {
+            if (window.Logger) window.Logger.warn('Tracker', 'Extension context invalidated. Ignoring refresh.');
+            return;
+        }
         const container = document.getElementById('algo-fsrs-container');
         if (!container) return;
         
