@@ -265,10 +265,21 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
 
             // Safe search text highlighting
             const formattedSnippet = this.helpers.highlightSearchMatch(mark.text, this.searchQuery);
+            
+            const markType = mark.type || 'highlight';
+            let typeIcon = '';
+            if (markType === 'underline') {
+                typeIcon = '<svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; margin-right:4px;"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"></path><line x1="4" y1="21" x2="20" y2="21"></line></svg> Underline';
+            } else {
+                typeIcon = '<svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; margin-right:4px;"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="6.5"></line></svg> Highlight';
+            }
 
             card.innerHTML = `
                 <div class="highlight-content">
-                    <div class="highlight-text">"${formattedSnippet}"</div>
+                    <div style="font-size: 11px; text-transform: uppercase; color: var(--md-text-low); margin-bottom: 6px; display: flex; align-items: center;">
+                        ${typeIcon}
+                    </div>
+                    <div class="highlight-text" style="${markType === 'underline' ? `text-decoration: underline; text-decoration-color: ${mark.color};` : ''}">"${formattedSnippet}"</div>
                     ${mark.note ? `<div class="highlight-note-preview"><svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px; stroke: var(--md-text-low);"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> ${this.helpers.escapeHtml(mark.note)}</div>` : ''}
                     <div class="highlight-meta">
                         <a href="${mark.url}" target="_blank" class="highlight-url">

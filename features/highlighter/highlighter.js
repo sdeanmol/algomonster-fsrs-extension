@@ -154,6 +154,46 @@ window.AlgoRecall.Highlighter = class Highlighter {
         if (!tooltip) return;
         tooltip.innerHTML = '';
 
+        // Add Type Selector for New Annotations
+        let activeType = 'highlight';
+        if (!existingMarkId) {
+            const typeContainer = document.createElement('div');
+            typeContainer.className = 'algo-type-selector';
+            typeContainer.style.display = 'flex';
+            typeContainer.style.gap = '5px';
+            typeContainer.style.marginBottom = '8px';
+            typeContainer.style.padding = '0 5px';
+
+            const types = ['highlight', 'underline'];
+            const typeBtns = {};
+            
+            types.forEach(t => {
+                const btn = document.createElement('button');
+                btn.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+                btn.className = 'algo-type-btn';
+                btn.style.flex = '1';
+                btn.style.padding = '2px 5px';
+                btn.style.fontSize = '11px';
+                btn.style.cursor = 'pointer';
+                btn.style.border = '1px solid var(--border-color, #444)';
+                btn.style.background = t === 'highlight' ? 'var(--accent-color, #3498db)' : 'var(--bg-layer-2, #333)';
+                btn.style.color = 'var(--text-main, #fff)';
+                btn.style.borderRadius = '4px';
+
+                btn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    activeType = t;
+                    types.forEach(type => {
+                        typeBtns[type].style.background = (type === t) ? 'var(--accent-color, #3498db)' : 'var(--bg-layer-2, #333)';
+                    });
+                });
+                typeBtns[t] = btn;
+                typeContainer.appendChild(btn);
+            });
+            tooltip.appendChild(typeContainer);
+        }
+
         // Fetch active palette colors
         const activePalette = this.state.chromeSettings.palettes && this.state.chromeSettings.palettes[this.state.chromeSettings.activePaletteIndex]
             ? this.state.chromeSettings.palettes[this.state.chromeSettings.activePaletteIndex]
@@ -175,7 +215,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
             swatch.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 if (existingMarkId) this.updateHighlightColor(existingMarkId, color);
-                else this.saveHighlight(color);
+                else this.saveHighlight(color, activeType);
             });
             tooltip.appendChild(swatch);
         });
@@ -188,7 +228,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
         picker.addEventListener('input', (e) => {
             const newColor = e.target.value;
             if (existingMarkId) this.updateHighlightColor(existingMarkId, newColor);
-            else this.saveHighlight(newColor);
+            else this.saveHighlight(newColor, activeType);
             this.updateRecentColors(newColor);
         });
         tooltip.appendChild(picker);
@@ -354,7 +394,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
      * 
      * @param {string} color - Hex color code.
      */
-    saveHighlight(color) {
+    saveHighlight(color, type = 'highlight') {
         const selection = window.getSelection();
         if (!selection || selection.isCollapsed) return;
 
@@ -368,6 +408,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
             url: cleanUrl,
             text: selection.toString(),
             color: color,
+            type: type,
             note: '',
             highlightSource: {
                 startMeta: this.utils.getDOMMeta(range.startContainer, range.startOffset),
@@ -452,6 +493,10 @@ window.AlgoRecall.Highlighter = class Highlighter {
         const pageMarks = this.state.marks.filter(m => m.url === cleanUrl);
 
         CSS.highlights.clear();
+        
+        // Remove existing floating symbols
+        document.querySelectorAll('.algo-floating-symbol').forEach(el => el.remove());
+
         const highlightsByColor = {};
         this.state.activeMarkRanges = [];
 
@@ -461,7 +506,9 @@ window.AlgoRecall.Highlighter = class Highlighter {
                 const targetId = mark.id || mark.createdAt.toString();
                 this.state.activeMarkRanges.push({ markId: targetId, range: range, color: mark.color });
 
-                const colorName = this.utils.ensureHighlightStyle(mark.color);
+                const type = mark.type || 'highlight';
+                const colorName = this.utils.ensureHighlightStyle(mark.color, type);
+                
                 if (!highlightsByColor[colorName]) highlightsByColor[colorName] = [];
                 highlightsByColor[colorName].push(range);
             }

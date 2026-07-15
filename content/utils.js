@@ -107,14 +107,25 @@ window.AlgoRecall.Utils = class Utils {
      * Ensures the document has a matching ::highlight(name) ruleset for the hex color.
      * 
      * @param {string} color - Hex color code.
+     * @param {string} type - Annotation type ('highlight', 'underline', 'symbol').
      * @returns {string} The registered highlight class name.
      */
-    static ensureHighlightStyle(color) {
+    static ensureHighlightStyle(color, type = 'highlight') {
         const state = window.AlgoRecall.state;
-        const colorName = `algo-hl-${color.replace('#', '')}`;
+        const colorHash = color.replace('#', '');
+        let prefix = 'algo-hl';
+        let cssRule = `background-color: ${color}; color: inherit;`;
+
+        if (type === 'underline') {
+            prefix = 'algo-ul';
+            cssRule = `background-color: transparent; text-decoration: underline; text-decoration-color: ${color}; text-decoration-thickness: 2px; text-underline-offset: 2px;`;
+        }
+
+        const colorName = `${prefix}-${colorHash}`;
+
         if (state && !state.activeHighlightStyles.has(colorName)) {
             const style = document.createElement('style');
-            style.textContent = `::highlight(${colorName}) { background-color: ${color}; color: inherit; }`;
+            style.textContent = `::highlight(${colorName}) { ${cssRule} }`;
             document.head.appendChild(style);
             state.activeHighlightStyles.add(colorName);
         }

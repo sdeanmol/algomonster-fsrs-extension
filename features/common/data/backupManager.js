@@ -337,6 +337,7 @@ export class BackupManager {
                 const rm = { ...m };
                 rm.url = page.url;
                 delete rm.u;
+                rm.type = rm.type || 'highlight';
                 return rm;
             });
 
@@ -468,7 +469,12 @@ export class BackupManager {
                         fsrsTopicWeights: Array.isArray(imported) ? {} : (imported.weights || {})
                     };
 
-                    if (imported.marks) storageUpdate.marks = imported.marks;
+                    if (imported.marks) {
+                        storageUpdate.marks = imported.marks.map(m => {
+                            m.type = m.type || 'highlight';
+                            return m;
+                        });
+                    }
                     if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks;
                     if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
                     if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
