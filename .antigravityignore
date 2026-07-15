@@ -1,0 +1,3 @@
+# Exclude heavy dependencies from background indexing
+node_modules/
+package-lock.json/
