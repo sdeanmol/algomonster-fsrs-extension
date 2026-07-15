@@ -154,38 +154,46 @@ window.AlgoRecall.Highlighter = class Highlighter {
         if (!tooltip) return;
         tooltip.innerHTML = '';
 
-        // Add Type Selector for New Annotations
         let activeType = 'highlight';
+
+        // Add Type Selector for New Annotations
         if (!existingMarkId) {
             const typeContainer = document.createElement('div');
             typeContainer.className = 'algo-type-selector';
             typeContainer.style.display = 'flex';
-            typeContainer.style.gap = '5px';
-            typeContainer.style.marginBottom = '8px';
-            typeContainer.style.padding = '0 5px';
+            typeContainer.style.width = '100%';
+            typeContainer.style.marginBottom = '12px';
+            typeContainer.style.borderRadius = '8px';
+            typeContainer.style.overflow = 'hidden';
+            typeContainer.style.border = '1px solid var(--w-border)';
 
             const types = ['highlight', 'underline'];
             const typeBtns = {};
             
-            types.forEach(t => {
+            types.forEach((t) => {
                 const btn = document.createElement('button');
                 btn.textContent = t.charAt(0).toUpperCase() + t.slice(1);
                 btn.className = 'algo-type-btn';
                 btn.style.flex = '1';
-                btn.style.padding = '2px 5px';
-                btn.style.fontSize = '11px';
+                btn.style.padding = '8px 0';
+                btn.style.fontSize = '12px';
+                btn.style.fontWeight = '500';
                 btn.style.cursor = 'pointer';
-                btn.style.border = '1px solid var(--border-color, #444)';
-                btn.style.background = t === 'highlight' ? 'var(--accent-color, #3498db)' : 'var(--bg-layer-2, #333)';
-                btn.style.color = 'var(--text-main, #fff)';
-                btn.style.borderRadius = '4px';
+                btn.style.border = 'none';
+                btn.style.outline = 'none';
+                
+                const isActive = t === 'highlight';
+                btn.style.background = isActive ? 'var(--w-primary-container)' : 'var(--w-bg-dark)';
+                btn.style.color = isActive ? 'var(--w-on-primary-container)' : 'var(--w-text-med)';
 
                 btn.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     activeType = t;
                     types.forEach(type => {
-                        typeBtns[type].style.background = (type === t) ? 'var(--accent-color, #3498db)' : 'var(--bg-layer-2, #333)';
+                        const isBtnActive = type === t;
+                        typeBtns[type].style.background = isBtnActive ? 'var(--w-primary-container)' : 'var(--w-bg-dark)';
+                        typeBtns[type].style.color = isBtnActive ? 'var(--w-on-primary-container)' : 'var(--w-text-med)';
                     });
                 });
                 typeBtns[t] = btn;
@@ -193,6 +201,14 @@ window.AlgoRecall.Highlighter = class Highlighter {
             });
             tooltip.appendChild(typeContainer);
         }
+
+        // Create a flex container for the swatches and actions
+        const actionsContainer = document.createElement('div');
+        actionsContainer.style.display = 'flex';
+        actionsContainer.style.alignItems = 'center';
+        actionsContainer.style.gap = '8px';
+        actionsContainer.style.width = '100%';
+        actionsContainer.style.flexWrap = 'wrap';
 
         // Fetch active palette colors
         const activePalette = this.state.chromeSettings.palettes && this.state.chromeSettings.palettes[this.state.chromeSettings.activePaletteIndex]
@@ -217,7 +233,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
                 if (existingMarkId) this.updateHighlightColor(existingMarkId, color);
                 else this.saveHighlight(color, activeType);
             });
-            tooltip.appendChild(swatch);
+            actionsContainer.appendChild(swatch);
         });
 
         // Custom Color Picker
@@ -231,24 +247,29 @@ window.AlgoRecall.Highlighter = class Highlighter {
             else this.saveHighlight(newColor, activeType);
             this.updateRecentColors(newColor);
         });
-        tooltip.appendChild(picker);
+        actionsContainer.appendChild(picker);
 
         // Delete Button (Only shows if hovering existing highlight)
         if (existingMarkId) {
             const divider = document.createElement('div');
             divider.className = 'algo-tooltip-divider';
-            tooltip.appendChild(divider);
+            actionsContainer.appendChild(divider);
 
             const deleteBtn = document.createElement('div');
             deleteBtn.className = 'algo-delete-btn';
-            deleteBtn.innerHTML = `<svg class="svg-icon" style="width:13px; height:13px;" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
-            deleteBtn.title = 'Remove Highlight';
+            deleteBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path></svg>`;
             deleteBtn.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 this.deleteHighlight(existingMarkId);
+                this.renderTooltipColors();
             });
-            tooltip.appendChild(deleteBtn);
+            actionsContainer.appendChild(deleteBtn);
+        }
 
+        tooltip.appendChild(actionsContainer);
+
+        // Render Notes Section (if hover on existing mark)
+        if (existingMarkId) {
             // Annotation note input
             const existingMark = this.state.marks.find(m => (m.id || m.createdAt.toString()) === existingMarkId);
             const noteSection = document.createElement('div');
