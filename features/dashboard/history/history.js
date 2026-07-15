@@ -307,7 +307,17 @@ class FSRSHistoryDashboard {
 
             if (dp.value > 0 || this.currentView !== 'day') {
                 barCol.style.cursor = 'pointer';
+                barCol.setAttribute('role', 'button');
+                barCol.setAttribute('tabindex', '0');
+                barCol.setAttribute('aria-label', tooltipText);
+                
                 barCol.addEventListener('click', dp.action);
+                barCol.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        dp.action(e);
+                    }
+                });
             }
 
             barsContainer.appendChild(barCol);

@@ -201,15 +201,15 @@ window.AlgoRecall.Tracker = class Tracker {
                 <div class="fsrs-approach-header">
                     <label>Your Approach:</label>
                     <div class="fsrs-header-buttons" style="display: flex; gap: 6px;">
-                        <button id="fsrs-fullscreen-btn" class="fsrs-secondary-btn" title="Open in fullscreen new tab">
+                        <button id="fsrs-fullscreen-btn" class="fsrs-secondary-btn" title="Open in fullscreen new tab" aria-label="Open in fullscreen new tab">
                             <svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px; display:inline-block; vertical-align:middle; margin-right:3px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                             Fullscreen
                         </button>
-                        <button id="fsrs-delete-card-btn" class="fsrs-danger-btn" style="display:none;" title="Remove this card from future reviews">
+                        <button id="fsrs-delete-card-btn" class="fsrs-danger-btn" style="display:none;" title="Remove this card from future reviews" aria-label="Remove this card from future reviews">
                             <svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px; display:inline-block; vertical-align:middle; margin-right:3px; stroke:currentColor;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                             Remove
                         </button>
-                        <button id="fsrs-update-text-btn" class="fsrs-secondary-btn" style="display:none;" title="Save edits without reviewing">
+                        <button id="fsrs-update-text-btn" class="fsrs-secondary-btn" style="display:none;" title="Save edits without reviewing" aria-label="Save edits without reviewing">
                             <svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px; display:inline-block; vertical-align:middle; margin-right:3px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
                             Save Edit
                         </button>
@@ -220,10 +220,10 @@ window.AlgoRecall.Tracker = class Tracker {
                 <div class="fsrs-rating-section">
                     <p id="fsrs-action-label" class="fsrs-rating-label">Save & Rate Initial Difficulty:</p>
                     <div class="fsrs-rating-buttons" id="fsrs-save-ratings">
-                        <button data-rating="1" class="fsrs-btn-again" title="Hard to remember (Shortcut: 1)">Again</button>
-                        <button data-rating="2" class="fsrs-btn-hard" title="Remembered with effort (Shortcut: 2)">Hard</button>
-                        <button data-rating="3" class="fsrs-btn-good" title="Remembered easily (Shortcut: 3)">Good</button>
-                        <button data-rating="4" class="fsrs-btn-easy" title="Too easy (Shortcut: 4)">Easy</button>
+                        <button data-rating="1" class="fsrs-btn-again" title="Hard to remember (Shortcut: 1)" aria-label="Hard to remember (Shortcut: 1)">Again</button>
+                        <button data-rating="2" class="fsrs-btn-hard" title="Remembered with effort (Shortcut: 2)" aria-label="Remembered with effort (Shortcut: 2)">Hard</button>
+                        <button data-rating="3" class="fsrs-btn-good" title="Remembered easily (Shortcut: 3)" aria-label="Remembered easily (Shortcut: 3)">Good</button>
+                        <button data-rating="4" class="fsrs-btn-easy" title="Too easy (Shortcut: 4)" aria-label="Too easy (Shortcut: 4)">Easy</button>
                     </div>
                 </div>
             </div>
@@ -524,7 +524,7 @@ window.AlgoRecall.Tracker = class Tracker {
             <div class="fsrs-tag-picker">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <h4 style="margin:0; font-size: 13px;">Select Topics to Review</h4>
-                    <button id="fsrs-picker-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px;">
+                    <button id="fsrs-picker-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px;" aria-label="Go Back">
                         <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                         Back
                     </button>
@@ -632,7 +632,7 @@ window.AlgoRecall.Tracker = class Tracker {
                     <h4 style="margin:0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${currentCard.problemTitle}</h4>
                     ${filterBadge}
                 </div>
-                <button id="fsrs-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                <button id="fsrs-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; flex-shrink: 0;" aria-label="Go Back">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                     Back
                 </button>

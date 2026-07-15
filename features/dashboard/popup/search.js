@@ -122,7 +122,7 @@ export class QuickSearchComponent extends DashboardComponent {
             const tagsHtml = (card.tags || []).slice(0, 3).map(t => `<span class="popup-tag">${t}</span>`).join('');
             const title = card.problemTitle || 'Untitled';
 
-            return `<a href="${card.problemUrl}" target="_blank" class="popup-search-item" title="${title}">
+            return `<a href="${card.problemUrl}" target="_blank" class="popup-search-item" title="${title}" aria-label="${title}">
                 <div class="popup-search-item-top">
                     <span class="popup-search-title">${title}</span>
                     ${statusBadge}

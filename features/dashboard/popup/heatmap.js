@@ -55,7 +55,12 @@ export class HeatmapComponent extends DashboardComponent {
 
                 const cell = document.createElement('div');
                 cell.className = 'heatmap-cell';
-                cell.title = count === 1 ? `1 review on ${dateString}` : `${count} reviews on ${dateString}`;
+                
+                const ariaLabelText = count === 1 ? `1 review on ${dateString}` : `${count} reviews on ${dateString}`;
+                cell.title = ariaLabelText;
+                cell.setAttribute('role', 'img'); // Or 'gridcell' if part of a grid, 'img' is simpler for purely visual data
+                cell.setAttribute('aria-label', ariaLabelText);
+                cell.setAttribute('tabindex', '0');
 
                 if (count === 0) cell.classList.add('level-0');
                 else if (count <= 2) cell.classList.add('level-1');

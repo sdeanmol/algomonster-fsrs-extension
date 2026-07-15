@@ -293,10 +293,10 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
                     </div>
                 </div>
                 <div class="card-actions">
-                    <button class="action-btn action-btn-copy" data-text="${this.helpers.escapeHtml(mark.text)}" title="Copy text to clipboard">
+                    <button class="action-btn action-btn-copy" data-text="${this.helpers.escapeHtml(mark.text)}" title="Copy text to clipboard" aria-label="Copy text to clipboard">
                         <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
                     </button>
-                    <button class="action-btn action-btn-delete" data-id="${markId}" title="Delete Highlight">
+                    <button class="action-btn action-btn-delete" data-id="${markId}" title="Delete Highlight" aria-label="Delete Highlight">
                         <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
                 </div>

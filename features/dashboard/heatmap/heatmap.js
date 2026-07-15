@@ -199,9 +199,13 @@ window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
             
             const cell = document.createElement('div');
             cell.className = 'heatmap-cell';
+            cell.setAttribute('role', 'button');
+            cell.setAttribute('tabindex', '0');
             
             const displayDate = cellDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-            cell.title = count === 1 ? `1 review on ${displayDate}` : `${count} reviews on ${displayDate}`;
+            const ariaLabelText = count === 1 ? `1 review on ${displayDate}` : `${count} reviews on ${displayDate}`;
+            cell.title = ariaLabelText;
+            cell.setAttribute('aria-label', ariaLabelText);
 
             let isOutsideFilterRange = false;
             if (mode === 'year-wise' && currentYearString !== chosenYear) isOutsideFilterRange = true;
@@ -220,8 +224,17 @@ window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
                 else if (count <= 8) cell.classList.add('level-3');
                 else cell.classList.add('level-4');
 
-                cell.addEventListener('click', () => {
+                const handleCellClick = () => {
                     chrome.tabs.create({ url: `features/common/data/data.html?view=history&date=${dateString}` });
+                };
+
+                cell.addEventListener('click', handleCellClick);
+                
+                cell.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleCellClick();
+                    }
                 });
             }
 

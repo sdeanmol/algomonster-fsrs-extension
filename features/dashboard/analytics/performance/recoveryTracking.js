@@ -66,7 +66,7 @@ export class RecoveryTracking {
             
             return `
                 <tr>
-                    <td class="trunc"><a href="${url}" target="_blank" class="lapse-title-link" title="${title}">${title}</a></td>
+                    <td class="trunc"><a href="${url}" target="_blank" class="lapse-title-link" title="${title}" aria-label="${title}">${title}</a></td>
                     <td>${lapses}</td>
                     <td>${daysSince > 0 ? daysSince + 'd' : '-'}</td>
                     <td>${stab}</td>

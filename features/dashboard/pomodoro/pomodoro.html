@@ -38,16 +38,16 @@
         <!-- Controls -->
         <div class="controls">
             <button id="start-btn" class="btn btn-primary btn-round">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width:20px;height:20px;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width:20px;height:20px;" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             </button>
             <button id="pause-btn" class="btn btn-secondary btn-round" style="display:none;">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width:20px;height:20px;"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width:20px;height:20px;" aria-hidden="true"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
             </button>
-            <button id="reset-btn" class="btn btn-secondary btn-round-sm" title="Reset Timer">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width:16px;height:16px;"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+            <button id="reset-btn" class="btn btn-secondary btn-round-sm" title="Reset Timer" aria-label="Reset Timer">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width:16px;height:16px;" aria-hidden="true"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
             </button>
-            <button id="skip-btn" class="btn btn-secondary btn-round-sm" title="Skip to Next Phase">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width:16px;height:16px;"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
+            <button id="skip-btn" class="btn btn-secondary btn-round-sm" title="Skip to Next Phase" aria-label="Skip to Next Phase">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width:16px;height:16px;" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
             </button>
         </div>
 
@@ -78,7 +78,7 @@
         <!-- Settings -->
         <details class="settings-panel">
             <summary class="settings-toggle">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:6px;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:6px;" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 Timer Settings
             </summary>
             <div class="settings-body">
