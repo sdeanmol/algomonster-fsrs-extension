@@ -1,0 +1,23 @@
+{
+  "name": "algomonster-fsrs-extension",
+  "version": "1.0.0",
+  "description": "FSRS Extension for AlgoMonster",
+  "main": "test.js",
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:e2e": "playwright test",
+    "build": "zip -r release.zip . -x '*.git*' '*tests/*' '*node_modules/*' '*backup/*' 'package*.json' '*scripts/*' 'playwright.config.js' 'jest.config.js' '*test.js*' '*test-backup.mjs*' '*test-report.html*' 'CUSTOMIZATION.md' 'feature_enhancements_requirements.md' 'babel.config.json'"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@babel/preset-env": "^7.20.0",
+    "@playwright/test": "^1.40.0",
+    "babel-jest": "^29.0.0",
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^29.0.0",
+    "jest-html-reporter": "^3.10.0"
+  },
+  "author": "",
+  "license": "ISC"
+}

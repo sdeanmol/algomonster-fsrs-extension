@@ -268,3 +268,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const manager = new WhitelistedWebsitesManager();
     manager.init();
 });
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = WhitelistedWebsitesManager;
+} else if (typeof window !== 'undefined') {
+    window.WhitelistedWebsitesManager = WhitelistedWebsitesManager;
+}
+
