@@ -15,7 +15,7 @@ export class RetentionBarChart {
         let stats = this.dataUtils.getStatsByTag();
 
         if (this.sortBy === 'retention') {
-            stats.sort((a, b) => b.retention - a.retention);
+            stats.sort((a, b) => b.trueRetention - a.trueRetention);
         } else if (this.sortBy === 'stability') {
             stats.sort((a, b) => b.avgStability - a.avgStability);
         } else if (this.sortBy === 'cards') {
@@ -30,16 +30,21 @@ export class RetentionBarChart {
         let html = '<div class="retention-bars-container">';
         
         stats.forEach(s => {
-            let val = s.retention;
-            let displayVal = `${s.retention}%`;
-            
-            if (this.sortBy === 'stability') {
+            let val, displayVal, fillClass;
+
+            if (this.sortBy === 'retention') {
+                val = s.trueRetention;
+                displayVal = `${s.trueRetention}%`;
+                fillClass = val < 70 ? 'fill-danger' : (val < 85 ? 'fill-warning' : 'fill-good');
+            } else if (this.sortBy === 'stability') {
                 val = Math.min(100, (s.avgStability / 30) * 100); // Normalize roughly against 30 days
                 displayVal = `${s.avgStability.toFixed(1)}d`;
+                fillClass = 'fill-default';
             } else if (this.sortBy === 'cards') {
                 const max = Math.max(...stats.map(x => x.count), 1);
                 val = (s.count / max) * 100;
                 displayVal = `${s.count}`;
+                fillClass = 'fill-default';
             } else if (this.sortBy === 'lapses') {
                 const max = Math.max(...stats.map(x => x.lapses), 1);
                 val = (s.lapses / max) * 100;

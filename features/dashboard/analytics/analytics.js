@@ -49,8 +49,8 @@ class AnalyticsDashboardSPA {
 
             // Set up subtitle
             const stats = this.dataUtils.getSummaryStats();
-            document.getElementById('analytics-subtitle').textContent = 
-                `${stats.totalCards} patterns tracked · ${stats.totalActivityReviews} total reviews · ${stats.retention}% retention rate`;
+            document.getElementById('analytics-summary-stats').textContent = 
+                `${stats.totalCards} patterns tracked · ${stats.totalActivityReviews} total reviews · ${stats.trueRetention}% retention rate`;
 
             this.bindNavigation();
             
