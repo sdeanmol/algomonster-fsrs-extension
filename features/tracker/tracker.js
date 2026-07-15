@@ -157,6 +157,18 @@ window.AlgoRecall.Tracker = class Tracker {
                 btn.style.boxShadow = "none";
             });
         }
+
+        // Check for due cards to show/hide the manual Review button
+        const manualReviewBtn = document.getElementById('fsrs-manual-review-btn');
+        if (manualReviewBtn) {
+            const dueCount = this.getDueCards().length;
+            if (dueCount > 0) {
+                manualReviewBtn.style.display = 'inline-flex';
+                manualReviewBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px; margin-right: 4px; stroke: currentColor;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Review ${dueCount}`;
+            } else {
+                manualReviewBtn.style.display = 'none';
+            }
+        }
     }
 
     /**
@@ -184,7 +196,10 @@ window.AlgoRecall.Tracker = class Tracker {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
                     <span>FSRS Tracker</span>
                 </div>
-                <div class="fsrs-controls">
+                <div class="fsrs-controls" style="display: flex; align-items: center; gap: 4px;">
+                    <button id="fsrs-manual-review-btn" class="fsrs-primary-btn" style="display: none; font-size: 11px; padding: 4px 8px; margin-right: 4px;" title="Start Review Session">
+                        Review
+                    </button>
                     <button id="fsrs-min-btn" class="fsrs-icon-btn" title="Minimize">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     </button>
@@ -363,6 +378,17 @@ window.AlgoRecall.Tracker = class Tracker {
         document.getElementById('fsrs-time-complexity')?.addEventListener('input', this.saveDraft);
         document.getElementById('fsrs-space-complexity')?.addEventListener('input', this.saveDraft);
         document.getElementById('fsrs-difficulty-select')?.addEventListener('change', this.saveDraft);
+
+        // Manual Review Start
+        const manualReviewBtn = document.getElementById('fsrs-manual-review-btn');
+        if (manualReviewBtn) {
+            manualReviewBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.Logger) window.Logger.info('Tracker', 'Manual review button clicked');
+                this.startReview();
+            });
+        }
 
         // R1.7: Image paste support
         const approachTextarea = document.getElementById('fsrs-approach');
@@ -612,13 +638,11 @@ window.AlgoRecall.Tracker = class Tracker {
         allDue.forEach(c => platformSet.add(this._extractPlatform(c.problemUrl)));
         const uniquePlatforms = [...platformSet].sort();
 
-        // If only one tag (or none) and one platform, skip picker
-        if (uniqueTags.length <= 1 && uniquePlatforms.length <= 1) {
-            this.activeReviewFilter = null;
-            this.activeReviewPlatformFilter = null;
-            this._startReviewSession();
-            return;
-        }
+        // Removed the auto-skip logic so the picker ALWAYS shows when Start Review is clicked.
+        // This ensures the user sees the Topic/Platform UI even if there's only 1 topic available,
+        // preventing the appearance that the button 'did nothing' or skipped unexpectedly.
+        this.activeReviewFilter = null;
+        this.activeReviewPlatformFilter = null;
 
         // Show tag + platform picker UI
         const reviewUi = document.getElementById('fsrs-review-ui');

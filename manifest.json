@@ -14,15 +14,25 @@
     "scripting"
   ],
   "host_permissions": [
+    "*://algo.monster/*",
     "*://*.algo.monster/*",
+    "*://systemdesignschool.io/*",
     "*://*.systemdesignschool.io/*",
+    "*://codeforces.com/*",
     "*://*.codeforces.com/*",
+    "*://leetcode.com/*",
     "*://*.leetcode.com/*",
+    "*://codechef.com/*",
     "*://*.codechef.com/*",
+    "*://atcoder.jp/*",
     "*://*.atcoder.jp/*",
+    "*://hackerrank.com/*",
     "*://*.hackerrank.com/*",
+    "*://hackerearth.com/*",
     "*://*.hackerearth.com/*",
+    "*://codewars.com/*",
     "*://*.codewars.com/*",
+    "*://codingame.com/*",
     "*://*.codingame.com/*"
   ],
   "optional_host_permissions": [
@@ -36,15 +46,25 @@
   "content_scripts": [
     {
       "matches": [
+        "*://algo.monster/*",
         "*://*.algo.monster/*",
+        "*://systemdesignschool.io/*",
         "*://*.systemdesignschool.io/*",
+        "*://codeforces.com/*",
         "*://*.codeforces.com/*",
+        "*://leetcode.com/*",
         "*://*.leetcode.com/*",
+        "*://codechef.com/*",
         "*://*.codechef.com/*",
+        "*://atcoder.jp/*",
         "*://*.atcoder.jp/*",
+        "*://hackerrank.com/*",
         "*://*.hackerrank.com/*",
+        "*://hackerearth.com/*",
         "*://*.hackerearth.com/*",
+        "*://codewars.com/*",
         "*://*.codewars.com/*",
+        "*://codingame.com/*",
         "*://*.codingame.com/*"
       ],
       "js": [
