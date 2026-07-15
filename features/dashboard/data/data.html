@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlgoRecall — Manage Decks</title>
+    <link rel="stylesheet" href="data.css">
+</head>
+<body>
+    <div class="data-app">
+        <header class="data-header">
+            <div class="header-left">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <h1>Export & Import Decks</h1>
+            </div>
+            <p class="subtitle">Share your customized FSRS decks or import community bundles.</p>
+        </header>
+
+        <div class="data-grid">
+            <!-- Export Section -->
+            <div class="data-card">
+                <h2>Export Deck</h2>
+                <p class="desc">Create a shareable JSON bundle of your flashcards.</p>
+                
+                <div class="form-group">
+                    <label>Filter by Tag</label>
+                    <select id="export-tag-select" class="data-input">
+                        <option value="__all__">All Tags (Entire Database)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Filter by Platform</label>
+                    <select id="export-platform-select" class="data-input">
+                        <option value="__all__">All Platforms</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Include Options</label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="export-include-history" checked>
+                        Include Review History & Spacing Data
+                    </label>
+                    <p style="font-size: 11px; color: var(--text-low); margin-top: 4px; margin-left: 24px;">Uncheck to share as fresh "New" cards for someone else to learn.</p>
+                </div>
+
+                <button id="export-deck-btn" class="primary-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Export JSON Bundle
+                </button>
+            </div>
+
+            <!-- Import Section -->
+            <div class="data-card">
+                <h2>Import Deck</h2>
+                <p class="desc">Import a shared JSON bundle into your AlgoRecall database.</p>
+                
+                <div class="upload-area" id="upload-area">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <p>Click to select or drag & drop a JSON file</p>
+                    <input type="file" id="import-file" accept=".json" style="display:none;">
+                </div>
+
+                <div id="import-preview" class="import-preview" style="display:none;">
+                    <h3>Ready to Import</h3>
+                    <p id="import-stats" style="margin-bottom: 12px; color: var(--success); font-weight: 600;"></p>
+                    <button id="confirm-import-btn" class="primary-btn" style="background: var(--success);">
+                        Confirm Import
+                    </button>
+                    <button id="cancel-import-btn" class="secondary-btn" style="margin-left: 8px;">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="status-toast" class="toast"></div>
+    </div>
+    <script src="data.js"></script>
+</body>
+</html>

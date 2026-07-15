@@ -9,10 +9,12 @@ window.AlgoRecall = window.AlgoRecall || {};
 window.AlgoRecall.Tracker = class Tracker {
     constructor() {
         this.activeReviewFilter = null;
+        this.activeReviewPlatformFilter = null;
         this.reviewIndex = 0;
         this.totalToReview = 0;
         this._reviewKeyHandler = null;
         this.isListenersBound = false;
+        this._lastRatedSnapshot = null; // R1.12: For undo support
         
         // Bind functions to avoid lexical context issues
         this.saveDraft = this.saveDraft.bind(this);
@@ -99,6 +101,15 @@ window.AlgoRecall.Tracker = class Tracker {
             if (tagsInput && document.activeElement !== tagsInput) {
                 tagsInput.value = (existingCard.tags || []).join(', ');
             }
+            // R1.8: Load complexity fields
+            const timeComplexityEl = document.getElementById('fsrs-time-complexity');
+            const spaceComplexityEl = document.getElementById('fsrs-space-complexity');
+            if (timeComplexityEl && document.activeElement !== timeComplexityEl) timeComplexityEl.value = existingCard.timeComplexity || '';
+            if (spaceComplexityEl && document.activeElement !== spaceComplexityEl) spaceComplexityEl.value = existingCard.spaceComplexity || '';
+            // R5.4: Load difficulty
+            const difficultyEl = document.getElementById('fsrs-difficulty-select');
+            if (difficultyEl && document.activeElement !== difficultyEl) difficultyEl.value = existingCard.problemDifficulty || '';
+
             actionLabel.innerText = "Card Exists. Review Early or Update Notes:";
             updateTextBtn.style.display = "block";
             if (deleteCardBtn) deleteCardBtn.style.display = "block";
@@ -188,6 +199,27 @@ window.AlgoRecall.Tracker = class Tracker {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
                     <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" placeholder="Add tags (comma separated)..." value="${this.utils.getAutoTags().join(', ')}">
                 </div>
+
+                <!-- R1.8: Complexity & R5.4: Difficulty -->
+                <div class="fsrs-meta-row">
+                    <div class="fsrs-meta-field">
+                        <label>Time</label>
+                        <input type="text" id="fsrs-time-complexity" class="fsrs-meta-input" placeholder="O(n log n)">
+                    </div>
+                    <div class="fsrs-meta-field">
+                        <label>Space</label>
+                        <input type="text" id="fsrs-space-complexity" class="fsrs-meta-input" placeholder="O(n)">
+                    </div>
+                    <div class="fsrs-meta-field">
+                        <label>Difficulty</label>
+                        <select id="fsrs-difficulty-select" class="fsrs-meta-input">
+                            <option value="">—</option>
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                        </select>
+                    </div>
+                </div>
                 
                 <div class="fsrs-approach-header">
                     <label>Your Approach:</label>
@@ -206,7 +238,7 @@ window.AlgoRecall.Tracker = class Tracker {
                         </button>
                     </div>
                 </div>
-                <textarea id="fsrs-approach" class="fsrs-textarea" placeholder="How did you solve this pattern? Jot down your key insights..."></textarea>
+                <textarea id="fsrs-approach" class="fsrs-textarea" placeholder="How did you solve this pattern? Jot down your key insights... (Paste images with Ctrl+V)"></textarea>
                 
                 <div class="fsrs-rating-section">
                     <p id="fsrs-action-label" class="fsrs-rating-label">Save & Rate Initial Difficulty:</p>
@@ -328,6 +360,55 @@ window.AlgoRecall.Tracker = class Tracker {
 
         document.getElementById('fsrs-approach').addEventListener('input', this.saveDraft);
         document.getElementById('fsrs-tags-input').addEventListener('input', this.saveDraft);
+        document.getElementById('fsrs-time-complexity')?.addEventListener('input', this.saveDraft);
+        document.getElementById('fsrs-space-complexity')?.addEventListener('input', this.saveDraft);
+        document.getElementById('fsrs-difficulty-select')?.addEventListener('change', this.saveDraft);
+
+        // R1.7: Image paste support
+        const approachTextarea = document.getElementById('fsrs-approach');
+        if (approachTextarea) {
+            approachTextarea.addEventListener('paste', (e) => {
+                const items = e.clipboardData?.items;
+                if (!items) return;
+                for (const item of items) {
+                    if (item.type.startsWith('image/')) {
+                        e.preventDefault();
+                        const blob = item.getAsFile();
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            const base64 = ev.target.result;
+                            const cursorPos = approachTextarea.selectionStart;
+                            const text = approachTextarea.value;
+                            const imgMd = `![image](${base64})`;
+                            approachTextarea.value = text.slice(0, cursorPos) + imgMd + text.slice(cursorPos);
+                            approachTextarea.selectionStart = approachTextarea.selectionEnd = cursorPos + imgMd.length;
+                            this.saveDraft();
+                        };
+                        reader.readAsDataURL(blob);
+                        break;
+                    }
+                }
+            });
+
+            approachTextarea.addEventListener('dragover', (e) => { e.preventDefault(); });
+            approachTextarea.addEventListener('drop', (e) => {
+                const files = e.dataTransfer?.files;
+                if (!files || files.length === 0) return;
+                const file = files[0];
+                if (!file.type.startsWith('image/')) return;
+                e.preventDefault();
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const base64 = ev.target.result;
+                    const cursorPos = approachTextarea.selectionStart;
+                    const text = approachTextarea.value;
+                    const imgMd = `![image](${base64})`;
+                    approachTextarea.value = text.slice(0, cursorPos) + imgMd + text.slice(cursorPos);
+                    this.saveDraft();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
 
         document.getElementById('fsrs-delete-card-btn').addEventListener('click', () => {
             const cleanUrl = window.location.href.split('?')[0].split('#')[0];
@@ -349,6 +430,10 @@ window.AlgoRecall.Tracker = class Tracker {
                     this.state.cards[index].approach = document.getElementById('fsrs-approach').value;
                     const tagsVal = document.getElementById('fsrs-tags-input').value;
                     this.state.cards[index].tags = tagsVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                    // R1.8 + R5.4
+                    this.state.cards[index].timeComplexity = document.getElementById('fsrs-time-complexity')?.value || '';
+                    this.state.cards[index].spaceComplexity = document.getElementById('fsrs-space-complexity')?.value || '';
+                    this.state.cards[index].problemDifficulty = document.getElementById('fsrs-difficulty-select')?.value || '';
                     this.saveCards();
 
                     const originalText = e.target.innerText;
@@ -391,11 +476,17 @@ window.AlgoRecall.Tracker = class Tracker {
                     if (index > -1) {
                         this.state.cards[index].approach = approach;
                         this.state.cards[index].tags = parsedTags;
+                        this.state.cards[index].timeComplexity = document.getElementById('fsrs-time-complexity')?.value || '';
+                        this.state.cards[index].spaceComplexity = document.getElementById('fsrs-space-complexity')?.value || '';
+                        this.state.cards[index].problemDifficulty = document.getElementById('fsrs-difficulty-select')?.value || '';
                         this.state.cards[index] = this.state.fsrs.reviewCard(this.state.cards[index], rating, customWeights);
                         this.state.cards[index].lastRating = rating; 
                     }
                 } else {
                     let newCard = this.state.fsrs.createCard(problemTitle, cleanUrl, "", approach, parsedTags);
+                    newCard.timeComplexity = document.getElementById('fsrs-time-complexity')?.value || '';
+                    newCard.spaceComplexity = document.getElementById('fsrs-space-complexity')?.value || '';
+                    newCard.problemDifficulty = document.getElementById('fsrs-difficulty-select')?.value || '';
                     newCard = this.state.fsrs.reviewCard(newCard, rating, customWeights);
                     newCard.lastRating = rating; 
                     this.state.cards.push(newCard);
@@ -440,10 +531,16 @@ window.AlgoRecall.Tracker = class Tracker {
 
         const text = approachTextEl.value;
         const tagsText = tagsInputEl.value;
+        const timeComplexity = document.getElementById('fsrs-time-complexity')?.value || '';
+        const spaceComplexity = document.getElementById('fsrs-space-complexity')?.value || '';
+        const problemDifficulty = document.getElementById('fsrs-difficulty-select')?.value || '';
 
         if (existingCard) {
             existingCard.approach = text;
             existingCard.tags = tagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            existingCard.timeComplexity = timeComplexity;
+            existingCard.spaceComplexity = spaceComplexity;
+            existingCard.problemDifficulty = problemDifficulty;
             this.saveCards();
         } else {
             chrome.storage.local.get(['approachDrafts'], (res) => {
@@ -455,17 +552,42 @@ window.AlgoRecall.Tracker = class Tracker {
     }
 
     /**
-     * Returns a sorted list of due study cards based on the scheduled FSRS timestamp.
-     * Optionally filters cards matching a target tag chip selection.
-     * @param {string} [filterTag] - Optional tag name identifier. Use '__all__' to bypass filter.
-     * @returns {Object[]} Sorted list of due card schemas.
+     * Extracts the platform name from a card's problem URL.
+     * @param {string} url - The problem URL.
+     * @returns {string} Platform name (e.g. "LeetCode", "Codeforces").
      */
-    getDueCards(filterTag) {
+    _extractPlatform(url) {
+        if (!url) return 'Unknown';
+        if (url.includes('leetcode.com')) return 'LeetCode';
+        if (url.includes('codeforces.com')) return 'Codeforces';
+        if (url.includes('algo.monster')) return 'AlgoMonster';
+        if (url.includes('codechef.com')) return 'CodeChef';
+        if (url.includes('atcoder.jp')) return 'AtCoder';
+        if (url.includes('hackerrank.com')) return 'HackerRank';
+        if (url.includes('hackerearth.com')) return 'HackerEarth';
+        if (url.includes('codewars.com')) return 'Codewars';
+        if (url.includes('codingame.com')) return 'CodinGame';
+        if (url.includes('systemdesignschool.io')) return 'SystemDesign';
+        return 'Other';
+    }
+
+    /**
+     * Returns a sorted list of due study cards based on the scheduled FSRS timestamp.
+     * Optionally filters cards matching a target tag or platform.
+     * @param {string} [filterTag] - Optional tag name identifier. Use '__all__' to bypass filter.
+     * @param {string} [filterPlatform] - Optional platform name filter.
+     * @returns {Object[]} Sorted list of due card schemas, sorted by overdue factor (most overdue first).
+     */
+    getDueCards(filterTag, filterPlatform) {
         const now = new Date().getTime();
         let due = this.state.cards.filter(c => c.due <= now);
         if (filterTag && filterTag !== '__all__') {
             due = due.filter(c => c.tags && c.tags.includes(filterTag));
         }
+        if (filterPlatform && filterPlatform !== '__all__') {
+            due = due.filter(c => this._extractPlatform(c.problemUrl) === filterPlatform);
+        }
+        // R1.3: Sort by overdue factor (most overdue first)
         return due.sort((a, b) => a.due - b.due);
     }
 
@@ -485,14 +607,20 @@ window.AlgoRecall.Tracker = class Tracker {
         allDue.forEach(c => { if (c.tags) c.tags.forEach(t => tagSet.add(t)); });
         const uniqueTags = [...tagSet].sort();
 
-        // If only one tag (or none), skip picker and go straight to review
-        if (uniqueTags.length <= 1) {
+        // R1.2: Collect unique platforms from due cards
+        const platformSet = new Set();
+        allDue.forEach(c => platformSet.add(this._extractPlatform(c.problemUrl)));
+        const uniquePlatforms = [...platformSet].sort();
+
+        // If only one tag (or none) and one platform, skip picker
+        if (uniqueTags.length <= 1 && uniquePlatforms.length <= 1) {
             this.activeReviewFilter = null;
+            this.activeReviewPlatformFilter = null;
             this._startReviewSession();
             return;
         }
 
-        // Show tag picker UI
+        // Show tag + platform picker UI
         const reviewUi = document.getElementById('fsrs-review-ui');
         document.getElementById('fsrs-body').style.display = 'none';
         reviewUi.style.display = 'block';
@@ -500,6 +628,12 @@ window.AlgoRecall.Tracker = class Tracker {
         const tagChipsHtml = uniqueTags.map(tag => {
             const count = allDue.filter(c => c.tags && c.tags.includes(tag)).length;
             return `<button class="fsrs-tag-chip" data-tag="${tag}">${tag} <span class="fsrs-tag-count">${count}</span></button>`;
+        }).join('');
+
+        // R1.2: Platform chips
+        const platformChipsHtml = uniquePlatforms.map(platform => {
+            const count = allDue.filter(c => this._extractPlatform(c.problemUrl) === platform).length;
+            return `<button class="fsrs-tag-chip fsrs-platform-chip" data-platform="${platform}">${platform} <span class="fsrs-tag-count">${count}</span></button>`;
         }).join('');
 
         reviewUi.innerHTML = `
@@ -511,10 +645,19 @@ window.AlgoRecall.Tracker = class Tracker {
                         Back
                     </button>
                 </div>
+
+                <div style="font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 700;">By Topic</div>
                 <div class="fsrs-tag-chips-container">
                     <button class="fsrs-tag-chip fsrs-tag-chip-active" data-tag="__all__">All Topics <span class="fsrs-tag-count">${allDue.length}</span></button>
                     ${tagChipsHtml}
                 </div>
+
+                ${uniquePlatforms.length > 1 ? `
+                <div style="font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 0 6px; font-weight: 700;">By Platform</div>
+                <div class="fsrs-platform-chips-container">
+                    ${platformChipsHtml}
+                </div>` : ''}
+
                 <button id="fsrs-start-filtered-btn" class="fsrs-primary-btn" style="margin-top: 14px;">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                     Start Review
@@ -523,11 +666,23 @@ window.AlgoRecall.Tracker = class Tracker {
         `;
 
         // Tag chip selection logic
-        const chips = reviewUi.querySelectorAll('.fsrs-tag-chip');
+        const chips = reviewUi.querySelectorAll('.fsrs-tag-chip:not(.fsrs-platform-chip)');
         chips.forEach(chip => {
             chip.addEventListener('click', () => {
                 chips.forEach(c => c.classList.remove('fsrs-tag-chip-active'));
                 chip.classList.add('fsrs-tag-chip-active');
+                // Deselect platform when selecting tag
+                reviewUi.querySelectorAll('.fsrs-platform-chip').forEach(p => p.classList.remove('fsrs-tag-chip-active'));
+            });
+        });
+
+        // R1.2: Platform chip selection logic
+        const platformChips = reviewUi.querySelectorAll('.fsrs-platform-chip');
+        platformChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                const wasActive = chip.classList.contains('fsrs-tag-chip-active');
+                platformChips.forEach(c => c.classList.remove('fsrs-tag-chip-active'));
+                if (!wasActive) chip.classList.add('fsrs-tag-chip-active');
             });
         });
 
@@ -541,9 +696,13 @@ window.AlgoRecall.Tracker = class Tracker {
 
         // Start button
         document.getElementById('fsrs-start-filtered-btn').addEventListener('click', () => {
-            const activeChip = reviewUi.querySelector('.fsrs-tag-chip-active');
+            const activeChip = reviewUi.querySelector('.fsrs-tag-chip.fsrs-tag-chip-active:not(.fsrs-platform-chip)');
             this.activeReviewFilter = activeChip ? activeChip.getAttribute('data-tag') : null;
             if (this.activeReviewFilter === '__all__') this.activeReviewFilter = null;
+
+            const activePlatformChip = reviewUi.querySelector('.fsrs-platform-chip.fsrs-tag-chip-active');
+            this.activeReviewPlatformFilter = activePlatformChip ? activePlatformChip.getAttribute('data-platform') : null;
+
             this._startReviewSession();
         });
     }
@@ -554,15 +713,17 @@ window.AlgoRecall.Tracker = class Tracker {
      * @private
      */
     _startReviewSession() {
-        const dueCards = this.getDueCards(this.activeReviewFilter);
+        const dueCards = this.getDueCards(this.activeReviewFilter, this.activeReviewPlatformFilter);
         if (dueCards.length === 0) {
             alert("No cards due for this filter!");
             this.activeReviewFilter = null;
+            this.activeReviewPlatformFilter = null;
             return;
         }
 
         this.totalToReview = dueCards.length;
         this.reviewIndex = 0;
+        this._lastRatedSnapshot = null;
 
         this.showCard();
     }
@@ -571,7 +732,7 @@ window.AlgoRecall.Tracker = class Tracker {
      * Renders the next due card details, binding ratings listeners and key navigation hooks.
      */
     showCard() {
-        const remaining = this.getDueCards(this.activeReviewFilter);
+        const remaining = this.getDueCards(this.activeReviewFilter, this.activeReviewPlatformFilter);
         if (remaining.length === 0) {
             this._cleanupReviewKeyboard();
             const reviewUi = document.getElementById('fsrs-review-ui');
@@ -579,6 +740,7 @@ window.AlgoRecall.Tracker = class Tracker {
             reviewUi.innerHTML = '';
             document.getElementById('fsrs-body').style.display = 'block';
             this.activeReviewFilter = null;
+            this.activeReviewPlatformFilter = null;
             this.refreshWidgetState();
             return;
         }
@@ -608,10 +770,46 @@ window.AlgoRecall.Tracker = class Tracker {
             ? renderMarkdown(currentCard.approach) 
             : currentCard.approach.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 
+        // R5.4: Difficulty badge
+        let difficultyBadge = '';
+        if (currentCard.problemDifficulty) {
+            const diffColors = { 'Easy': '#2ecc71', 'Medium': '#f0932b', 'Hard': '#e74c3c' };
+            const bgColor = diffColors[currentCard.problemDifficulty] || '#888';
+            difficultyBadge = `<span class="fsrs-difficulty-badge" style="background: ${bgColor}20; color: ${bgColor}; border: 1px solid ${bgColor}40;">${currentCard.problemDifficulty}</span>`;
+        }
+
+        // R1.8: Complexity display
+        let complexityHtml = '';
+        if (currentCard.timeComplexity || currentCard.spaceComplexity) {
+            complexityHtml = `<div class="fsrs-complexity-row">`;
+            if (currentCard.timeComplexity) complexityHtml += `<span class="fsrs-complexity-tag">⏱ ${currentCard.timeComplexity}</span>`;
+            if (currentCard.spaceComplexity) complexityHtml += `<span class="fsrs-complexity-tag">💾 ${currentCard.spaceComplexity}</span>`;
+            complexityHtml += `</div>`;
+        }
+
+        // R1.11: Predicted next review dates
+        const fsrs = this.state.fsrs;
+        const predictions = [1, 2, 3, 4].map(r => {
+            const preview = fsrs.previewRating(currentCard, r);
+            if (preview.scheduledDays === 1) return '1 day';
+            if (preview.scheduledDays < 30) return `${preview.scheduledDays}d`;
+            if (preview.scheduledDays < 365) return `${Math.round(preview.scheduledDays / 30)}mo`;
+            return `${(preview.scheduledDays / 365).toFixed(1)}y`;
+        });
+
+        // R1.12: Undo toast
+        const undoHtml = this._lastRatedSnapshot ? `
+            <div class="fsrs-undo-toast" id="fsrs-undo-toast">
+                <span>Rated previous card</span>
+                <button id="fsrs-undo-btn" class="fsrs-undo-btn">Undo</button>
+            </div>` : '';
+
         reviewUi.innerHTML = `
+            ${undoHtml}
             <div class="fsrs-review-header">
                 <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;">
                     <h4 style="margin:0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${currentCard.problemTitle}</h4>
+                    ${difficultyBadge}
                     ${filterBadge}
                 </div>
                 <button id="fsrs-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
@@ -626,6 +824,7 @@ window.AlgoRecall.Tracker = class Tracker {
                 <span class="fsrs-progress-text">${this.reviewIndex} of ${this.totalToReview}</span>
             </div>
             ${tagsHtml}
+            ${complexityHtml}
             <p style="margin-bottom: 15px;">
                 <a href="${currentCard.problemUrl}" target="_blank" style="color: #4CAF50; text-decoration: none; font-weight: bold; border-bottom: 1px solid #4CAF50; display: inline-flex; align-items: center; gap: 4px;">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: #4CAF50; width: 13px; height: 13px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
@@ -637,18 +836,22 @@ window.AlgoRecall.Tracker = class Tracker {
                 <div class="fsrs-rating-buttons">
                     <div class="fsrs-rating-btn-wrapper">
                         <button data-rating="1" style="background:#e74c3c;">Again</button>
+                        <span class="fsrs-predicted-date">→ ${predictions[0]}</span>
                         <kbd class="fsrs-kbd-hint">1</kbd>
                     </div>
                     <div class="fsrs-rating-btn-wrapper">
                         <button data-rating="2" style="background:#e67e22;">Hard</button>
+                        <span class="fsrs-predicted-date">→ ${predictions[1]}</span>
                         <kbd class="fsrs-kbd-hint">2</kbd>
                     </div>
                     <div class="fsrs-rating-btn-wrapper">
                         <button data-rating="3" style="background:#2ecc71;">Good</button>
+                        <span class="fsrs-predicted-date">→ ${predictions[2]}</span>
                         <kbd class="fsrs-kbd-hint">3</kbd>
                     </div>
                     <div class="fsrs-rating-btn-wrapper">
                         <button data-rating="4" style="background:#3498db;">Easy</button>
+                        <span class="fsrs-predicted-date">→ ${predictions[3]}</span>
                         <kbd class="fsrs-kbd-hint">4</kbd>
                     </div>
                 </div>
@@ -659,6 +862,33 @@ window.AlgoRecall.Tracker = class Tracker {
             </button>
         `;
 
+        // R1.12: Wire undo button
+        if (this._lastRatedSnapshot) {
+            const undoBtn = document.getElementById('fsrs-undo-btn');
+            const undoToast = document.getElementById('fsrs-undo-toast');
+            if (undoBtn) {
+                undoBtn.addEventListener('click', () => {
+                    // Restore previous card state
+                    const snapshot = this._lastRatedSnapshot;
+                    const index = this.state.cards.findIndex(c => c.id === snapshot.id);
+                    if (index > -1) {
+                        this.state.cards[index] = { ...snapshot };
+                        this.saveCards();
+                    }
+                    this._lastRatedSnapshot = null;
+                    this.reviewIndex = Math.max(0, this.reviewIndex - 1);
+                    this.showCard();
+                });
+            }
+            // Auto-dismiss undo toast after 5 seconds
+            if (undoToast) {
+                setTimeout(() => {
+                    undoToast.style.opacity = '0';
+                    setTimeout(() => { undoToast.remove(); }, 300);
+                }, 5000);
+            }
+        }
+
         // Handle Back Button Click
         document.getElementById('fsrs-back-btn').addEventListener('click', () => {
             this._cleanupReviewKeyboard();
@@ -666,6 +896,7 @@ window.AlgoRecall.Tracker = class Tracker {
             reviewUi.innerHTML = '';
             document.getElementById('fsrs-body').style.display = 'block';
             this.activeReviewFilter = null;
+            this.activeReviewPlatformFilter = null;
             this.refreshWidgetState();
         });
 
@@ -710,6 +941,20 @@ window.AlgoRecall.Tracker = class Tracker {
                     this.showCard();
                 }
             }
+
+            // R1.12: Ctrl+Z for undo
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && this._lastRatedSnapshot) {
+                e.preventDefault();
+                const snapshot = this._lastRatedSnapshot;
+                const index = this.state.cards.findIndex(c => c.id === snapshot.id);
+                if (index > -1) {
+                    this.state.cards[index] = { ...snapshot };
+                    this.saveCards();
+                }
+                this._lastRatedSnapshot = null;
+                this.reviewIndex = Math.max(0, this.reviewIndex - 1);
+                this.showCard();
+            }
         };
         document.addEventListener('keydown', this._reviewKeyHandler);
     }
@@ -724,6 +969,9 @@ window.AlgoRecall.Tracker = class Tracker {
         const index = this.state.cards.findIndex(c => c.id === card.id);
         if (index === -1) return;
 
+        // R1.12: Snapshot card state before rating for undo
+        this._lastRatedSnapshot = { ...this.state.cards[index] };
+
         // Determine if this card has a tag that matches a custom weight profile
         let customWeightsToApply = null;
         if (card.tags && card.tags.length > 0) {
@@ -732,6 +980,14 @@ window.AlgoRecall.Tracker = class Tracker {
                     customWeightsToApply = this.state.topicWeights[tag];
                     break;
                 }
+            }
+        }
+
+        // R5.2: Rating-aware scheduling — factor problem difficulty into weight selection
+        if (!customWeightsToApply && card.problemDifficulty && this.state.topicWeights) {
+            const difficultyKey = `__difficulty_${card.problemDifficulty}`;
+            if (this.state.topicWeights[difficultyKey]) {
+                customWeightsToApply = this.state.topicWeights[difficultyKey];
             }
         }
 

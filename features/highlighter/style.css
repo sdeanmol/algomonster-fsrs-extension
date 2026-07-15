@@ -884,3 +884,139 @@
     border-top: 1px solid var(--w-border);
     margin: 10px 0;
 }
+
+/* R1.7: Markdown embedded images */
+.fsrs-markdown img {
+    max-width: 100%;
+    border-radius: 6px;
+    margin: 6px 0;
+    border: 1px solid var(--w-border);
+}
+
+/* --- R1.8: Complexity & Meta Row --- */
+.fsrs-meta-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.fsrs-meta-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fsrs-meta-field label {
+    font-size: 9px;
+    text-transform: uppercase;
+    color: var(--w-text-low);
+    letter-spacing: 0.5px;
+    font-weight: 700;
+}
+
+.fsrs-meta-input {
+    background: var(--w-bg-dark);
+    border: 1px solid var(--w-border);
+    border-radius: 4px;
+    color: var(--w-text);
+    font-size: 11px;
+    padding: 4px 6px;
+    font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.fsrs-meta-input:focus {
+    border-color: var(--w-primary);
+}
+
+select.fsrs-meta-input {
+    font-family: inherit;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 16px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 4px center;
+}
+
+/* --- R1.8: Complexity tags in review --- */
+.fsrs-complexity-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.fsrs-complexity-tag {
+    font-size: 10px;
+    font-family: 'SF Mono', 'Fira Code', Menlo, monospace;
+    background: var(--w-bg-dark);
+    border: 1px solid var(--w-border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    color: var(--w-text-med);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+/* --- R5.4: Difficulty Badge --- */
+.fsrs-difficulty-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.3px;
+}
+
+/* --- R1.11: Predicted Review Date --- */
+.fsrs-predicted-date {
+    font-size: 9px;
+    color: var(--w-text-low);
+    font-weight: 500;
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+/* --- R1.12: Undo Toast --- */
+.fsrs-undo-toast {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--w-surface);
+    border: 1px solid var(--w-border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: var(--w-text-med);
+    animation: fsrs-slide-in 0.25s ease-out;
+    transition: opacity 0.3s ease;
+}
+
+.fsrs-undo-btn {
+    background: none;
+    border: 1px solid var(--w-primary);
+    color: var(--w-primary);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.fsrs-undo-btn:hover {
+    background: var(--w-primary);
+    color: #fff;
+}
+
+@keyframes fsrs-slide-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}

@@ -69,7 +69,10 @@ class FSRS {
             reps: 0,
             lapses: 0,
             state: 0, // State states: 0 (New), 1 (Learning), 2 (Review), 3 (Relearning)
-            historyLog: [now] // Track exactly when this was created/reviewed
+            historyLog: [now], // Track exactly when this was created/reviewed
+            timeComplexity: '',   // R1.8: e.g. "O(n log n)"
+            spaceComplexity: '',  // R1.8: e.g. "O(n)"
+            problemDifficulty: '' // R5.4: "Easy", "Medium", "Hard", or CF rating number
         };
     }
 
@@ -88,6 +91,39 @@ class FSRS {
         
         const fuzz = Math.floor(Math.random() * (fuzzRange * 2 + 1)) - fuzzRange;
         return Math.max(1, Math.round(interval + fuzz));
+    }
+
+    /**
+     * R1.11: Previews what the next review interval would be for a given rating without modifying the card.
+     * @param {Object} card - The active FSRS card.
+     * @param {number} rating - Review quality: 1 (Again), 2 (Hard), 3 (Good), 4 (Easy).
+     * @returns {{ scheduledDays: number, dueDate: Date }} Predicted scheduling result.
+     */
+    previewRating(card, rating) {
+        const now = new Date().getTime();
+        let tempCard = { ...card };
+        const w = this.w;
+
+        if (tempCard.state === 0) {
+            tempCard.difficulty = Math.max(1, Math.min(10, w[4] + (rating - 3) * w[5]));
+            tempCard.stability = w[rating - 1];
+        } else {
+            const retrievability = Math.exp(this.decay * tempCard.elapsed_days / tempCard.stability);
+            tempCard.difficulty = Math.max(1, Math.min(10, tempCard.difficulty + w[6] * (rating - 3)));
+
+            if (rating === 1) {
+                tempCard.stability = w[11] * Math.pow(tempCard.difficulty, -w[12]) * Math.pow(tempCard.stability, w[13]) * Math.exp((1 - retrievability) * w[14]);
+            } else {
+                tempCard.stability = tempCard.stability * (1 + Math.exp(w[8]) * (11 - tempCard.difficulty) * Math.pow(tempCard.stability, -w[9]) * (Math.exp((1 - retrievability) * w[10]) - 1));
+            }
+        }
+
+        const intervalModifier = 9 * (Math.pow(this.requestRetention, 1 / this.decay) - 1);
+        let rawInterval = tempCard.stability * intervalModifier;
+        const scheduledDays = Math.max(1, Math.round(rawInterval));
+        const dueDate = new Date(now + (scheduledDays * 24 * 60 * 60 * 1000));
+
+        return { scheduledDays, dueDate };
     }
 
     /**

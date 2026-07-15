@@ -40,10 +40,12 @@ export class AlgoRecallDashboard {
             ankiImportFile: document.getElementById('anki-import-file'),
             studyplanBtn: document.getElementById('studyplan-btn'),
             pomodoroBtn: document.getElementById('pomodoro-btn'),
+            contestsBtn: document.getElementById('contests-btn'),
             weeklyDigestToggle: document.getElementById('toggle-weekly-digest'),
             statusMsg: document.getElementById('status-msg'),
             devModeActions: document.getElementById('dev-mode-actions'),
             exportDebugLogsBtn: document.getElementById('export-debug-logs-btn'),
+            manageDecksBtn: document.getElementById('manage-decks-btn'),
         };
 
         // Subclass Components instantiation
@@ -218,10 +220,14 @@ export class AlgoRecallDashboard {
         this.dom.boxRetention?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=retention') }));
         this.dom.manageHighlightsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/manager/highlights.html') }));
         this.dom.openOptionsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/options/highlightOptions.html') }));
+        this.dom.managePlatformsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/platforms/platforms.html') }));
+        this.dom.configureFsrsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/fsrs/fsrs-config.html') }));
+        this.dom.manageDecksBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/data/data.html') }));
         this.dom.analyticsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/analytics/analytics.html') }));
         this.dom.forecastBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/forecast/forecast.html') }));
         this.dom.studyplanBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/studyplan/studyplan.html') }));
-        this.dom.pomodoroBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/pomodoro/pomodoro.html') }));
+        this.dom.pomodoroBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/studyplan/pomodoro.html') }));
+        this.dom.contestsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/contests/contests.html') }));
 
         // Standard JSON database backup export logic
         if (this.dom.exportBtn) {
