@@ -4,7 +4,8 @@
  * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
  * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
  */
-import { Logger } from '../logger.js';
+import '../logger.js';
+const Logger = globalThis.Logger;
 
 /**
  * Incremental 32-bit FNV-1a Hasher for integrity verification.

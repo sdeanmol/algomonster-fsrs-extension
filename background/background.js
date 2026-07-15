@@ -5,7 +5,8 @@
  * handles custom whitelisted website routing messages, reacts to SPA client-side history state updates,
  * and sends weekly summary digest notifications (R3.6).
  */
-import { Logger } from '../features/common/logger.js';
+import '../features/common/logger.js';
+const Logger = globalThis.Logger;
 
 self.onerror = function(message, source, lineno, colno, error) {
     Logger.error('Background', 'Unhandled runtime error', { message, source, lineno, colno, error });

@@ -4,7 +4,8 @@ import { NotificationsComponent } from './notifications.js';
 import { RatingComponent } from './rating.js';
 import { QuickSearchComponent } from './search.js';
 import { BackupManager } from '../../common/data/backupManager.js';
-import { Logger } from '../../common/logger.js';
+import '../../common/logger.js';
+const Logger = globalThis.Logger;
 
 /**
  * @class AlgoRecallDashboard

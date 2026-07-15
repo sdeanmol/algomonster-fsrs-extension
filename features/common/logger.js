@@ -179,12 +179,13 @@ class LoggerClass {
     }
 }
 
-// Export as a singleton
 const Logger = new LoggerClass();
+if (typeof globalThis !== 'undefined') {
+    globalThis.Logger = Logger;
+}
 if (typeof window !== 'undefined') {
     window.Logger = Logger;
 }
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { Logger };
 }
-export { Logger };
