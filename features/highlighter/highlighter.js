@@ -214,6 +214,21 @@ window.AlgoRecall.Highlighter = class Highlighter {
             const noteSection = document.createElement('div');
             noteSection.className = 'algo-note-section';
 
+            const categorySelect = document.createElement('select');
+            categorySelect.className = 'algo-category-select';
+            const categories = ['', 'Key Insight', 'Gotcha', 'Edge Case', 'Pattern'];
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat || 'No Category';
+                categorySelect.appendChild(opt);
+            });
+            categorySelect.value = existingMark?.category || '';
+            categorySelect.addEventListener('change', (e) => {
+                this.saveMarkCategory(existingMarkId, e.target.value);
+            });
+            noteSection.appendChild(categorySelect);
+
             const noteInput = document.createElement('input');
             noteInput.type = 'text';
             noteInput.className = 'algo-note-input';
@@ -237,8 +252,89 @@ window.AlgoRecall.Highlighter = class Highlighter {
             });
 
             noteSection.appendChild(noteInput);
+
+            const linkBtn = document.createElement('button');
+            linkBtn.className = 'algo-link-card-btn';
+            linkBtn.title = 'Link to FSRS Card for this page';
+            linkBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
+            linkBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.linkHighlightToCard(existingMarkId);
+                const originalHtml = linkBtn.innerHTML;
+                linkBtn.innerHTML = '✓';
+                linkBtn.style.color = '#2ecc71';
+                setTimeout(() => {
+                    linkBtn.innerHTML = originalHtml;
+                    linkBtn.style.color = '';
+                }, 1500);
+            });
+            noteSection.appendChild(linkBtn);
+
             tooltip.appendChild(noteSection);
         }
+    }
+
+    /**
+     * Updates the category of a highlight mark.
+     * @param {string} markId - The ID of the targeted mark.
+     * @param {string} category - Category string.
+     */
+    saveMarkCategory(markId, category) {
+        const markIndex = this.state.marks.findIndex(m => (m.id || m.createdAt.toString()) === markId);
+        if (markIndex > -1) {
+            this.state.marks[markIndex].category = category;
+            chrome.storage.local.set({ marks: this.state.marks });
+        }
+    }
+
+    /**
+     * Appends highlight text and notes to the FSRS card for the current page URL.
+     * @param {string} markId - The ID of the targeted mark.
+     */
+    linkHighlightToCard(markId) {
+        const mark = this.state.marks.find(m => (m.id || m.createdAt.toString()) === markId);
+        if (!mark) return;
+        
+        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
+        const prefix = mark.category ? `**${mark.category}:** ` : '';
+        const appendText = `\n\n> ${prefix}${mark.text}` + (mark.note ? `\n> *Note: ${mark.note}*` : '');
+
+        chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result) => {
+            const cards = result.fsrsCards || [];
+            const cardIndex = cards.findIndex(c => c.problemUrl === cleanUrl);
+            if (cardIndex > -1) {
+                const card = cards[cardIndex];
+                let approach = card.approach || '';
+                card.approach = (approach + appendText).trim();
+                
+                chrome.storage.local.set({ fsrsCards: cards }, () => {
+                    if (window.AlgoRecall.Notifier) {
+                         window.AlgoRecall.Notifier.showPageNotification('Highlight Linked', 'Highlight appended to FSRS card approach.', 'test');
+                    }
+                });
+            } else {
+                // No card exists yet, append to draft
+                const drafts = result.approachDrafts || {};
+                let draft = drafts[cleanUrl];
+                
+                if (!draft) {
+                    draft = { approach: '', tags: '' };
+                } else if (typeof draft === 'string') {
+                    draft = { approach: draft, tags: '' };
+                }
+                
+                draft.approach = (draft.approach || '') + appendText;
+                draft.approach = draft.approach.trim();
+                drafts[cleanUrl] = draft;
+                
+                chrome.storage.local.set({ approachDrafts: drafts }, () => {
+                    if (window.AlgoRecall.Notifier) {
+                        window.AlgoRecall.Notifier.showPageNotification('Highlight Linked', 'Highlight appended to unsaved card draft.', 'test');
+                    }
+                });
+            }
+        });
     }
 
     /**

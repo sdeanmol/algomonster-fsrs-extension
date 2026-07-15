@@ -362,9 +362,42 @@
 /* R7.1: Note annotation section inside tooltip */
 .algo-note-section {
     width: 100%;
-    padding-top: 4px;
+    padding-top: 6px;
     border-top: 1px solid var(--w-border);
-    margin-top: 2px;
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.algo-category-select {
+    flex: 1 1 auto;
+    background: var(--w-bg-dark);
+    border: 1px solid var(--w-border);
+    border-radius: 6px;
+    color: var(--w-text);
+    font-size: 11px;
+    padding: 4px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.algo-link-card-btn {
+    background: var(--w-surface);
+    color: var(--w-primary);
+    border: 1px solid var(--w-border);
+    border-radius: 6px;
+    padding: 4px 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.algo-link-card-btn:hover {
+    background: var(--w-border);
+    transform: scale(1.05);
 }
 
 .algo-note-input {

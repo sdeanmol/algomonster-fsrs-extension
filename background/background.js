@@ -64,6 +64,7 @@ class AlgoRecallBackground {
 
         await this.setupAlarm();
         await this.setupWeeklySummaryAlarm();
+        await this.setupDailyNudgeAlarm();
         Logger.debug('Background', `Extension installed/updated. Reason: ${details ? details.reason : 'unknown'}`);
         
         // Redirect to Onboarding Welcome page on initial install
@@ -93,10 +94,12 @@ class AlgoRecallBackground {
      * @param {Object} alarm - Fired alarm details.
      */
     handleAlarm(alarm) {
-        if (alarm.name === 'checkFsrsReviews' || alarm.name === 'snoozeFsrsReviews') {
+        if (alarm.name === 'checkFsrsReviews' || alarm.name === 'snoozeFsrsReviews' || alarm.name === 'smartReviewSchedule') {
             this.checkDueCards();
         } else if (alarm.name === 'weeklySummary') {
             this.handleWeeklySummary();
+        } else if (alarm.name === 'dailyNudge') {
+            this.handleDailyNudge();
         }
     }
 
@@ -118,7 +121,7 @@ class AlgoRecallBackground {
      * Reads user configurations from storage and schedules/reschedules the review check alarms.
      */
     async setupAlarm() {
-        const result = await chrome.storage.local.get(['notificationSettings']);
+        const result = await chrome.storage.local.get(['notificationSettings', 'fsrsActivity']);
         const settings = result.notificationSettings || {
             enabled: true,
             frequency: '60',
@@ -128,11 +131,35 @@ class AlgoRecallBackground {
 
         await chrome.alarms.clear('checkFsrsReviews');
         await chrome.alarms.clear('snoozeFsrsReviews');
+        await chrome.alarms.clear('smartReviewSchedule');
 
         if (settings.enabled) {
-            const interval = parseInt(settings.frequency, 10) || 60;
-            chrome.alarms.create('checkFsrsReviews', { periodInMinutes: interval });
-            Logger.info('Background', `Scheduled checkFsrsReviews alarm every ${interval} minutes.`);
+            const interval = parseInt(settings.frequency, 10);
+            if (!isNaN(interval) && interval > 0) {
+                chrome.alarms.create('checkFsrsReviews', { periodInMinutes: interval });
+                Logger.info('Background', `Scheduled checkFsrsReviews alarm every ${interval} minutes.`);
+            } else {
+                // If frequency is invalid (or set to 'smart' if we had one), fall back to 1 hour
+                chrome.alarms.create('checkFsrsReviews', { periodInMinutes: 60 });
+                Logger.info('Background', `Scheduled checkFsrsReviews alarm every 60 minutes (fallback).`);
+            }
+            
+            // R8.1 Smart Scheduling: Also schedule a daily check at their most active study hour
+            const activity = result.fsrsActivity || {};
+            const hourCounts = new Array(24).fill(0);
+            let hasActivity = false;
+            // fsrsActivity structure is { 'YYYY-MM-DD': count }. Wait, we don't have hour data in fsrsActivity!
+            // If we don't have hour data, we can just default to 5 PM for smart scheduling.
+            // Let's schedule a smart review at 17:00 daily
+            const now = new Date();
+            const smartTarget = new Date(now);
+            smartTarget.setHours(17, 0, 0, 0);
+            if (smartTarget <= now) smartTarget.setDate(smartTarget.getDate() + 1);
+            
+            const delayInMinutes = Math.max(1, Math.ceil((smartTarget.getTime() - now.getTime()) / 60000));
+            chrome.alarms.create('smartReviewSchedule', { delayInMinutes, periodInMinutes: 1440 });
+            Logger.info('Background', `Scheduled smartReviewSchedule alarm daily at 17:00.`);
+            
         } else {
             Logger.info('Background', `Notifications are disabled, cleared review alarms.`);
         }
@@ -175,6 +202,23 @@ class AlgoRecallBackground {
                 periodInMinutes: 10080
             });
         }
+    }
+
+    /**
+     * R8.4: Sets up the daily nudge alarm.
+     * Fires every day at 8:00 PM (20:00).
+     */
+    async setupDailyNudgeAlarm() {
+        await chrome.alarms.clear('dailyNudge');
+        const now = new Date();
+        const target = new Date(now);
+        target.setHours(20, 0, 0, 0);
+        if (target <= now) {
+            target.setDate(target.getDate() + 1);
+        }
+        const delayInMinutes = Math.max(1, Math.ceil((target.getTime() - now.getTime()) / 60000));
+        chrome.alarms.create('dailyNudge', { delayInMinutes, periodInMinutes: 1440 });
+        Logger.info('Background', `Scheduled dailyNudge alarm at 20:00.`);
     }
 
     /**
@@ -325,11 +369,60 @@ class AlgoRecallBackground {
         // If notifications are disabled, do not notify
         if (settings.enabled === false) return;
 
+        // R8.3 Quiet hours check
+        if (settings.quietHoursEnabled) {
+            const startStr = settings.quietHoursStart || '23:00';
+            const endStr = settings.quietHoursEnd || '07:00';
+            const nowTime = new Date();
+            const currentHour = nowTime.getHours();
+            const currentMinute = nowTime.getMinutes();
+            const currentTotal = currentHour * 60 + currentMinute;
+
+            const [startH, startM] = startStr.split(':').map(Number);
+            const startTotal = startH * 60 + startM;
+
+            const [endH, endM] = endStr.split(':').map(Number);
+            const endTotal = endH * 60 + endM;
+
+            if (startTotal <= endTotal) {
+                if (currentTotal >= startTotal && currentTotal < endTotal) {
+                    Logger.debug('Background', 'Quiet hours active. Suppressing review notification.');
+                    return;
+                }
+            } else {
+                // Crosses midnight
+                if (currentTotal >= startTotal || currentTotal < endTotal) {
+                    Logger.debug('Background', 'Quiet hours active (crosses midnight). Suppressing review notification.');
+                    return;
+                }
+            }
+        }
+
         if (!result.fsrsCards || result.fsrsCards.length === 0) return;
         const now = Date.now();
         const dueCards = result.fsrsCards.filter(c => c.due <= now);
 
         if (dueCards.length > 0) {
+            // R8.2: Notification grouping by tags
+            const tagCounts = {};
+            dueCards.forEach(c => {
+                if (c.tags && c.tags.length > 0) {
+                    c.tags.forEach(t => {
+                        tagCounts[t] = (tagCounts[t] || 0) + 1;
+                    });
+                } else {
+                    tagCounts['Untagged'] = (tagCounts['Untagged'] || 0) + 1;
+                }
+            });
+            const tagStrs = Object.entries(tagCounts)
+                .sort((a, b) => b[1] - a[1]) // highest count first
+                .slice(0, 3) // top 3 tags
+                .map(([tag, count]) => `${count} ${tag}`);
+            
+            const groupMessage = tagStrs.length > 0 
+                ? `You have ${tagStrs.join(', ')} patterns ready for review.`
+                : `You have ${dueCards.length} pattern(s) ready for review.`;
+
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 let handledInPage = false;
                 if (tabs && tabs[0] && tabs[0].id) {
@@ -341,12 +434,12 @@ class AlgoRecallBackground {
                             chrome.tabs.sendMessage(tab.id, {
                                 action: 'show_custom_notification',
                                 title: '🧠 AlgoRecall Reviews Due!',
-                                message: `You have ${dueCards.length} pattern(s) ready for review.`,
+                                message: groupMessage,
                                 type: 'review',
                                 count: dueCards.length
                             }, (response) => {
                                 if (chrome.runtime.lastError || !response || !response.success) {
-                                    this.createSystemReviewNotification(dueCards.length, settings);
+                                    this.createSystemReviewNotification(dueCards.length, settings, groupMessage);
                                 }
                             });
                             handledInPage = true;
@@ -354,7 +447,7 @@ class AlgoRecallBackground {
                     }
                 }
                 if (!handledInPage) {
-                    this.createSystemReviewNotification(dueCards.length, settings);
+                    this.createSystemReviewNotification(dueCards.length, settings, groupMessage);
                 }
             });
         }
@@ -364,14 +457,15 @@ class AlgoRecallBackground {
      * Triggers a native system alert signaling due cards are waiting for study.
      * @param {number} dueCount - The number of cards currently due.
      * @param {Object} settings - Active notification configurations.
+     * @param {string} message - The message string.
      */
-    createSystemReviewNotification(dueCount, settings) {
+    createSystemReviewNotification(dueCount, settings, message) {
         chrome.notifications.clear('algo-review-notification', () => {
             chrome.notifications.create('algo-review-notification', {
                 type: 'basic',
                 iconUrl: '../icons/icon.png',
                 title: '🧠 AlgoRecall Reviews Due!',
-                message: `You have ${dueCount} pattern(s) ready for review.`,
+                message: message || `You have ${dueCount} pattern(s) ready for review.`,
                 priority: parseInt(settings.priority, 10) || 2,
                 requireInteraction: settings.requireInteraction !== false
             }, (id) => {
@@ -461,6 +555,41 @@ class AlgoRecallBackground {
 
         } catch (error) {
             Logger.error('Background', "Error generating weekly summary", error);
+        }
+    }
+
+    /**
+     * R8.4: Motivational nudges. Check if the user has done any reviews today.
+     * If not, send an encouraging push notification to keep the streak alive.
+     */
+    async handleDailyNudge() {
+        try {
+            const result = await chrome.storage.local.get(['fsrsActivity', 'notificationSettings']);
+            const settings = result.notificationSettings || {};
+            if (settings.enabled === false) return;
+
+            const activity = result.fsrsActivity || {};
+            const today = new Date();
+            const dateKey = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
+            if (!activity[dateKey] || activity[dateKey] === 0) {
+                chrome.notifications.create('algo-daily-nudge', {
+                    type: 'basic',
+                    iconUrl: '../icons/icon.png',
+                    title: '🔥 Keep Your Streak Alive!',
+                    message: "You haven't reviewed any patterns today. Just 5 minutes can keep your memory sharp!",
+                    priority: 2,
+                    requireInteraction: false
+                }, (id) => {
+                    if (chrome.runtime.lastError) {
+                        Logger.error('Background', "Daily Nudge Notification Error", chrome.runtime.lastError.message);
+                    } else {
+                        Logger.debug('Background', `Daily nudge notification sent with ID: ${id}`);
+                    }
+                });
+            }
+        } catch (error) {
+            Logger.error('Background', "Error generating daily nudge", error);
         }
     }
 

@@ -41,6 +41,14 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
             this.loadHighlights();
         });
 
+        // Export Button Handler
+        const exportBtn = document.getElementById('export-highlights-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                this.exportHighlightsToMarkdown();
+            });
+        }
+
         // Search Input Listener
         const searchInput = document.getElementById('search-input');
         searchInput.addEventListener('input', (e) => {
@@ -181,13 +189,15 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
             const markText = mark.text.toLowerCase();
             const markUrl = mark.url.toLowerCase();
             const markNote = (mark.note || '').toLowerCase();
+            const markCategory = (mark.category || '').toLowerCase();
             const q = this.searchQuery.toLowerCase();
 
             const matchesQuery = !this.searchQuery || 
                                  markText.includes(q) || 
                                  pageTitle.includes(q) || 
                                  markUrl.includes(q) ||
-                                 markNote.includes(q);
+                                 markNote.includes(q) ||
+                                 markCategory.includes(q);
 
             // Color check
             const matchesColor = !this.activeColorFilter || mark.color === this.activeColorFilter;
@@ -314,6 +324,63 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
                 });
             });
         }
+    }
+
+    /**
+     * Exports the currently displayed (filtered) highlights as a Markdown file.
+     */
+    exportHighlightsToMarkdown() {
+        // Get the filtered list (re-evaluating logic or we could store the currently rendered array)
+        let filtered = this.loadedMarks.filter(mark => {
+            const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
+            const pageTitle = bookmark && bookmark.title ? bookmark.title.toLowerCase() : '';
+            const markText = mark.text.toLowerCase();
+            const markUrl = mark.url.toLowerCase();
+            const markNote = (mark.note || '').toLowerCase();
+            const markCategory = (mark.category || '').toLowerCase();
+            const q = this.searchQuery.toLowerCase();
+
+            const matchesQuery = !this.searchQuery || 
+                                 markText.includes(q) || 
+                                 pageTitle.includes(q) || 
+                                 markUrl.includes(q) ||
+                                 markNote.includes(q) ||
+                                 markCategory.includes(q);
+
+            const matchesColor = !this.activeColorFilter || mark.color === this.activeColorFilter;
+            const matchesPage = this.activePageFilter === 'all' || mark.url === this.activePageFilter;
+
+            return matchesQuery && matchesColor && matchesPage;
+        });
+
+        if (filtered.length === 0) {
+            alert('No highlights to export!');
+            return;
+        }
+
+        let markdownContent = `# AlgoRecall Highlights Export\n\n`;
+        markdownContent += `*Exported on ${new Date().toLocaleString()}*\n\n---\n\n`;
+
+        filtered.forEach(mark => {
+            const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
+            const pageTitle = bookmark && bookmark.title ? bookmark.title : mark.url;
+            const categoryLabel = mark.category ? `**[${mark.category}]** ` : '';
+            
+            markdownContent += `### [${pageTitle}](${mark.url})\n\n`;
+            markdownContent += `> ${categoryLabel}${mark.text}\n\n`;
+            if (mark.note) {
+                markdownContent += `*Note: ${mark.note}*\n\n`;
+            }
+            markdownContent += `---\n\n`;
+        });
+
+        const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        chrome.downloads.download({
+            url: url,
+            filename: `algorecall_highlights_${new Date().toISOString().split('T')[0]}.md`,
+            saveAs: true
+        });
     }
 };
 

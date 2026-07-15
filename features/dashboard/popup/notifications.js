@@ -49,6 +49,10 @@ export class NotificationsComponent extends DashboardComponent {
         const customIntervalContainer = document.getElementById('custom-interval-container');
         const customIntervalInput = document.getElementById('custom-interval-input');
         const notifStickyToggle = document.getElementById('toggle-sticky-notification');
+        const quietToggle = document.getElementById('toggle-quiet-hours');
+        const quietContainer = document.getElementById('quiet-hours-container');
+        const quietStart = document.getElementById('quiet-hours-start');
+        const quietEnd = document.getElementById('quiet-hours-end');
 
         const updateNotificationUI = (settings) => {
             if (!notifToggle) return;
@@ -56,6 +60,12 @@ export class NotificationsComponent extends DashboardComponent {
             if (notifStickyToggle) {
                 notifStickyToggle.checked = settings.requireInteraction !== false;
             }
+            if (quietToggle) {
+                quietToggle.checked = settings.quietHoursEnabled === true;
+                if (quietContainer) quietContainer.classList.toggle('hide-panel', !settings.quietHoursEnabled);
+            }
+            if (quietStart && settings.quietHoursStart) quietStart.value = settings.quietHoursStart;
+            if (quietEnd && settings.quietHoursEnd) quietEnd.value = settings.quietHoursEnd;
 
             const freqStr = settings.frequency || '60';
             const standardOptions = ['1', '15', '30', '60', '120', '360', '720', '1440'];
@@ -95,6 +105,10 @@ export class NotificationsComponent extends DashboardComponent {
         const customIntervalContainer = document.getElementById('custom-interval-container');
         const customIntervalInput = document.getElementById('custom-interval-input');
         const notifStickyToggle = document.getElementById('toggle-sticky-notification');
+        const quietToggle = document.getElementById('toggle-quiet-hours');
+        const quietContainer = document.getElementById('quiet-hours-container');
+        const quietStart = document.getElementById('quiet-hours-start');
+        const quietEnd = document.getElementById('quiet-hours-end');
         const testNotifBtn = document.getElementById('test-notification-btn');
 
         if (enableBtn) {
@@ -126,7 +140,10 @@ export class NotificationsComponent extends DashboardComponent {
                     enabled: notifToggle.checked,
                     frequency: frequency,
                     priority: oldSettings.priority || '2',
-                    requireInteraction: notifStickyToggle.checked
+                    requireInteraction: notifStickyToggle.checked,
+                    quietHoursEnabled: quietToggle ? quietToggle.checked : false,
+                    quietHoursStart: quietStart ? quietStart.value : '23:00',
+                    quietHoursEnd: quietEnd ? quietEnd.value : '07:00'
                 };
 
                 await chrome.storage.local.set({ notificationSettings: updatedSettings });
@@ -156,6 +173,15 @@ export class NotificationsComponent extends DashboardComponent {
         if (notifStickyToggle) {
             notifStickyToggle.addEventListener('change', saveNotificationSettings);
         }
+
+        if (quietToggle) {
+            quietToggle.addEventListener('change', () => {
+                if (quietContainer) quietContainer.classList.toggle('hide-panel', !quietToggle.checked);
+                saveNotificationSettings();
+            });
+        }
+        if (quietStart) quietStart.addEventListener('change', saveNotificationSettings);
+        if (quietEnd) quietEnd.addEventListener('change', saveNotificationSettings);
 
         if (customIntervalInput) {
             customIntervalInput.addEventListener('input', saveNotificationSettings);
