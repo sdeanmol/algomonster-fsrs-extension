@@ -1,9 +1,3 @@
-<!--
-  * @file features/dashboard/analytics/analytics.html
-  * @description Full-tab analytics dashboard with retention curves, tag breakdowns,
-  * lapse leaderboard, and daily/weekly/monthly review stats.
-  * Downstream script: features/dashboard/analytics/analytics.js
-  -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -14,133 +8,67 @@
     <link rel="stylesheet" href="analytics.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="header-main">
-                <h1>
-                    <svg class="svg-icon header-icon" viewBox="0 0 24 24" style="width:24px;height:24px;stroke:var(--md-primary);">
+    <div class="dashboard-layout">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <svg class="svg-icon logo-icon" viewBox="0 0 24 24">
                         <line x1="18" y1="20" x2="18" y2="10"></line>
                         <line x1="12" y1="20" x2="12" y2="4"></line>
                         <line x1="6" y1="20" x2="6" y2="14"></line>
                     </svg>
-                    Analytics Dashboard
-                </h1>
-                <p class="subtitle" id="analytics-subtitle">Loading analytics...</p>
+                    Analytics
+                </h2>
             </div>
-            <div class="header-actions">
-                <a href="../popup/popup.html" class="btn btn-secondary">
+            <ul class="nav-links">
+                <li><button class="nav-btn active" data-tab="overview">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Overview
+                </button></li>
+                <li><button class="nav-btn" data-tab="memory">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                    Memory
+                </button></li>
+                <li><button class="nav-btn" data-tab="tags">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                    Tags
+                </button></li>
+                <li><button class="nav-btn" data-tab="performance">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Performance
+                </button></li>
+                <li><button class="nav-btn" data-tab="insights">
+                    <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>
+                    Insights
+                </button></li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="../popup/popup.html" class="btn btn-secondary w-full" style="text-align: center;">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                    Back to Dashboard
+                    Dashboard
                 </a>
             </div>
-        </div>
+        </nav>
 
-        <!-- Summary Stats Row -->
-        <div class="analytics-summary">
-            <div class="summary-card">
-                <div class="summary-value" id="stat-total-cards">-</div>
-                <div class="summary-label">Total Cards</div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-value" id="stat-total-reviews">-</div>
-                <div class="summary-label">Total Reviews</div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-value" id="stat-retention">-%</div>
-                <div class="summary-label">Retention</div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-value" id="stat-avg-stability">-</div>
-                <div class="summary-label">Avg Stability</div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-value" id="stat-streak">-</div>
-                <div class="summary-label">Current Streak</div>
-            </div>
-        </div>
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="main-header">
+                <h1 id="current-tab-title">Overview</h1>
+                <p class="subtitle" id="analytics-subtitle">Loading analytics...</p>
+            </header>
 
-        <!-- Analytics Grid -->
-        <div class="analytics-panels-grid">
-
-            <!-- R2.1: Retention Curve Graph -->
-            <div class="ana-panel ana-panel-wide">
-                <div class="ana-panel-header">
-                    <span class="ana-panel-title">
-                        <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                        Retention Curve by Tag
-                    </span>
-                    <span class="ana-panel-hint">Predicted memory recall over time</span>
-                </div>
-                <div id="retention-curve-container" class="ana-chart-area">
-                    <!-- SVG retention curve rendered here -->
-                </div>
+            <div class="tab-content-container">
+                <div id="tab-overview" class="tab-pane active"></div>
+                <div id="tab-memory" class="tab-pane"></div>
+                <div id="tab-tags" class="tab-pane"></div>
+                <div id="tab-performance" class="tab-pane"></div>
+                <div id="tab-insights" class="tab-pane"></div>
             </div>
-
-            <!-- R2.3: Tag Breakdown Pie Chart -->
-            <div class="ana-panel">
-                <div class="ana-panel-header">
-                    <span class="ana-panel-title">
-                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-                        Tag Distribution
-                    </span>
-                </div>
-                <div id="tag-chart-container" class="ana-chart-area ana-chart-centered">
-                    <!-- SVG donut chart rendered here -->
-                </div>
-            </div>
-
-            <!-- R2.5: Daily/Weekly/Monthly Stats -->
-            <div class="ana-panel">
-                <div class="ana-panel-header">
-                    <span class="ana-panel-title">
-                        <svg class="svg-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                        Review Stats
-                    </span>
-                    <div class="ana-tab-group">
-                        <button class="ana-tab active" data-period="daily">Daily</button>
-                        <button class="ana-tab" data-period="weekly">Weekly</button>
-                        <button class="ana-tab" data-period="monthly">Monthly</button>
-                    </div>
-                </div>
-                <div id="review-stats-container" class="ana-chart-area">
-                    <!-- Review stats bar chart rendered here -->
-                </div>
-            </div>
-
-            <!-- R2.4: Lapse Leaderboard -->
-            <div class="ana-panel ana-panel-wide">
-                <div class="ana-panel-header">
-                    <span class="ana-panel-title">
-                        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                        Trouble Spots — Most Lapsed Cards
-                    </span>
-                </div>
-                <div id="lapse-leaderboard-container">
-                    <!-- Lapse leaderboard table rendered here -->
-                </div>
-            </div>
-
-            <!-- R2.2: Mini Forecast Strip -->
-            <div class="ana-panel ana-panel-wide">
-                <div class="ana-panel-header">
-                    <span class="ana-panel-title">
-                        <svg class="svg-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                        Upcoming Reviews — Next 7 Days
-                    </span>
-                    <a id="full-forecast-link" href="#" class="ana-panel-link">
-                        Full 30-Day Forecast
-                        <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px;height:12px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                    </a>
-                </div>
-                <div id="mini-forecast-container" class="ana-forecast-strip">
-                    <!-- 7-day mini forecast rendered here -->
-                </div>
-            </div>
-
-        </div>
+        </main>
     </div>
 
-    <script src="analytics.js"></script>
+    <!-- Ensure module import works -->
+    <script type="module" src="analytics.js"></script>
 </body>
 </html>
