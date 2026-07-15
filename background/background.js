@@ -29,6 +29,7 @@ class AlgoRecallBackground {
         Logger.info('Background', 'Initializing background service worker...');
         Logger.time('Background', 'Startup');
         this.bindEvents();
+        this.resumePomodoroBackground();
         Logger.timeEnd('Background', 'Startup');
     }
 
@@ -100,6 +101,8 @@ class AlgoRecallBackground {
             this.handleWeeklySummary();
         } else if (alarm.name === 'dailyNudge') {
             this.handleDailyNudge();
+        } else if (alarm.name === 'pomodoroEnd') {
+            this.handlePomodoroEnd();
         }
     }
 
@@ -273,6 +276,11 @@ class AlgoRecallBackground {
                 await this.setupWeeklySummaryAlarm();
                 sendResponse({ success: true });
             })();
+            return true;
+        }
+        if (message.action === 'pomodoro_action') {
+            this.handlePomodoroAction(message.payload);
+            sendResponse({ success: true });
             return true;
         }
     }
@@ -598,8 +606,154 @@ class AlgoRecallBackground {
      * @param {string} notificationId - The clicked notification ID.
      */
     handleNotificationClicked(notificationId) {
-        chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/popup/popup.html') });
+        if (notificationId === 'pomodoro-complete') {
+            chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/pomodoro/pomodoro.html') });
+        } else {
+            chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/popup/popup.html') });
+        }
         chrome.notifications.clear(notificationId);
+    }
+
+    // ========================================================================
+    // Persistent Pomodoro Timer Logic
+    // ========================================================================
+
+    async resumePomodoroBackground() {
+        const result = await chrome.storage.local.get(['pomodoroState']);
+        if (result.pomodoroState && result.pomodoroState.state === 'running') {
+            this.startPomodoroTick(result.pomodoroState);
+        }
+    }
+
+    async handlePomodoroAction(payload) {
+        const { command, state } = payload;
+        
+        if (command === 'start' || command === 'resume') {
+            this.startPomodoroTick(state);
+            
+            // Set alarm for exact end time to ensure we never miss it if SW sleeps
+            const delayInMinutes = Math.max(0.1, (state.targetEndTime - Date.now()) / 60000);
+            chrome.alarms.create('pomodoroEnd', { delayInMinutes });
+            
+        } else if (command === 'pause' || command === 'reset' || command === 'skip') {
+            this.stopPomodoroTick();
+            chrome.alarms.clear('pomodoroEnd');
+            this._lastPomodoroTitle = null; // Clear title cache so it resets properly when starting again
+            this._lastPomodoroBadge = null;
+            this._lastPomodoroColor = null;
+            
+            if (command === 'reset' || command === 'skip') {
+                chrome.action.setBadgeText({ text: '' });
+                chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
+            } else if (command === 'pause') {
+                chrome.action.setBadgeBackgroundColor({ color: '#95a5a6' });
+                chrome.action.setTitle({ title: 'AlgoRecall (Paused)' });
+            }
+        }
+    }
+
+    startPomodoroTick(state) {
+        this.stopPomodoroTick();
+        
+        const tick = () => {
+            const timeRemaining = Math.max(0, Math.ceil((state.targetEndTime - Date.now()) / 1000));
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            const badgeText = minutes > 0 ? `${minutes}m` : `${seconds}s`;
+            const phaseTitle = state.phase === 'focus' ? 'Focus' : state.phase === 'shortBreak' ? 'Short Break' : 'Long Break';
+            
+            if (this._lastPomodoroBadge !== badgeText) {
+                chrome.action.setBadgeText({ text: badgeText });
+                this._lastPomodoroBadge = badgeText;
+            }
+            
+            const badgeColor = state.phase === 'focus' ? '#e74c3c' : '#2ecc71';
+            if (this._lastPomodoroColor !== badgeColor) {
+                chrome.action.setBadgeBackgroundColor({ color: badgeColor });
+                this._lastPomodoroColor = badgeColor;
+            }
+            
+            // Do not update the title with the time, otherwise Chrome resets the hover delay every second
+            // and the tooltip will never appear!
+            const newTitle = `AlgoRecall: ${phaseTitle}`;
+            if (this._lastPomodoroTitle !== newTitle) {
+                chrome.action.setTitle({ title: newTitle });
+                this._lastPomodoroTitle = newTitle;
+            }
+            
+            if (timeRemaining <= 0) {
+                this.stopPomodoroTick();
+            }
+        };
+        
+        tick(); // Immediate tick
+        this.pomodoroIntervalId = setInterval(tick, 1000);
+    }
+
+    stopPomodoroTick() {
+        if (this.pomodoroIntervalId) {
+            clearInterval(this.pomodoroIntervalId);
+            this.pomodoroIntervalId = null;
+        }
+    }
+
+    async handlePomodoroEnd() {
+        const result = await chrome.storage.local.get(['pomodoroState', 'pomodoroSettings', 'pomodoroStats']);
+        const state = result.pomodoroState;
+        if (!state || state.state !== 'running') return;
+        
+        this.stopPomodoroTick();
+        
+        // Track stats
+        const stats = result.pomodoroStats || { sessionsToday: 0, focusMinutesToday: 0, lastDate: new Date().toLocaleDateString() };
+        if (stats.lastDate !== new Date().toLocaleDateString()) {
+            stats.sessionsToday = 0;
+            stats.focusMinutesToday = 0;
+            stats.lastDate = new Date().toLocaleDateString();
+        }
+        
+        if (state.phase === 'focus') {
+            stats.sessionsToday++;
+            const settings = result.pomodoroSettings || { focusDuration: 25, sessionsBeforeLongBreak: 4 };
+            stats.focusMinutesToday += settings.focusDuration;
+        }
+
+        // Advance Phase
+        const settings = result.pomodoroSettings || { sessionsBeforeLongBreak: 4, focusDuration: 25, shortBreakDuration: 5, longBreakDuration: 15 };
+        if (state.phase === 'focus') {
+            if (state.currentSession >= settings.sessionsBeforeLongBreak) {
+                state.phase = 'longBreak';
+            } else {
+                state.phase = 'shortBreak';
+            }
+        } else {
+            if (state.phase === 'longBreak') {
+                state.currentSession = 1;
+            } else {
+                state.currentSession++;
+            }
+            state.phase = 'focus';
+        }
+        
+        state.state = 'idle';
+        
+        // Save to storage (UI will pick it up)
+        await chrome.storage.local.set({ pomodoroState: state, pomodoroStats: stats });
+        
+        // Notify user
+        chrome.notifications.create('pomodoro-complete', {
+            type: 'basic',
+            iconUrl: '../icons/icon.png',
+            title: '⏱️ Pomodoro Complete!',
+            message: `Time is up! Ready for ${state.phase === 'focus' ? 'Focus Time' : 'a Break'}?`,
+            priority: 2,
+            requireInteraction: true
+        });
+        
+        chrome.action.setBadgeText({ text: '' });
+        chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
     }
 }
 

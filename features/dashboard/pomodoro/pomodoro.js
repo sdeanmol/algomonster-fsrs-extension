@@ -1,8 +1,7 @@
 /**
  * @file features/dashboard/pomodoro/pomodoro.js
- * @description Pomodoro Study Timer controller.
- * Manages focus/break cycles with configurable durations,
- * session tracking, and notification alerts on phase completion.
+ * @description Pomodoro Study Timer UI controller.
+ * Syncs visually with the background service worker which handles the true timer state.
  */
 class PomodoroTimer {
     constructor() {
@@ -18,6 +17,7 @@ class PomodoroTimer {
         this.currentSession = 1;
         this.timeRemaining = 0; // seconds
         this.totalTime = 0; // seconds for current phase
+        this.targetEndTime = null;
         this.intervalId = null;
 
         // Today's stats
@@ -26,29 +26,108 @@ class PomodoroTimer {
     }
 
     init() {
-        chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats'], (result) => {
+        chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result) => {
             if (result.pomodoroSettings) {
                 Object.assign(this.settings, result.pomodoroSettings);
             }
 
+            if (result.pomodoroState) {
+                this.state = result.pomodoroState.state;
+                this.phase = result.pomodoroState.phase;
+                this.currentSession = result.pomodoroState.currentSession;
+                this.timeRemaining = result.pomodoroState.timeRemaining;
+                this.totalTime = result.pomodoroState.totalTime;
+                this.targetEndTime = result.pomodoroState.targetEndTime;
+            } else {
+                this.resetState();
+            }
+
             // Load today's stats
             const stats = result.pomodoroStats || {};
-            const todayKey = this.getTodayKey();
-            if (stats[todayKey]) {
-                this.todaySessions = stats[todayKey].sessions || 0;
-                this.todayFocusMinutes = stats[todayKey].focusMinutes || 0;
+            if (stats.lastDate === new Date().toLocaleDateString()) {
+                this.todaySessions = stats.sessionsToday || 0;
+                this.todayFocusMinutes = stats.focusMinutesToday || 0;
             }
 
             this.loadSettingsUI();
-            this.resetTimer();
             this.updateTodayStats();
             this.bindEvents();
+            
+            // Re-sync UI timer visually
+            if (this.state === 'running') {
+                this.startVisualInterval();
+            } else {
+                this.updateDisplay();
+                this.updateRing();
+                this.updatePhaseIndicator();
+                this.updateSessionDots();
+                
+                document.getElementById('start-btn').style.display = 'flex';
+                document.getElementById('pause-btn').style.display = 'none';
+                document.querySelector('.timer-ring-svg')?.classList.remove('running');
+                document.body.className = '';
+            }
+        });
+        
+        chrome.storage.onChanged.addListener((changes, area) => {
+            if (area === 'local' && changes.pomodoroState) {
+                this.syncState(changes.pomodoroState.newValue);
+            }
+            if (area === 'local' && changes.pomodoroStats) {
+                const stats = changes.pomodoroStats.newValue;
+                if (stats && stats.lastDate === new Date().toLocaleDateString()) {
+                    this.todaySessions = stats.sessionsToday || 0;
+                    this.todayFocusMinutes = stats.focusMinutesToday || 0;
+                    this.updateTodayStats();
+                }
+            }
         });
     }
 
-    getTodayKey() {
-        const d = new Date();
-        return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    resetState() {
+        this.state = 'idle';
+        this.phase = 'focus';
+        this.currentSession = 1;
+        this.totalTime = this.getPhaseDuration() * 60;
+        this.timeRemaining = this.totalTime;
+        this.targetEndTime = null;
+    }
+
+    getStateObj() {
+        return {
+            state: this.state,
+            phase: this.phase,
+            currentSession: this.currentSession,
+            timeRemaining: this.timeRemaining,
+            totalTime: this.totalTime,
+            targetEndTime: this.targetEndTime
+        };
+    }
+
+    syncState(newState) {
+        if (!newState) return;
+        this.state = newState.state;
+        this.phase = newState.phase;
+        this.currentSession = newState.currentSession;
+        this.totalTime = newState.totalTime;
+        this.targetEndTime = newState.targetEndTime;
+        
+        if (this.state !== 'running') {
+            this.timeRemaining = newState.timeRemaining;
+            this.stopVisualInterval();
+            this.updateDisplay();
+            this.updateRing();
+            
+            document.getElementById('start-btn').style.display = 'flex';
+            document.getElementById('pause-btn').style.display = 'none';
+            document.querySelector('.timer-ring-svg')?.classList.remove('running');
+            document.body.className = '';
+        } else {
+            this.startVisualInterval();
+        }
+        
+        this.updatePhaseIndicator();
+        this.updateSessionDots();
     }
 
     bindEvents() {
@@ -59,9 +138,6 @@ class PomodoroTimer {
         document.getElementById('save-settings-btn')?.addEventListener('click', () => this.saveSettings());
     }
 
-    /**
-     * Loads saved settings into the settings form inputs.
-     */
     loadSettingsUI() {
         const focusInput = document.getElementById('focus-duration');
         const shortInput = document.getElementById('short-break-duration');
@@ -74,9 +150,6 @@ class PomodoroTimer {
         if (sessionsInput) sessionsInput.value = this.settings.sessionsBeforeLongBreak;
     }
 
-    /**
-     * Saves the settings from form inputs to storage.
-     */
     saveSettings() {
         const focusDuration = parseInt(document.getElementById('focus-duration')?.value) || 25;
         const shortBreakDuration = parseInt(document.getElementById('short-break-duration')?.value) || 5;
@@ -90,9 +163,6 @@ class PomodoroTimer {
         });
     }
 
-    /**
-     * Gets the duration in minutes for the current phase.
-     */
     getPhaseDuration() {
         switch (this.phase) {
             case 'focus': return this.settings.focusDuration;
@@ -102,133 +172,44 @@ class PomodoroTimer {
         }
     }
 
-    /**
-     * Resets the timer to the beginning of the current phase.
-     */
-    resetTimer() {
-        this.totalTime = this.getPhaseDuration() * 60;
-        this.timeRemaining = this.totalTime;
-        this.updateDisplay();
-        this.updateRing();
-        this.updatePhaseIndicator();
-        this.updateSessionDots();
-    }
-
-    /**
-     * Starts or resumes the timer.
-     */
     start() {
         if (this.state === 'running') return;
-
         this.state = 'running';
-        document.getElementById('start-btn').style.display = 'none';
-        document.getElementById('pause-btn').style.display = 'flex';
-        document.querySelector('.timer-ring-svg')?.classList.add('running');
-        document.body.className = this.phase === 'focus' ? 'phase-focus' : 'phase-break';
-
-        this.intervalId = setInterval(() => {
-            this.timeRemaining--;
-
-            if (this.timeRemaining <= 0) {
-                this.onPhaseComplete();
-                return;
-            }
-
-            this.updateDisplay();
-            this.updateRing();
-        }, 1000);
+        this.targetEndTime = Date.now() + (this.timeRemaining * 1000);
+        
+        const stateObj = this.getStateObj();
+        chrome.storage.local.set({ pomodoroState: stateObj });
+        chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'start', state: stateObj } });
     }
 
-    /**
-     * Pauses the timer.
-     */
     pause() {
         if (this.state !== 'running') return;
-
+        
         this.state = 'paused';
-        clearInterval(this.intervalId);
-        this.intervalId = null;
-
-        document.getElementById('start-btn').style.display = 'flex';
-        document.getElementById('pause-btn').style.display = 'none';
-        document.querySelector('.timer-ring-svg')?.classList.remove('running');
-    }
-
-    /**
-     * Resets the timer completely, going back to focus phase session 1.
-     */
-    reset() {
-        this.state = 'idle';
-        clearInterval(this.intervalId);
-        this.intervalId = null;
-        this.phase = 'focus';
-        this.currentSession = 1;
-
-        document.getElementById('start-btn').style.display = 'flex';
-        document.getElementById('pause-btn').style.display = 'none';
-        document.querySelector('.timer-ring-svg')?.classList.remove('running');
-        document.body.className = '';
-
-        this.resetTimer();
-    }
-
-    /**
-     * Skips to the next phase.
-     */
-    skip() {
-        clearInterval(this.intervalId);
-        this.intervalId = null;
-        this.state = 'idle';
-
-        document.getElementById('start-btn').style.display = 'flex';
-        document.getElementById('pause-btn').style.display = 'none';
-        document.querySelector('.timer-ring-svg')?.classList.remove('running');
-
-        this.advancePhase();
-        this.resetTimer();
-    }
-
-    /**
-     * Called when the current phase timer reaches zero.
-     */
-    onPhaseComplete() {
-        clearInterval(this.intervalId);
-        this.intervalId = null;
-        this.state = 'idle';
-
-        document.getElementById('start-btn').style.display = 'flex';
-        document.getElementById('pause-btn').style.display = 'none';
-        document.querySelector('.timer-ring-svg')?.classList.remove('running');
-
-        // Track completed focus sessions
-        if (this.phase === 'focus') {
-            this.todaySessions++;
-            this.todayFocusMinutes += this.settings.focusDuration;
-            this.saveTodayStats();
-            this.updateTodayStats();
+        if (this.targetEndTime) {
+            this.timeRemaining = Math.max(0, Math.ceil((this.targetEndTime - Date.now()) / 1000));
         }
-
-        // Send notification
-        this.sendNotification();
-
-        // Advance to next phase
-        this.advancePhase();
-        this.resetTimer();
+        
+        const stateObj = this.getStateObj();
+        chrome.storage.local.set({ pomodoroState: stateObj });
+        chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'pause', state: stateObj } });
     }
 
-    /**
-     * Advances to the next timer phase.
-     */
-    advancePhase() {
+    reset() {
+        this.resetState();
+        const stateObj = this.getStateObj();
+        chrome.storage.local.set({ pomodoroState: stateObj });
+        chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'reset', state: stateObj } });
+    }
+
+    skip() {
         if (this.phase === 'focus') {
-            // After focus: check if long break is due
             if (this.currentSession >= this.settings.sessionsBeforeLongBreak) {
                 this.phase = 'longBreak';
             } else {
                 this.phase = 'shortBreak';
             }
         } else {
-            // After any break: advance session and go to focus
             if (this.phase === 'longBreak') {
                 this.currentSession = 1;
             } else {
@@ -236,11 +217,44 @@ class PomodoroTimer {
             }
             this.phase = 'focus';
         }
+        this.state = 'idle';
+        this.totalTime = this.getPhaseDuration() * 60;
+        this.timeRemaining = this.totalTime;
+        this.targetEndTime = null;
+        
+        const stateObj = this.getStateObj();
+        chrome.storage.local.set({ pomodoroState: stateObj });
+        chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'skip', state: stateObj } });
     }
 
-    /**
-     * Updates the time display (MM:SS format).
-     */
+    startVisualInterval() {
+        this.stopVisualInterval();
+        
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('pause-btn').style.display = 'flex';
+        document.querySelector('.timer-ring-svg')?.classList.add('running');
+        document.body.className = this.phase === 'focus' ? 'phase-focus' : 'phase-break';
+
+        const tick = () => {
+            if (this.state !== 'running') return this.stopVisualInterval();
+            this.timeRemaining = Math.max(0, Math.ceil((this.targetEndTime - Date.now()) / 1000));
+            this.updateDisplay();
+            this.updateRing();
+        };
+        
+        tick();
+        this.intervalId = setInterval(tick, 1000);
+        this.updatePhaseIndicator();
+        this.updateSessionDots();
+    }
+    
+    stopVisualInterval() {
+        if (this.intervalId) {
+            clearInterval(this.intervalId);
+            this.intervalId = null;
+        }
+    }
+
     updateDisplay() {
         const minutes = Math.floor(this.timeRemaining / 60);
         const seconds = this.timeRemaining % 60;
@@ -248,15 +262,12 @@ class PomodoroTimer {
 
         document.getElementById('timer-time').textContent = timeStr;
         document.title = `${timeStr} — AlgoRecall Pomodoro`;
-
+        
         // Phase label
         const labels = { focus: 'Focus Time', shortBreak: 'Short Break', longBreak: 'Long Break' };
         document.getElementById('timer-phase-label').textContent = labels[this.phase] || 'Focus Time';
     }
 
-    /**
-     * Updates the SVG ring progress indicator.
-     */
     updateRing() {
         const ring = document.getElementById('timer-ring-fill');
         if (!ring) return;
@@ -276,9 +287,6 @@ class PomodoroTimer {
         }
     }
 
-    /**
-     * Updates the phase indicator pill tabs.
-     */
     updatePhaseIndicator() {
         const pills = {
             'focus': document.getElementById('phase-focus'),
@@ -296,9 +304,6 @@ class PomodoroTimer {
         });
     }
 
-    /**
-     * Updates the session dot indicators.
-     */
     updateSessionDots() {
         const dotsContainer = document.getElementById('session-dots');
         const sessionText = document.getElementById('session-text');
@@ -319,31 +324,6 @@ class PomodoroTimer {
         }
     }
 
-    /**
-     * Sends a notification when a phase completes.
-     */
-    sendNotification() {
-        const isBreakPhase = this.phase !== 'focus'; // We already advanced, so check opposite
-        const title = isBreakPhase ? '⏰ Break Time!' : '🎯 Focus Time!';
-        const message = isBreakPhase
-            ? `Great work! Take a ${this.getPhaseDuration()}-minute break.`
-            : 'Break is over. Time to focus!';
-
-        // Try chrome notification API
-        if (chrome.notifications) {
-            chrome.notifications.create(`pomodoro-${Date.now()}`, {
-                type: 'basic',
-                iconUrl: chrome.runtime.getURL('icons/icon.png'),
-                title: title,
-                message: message,
-                priority: 2
-            });
-        }
-    }
-
-    /**
-     * Updates the today's stats display.
-     */
     updateTodayStats() {
         const sessionsEl = document.getElementById('today-sessions');
         const focusEl = document.getElementById('today-focus-time');
@@ -359,24 +339,9 @@ class PomodoroTimer {
             }
         }
     }
-
-    /**
-     * Persists today's session stats to storage.
-     */
-    saveTodayStats() {
-        const todayKey = this.getTodayKey();
-        chrome.storage.local.get(['pomodoroStats'], (result) => {
-            const stats = result.pomodoroStats || {};
-            stats[todayKey] = {
-                sessions: this.todaySessions,
-                focusMinutes: this.todayFocusMinutes
-            };
-            chrome.storage.local.set({ pomodoroStats: stats });
-        });
-    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const timer = new PomodoroTimer();
-    timer.init();
+    window.pomodoro = new PomodoroTimer();
+    window.pomodoro.init();
 });
