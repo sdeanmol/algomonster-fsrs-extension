@@ -48,8 +48,6 @@ export class OverviewTab {
         let healthScore = 0;
         if (stats.trueRetention > 0) {
             healthScore = stats.trueRetention;
-            if (stats.streak > 3) healthScore = Math.min(100, healthScore + 2);
-            if (stats.streak > 7) healthScore = Math.min(100, healthScore + 3);
         } else if (stats.retention > 0) {
             healthScore = stats.retention;
         }
