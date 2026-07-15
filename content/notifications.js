@@ -25,6 +25,8 @@ window.AlgoRecall.Notifier = class Notifier {
         const notification = document.createElement('div');
         notification.id = 'algo-custom-notification-el';
         notification.className = 'algo-custom-notification';
+        notification.setAttribute('role', 'alert');
+        notification.setAttribute('aria-live', 'assertive');
         
         const state = window.AlgoRecall.state;
         if (state && state.currentTheme === 'light') {
@@ -58,7 +60,7 @@ window.AlgoRecall.Notifier = class Notifier {
                     <span class="${iconClass}">${iconSymbol}</span>
                     <span class="algo-notif-title">${title}</span>
                 </div>
-                <button id="algo-notif-btn-close" class="algo-notif-close" title="Close">&times;</button>
+                <button id="algo-notif-btn-close" class="algo-notif-close" aria-label="Close" title="Close">&times;</button>
             </div>
             <p class="algo-notif-message">${message}</p>
             ${buttonsHtml}

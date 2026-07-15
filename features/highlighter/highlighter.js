@@ -32,6 +32,8 @@ window.AlgoRecall.Highlighter = class Highlighter {
         if (!document.getElementById('algo-highlight-tooltip')) {
             const tooltip = document.createElement('div');
             tooltip.id = 'algo-highlight-tooltip';
+            tooltip.setAttribute('role', 'dialog');
+            tooltip.setAttribute('aria-label', 'Highlighter Options');
             document.body.appendChild(tooltip);
         }
 
@@ -166,6 +168,8 @@ window.AlgoRecall.Highlighter = class Highlighter {
             typeContainer.style.borderRadius = '8px';
             typeContainer.style.overflow = 'hidden';
             typeContainer.style.border = '1px solid var(--w-border)';
+            typeContainer.setAttribute('role', 'radiogroup');
+            typeContainer.setAttribute('aria-label', 'Highlight Type');
 
             const types = ['highlight', 'underline'];
             const typeBtns = {};
@@ -185,16 +189,33 @@ window.AlgoRecall.Highlighter = class Highlighter {
                 const isActive = t === 'highlight';
                 btn.style.background = isActive ? 'var(--w-primary-container)' : 'var(--w-bg-dark)';
                 btn.style.color = isActive ? 'var(--w-on-primary-container)' : 'var(--w-text-med)';
+                
+                btn.setAttribute('role', 'radio');
+                btn.setAttribute('aria-checked', isActive.toString());
+                btn.setAttribute('tabindex', isActive ? '0' : '-1');
+
+                const setActiveType = (typeVal) => {
+                    activeType = typeVal;
+                    types.forEach(type => {
+                        const isBtnActive = type === typeVal;
+                        typeBtns[type].style.background = isBtnActive ? 'var(--w-primary-container)' : 'var(--w-bg-dark)';
+                        typeBtns[type].style.color = isBtnActive ? 'var(--w-on-primary-container)' : 'var(--w-text-med)';
+                        typeBtns[type].setAttribute('aria-checked', isBtnActive.toString());
+                        typeBtns[type].setAttribute('tabindex', isBtnActive ? '0' : '-1');
+                    });
+                };
 
                 btn.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    activeType = t;
-                    types.forEach(type => {
-                        const isBtnActive = type === t;
-                        typeBtns[type].style.background = isBtnActive ? 'var(--w-primary-container)' : 'var(--w-bg-dark)';
-                        typeBtns[type].style.color = isBtnActive ? 'var(--w-on-primary-container)' : 'var(--w-text-med)';
-                    });
+                    setActiveType(t);
+                });
+                
+                btn.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setActiveType(t);
+                    }
                 });
                 typeBtns[t] = btn;
                 typeContainer.appendChild(btn);
@@ -221,17 +242,32 @@ window.AlgoRecall.Highlighter = class Highlighter {
         paletteColors.forEach(color => {
             const swatch = document.createElement('div');
             swatch.className = 'algo-color-swatch';
-            swatch.style.backgroundColor = color;
+            swatch.style.background = color;
+            swatch.title = `Color: ${color}`;
+            swatch.setAttribute('role', 'button');
+            swatch.setAttribute('aria-label', `Highlight with color ${color}`);
+            swatch.setAttribute('tabindex', '0');
 
             // Mark as active if this swatch matches the highlight color
-            if (existingMarkId && color === currentColor) {
+            if (color === currentColor) {
                 swatch.classList.add('active');
             }
 
-            swatch.addEventListener('mousedown', (e) => {
-                e.preventDefault();
+            const handleSwatchClick = () => {
                 if (existingMarkId) this.updateHighlightColor(existingMarkId, color);
                 else this.saveHighlight(color, activeType);
+            };
+
+            swatch.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                handleSwatchClick();
+            });
+            
+            swatch.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleSwatchClick();
+                }
             });
             actionsContainer.appendChild(swatch);
         });
@@ -240,6 +276,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
         const picker = document.createElement('input');
         picker.type = 'color';
         picker.id = 'algo-color-picker';
+        picker.setAttribute('aria-label', 'Custom highlight color');
         picker.value = currentColor || this.state.chromeSettings.defaultHighlightColor;
         picker.addEventListener('input', (e) => {
             const newColor = e.target.value;
@@ -257,11 +294,26 @@ window.AlgoRecall.Highlighter = class Highlighter {
 
             const deleteBtn = document.createElement('div');
             deleteBtn.className = 'algo-delete-btn';
+            deleteBtn.setAttribute('role', 'button');
+            deleteBtn.setAttribute('aria-label', 'Delete Highlight');
+            deleteBtn.setAttribute('tabindex', '0');
             deleteBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path></svg>`;
-            deleteBtn.addEventListener('mousedown', (e) => {
-                e.preventDefault();
+            
+            const handleDelete = () => {
                 this.deleteHighlight(existingMarkId);
                 this.renderTooltipColors();
+            };
+
+            deleteBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                handleDelete();
+            });
+            
+            deleteBtn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleDelete();
+                }
             });
             actionsContainer.appendChild(deleteBtn);
         }

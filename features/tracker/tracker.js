@@ -162,6 +162,9 @@ window.AlgoRecall.Tracker = class Tracker {
         // 1. CREATE LAUNCHER
         const launcher = document.createElement('div');
         launcher.id = 'algo-fsrs-launcher';
+        launcher.setAttribute('role', 'button');
+        launcher.setAttribute('aria-label', 'Open FSRS Tracker');
+        launcher.setAttribute('tabindex', '0');
         launcher.innerHTML = `<svg class="launcher-svg" viewBox="0 0 24 24" style="width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2;"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>`; 
         launcher.title = "FSRS Tracker (Drag to move, Right-click to reset position)";
         document.body.appendChild(launcher);
@@ -169,6 +172,8 @@ window.AlgoRecall.Tracker = class Tracker {
         // 2. CREATE WIDGET CONTAINER
         const container = document.createElement('div');
         container.id = 'algo-fsrs-container';
+        container.setAttribute('role', 'dialog');
+        container.setAttribute('aria-label', 'FSRS Tracker');
         container.style.display = 'none';
 
         container.innerHTML = `
@@ -178,10 +183,10 @@ window.AlgoRecall.Tracker = class Tracker {
                     <span>FSRS Tracker</span>
                 </div>
                 <div class="fsrs-controls">
-                    <button id="fsrs-min-btn" class="fsrs-icon-btn" title="Minimize">
+                    <button id="fsrs-min-btn" class="fsrs-icon-btn" aria-label="Minimize" title="Minimize">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     </button>
-                    <button id="fsrs-close-btn" class="fsrs-icon-btn" title="Close">
+                    <button id="fsrs-close-btn" class="fsrs-icon-btn" aria-label="Close" title="Close">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                 </div>
@@ -279,6 +284,15 @@ window.AlgoRecall.Tracker = class Tracker {
             launcher.style.display = 'none';
             container.style.display = 'block';
             this.refreshWidgetState();
+        });
+
+        launcher.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                launcher.style.display = 'none';
+                container.style.display = 'block';
+                this.refreshWidgetState();
+            }
         });
 
         launcher.addEventListener('contextmenu', (e) => {

@@ -915,3 +915,58 @@ details[open] .details-summary .chevron {
 }
 .toast.error { border-color: var(--md-danger); color: var(--md-danger); }
 .toast.success { border-color: var(--md-success); color: var(--md-success); }
+/* R10.4 Reduced Motion Mode */
+@media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* R10.6 Responsive Popup Layout (Full-Tab Mode) */
+@media (min-width: 600px) {
+    body {
+        width: 100%;
+        max-width: 850px;
+        margin: 0 auto;
+        min-height: 100vh;
+        border-left: 1px solid var(--md-border);
+        border-right: 1px solid var(--md-border);
+    }
+    
+    .main-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        align-items: start;
+    }
+    
+    /* Elements that should span full width */
+    #permission-warning-banner,
+    #rating-prompt-card,
+    .details-card,
+    .static-review-banner {
+        grid-column: 1 / -1;
+    }
+    
+    /* Reorder if necessary, or let CSS grid auto-flow */
+    .stats-hero {
+        grid-column: 1 / -1;
+    }
+    
+    .group-card {
+        grid-column: 1 / 2;
+    }
+    
+    /* Wrap highlighter and notification settings in a flex column if we want them grouped in the right column,
+       but since they are separate cards, we can just assign them to column 2 */
+    .highlighter-card {
+        grid-column: 2 / 3;
+    }
+    
+    .notification-card {
+        grid-column: 2 / 3;
+    }
+}
