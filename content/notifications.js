@@ -119,7 +119,7 @@ window.AlgoRecall.Notifier = class Notifier {
                 if (autoDismissTimer) clearTimeout(autoDismissTimer);
                 dismissNotification();
                 
-                // Open/Show the FSRS container and start the review flow!
+                // Open/Show the scheduler container and start the review flow!
                 const launcher = document.getElementById('algo-fsrs-launcher');
                 const container = document.getElementById('algo-fsrs-container');
                 

@@ -9,7 +9,7 @@ export class MemoryHealth {
 
         const stats = this.dataUtils.getSummaryStats();
         
-        // Calculate a genuine FSRS health score based on average current retrievability
+        // Calculate a genuine memory health score based on average current retrievability
         let healthScore = 0;
         if (stats.trueRetention > 0) {
             healthScore = stats.trueRetention;

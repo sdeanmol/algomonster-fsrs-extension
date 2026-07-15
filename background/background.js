@@ -1,7 +1,7 @@
 /**
  * @file background/background.js
  * @description Extension background service worker (Manifest V3) implemented as an OOP class.
- * Manages background alarms for checking FSRS card due times, schedules/delivers OS notifications,
+ * Manages background alarms for checking scheduled card due times, schedules/delivers OS notifications,
  * handles custom whitelisted website routing messages, reacts to SPA client-side history state updates,
  * and sends weekly summary digest notifications (R3.6).
  */
@@ -350,7 +350,7 @@ class AlgoRecallBackground {
     }
 
     /**
-     * Queries the list of FSRS cards in storage, filters due items, and prompts the user.
+     * Queries the list of scheduled cards in storage, filters due items, and prompts the user.
      * Delivers alerts either through an in-page notification frame or a native system notification.
      */
     async checkDueCards() {

@@ -9,8 +9,8 @@ window.AlgoRecall = window.AlgoRecall || {};
 
 // Instantiated state container
 window.AlgoRecall.state = {
-    // Instantiated FSRS algorithm controller
-    fsrs: new FSRS(),
+    // Instantiated scheduling algorithm controller (FSRS as default)
+    scheduler: new FsrsScheduler(),
 
     // Active collection of study cards/patterns loaded from storage
     cards: [],

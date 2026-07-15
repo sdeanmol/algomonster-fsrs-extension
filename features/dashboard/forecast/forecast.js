@@ -1,10 +1,10 @@
 /**
  * @file features/dashboard/forecast/forecast.js
  * @description Main controller for the dedicated forecast future workloads dashboard.
- * Projects upcoming review volumes up to 30 days based on scheduled FSRS card due dates,
+ * Projects upcoming review volumes up to 30 days based on scheduled card due dates,
  * rendering column charts and interactive calendars.
  */
-class FSRSForecastDashboard {
+class ForecastDashboard {
     constructor() {
         this.chromeSettings = {};
     }
@@ -24,7 +24,7 @@ class FSRSForecastDashboard {
      * Orchestrates the grouping of cards by due date, calculates peak/total workload stats,
      * and renders both the workload forecast chart and the 30-day forecast calendar.
      * 
-     * @param {Array} cards - All FSRS saved problem cards.
+     * @param {Array} cards - All scheduled problem cards.
      */
     renderForecast(cards) {
         const now = new Date();
@@ -306,6 +306,6 @@ class FSRSForecastDashboard {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const forecast = new FSRSForecastDashboard();
+    const forecast = new ForecastDashboard();
     forecast.init();
 });

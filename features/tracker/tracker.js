@@ -395,12 +395,12 @@ window.AlgoRecall.Tracker = class Tracker {
                     if (index > -1) {
                         this.state.cards[index].approach = approach;
                         this.state.cards[index].tags = parsedTags;
-                        this.state.cards[index] = this.state.fsrs.reviewCard(this.state.cards[index], rating, customWeights);
+                        this.state.cards[index] = this.state.scheduler.reviewCard(this.state.cards[index], rating, customWeights);
                         this.state.cards[index].lastRating = rating; 
                     }
                 } else {
-                    let newCard = this.state.fsrs.createCard(problemTitle, cleanUrl, "", approach, parsedTags);
-                    newCard = this.state.fsrs.reviewCard(newCard, rating, customWeights);
+                    let newCard = this.state.scheduler.createCard(problemTitle, cleanUrl, "", approach, parsedTags);
+                    newCard = this.state.scheduler.reviewCard(newCard, rating, customWeights);
                     newCard.lastRating = rating; 
                     this.state.cards.push(newCard);
                 }
@@ -739,7 +739,7 @@ window.AlgoRecall.Tracker = class Tracker {
             }
         }
 
-        this.state.cards[index] = this.state.fsrs.reviewCard(card, rating, customWeightsToApply);
+        this.state.cards[index] = this.state.scheduler.reviewCard(card, rating, customWeightsToApply);
         this.state.cards[index].lastRating = rating;
         this.saveCards();
         this.logReviewActivity();

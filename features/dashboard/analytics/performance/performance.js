@@ -79,9 +79,9 @@ export class PerformanceTab {
         const dataUtils = this.dataUtils;
         let struggling = 0;
         dataUtils.cards.forEach(c => {
-            // FSRS Difficulty scales from 1 (easiest) to 10 (hardest).
-            // A card with difficulty >= 7 and at least 1 lapse is genuinely struggling.
-            if ((c.difficulty || 0) >= 7 && (c.lapses || 0) >= 1) {
+            // Determine difficulty dynamically from the active scheduling algorithm
+            const isHard = dataUtils.scheduler ? dataUtils.scheduler.isHighDifficulty(c) : (c.difficulty || 0) >= 7;
+            if (isHard && (c.lapses || 0) >= 1) {
                 struggling++;
             }
         });
@@ -94,7 +94,7 @@ export class PerformanceTab {
                     </svg>
                     <div class="insight-content">
                         <h3>Next Action: Reformulate Problem Cards</h3>
-                        <p>The FSRS algorithm has identified <strong>${struggling} cards</strong> with a High Difficulty rating (≥ 7) that you have lapsed on. Your next action is to <strong>edit these cards</strong>: simplify the information, add a mnemonic, or break them down into smaller pieces.</p>
+                        <p>The scheduling algorithm has identified <strong>${struggling} cards</strong> with a High Difficulty rating that you have lapsed on. Your next action is to <strong>edit these cards</strong>: simplify the information, add a mnemonic, or break them down into smaller pieces.</p>
                     </div>
                 </div>
             `;
@@ -106,7 +106,7 @@ export class PerformanceTab {
                     </svg>
                     <div class="insight-content">
                         <h3>Next Action: Consistent Reviews</h3>
-                        <p>You have no major trouble spots right now! Keep up the daily reviews to maintain your high FSRS recovery rate.</p>
+                        <p>You have no major trouble spots right now! Keep up the daily reviews to maintain your high recovery rate.</p>
                     </div>
                 </div>
             `;

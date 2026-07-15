@@ -38,7 +38,8 @@ class AnalyticsDashboardSPA {
             const cards = result.fsrsCards || [];
             const activity = result.fsrsActivity || {};
             
-            this.dataUtils = new DataUtils(cards, activity);
+            const scheduler = typeof window !== 'undefined' && window.FsrsScheduler ? new window.FsrsScheduler() : null;
+            this.dataUtils = new DataUtils(cards, activity, scheduler);
             
             // Initialize tab controllers
             this.tabs.overview = new OverviewTab(this.dataUtils);

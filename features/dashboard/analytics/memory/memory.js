@@ -42,7 +42,7 @@ export class MemoryTab {
                         <div class="ana-panel-header">
                             <span class="ana-panel-title">
                                 Actual vs Predicted Recall
-                                <span class="help-icon" data-tooltip="Compares your real-world review performance against the FSRS mathematical prediction model. Large gaps mean the algorithm might need tuning.">?</span>
+                                <span class="help-icon" data-tooltip="Compares your real-world review performance against the scheduling mathematical prediction model. Large gaps mean the algorithm might need tuning.">?</span>
                             </span>
                         </div>
                         <div id="prediction-comparison-container" class="ana-chart-area"></div>
@@ -78,9 +78,10 @@ export class MemoryTab {
 
         const stats = this.dataUtils.getSummaryStats();
         
-        // FSRS Default Requested Retention is usually 90% (0.90)
-        // If we have actual user settings, we'd pull chromeSettings.fsrsRequestRetention, but we'll default to 90%
-        const requestedRetention = 90; 
+        // Fetch Requested Retention from active scheduler (default 90%)
+        const requestedRetention = this.dataUtils.scheduler 
+            ? Math.round(this.dataUtils.scheduler.getDefaultRequestRetention() * 100) 
+            : 90; 
         const actualRetention = stats.retention || 0;
         
         const retentionDrop = requestedRetention - actualRetention;
@@ -93,7 +94,7 @@ export class MemoryTab {
                     </svg>
                     <div class="insight-content">
                         <h3>Next Action: Clear Overdue Reviews</h3>
-                        <p>Your actual retention (${actualRetention}%) is affected by your <strong>${stats.due} overdue cards</strong>. The FSRS algorithm assumes you review cards exactly when they are due. Your next action is to <strong>clear your review queue</strong> to restore your memory stability!</p>
+                        <p>Your actual retention (${actualRetention}%) is affected by your <strong>${stats.due} overdue cards</strong>. The scheduling algorithm assumes you review cards exactly when they are due. Your next action is to <strong>clear your review queue</strong> to restore your memory stability!</p>
                     </div>
                 </div>
             `;
@@ -104,8 +105,8 @@ export class MemoryTab {
                         <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
                     <div class="insight-content">
-                        <h3>Next Action: Calibrate FSRS Parameters</h3>
-                        <p>Your actual retention is tracking ${retentionDrop}% below the requested retention of ${requestedRetention}%. Because you have no overdue cards, the algorithm weights might be miscalibrated for your memory. <strong>Consider running the FSRS optimizer</strong> to tune the parameters to your learning history.</p>
+                        <h3>Next Action: Calibrate Algorithm Parameters</h3>
+                        <p>Your actual retention is tracking ${retentionDrop}% below the requested retention of ${requestedRetention}%. Because you have no overdue cards, the algorithm weights might be miscalibrated for your memory. <strong>Consider running the optimizer</strong> to tune the parameters to your learning history.</p>
                     </div>
                 </div>
             `;
@@ -117,7 +118,7 @@ export class MemoryTab {
                     </svg>
                     <div class="insight-content">
                         <h3>Next Action: Keep up the Good Work</h3>
-                        <p>Your actual recall (${actualRetention}%) is tracking closely to the FSRS desired retention! Your memory stability is perfectly calibrated. No settings changes are necessary right now.</p>
+                        <p>Your actual recall (${actualRetention}%) is tracking closely to the desired retention! Your memory stability is perfectly calibrated. No settings changes are necessary right now.</p>
                     </div>
                 </div>
             `;

@@ -1,26 +1,20 @@
 /**
- * @file features/tracker/fsrs.js
- * @description Core implementation of the Free Spaced Repetition Scheduler (FSRS) algorithm.
- * Responsible for mathematical calculations of card stability, difficulty, retrievability,
- * and scheduled review intervals, with optional fuzzing.
- * Upstream dependencies: None (Independent mathematical utility).
- * Downstream dependencies: content/state.js, content/content.js, features/tracker/tracker.js, features/dashboard/popup/stats.js, features/dashboard/forecast/forecast.js.
+ * @file features/tracker/scheduler/fsrsScheduler.js
+ * @description Concrete implementation of the Free Spaced Repetition Scheduler (FSRS) algorithm.
+ * Extends the abstract Scheduler base class to provide mathematically precise card
+ * stability, difficulty, retrievability, and scheduled review intervals.
  */
 
-/**
- * Free Spaced Repetition Scheduler (FSRS) mathematical controller.
- */
-class FSRS {
+const BaseScheduler = typeof Scheduler !== 'undefined' ? Scheduler : (typeof require !== 'undefined' ? require('./scheduler.js') : class {});
+
+class FsrsScheduler extends BaseScheduler {
     /**
-     * Initializes the scheduler with default or custom parameters.
-     * @param {Object|null} [params=null] - Configuration parameters.
-     * @param {number[]} [params.w] - Custom FSRS 17-parameter weights array.
-     * @param {number} [params.decay] - Stability decay rate (default: -0.5).
-     * @param {number} [params.factor] - Retention rating factor (default: 19/81).
-     * @param {number} [params.requestRetention] - Targeted probability of memory recall (default: 0.90).
+     * Initializes the FSRS scheduler with standard FSRS-4.5 weights and constants.
+     * @param {Object|null} [params=null] - Configuration overrides.
      */
     constructor(params = null) {
-        // Standard FSRS-4.5 default weight parameters
+        super();
+        // Standard FSRS-4.5 default weight parameters for algorithm stability
         this.w = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
         this.decay = -0.5;
         this.factor = 19 / 81;
@@ -42,20 +36,11 @@ class FSRS {
         }
     }
 
-    /**
-     * Creates and initializes a new FSRS card object schema.
-     * @param {string} problemTitle - The title of the problem.
-     * @param {string} problemUrl - The canonical URL of the problem.
-     * @param {string} textRead - Saved notes context.
-     * @param {string} approach - Textual description of the problem-solving approach.
-     * @param {string[]} [tags=[]] - Category tags associated with this card.
-     * @returns {Object} Newly initialized FSRS card schema.
-     */
     createCard(problemTitle, problemUrl, textRead, approach, tags = []) {
-        if (window.Logger) window.Logger.debug('FSRS', 'Creating new card', { problemTitle, problemUrl });
-        const now = new Date().getTime();
+        if (typeof window !== 'undefined' && window.Logger) window.Logger.debug('FSRS', 'Creating new card', { problemTitle, problemUrl });
+        const now = Date.now();
         return {
-            id: Date.now().toString(),
+            id: now.toString(),
             problemTitle,
             problemUrl,
             textRead,
@@ -68,7 +53,7 @@ class FSRS {
             scheduled_days: 0,
             reps: 0,
             lapses: 0,
-            state: 0, // State states: 0 (New), 1 (Learning), 2 (Review), 3 (Relearning)
+            state: 0, // 0 (New), 1 (Learning), 2 (Review), 3 (Relearning)
             historyLog: [now] // Track exactly when this was created/reviewed
         };
     }
@@ -90,22 +75,11 @@ class FSRS {
         return Math.max(1, Math.round(interval + fuzz));
     }
 
-    /**
-     * Transition card parameters (stability, difficulty, due date) based on review rating.
-     * @param {Object} card - The active FSRS card.
-     * @param {number} rating - Review quality: 1 (Again), 2 (Hard), 3 (Good), 4 (Easy).
-     * @param {number[]|null} [customWeights=null] - Optional override weights.
-     * @param {number} [now=new Date().getTime()] - Custom baseline timestamp.
-     * @returns {Object} A copy of the card with updated metrics.
-     */
-    reviewCard(card, rating, customWeights = null, now = new Date().getTime()) {
-        if (window.Logger) window.Logger.debug('FSRS', `Reviewing card: ${card.problemTitle} with rating ${rating}`);
+    reviewCard(card, rating, customWeights = null, now = Date.now()) {
+        if (typeof window !== 'undefined' && window.Logger) window.Logger.debug('FSRS', `Reviewing card: ${card.problemTitle} with rating ${rating}`);
         let newCard = { ...card };
         
-        // Store due date before this review to determine if it was due today
         newCard.previousDue = card.due;
-        
-        // Add this exact review timestamp to the card's history log
         newCard.historyLog = newCard.historyLog || [];
         newCard.historyLog.push(now);
 
@@ -113,24 +87,20 @@ class FSRS {
 
         // FSRS State Transitions & Stability Math
         if (newCard.state === 0) {
-            // First time review/learning transition
             newCard.difficulty = Math.max(1, Math.min(10, w[4] + (rating - 3) * w[5]));
             newCard.stability = w[rating - 1];
             newCard.state = rating === 1 ? 1 : 2;
         } else {
-            // Calculate current retrievability based on time elapsed since stability baseline
             const retrievability = Math.exp(this.decay * newCard.elapsed_days / newCard.stability);
             newCard.difficulty = Math.max(1, Math.min(10, newCard.difficulty + w[6] * (rating - 3)));
 
             if (rating === 1) {
-                // Again: lapse occurs, stability recalculation
                 newCard.stability = w[11] * Math.pow(newCard.difficulty, -w[12]) * Math.pow(newCard.stability, w[13]) * Math.exp((1 - retrievability) * w[14]);
                 newCard.lapses += 1;
-                newCard.state = 3; // Relearning state
+                newCard.state = 3; // Relearning
             } else {
-                // Good/Hard/Easy reviews increase stability
                 newCard.stability = newCard.stability * (1 + Math.exp(w[8]) * (11 - newCard.difficulty) * Math.pow(newCard.stability, -w[9]) * (Math.exp((1 - retrievability) * w[10]) - 1));
-                newCard.state = 2; // Normal review state
+                newCard.state = 2; // Review
             }
         }
 
@@ -142,4 +112,37 @@ class FSRS {
         newCard.due = now + (newCard.scheduled_days * 24 * 60 * 60 * 1000);
         return newCard;
     }
+
+    getRetrievability(card, now = Date.now()) {
+        if (card.stability <= 0 || !card.lastReview) {
+            return 0;
+        }
+        const elapsedDays = (now - new Date(card.lastReview).getTime()) / (1000 * 60 * 60 * 24);
+        return this.getProjectedRetrievability(card.stability, Math.max(0, elapsedDays));
+    }
+
+    getProjectedRetrievability(stability, elapsedDays) {
+        if (stability <= 0) return 0;
+        return Math.exp(this.decay * elapsedDays / stability);
+    }
+
+    getDefaultRequestRetention() {
+        return this.requestRetention;
+    }
+
+    isHighDifficulty(card) {
+        // In FSRS, difficulty scales from 1 (easiest) to 10 (hardest).
+        return card.difficulty >= 7;
+    }
+
+    isGraduated(card) {
+        // FSRS graduated criteria: state is Review and stability indicates long-term retention.
+        return card.state === 2 && card.stability > 7;
+    }
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = FsrsScheduler;
+} else if (typeof window !== 'undefined') {
+    window.FsrsScheduler = FsrsScheduler;
 }

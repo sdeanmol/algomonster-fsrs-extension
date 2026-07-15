@@ -77,7 +77,7 @@ export class TagsTab {
             }
         });
 
-        // FSRS logic: If a specific subject is pulling down the global retention by more than 5%
+        // Scheduling logic: If a specific subject is pulling down the global retention by more than 5%
         if (weakestTag && weakestTag.trueRetention < (globalRetention - 5)) {
             container.innerHTML = `
                 <div class="actionable-insight-banner warning" style="margin-bottom:0;">
@@ -86,7 +86,7 @@ export class TagsTab {
                     </svg>
                     <div class="insight-content">
                         <h3>Next Action: Target Weak Tags</h3>
-                        <p>Your <strong>${weakestTag.tag}</strong> tag has an FSRS retrievability of ${weakestTag.trueRetention}%, which is significantly below your overall average of ${globalRetention}%. Your next action is to do a <strong>custom study session</strong> focused only on this tag to boost its stability.</p>
+                        <p>Your <strong>${weakestTag.tag}</strong> tag has a retrievability of ${weakestTag.trueRetention}%, which is significantly below your overall average of ${globalRetention}%. Your next action is to do a <strong>custom study session</strong> focused only on this tag to boost its stability.</p>
                     </div>
                 </div>
             `;

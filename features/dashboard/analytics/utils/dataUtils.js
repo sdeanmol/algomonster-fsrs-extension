@@ -4,9 +4,10 @@
  */
 
 export class DataUtils {
-    constructor(cards, activity) {
+    constructor(cards, activity, scheduler) {
         this.cards = cards || [];
         this.activity = activity || {};
+        this.scheduler = scheduler;
         this.today = new Date();
         this.todayStart = new Date(this.today.getFullYear(), this.today.getMonth(), this.today.getDate());
     }
@@ -58,10 +59,8 @@ export class DataUtils {
                 dueTodayCount++;
             }
 
-            // FSRS Genuine Retrievability calculation: R = exp(-0.5 * t / S)
-            if (card.stability > 0 && card.lastReview) {
-                const elapsedDays = (now - new Date(card.lastReview)) / (1000 * 60 * 60 * 24);
-                const r = Math.exp(-0.5 * Math.max(0, elapsedDays) / card.stability);
+            if (card.stability > 0 && card.lastReview && this.scheduler) {
+                const r = this.scheduler.getRetrievability(card, now);
                 totalRetrievability += r;
                 retrievabilityCount++;
             }
@@ -149,9 +148,8 @@ export class DataUtils {
                     tags[tag].due++;
                 }
 
-                if (card.stability > 0 && card.lastReview) {
-                    const elapsedDays = (Date.now() - new Date(card.lastReview)) / (1000 * 60 * 60 * 24);
-                    const r = Math.exp(-0.5 * Math.max(0, elapsedDays) / card.stability);
+                if (card.stability > 0 && card.lastReview && this.scheduler) {
+                    const r = this.scheduler.getRetrievability(card, Date.now());
                     tags[tag].totalRetrievability += r;
                     tags[tag].retrievabilityCount++;
                 }

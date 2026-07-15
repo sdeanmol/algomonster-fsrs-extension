@@ -3,6 +3,7 @@ import { ConfidenceBand } from './confidenceBand.js';
 export class RetentionChart {
     constructor(dataUtils) {
         this.dataUtils = dataUtils;
+        this.scheduler = dataUtils.scheduler;
         this.groupBy = 'tag';
         this.showConfidence = false;
         
@@ -64,7 +65,6 @@ export class RetentionChart {
         })).sort((a, b) => b.count - a.count).slice(0, 6); // Max 6 lines
 
         const timePoints = [0, 1, 3, 7, 14, 21, 30];
-        const decay = -0.5; // Basic FSRS approximation
 
         const svgW = 900, svgH = 250;
         const padL = 50, padR = 20, padT = 20, padB = 40;
@@ -93,7 +93,7 @@ export class RetentionChart {
         groupAvgs.forEach((gData, idx) => {
             const color = this.chartColors[idx % this.chartColors.length];
             const points = timePoints.map(t => {
-                const R = Math.exp(decay * t / gData.avgStability);
+                const R = this.scheduler ? this.scheduler.getProjectedRetrievability(gData.avgStability, t) : 0;
                 return { t, R, x: xScale(t), y: yScale(R) };
             });
 
