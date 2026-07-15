@@ -23,8 +23,8 @@ export class CoverageTable {
                         <th>Cards</th>
                         <th>Coverage <span class="help-icon" data-tooltip="The percentage of your total flashcard deck that belongs to this specific tag. Helps you identify if you are over-studying or under-studying a specific subject.">?</span></th>
                         <th>Retrievability <span class="help-icon" data-tooltip="The current probability of successfully recalling cards in this tag, calculated mathematically using the FSRS forgetting curve.">?</span></th>
-                        <th>Avg Stability <span class="help-icon" data-tooltip="The average time (in days) it takes for your memory to decay from 100% to 90% for cards in this tag.">?</span></th>
-                        <th>Due <span class="help-icon" data-tooltip="The number of cards in this tag that are currently due for review.">?</span></th>
+                        <th>Avg Stability <span class="help-icon tooltip-right-align" data-tooltip="The average time (in days) it takes for your memory to decay from 100% to 90% for cards in this tag.">?</span></th>
+                        <th>Due <span class="help-icon tooltip-right-align" data-tooltip="The number of cards in this tag that are currently due for review.">?</span></th>
                     </tr>
                 </thead>
                 <tbody>

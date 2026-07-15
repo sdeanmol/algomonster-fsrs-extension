@@ -888,7 +888,7 @@
 .help-icon::after {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: 120%;
+    top: 130%; /* Pop downwards instead of upwards to prevent top clipping */
     left: 50%;
     transform: translateX(-50%);
     background: var(--md-bg-elevated);
@@ -902,11 +902,11 @@
     width: max-content;
     max-width: 250px;
     line-height: 1.4;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.2s, visibility 0.2s;
-    z-index: 100;
+    z-index: 99999; /* Ensure it stays on top of all other panels */
     pointer-events: none;
     text-align: left;
 }
@@ -915,3 +915,9 @@
     visibility: visible;
 }
 
+/* Modifier for tooltips on the far right edge so they don't get cut off horizontally */
+.help-icon.tooltip-right-align::after {
+    left: auto;
+    right: 0;
+    transform: none;
+}
