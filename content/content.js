@@ -149,9 +149,27 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
         if (areaName === 'local') {
             if (changes.chromeSettings) {
                 this.state.chromeSettings = { ...this.state.chromeSettings, ...changes.chromeSettings.newValue };
+                const tooltip = document.getElementById('algo-highlight-tooltip');
                 if (!this.state.chromeSettings.showMarkerPopup) {
-                    const tooltip = document.getElementById('algo-highlight-tooltip');
                     if (tooltip) tooltip.style.display = 'none';
+                } else {
+                    // Automatically show the tooltip if text is already selected on the page
+                    const selection = window.getSelection();
+                    if (selection && !selection.isCollapsed && selection.toString().trim() !== '' && tooltip && tooltip.style.display === 'none') {
+                        const range = selection.getRangeAt(0);
+                        const rects = range.getClientRects();
+                        let lastRect = rects.length > 0 ? rects[rects.length - 1] : null;
+                        if (!lastRect) {
+                            const bounding = range.getBoundingClientRect();
+                            if (bounding && (bounding.width > 0 || bounding.height > 0)) lastRect = bounding;
+                        }
+                        if (lastRect) {
+                            this.highlighter.renderTooltipColors(null, null);
+                            tooltip.style.display = 'flex';
+                            tooltip.style.left = `${lastRect.right + window.scrollX}px`;
+                            tooltip.style.top = `${lastRect.bottom + window.scrollY}px`;
+                        }
+                    }
                 }
             }
             if (changes.fsrsCards) {
