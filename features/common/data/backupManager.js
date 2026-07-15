@@ -10,7 +10,7 @@ const Logger = globalThis.Logger;
 /**
  * Incremental 32-bit FNV-1a Hasher for integrity verification.
  */
-class Fnv1aHasher {
+export class Fnv1aHasher {
     constructor() {
         this.hash = 0x811c9dc5;
     }
@@ -39,7 +39,7 @@ class Fnv1aHasher {
  * Generator helper to read line-by-line from a stream of bytes.
  * @param {ReadableStream} stream 
  */
-async function* readLines(stream) {
+export async function* readLines(stream) {
     const reader = stream.getReader();
     const decoder = new TextDecoder("utf-8");
     let { value, done } = await reader.read();

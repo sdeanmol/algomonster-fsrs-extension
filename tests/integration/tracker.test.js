@@ -13,9 +13,9 @@ describe('Tracker Integration', () => {
         window.AlgoRecall.state = {
             currentTheme: 'dark',
             whitelistedWebsites: ['leetcode.com'],
-            cards: [...mockCards],
+            cards: JSON.parse(JSON.stringify(mockCards)),
             scheduler: new FsrsScheduler(),
-            topicWeights: {}
+            topicWeights: { 'Array': { m: 1.1, w: [1, 2, 3, 4] } }
         };
 
         Object.assign(window.AlgoRecall, {
@@ -28,18 +28,23 @@ describe('Tracker Integration', () => {
             Notifier: { show: jest.fn() }
         });
 
+        // Mock alert
+        global.alert = jest.fn();
+        
         tracker = new window.AlgoRecall.Tracker();
+    });
+
+    afterEach(() => {
+        tracker._cleanupReviewKeyboard();
     });
 
     it('injects UI correctly', () => {
         tracker.createUI();
         
-        // Assert Launcher is created
         const launcher = document.getElementById('algo-fsrs-launcher');
         expect(launcher).not.toBeNull();
         expect(launcher.getAttribute('role')).toBe('button');
 
-        // Assert Container is created
         const container = document.getElementById('algo-fsrs-container');
         expect(container).not.toBeNull();
         expect(container.style.display).toBe('none');
@@ -56,20 +61,14 @@ describe('Tracker Integration', () => {
         expect(container.style.display).toBe('block');
     });
 
-    it('saves a review when rating button is clicked', () => {
+    it('saves a review when rating button is clicked in main UI', () => {
         tracker.createUI();
         const launcher = document.getElementById('algo-fsrs-launcher');
         launcher.click();
 
-        // Simulate new card creation
-        tracker.currentCard = window.AlgoRecall.state.scheduler.createCard('Test', 'https://leetcode.com', '', 'Approach');
-        tracker.isExistingCard = false;
-
         // Spy on tracker.saveCards
         const saveSpy = jest.spyOn(tracker, 'saveCards');
 
-        // We have to wait for the DOM to update or trigger it directly
-        // Tracker sets up #fsrs-save-ratings buttons.
         const goodBtn = document.querySelector('.fsrs-btn-good');
         expect(goodBtn).not.toBeNull();
         
@@ -80,9 +79,111 @@ describe('Tracker Integration', () => {
         goodBtn.click();
 
         expect(saveSpy).toHaveBeenCalled();
-        // The new card should be added to the end of the cards array
         const newCard = window.AlgoRecall.state.cards[window.AlgoRecall.state.cards.length - 1];
-        expect(newCard.state).toBe(2); // 2 = Review state (transitioned from new)
+        expect(newCard.state).toBe(2); 
         expect(newCard.tags).toContain('TestTag');
+    });
+
+    describe('Review Session (startReview)', () => {
+        it('alerts if no cards are due', () => {
+            tracker.createUI();
+            
+            // All cards due in future
+            window.AlgoRecall.state.cards.forEach(c => c.due = Date.now() + 100000);
+            tracker.startReview();
+            
+            expect(global.alert).toHaveBeenCalledWith("No cards due right now!");
+        });
+
+        it('shows review directly if only one unique tag is due', () => {
+            tracker.createUI();
+            
+            window.AlgoRecall.state.cards[0].due = Date.now() - 100000;
+            window.AlgoRecall.state.cards[0].tags = ["Array"];
+            
+            // Only the first one is due
+            window.AlgoRecall.state.cards[1].due = Date.now() + 100000;
+
+            tracker.startReview();
+            
+            // Should jump directly to review UI without picker
+            const reviewUi = document.getElementById('fsrs-review-ui');
+            expect(reviewUi.style.display).toBe('block');
+            expect(reviewUi.innerHTML).toContain('Open Problem Page');
+            
+            // Should cleanup when back button clicked
+            document.getElementById('fsrs-back-btn').click();
+            expect(reviewUi.style.display).toBe('none');
+        });
+
+        it('shows tag picker if multiple tags are due', () => {
+            tracker.createUI();
+            
+            // Set up two due cards with different tags
+            window.AlgoRecall.state.cards[0].due = Date.now() - 100000;
+            window.AlgoRecall.state.cards[0].tags = ["Array"];
+            
+            window.AlgoRecall.state.cards[1].due = Date.now() - 100000;
+            window.AlgoRecall.state.cards[1].tags = ["Hash Table"];
+
+            tracker.startReview();
+            
+            const reviewUi = document.getElementById('fsrs-review-ui');
+            expect(reviewUi.innerHTML).toContain('Select Topics to Review');
+            
+            // Test selecting a tag and clicking start
+            const tagChip = Array.from(reviewUi.querySelectorAll('.fsrs-tag-chip')).find(chip => chip.getAttribute('data-tag') === 'Array');
+            tagChip.click();
+            
+            document.getElementById('fsrs-start-filtered-btn').click();
+            expect(tracker.activeReviewFilter).toBe('Array');
+            
+            // Should now show review UI for filtered cards
+            expect(reviewUi.innerHTML).toContain('fsrs-filter-badge');
+        });
+
+        it('handles keyboard shortcuts during review', () => {
+            tracker.createUI();
+            window.AlgoRecall.state.cards.forEach(c => c.due = Date.now() + 100000); // ensure ALL are future
+            window.AlgoRecall.state.cards[0].due = Date.now() - 100000;
+            window.AlgoRecall.state.cards[0].tags = ["Array"];
+            
+            tracker.startReview();
+            
+            // Initially approach answer is hidden
+            expect(document.getElementById('fsrs-approach-answer').style.display).toBe('none');
+            
+            // Hit Space to reveal answer
+            document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+            
+            expect(document.getElementById('fsrs-approach-answer').style.display).toBe('block');
+            expect(document.getElementById('fsrs-show-answer-btn').style.display).toBe('none');
+            
+            // Spy on handleRating
+            jest.spyOn(tracker, 'handleRating').mockImplementation(() => {});
+            jest.spyOn(tracker, 'showCard').mockImplementation(() => {});
+            
+            // Hit 3 (Good)
+            document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit3' }));
+            
+            expect(tracker.handleRating).toHaveBeenCalledWith(window.AlgoRecall.state.cards[0], 3);
+        });
+
+        it('ignores keyboard shortcuts when typing in input', () => {
+            tracker.createUI();
+            window.AlgoRecall.state.cards.forEach(c => c.due = Date.now() + 100000); // ensure ALL are future
+            window.AlgoRecall.state.cards[0].due = Date.now() - 100000;
+            window.AlgoRecall.state.cards[0].tags = ["Array"];
+            tracker.startReview();
+            
+            const input = document.createElement('input');
+            document.body.appendChild(input);
+            input.focus();
+            
+            // Hit Space while focused
+            document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+            
+            expect(document.getElementById('fsrs-approach-answer').style.display).toBe('none');
+        });
     });
 });
