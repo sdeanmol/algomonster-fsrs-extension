@@ -5,7 +5,6 @@
  * and custom per-topic profiles mapped directly to tags.
  */
 
-import FsrsOptimizer from '../scheduler/fsrsOptimizer.js';
 
 class FSRSConfigManager {
     constructor() {
@@ -109,8 +108,7 @@ class FSRSConfigManager {
             thresholdWarning.style.display = threshold < 1000 ? 'flex' : 'none';
         }
         
-        const optimizer = new FsrsOptimizer();
-        const eligibility = optimizer.computeEligibility(historyArray, threshold);
+        const eligibility = this.computeEligibility(historyArray, threshold);
 
         const progressFill = document.getElementById('opt-progress-fill');
         const progressText = document.getElementById('opt-progress-text');
@@ -146,8 +144,6 @@ class FSRSConfigManager {
             const result = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
             const historyArray = result.fsrsCards || [];
             
-            const optimizer = new FsrsOptimizer();
-            
             // Get current weights and target retention
             let currentWeights = [];
             for (let i = 0; i < 17; i++) {
@@ -155,7 +151,28 @@ class FSRSConfigManager {
             }
             const targetRetention = parseFloat(document.getElementById('retention-slider').value) || 0.90;
 
-            const optimizedWeights = await optimizer.trainWeights(historyArray, currentWeights, targetRetention);
+            const worker = new Worker(new URL('../scheduler/fsrsOptimizer.worker.js', import.meta.url), { type: 'module' });
+            
+            const optimizedWeights = await new Promise((resolve, reject) => {
+                worker.onmessage = (e) => {
+                    if (e.data.action === 'trainWeightsResult') {
+                        if (e.data.success) {
+                            resolve(e.data.optimizedWeights);
+                        } else {
+                            reject(new Error(e.data.error));
+                        }
+                        worker.terminate();
+                    }
+                };
+                worker.onerror = (err) => {
+                    reject(err);
+                    worker.terminate();
+                };
+                worker.postMessage({
+                    action: 'trainWeights',
+                    payload: { history: historyArray, currentWeights, targetRetention }
+                });
+            });
             
             // Save newly trained weights globally
             this.injectWeightsInputs(optimizedWeights);
@@ -244,6 +261,31 @@ class FSRSConfigManager {
             `;
             container.appendChild(div);
         }
+    }
+
+    /**
+     * Checks if there's enough history to optimize.
+     */
+    computeEligibility(history, threshold = 1000) {
+        if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
+        
+        let reviewCount = 0;
+        let uniqueCards = new Set();
+        
+        history.forEach(card => {
+            if (card.historyLog && card.historyLog.length > 1) {
+                // Count actual reviews, excluding the creation event
+                reviewCount += (card.historyLog.length - 1);
+                uniqueCards.add(card.id);
+            }
+        });
+
+        return {
+            eligible: reviewCount >= threshold,
+            count: reviewCount,
+            uniqueCards: uniqueCards.size,
+            threshold
+        };
     }
 
     /**

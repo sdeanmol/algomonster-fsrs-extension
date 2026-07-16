@@ -6,7 +6,8 @@ module.exports = {
     background: './background/background.js',
     popup: './features/dashboard/popup/popup.js',
     content: './content/content.js',
-    config: './features/tracker/config/fsrsConfig.js'
+    config: './features/tracker/config/fsrsConfig.js',
+    fsrsScheduler: './features/tracker/scheduler/fsrsScheduler.js'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),

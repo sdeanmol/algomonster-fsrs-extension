@@ -58,7 +58,7 @@
         "features/common/marked.min.js",
         "features/common/markdown.js",
         "features/tracker/scheduler/scheduler.js",
-        "features/tracker/scheduler/fsrsScheduler.js",
+        "dist/fsrsScheduler.bundle.js",
         "content/state.js",
         "content/utils.js",
         "features/highlighter/highlighter.js",
