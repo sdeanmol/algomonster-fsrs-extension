@@ -164,17 +164,19 @@ class LoggerClass {
         if (!this._canLog('DEBUG')) return;
         const key = `${module}:${timerName}`;
         this.timers.set(key, performance.now());
-        console.time(this._formatMsg(module, timerName));
+        console.time(`[${module}] ${timerName}`);
     }
 
     timeEnd(module, timerName) {
         if (!this._canLog('DEBUG')) return;
         const key = `${module}:${timerName}`;
+        if (!this.timers.has(key)) return; // Fix race condition where devMode toggled async
+        
         const start = this.timers.get(key);
         const duration = start ? (performance.now() - start).toFixed(2) + 'ms' : 'unknown';
         this.timers.delete(key);
         
-        console.timeEnd(this._formatMsg(module, timerName));
+        console.timeEnd(`[${module}] ${timerName}`);
         this.debug(module, `${timerName} completed in ${duration}`);
     }
 }

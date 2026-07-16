@@ -5,6 +5,10 @@
 
 import FsrsOptimizer from './fsrsOptimizer.js';
 
+self.addEventListener('unhandledrejection', (event) => {
+    self.postMessage({ action: 'trainWeightsResult', success: false, error: 'WASM Worker Error: ' + event.reason });
+});
+
 self.onmessage = async (e) => {
     try {
         const { action, payload } = e.data;

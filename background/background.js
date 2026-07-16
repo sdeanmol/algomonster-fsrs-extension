@@ -230,7 +230,7 @@ class AlgoRecallBackground {
      * @param {string} areaName - The name of the storage area.
      */
     async handleStorageChanged(changes, areaName) {
-        Logger.debug('Background', `Storage changed in ${areaName}`, Object.keys(changes));
+        // Logger.debug('Background', `Storage changed in ${areaName}`, Object.keys(changes));
         if (areaName === 'local' && changes.notificationSettings) {
             await this.setupAlarm();
         }

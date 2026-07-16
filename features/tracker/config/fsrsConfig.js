@@ -96,18 +96,17 @@ class FSRSConfigManager {
      * Checks history to see if enough reviews exist to unlock optimization.
      */
     async checkOptimizationEligibility() {
-        if (typeof FsrsOptimizer === 'undefined') return;
 
         const result = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
         const historyArray = result.fsrsCards || [];
-        
+
         const threshold = parseInt(document.getElementById('opt-threshold-input').value) || 1000;
-        
+
         const thresholdWarning = document.getElementById('opt-threshold-warning');
         if (thresholdWarning) {
             thresholdWarning.style.display = threshold < 1000 ? 'flex' : 'none';
         }
-        
+
         const eligibility = this.computeEligibility(historyArray, threshold);
 
         const progressFill = document.getElementById('opt-progress-fill');
@@ -137,13 +136,27 @@ class FSRSConfigManager {
      */
     async handleAutoTrain() {
         const btn = document.getElementById('btn-auto-train');
-        btn.textContent = 'Training...';
+        const statusMsg = document.getElementById('opt-status-msg');
+
+        // Setup simple CSS dots animation for the button
+        btn.innerHTML = 'Training<span id="train-dots">...</span>';
         btn.disabled = true;
+
+        statusMsg.textContent = 'Training in progress... This may take a few minutes depending on your device.';
+        statusMsg.style.color = 'var(--md-primary)';
+
+        // Simple dot animation interval
+        let dotCount = 0;
+        const dotInterval = setInterval(() => {
+            dotCount = (dotCount + 1) % 4;
+            const dots = document.getElementById('train-dots');
+            if (dots) dots.textContent = '.'.repeat(dotCount);
+        }, 500);
 
         try {
             const result = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
             const historyArray = result.fsrsCards || [];
-            
+
             // Get current weights and target retention
             let currentWeights = [];
             for (let i = 0; i < 17; i++) {
@@ -152,10 +165,16 @@ class FSRSConfigManager {
             const targetRetention = parseFloat(document.getElementById('retention-slider').value) || 0.90;
 
             const worker = new Worker(new URL('../scheduler/fsrsOptimizer.worker.js', import.meta.url), { type: 'module' });
-            
+
             const optimizedWeights = await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error("Training timed out after 120 seconds. The WASM module might have failed to initialize."));
+                    worker.terminate();
+                }, 120000);
+
                 worker.onmessage = (e) => {
                     if (e.data.action === 'trainWeightsResult') {
+                        clearTimeout(timeout);
                         if (e.data.success) {
                             resolve(e.data.optimizedWeights);
                         } else {
@@ -165,6 +184,7 @@ class FSRSConfigManager {
                     }
                 };
                 worker.onerror = (err) => {
+                    clearTimeout(timeout);
                     reject(err);
                     worker.terminate();
                 };
@@ -173,19 +193,31 @@ class FSRSConfigManager {
                     payload: { history: historyArray, currentWeights, targetRetention }
                 });
             });
-            
+
             // Save newly trained weights globally
             this.injectWeightsInputs(optimizedWeights);
             this.saveGlobalConfig(true);
 
             this.showToast("Personal memory optimization successful!", false);
-            
-            document.getElementById('opt-status-msg').textContent = "Scheduler optimized successfully using your personal history!";
-            document.getElementById('opt-status-msg').style.color = 'var(--md-primary)';
+
+            statusMsg.textContent = "Scheduler optimized successfully using your personal history!";
+            statusMsg.style.color = 'var(--md-primary)';
+
+            if (chrome.notifications) {
+                chrome.notifications.create({
+                    type: 'basic',
+                    iconUrl: '/icons/icon.png',
+                    title: 'Optimization Complete',
+                    message: 'Your personalized FSRS weights have been successfully trained in the background!'
+                });
+            }
         } catch (err) {
             console.error("Optimization failed:", err);
             this.showToast("Optimization failed. See console.", true);
+            statusMsg.textContent = "Optimization failed.";
+            statusMsg.style.color = 'var(--md-error)';
         } finally {
+            clearInterval(dotInterval);
             btn.textContent = 'Auto Train Weights';
             btn.disabled = false;
         }
@@ -196,7 +228,7 @@ class FSRSConfigManager {
         for (let i = 0; i < 17; i++) {
             weights.push(parseFloat(document.getElementById(`weight-input-${i}`).value));
         }
-        
+
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(weights));
         const anchor = document.createElement('a');
         anchor.setAttribute("href", dataStr);
@@ -268,10 +300,10 @@ class FSRSConfigManager {
      */
     computeEligibility(history, threshold = 1000) {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
-        
+
         let reviewCount = 0;
         let uniqueCards = new Set();
-        
+
         history.forEach(card => {
             if (card.historyLog && card.historyLog.length > 1) {
                 // Count actual reviews, excluding the creation event
