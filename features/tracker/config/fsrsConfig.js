@@ -408,6 +408,13 @@ class FSRSConfigManager {
             };
 
             chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
+                const thresholdInput = document.getElementById('opt-threshold-input');
+                if (thresholdInput) {
+                    thresholdInput.value = 1000;
+                    const display = document.getElementById('opt-threshold-display');
+                    if (display) display.textContent = '1000';
+                }
+                
                 this.loadFSRSConfig();
                 this.showToast("Restored all FSRS defaults.");
             });
