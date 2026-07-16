@@ -142,7 +142,7 @@ class FSRSConfigManager {
         btn.innerHTML = 'Training<span id="train-dots" style="display:inline-block; width:1.2em; text-align:left;">...</span>';
         btn.disabled = true;
 
-        statusMsg.textContent = 'Training in progress... This may take a few minutes depending on your device.';
+        statusMsg.textContent = 'Training in progress... This can take up to 15 minutes for very large histories. Please keep this tab open.';
         statusMsg.style.color = 'var(--md-primary)';
 
         // Simple dot animation interval
@@ -168,9 +168,9 @@ class FSRSConfigManager {
 
             const optimizedWeights = await new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    reject(new Error("Training timed out after 120 seconds. The WASM module might have failed to initialize."));
+                    reject(new Error("Training timed out after 20 minutes. The WASM module might have failed to initialize or the dataset is very large."));
                     worker.terminate();
-                }, 120000);
+                }, 1200000);
 
                 worker.onmessage = (e) => {
                     if (e.data.action === 'trainWeightsResult') {

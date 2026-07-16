@@ -93,10 +93,18 @@ class FsrsOptimizer {
 
             if (trainSet.length === 0) return currentWeights;
 
+            // Cap the trainSet to a maximum limit to prevent WASM OOM or extreme timeouts
+            const MAX_TRAINING_CARDS = 2500;
+            if (trainSet.length > MAX_TRAINING_CARDS) {
+                console.log(`[FSRS Optimizer] Limiting train set from ${trainSet.length} to ${MAX_TRAINING_CARDS} cards to ensure stability.`);
+                // Shuffle or just slice. We'll just slice the most recent ones or just take a slice.
+                trainSet = trainSet.slice(0, MAX_TRAINING_CARDS);
+            }
+
             console.log(`[FSRS Optimizer] Training on ${trainSet.length} cards...`);
             const optimizedWeights = await binding.computeParameters(trainSet, {
                 enableShortTerm: false,
-                timeout: 30000 
+                timeout: 900000 
             });
             
             console.log(`[FSRS Optimizer] Success. New weights:`, optimizedWeights);

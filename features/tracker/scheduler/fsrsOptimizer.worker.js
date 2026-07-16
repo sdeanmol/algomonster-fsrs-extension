@@ -4,8 +4,10 @@
  */
 
 import FsrsOptimizer from './fsrsOptimizer.js';
+import FsrsOptimizerFast from './fsrsOptimizerFast.js';
 
 self.addEventListener('error', (event) => {
+    // If it's a fatal worker error, we can't do much, but we try to communicate it.
     self.postMessage({ type: 'error', error: event.message || 'Unknown Worker Error' });
 });
 
@@ -18,8 +20,19 @@ self.onmessage = async (e) => {
         const { action, payload } = e.data;
         if (action === 'trainWeights') {
             const { history, currentWeights, targetRetention } = payload;
-            const optimizer = new FsrsOptimizer();
-            const optimizedWeights = await optimizer.trainWeights(history, currentWeights, targetRetention);
+            let optimizedWeights;
+            
+            try {
+                // Try using the WASM optimizer first
+                const optimizer = new FsrsOptimizer();
+                optimizedWeights = await optimizer.trainWeights(history, currentWeights, targetRetention);
+            } catch (wasmError) {
+                console.warn("WASM Optimizer failed or panicked. Falling back to Fast JS Optimizer.", wasmError);
+                // Fallback to the Fast JS heuristic optimizer
+                const fastOptimizer = new FsrsOptimizerFast();
+                optimizedWeights = await fastOptimizer.trainWeights(history, currentWeights, targetRetention);
+            }
+            
             self.postMessage({ action: 'trainWeightsResult', success: true, optimizedWeights });
         }
     } catch (err) {
