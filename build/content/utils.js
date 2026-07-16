@@ -1,1 +1,210 @@
-window.AlgoRecall=window.AlgoRecall||{},window.AlgoRecall.Utils=class{static getDOMMeta(e,t){const n=e.parentNode;let r=[],a=n;for(;a&&a!==document.body&&a!==document.documentElement;){let e=Array.from(a.parentNode.childNodes).indexOf(a);r.unshift(e),a=a.parentNode}return{parentTagName:n.tagName.toLowerCase(),parentIndex:Array.from(n.childNodes).indexOf(e),textOffset:t,parentDomPath:r}}static restoreRangeFromMeta(e,t){try{let n=null,r=null;if(e.startMeta.parentDomPath&&e.endMeta.parentDomPath){const t=(e,t)=>{let n=document.body;for(let t=0;t<e.length;t++){if(!n||!n.childNodes)return null;n=n.childNodes[e[t]]}return n?n.childNodes[t]:null};n=t(e.startMeta.parentDomPath,e.startMeta.parentIndex),r=t(e.endMeta.parentDomPath,e.endMeta.parentIndex)}if(!n||!r){const t=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null,!1);let a;for(;a=t.nextNode();){const t=a.parentNode,l=t.tagName.toLowerCase(),o=Array.from(t.childNodes).indexOf(a);if(n||l!==e.startMeta.parentTagName||o!==e.startMeta.parentIndex||(n=a),n&&l===e.endMeta.parentTagName&&o===e.endMeta.parentIndex){r=a;break}}}if(n&&r){const a=document.createRange(),l=Math.min(e.startMeta.textOffset,n.length||0),o=Math.min(e.endMeta.textOffset,r.length||0);if(a.setStart(n,l),a.setEnd(r,o),t){const e=a.toString().replace(/\s+/g,""),n=t.replace(/\s+/g,"");if(e!==n){if(!n.includes(e)&&!e.includes(n))return null;if(e.length<.5*n.length)return null}}return a}}catch(e){}return null}static ensureHighlightStyle(e,t="highlight"){const n=window.AlgoRecall.state,r=e.replace("#","");let a="algo-hl",l=`background-color: ${e}; color: inherit;`;"underline"===t&&(a="algo-ul",l=`background-color: transparent; text-decoration: underline; text-decoration-color: ${e}; text-decoration-thickness: 2px; text-underline-offset: 2px;`);const o=`${a}-${r}`;if(n&&!n.activeHighlightStyles.has(o)){const e=document.createElement("style");e.textContent=`::highlight(${o}) { ${l} }`,document.head.appendChild(e),n.activeHighlightStyles.add(o)}return o}static getAutoTags(){try{const e=window.location.pathname.split("/").filter(e=>e.length>0);if(e.length>0)return[e[e.length-1].split("_").map(e=>e.charAt(0).toUpperCase()+e.slice(1)).join(" ")]}catch(e){}return["AlgoRecall"]}static getExtractedProblemTitle(){if(window.location.href.includes("leetcode.com/explore/")){const e=["h1","h2","h3",'[class*="card-title"]','[class*="course-title"]','[class*="title-wrapper"]',".card-info-title",".title__3y75"];for(const t of e){const e=document.querySelector(t);if(e&&e.innerText&&e.innerText.trim().length>0&&e.innerText.trim().length<100){const t=e.innerText.trim();if(!t.toLowerCase().includes("leetcode")||t.toLowerCase().includes("course")||t.toLowerCase().includes("crash"))return t}}try{const e=window.location.pathname.split("/").filter(e=>e.length>0);if(e.length>0){let t=e.length-1;for(;t>=0&&(/^\d+$/.test(e[t])||"card"===e[t]||"featured"===e[t]);)t--;if(t>=0)return e[t].split("-").map(e=>e.charAt(0).toUpperCase()+e.slice(1)).join(" ")}}catch(e){}}let e=document.title;return e=e.replace(" - AlgoMonster",""),e=e.replace(" - LeetCode",""),e=e.replace(" - Codeforces",""),e=e.replace(" - CodeChef",""),e=e.replace(" - AtCoder",""),e.trim()}};
+window.AlgoRecall = window.AlgoRecall || {};
+
+/**
+ * @class ContentUtils
+ * @description General helper utilities for in-page content scripts.
+ * Contains DOM serialization routines for highlights persistence across tab reloads,
+ * dynamic theme styling injections (CSS Custom Highlights API), and heuristic parsing
+ * of problem tags and titles across coding environments (LeetCode, AlgoMonster, AtCoder).
+ */
+window.AlgoRecall.Utils = class Utils {
+    /**
+     * Serializes the DOM path coordinates of a given text node.
+     * Loops parent elements up to the body/document root to produce a unique node path index list,
+     * allowing highlight selections to survive page reloads and edits on dynamic web content.
+     * 
+     * @param {Node} node - The targeted DOM text node.
+     * @param {number} offset - The cursor text range index offset within the text node.
+     * @returns {Object} JSON meta coordinates schema.
+     */
+    static getDOMMeta(node, offset) {
+        const parent = node.parentNode;
+        let path = [];
+        let current = parent;
+        while (current && current !== document.body && current !== document.documentElement) {
+            let index = Array.from(current.parentNode.childNodes).indexOf(current);
+            path.unshift(index);
+            current = current.parentNode;
+        }
+
+        return {
+            parentTagName: parent.tagName.toLowerCase(),
+            parentIndex: Array.from(parent.childNodes).indexOf(node),
+            textOffset: offset,
+            parentDomPath: path
+        };
+    }
+
+    /**
+     * Restores a DOM selection range from serialized meta coordinates.
+     * Attempts precise tree path traversal first, with a fallback text tree walker
+     * search based on tag names and indices if page elements changed.
+     * 
+     * @param {Object} highlightSource - Serialized start/end coordinates object.
+     * @param {string} markText - The original highlighted text snippet to verify correctness.
+     * @returns {Range|null} Restored DOM Range object, or null if restoration failed.
+     */
+    static restoreRangeFromMeta(highlightSource, markText) {
+        try {
+            let startNode = null;
+            let endNode = null;
+     
+            if (highlightSource.startMeta.parentDomPath && highlightSource.endMeta.parentDomPath) {
+                const resolvePath = (path, childIndex) => {
+                    let current = document.body;
+                    for (let i = 0; i < path.length; i++) {
+                        if (!current || !current.childNodes) return null;
+                        current = current.childNodes[path[i]];
+                    }
+                    return current ? current.childNodes[childIndex] : null;
+                };
+
+                startNode = resolvePath(highlightSource.startMeta.parentDomPath, highlightSource.startMeta.parentIndex);
+                endNode = resolvePath(highlightSource.endMeta.parentDomPath, highlightSource.endMeta.parentIndex);
+            }
+
+            if (!startNode || !endNode) {
+                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+                let node;
+                while ((node = walker.nextNode())) {
+                    const parent = node.parentNode;
+                    const parentTagName = parent.tagName.toLowerCase();
+                    const parentIndex = Array.from(parent.childNodes).indexOf(node);
+
+                    if (!startNode && parentTagName === highlightSource.startMeta.parentTagName && parentIndex === highlightSource.startMeta.parentIndex) startNode = node;
+                    if (startNode && parentTagName === highlightSource.endMeta.parentTagName && parentIndex === highlightSource.endMeta.parentIndex) {
+                        endNode = node;
+                        break;
+                    }
+                }
+            }
+
+            if (startNode && endNode) {
+                const range = document.createRange();
+                const startOffset = Math.min(highlightSource.startMeta.textOffset, startNode.length || 0);
+                const endOffset = Math.min(highlightSource.endMeta.textOffset, endNode.length || 0);
+
+                range.setStart(startNode, startOffset);
+                range.setEnd(endNode, endOffset);
+
+                if (markText) {
+                    const rangeTextClean = range.toString().replace(/\s+/g, '');
+                    const markTextClean = markText.replace(/\s+/g, '');
+
+                    if (rangeTextClean !== markTextClean) {
+                        if (!markTextClean.includes(rangeTextClean) && !rangeTextClean.includes(markTextClean)) return null;
+                        if (rangeTextClean.length < (markTextClean.length * 0.5)) return null;
+                    }
+                }
+                return range;
+            }
+        } catch (e) { }
+        return null;
+    }
+
+    /**
+     * Dynamically registers highlight style rules using CSS Custom Highlights API.
+     * Ensures the document has a matching ::highlight(name) ruleset for the hex color.
+     * 
+     * @param {string} color - Hex color code.
+     * @param {string} type - Annotation type ('highlight', 'underline', 'symbol').
+     * @returns {string} The registered highlight class name.
+     */
+    static ensureHighlightStyle(color, type = 'highlight') {
+        const state = window.AlgoRecall.state;
+        const colorHash = color.replace('#', '');
+        let prefix = 'algo-hl';
+        let cssRule = `background-color: ${color}; color: inherit;`;
+
+        if (type === 'underline') {
+            prefix = 'algo-ul';
+            cssRule = `background-color: transparent; text-decoration: underline; text-decoration-color: ${color}; text-decoration-thickness: 2px; text-underline-offset: 2px;`;
+        }
+
+        const colorName = `${prefix}-${colorHash}`;
+
+        if (state && !state.activeHighlightStyles.has(colorName)) {
+            const style = document.createElement('style');
+            style.textContent = `::highlight(${colorName}) { ${cssRule} }`;
+            document.head.appendChild(style);
+            state.activeHighlightStyles.add(colorName);
+        }
+        return colorName;
+    }
+
+    /**
+     * Extracts default tags from the current window path segment.
+     * If the path ends in a structured topic (e.g. dynamic_programming),
+     * returns it formatted as title case words ("Dynamic Programming").
+     * @returns {string[]} Array of extracted topic tags.
+     */
+    static getAutoTags() {
+        try {
+            const path = window.location.pathname;
+            const segments = path.split('/').filter(p => p.length > 0);
+            if (segments.length > 0) {
+                const rawTopic = segments[segments.length - 1];
+                return [rawTopic.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')];
+            }
+        } catch (e) { }
+        return ["AlgoRecall"];
+    }
+
+    /**
+     * Heuristically parses the DOM structure or document title to extract
+     * the active coding problem title, stripping known branding strings.
+     * Supports specialized selector matching for LeetCode Explore card layouts.
+     * @returns {string} Cleansed coding problem title.
+     */
+    static getExtractedProblemTitle() {
+        const url = window.location.href;
+        
+        // LeetCode Explore Cards
+        if (url.includes('leetcode.com/explore/')) {
+            const selectors = [
+                'h1', 'h2', 'h3',
+                '[class*="card-title"]',
+                '[class*="course-title"]',
+                '[class*="title-wrapper"]',
+                '.card-info-title',
+                '.title__3y75'
+            ];
+            for (const selector of selectors) {
+                const el = document.querySelector(selector);
+                if (el && el.innerText && el.innerText.trim().length > 0 && el.innerText.trim().length < 100) {
+                    const text = el.innerText.trim();
+                    if (!text.toLowerCase().includes('leetcode') || text.toLowerCase().includes('course') || text.toLowerCase().includes('crash')) {
+                        return text;
+                    }
+                }
+            }
+            
+            // Fallback: parse URL
+            try {
+                const path = window.location.pathname;
+                const segments = path.split('/').filter(p => p.length > 0);
+                if (segments.length > 0) {
+                    let index = segments.length - 1;
+                    while (index >= 0 && (/^\d+$/.test(segments[index]) || segments[index] === 'card' || segments[index] === 'featured')) {
+                        index--;
+                    }
+                    if (index >= 0) {
+                        return segments[index]
+                            .split('-')
+                            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                            .join(' ');
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        // General title fallback
+        let title = document.title;
+        title = title.replace(' - AlgoMonster', '');
+        title = title.replace(' - LeetCode', '');
+        title = title.replace(' - Codeforces', '');
+        title = title.replace(' - CodeChef', '');
+        title = title.replace(' - AtCoder', '');
+        return title.trim();
+    }
+};

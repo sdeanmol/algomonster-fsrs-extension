@@ -1,1 +1,193 @@
-class LoggerClass{constructor(){this.devMode=!1,this.timers=new Map,this.logQueue=[],this.isFlushing=!1,this._initDevMode(),"undefined"!=typeof chrome&&chrome.storage&&chrome.storage.onChanged&&chrome.storage.onChanged.addListener((e,o)=>{if("local"===o&&e.chromeSettings){const o=e.chromeSettings.newValue||{};this.devMode=!!o.developerMode}})}_initDevMode(){"undefined"!=typeof chrome&&chrome.storage&&chrome.storage.local&&chrome.storage.local.get(["chromeSettings"],e=>{const o=e.chromeSettings||{};this.devMode=!!o.developerMode})}_canLog(e){return"ERROR"===e||"FATAL"===e||this.devMode}async _flushLogs(){if(!this.isFlushing&&0!==this.logQueue.length){this.isFlushing=!0;try{const e=[...this.logQueue];if(this.logQueue=[],"undefined"!=typeof chrome&&chrome.storage&&chrome.storage.local){let o=(await chrome.storage.local.get(["debugLogs"])).debugLogs||[];o.push(...e),o.length>1e3&&(o=o.slice(o.length-1e3)),await chrome.storage.local.set({debugLogs:o})}}catch(e){}finally{this.isFlushing=!1,this.logQueue.length>0&&this._flushLogs()}}}_persistLog(e,o,s,t){if(!this.devMode&&"ERROR"!==e&&"FATAL"!==e)return;const i=(new Date).toISOString();let r=null;try{t instanceof Error?r={message:t.message,stack:t.stack}:t&&(r=JSON.stringify(t))}catch(e){r="[Unserializable Data]"}this.logQueue.push({timestamp:i,level:e,module:o,message:s,data:r}),this._flushLogs()}_formatMsg(e,o){return`[${(new Date).toISOString()}] [${e}] ${o}`}debug(e,o,s=null){this._canLog("DEBUG")&&(this._persistLog("DEBUG",e,o,s),s?console.debug(this._formatMsg(e,o),s):console.debug(this._formatMsg(e,o)))}info(e,o,s=null){this._canLog("INFO")&&(this._persistLog("INFO",e,o,s),s?console.info(this._formatMsg(e,o),s):console.info(this._formatMsg(e,o)))}warn(e,o,s=null){this._canLog("WARN")&&(this._persistLog("WARN",e,o,s),s?console.warn(this._formatMsg(e,o),s):console.warn(this._formatMsg(e,o)))}error(e,o,s=null){if(!this._canLog("ERROR"))return;const t={module:e,timestamp:(new Date).toISOString(),message:o};s instanceof Error?(t.error=s.message,t.stack=s.stack):s&&(t.metadata=s),this._persistLog("ERROR",e,o,s),console.error(this._formatMsg(e,o),t)}fatal(e,o,s=null){this.error(e,`FATAL: ${o}`,s)}group(e,o){this._canLog("DEBUG")&&console.group(this._formatMsg(e,o))}groupEnd(){this._canLog("DEBUG")&&console.groupEnd()}time(e,o){if(!this._canLog("DEBUG"))return;const s=`${e}:${o}`;this.timers.set(s,performance.now()),console.time(`[${e}] ${o}`)}timeEnd(e,o){if(!this._canLog("DEBUG"))return;const s=`${e}:${o}`;if(!this.timers.has(s))return;const t=this.timers.get(s),i=t?(performance.now()-t).toFixed(2)+"ms":"unknown";this.timers.delete(s),console.timeEnd(`[${e}] ${o}`),this.debug(e,`${o} completed in ${i}`)}}const Logger=new LoggerClass;"undefined"!=typeof globalThis&&(globalThis.Logger=Logger),"undefined"!=typeof window&&(window.Logger=Logger),"undefined"!=typeof module&&module.exports&&(module.exports={Logger});
+/**
+ * Logger module for centralized extension debugging.
+ * Only logs to console when Developer Mode is enabled, except for ERROR and FATAL levels.
+ */
+
+class LoggerClass {
+    constructor() {
+        this.devMode = false;
+        this.timers = new Map();
+        this.logQueue = [];
+        this.isFlushing = false;
+        
+        // Initialize developer mode state from storage
+        this._initDevMode();
+        
+        // Listen for changes to developer mode
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+            chrome.storage.onChanged.addListener((changes, area) => {
+                if (area === 'local' && changes.chromeSettings) {
+                    const newSettings = changes.chromeSettings.newValue || {};
+                    this.devMode = !!newSettings.developerMode;
+                }
+            });
+        }
+    }
+
+    _initDevMode() {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.get(['chromeSettings'], (result) => {
+                const settings = result.chromeSettings || {};
+                this.devMode = !!settings.developerMode;
+            });
+        }
+    }
+
+    /**
+     * Checks if logging is allowed for the given level.
+     * @param {string} level 
+     * @returns {boolean}
+     */
+    _canLog(level) {
+        if (level === 'ERROR' || level === 'FATAL') return true;
+        return this.devMode;
+    }
+
+    async _flushLogs() {
+        if (this.isFlushing || this.logQueue.length === 0) return;
+        this.isFlushing = true;
+        try {
+            const logsToFlush = [...this.logQueue];
+            this.logQueue = [];
+            
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                const result = await chrome.storage.local.get(['debugLogs']);
+                let logs = result.debugLogs || [];
+                logs.push(...logsToFlush);
+                
+                // Limit to last 1000 logs to prevent storage bloat
+                if (logs.length > 1000) {
+                    logs = logs.slice(logs.length - 1000);
+                }
+                
+                await chrome.storage.local.set({ debugLogs: logs });
+            }
+        } catch (e) {
+            // Silently fail to avoid recursive error logging
+        } finally {
+            this.isFlushing = false;
+            if (this.logQueue.length > 0) {
+                this._flushLogs();
+            }
+        }
+    }
+
+    _persistLog(level, module, message, data) {
+        if (!this.devMode && level !== 'ERROR' && level !== 'FATAL') return;
+        const timestamp = new Date().toISOString();
+        let safeData = null;
+        try {
+            if (data instanceof Error) {
+                safeData = { message: data.message, stack: data.stack };
+            } else if (data) {
+                safeData = JSON.stringify(data);
+            }
+        } catch (e) { safeData = "[Unserializable Data]"; }
+        
+        this.logQueue.push({ timestamp, level, module, message, data: safeData });
+        this._flushLogs();
+    }
+
+    /**
+     * Formats the log message.
+     */
+    _formatMsg(module, message) {
+        const timestamp = new Date().toISOString();
+        return `[${timestamp}] [${module}] ${message}`;
+    }
+
+    debug(module, message, data = null) {
+        if (!this._canLog('DEBUG')) return;
+        this._persistLog('DEBUG', module, message, data);
+        if (data) {
+            console.debug(this._formatMsg(module, message), data);
+        } else {
+            console.debug(this._formatMsg(module, message));
+        }
+    }
+
+    info(module, message, data = null) {
+        if (!this._canLog('INFO')) return;
+        this._persistLog('INFO', module, message, data);
+        if (data) {
+            console.info(this._formatMsg(module, message), data);
+        } else {
+            console.info(this._formatMsg(module, message));
+        }
+    }
+
+    warn(module, message, data = null) {
+        if (!this._canLog('WARN')) return;
+        this._persistLog('WARN', module, message, data);
+        if (data) {
+            console.warn(this._formatMsg(module, message), data);
+        } else {
+            console.warn(this._formatMsg(module, message));
+        }
+    }
+
+    error(module, message, data = null) {
+        if (!this._canLog('ERROR')) return;
+        
+        const errorData = {
+            module,
+            timestamp: new Date().toISOString(),
+            message
+        };
+        
+        if (data instanceof Error) {
+            errorData.error = data.message;
+            errorData.stack = data.stack;
+        } else if (data) {
+            errorData.metadata = data;
+        }
+
+        this._persistLog('ERROR', module, message, data);
+        console.error(this._formatMsg(module, message), errorData);
+    }
+
+    fatal(module, message, data = null) {
+        this.error(module, `FATAL: ${message}`, data);
+    }
+
+    group(module, groupName) {
+        if (!this._canLog('DEBUG')) return;
+        console.group(this._formatMsg(module, groupName));
+    }
+
+    groupEnd() {
+        if (!this._canLog('DEBUG')) return;
+        console.groupEnd();
+    }
+
+    time(module, timerName) {
+        if (!this._canLog('DEBUG')) return;
+        const key = `${module}:${timerName}`;
+        this.timers.set(key, performance.now());
+        console.time(`[${module}] ${timerName}`);
+    }
+
+    timeEnd(module, timerName) {
+        if (!this._canLog('DEBUG')) return;
+        const key = `${module}:${timerName}`;
+        if (!this.timers.has(key)) return; // Fix race condition where devMode toggled async
+        
+        const start = this.timers.get(key);
+        const duration = start ? (performance.now() - start).toFixed(2) + 'ms' : 'unknown';
+        this.timers.delete(key);
+        
+        console.timeEnd(`[${module}] ${timerName}`);
+        this.debug(module, `${timerName} completed in ${duration}`);
+    }
+}
+
+const Logger = new LoggerClass();
+if (typeof globalThis !== 'undefined') {
+    globalThis.Logger = Logger;
+}
+if (typeof window !== 'undefined') {
+    window.Logger = Logger;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { Logger };
+}

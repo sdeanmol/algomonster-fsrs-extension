@@ -1,1 +1,513 @@
-import"../logger.js";const Logger=globalThis.Logger;export class Fnv1aHasher{constructor(){this.hash=2166136261}update(e){for(let t=0;t<e.length;t++)this.hash^=e.charCodeAt(t),this.hash=16777619*this.hash>>>0}digest(){return this.hash.toString(16).padStart(8,"0")}}export async function*readLines(e){const t=e.getReader(),r=new TextDecoder("utf-8");let{value:a,done:s}=await t.read(),o="";for(;!s;){o+=r.decode(a,{stream:!0});const e=o.split("\n");o=e.pop();for(const t of e)yield t;({value:a,done:s}=await t.read())}o+=r.decode(),o&&(yield o)}export class BackupManager{static async exportBackup(){Logger.time("Backup","exportBackup"),Logger.info("Backup","Starting backup export process...");const e=await chrome.storage.local.get(null),t=[],r=new Map,a=(e,a="",s="")=>{if(!e)return null;let o=r.get(e);return void 0===o?(o=t.length,r.set(e,o),t.push({url:e,title:a,icon:s})):(a&&!t[o].title&&(t[o].title=a),s&&!t[o].icon&&(t[o].icon=s)),o};for(const t of e.bookmarks||[])a(t.url,t.title,t.meta?.favIconUrl);for(const t of e.fsrsCards||[])a(t.problemUrl,t.problemTitle);for(const t of e.marks||[])a(t.url);for(const t of e.pagecontents||[])a(t.url);const s=(e.bookmarks||[]).map(e=>({u:r.get(e.url),meta:e.meta})),o=(e.fsrsCards||[]).map(e=>{const t={...e};return t.u=r.get(e.problemUrl),delete t.problemUrl,delete t.problemTitle,t}),i=(e.marks||[]).map(e=>{const t={...e};return t.u=r.get(e.url),delete t.url,t}),n=(e.pagecontents||[]).map(e=>{const t={...e};return t.u=r.get(e.url),delete t.url,t}),l=function*(){const r={pages:t.length,cards:o.length,marks:i.length,bookmarks:s.length,pagecontents:n.length};yield JSON.stringify({type:"header",data:{version:2,timestamp:Date.now(),counts:r}});for(let e=0;e<t.length;e++)yield JSON.stringify({type:"page",data:{id:e,...t[e]}});for(const e of o)yield JSON.stringify({type:"card",data:e});for(const e of i)yield JSON.stringify({type:"mark",data:e});for(const e of s)yield JSON.stringify({type:"bookmark",data:e});for(const e of n)yield JSON.stringify({type:"pagecontent",data:e});e.fsrsActivity&&(yield JSON.stringify({type:"activity",data:e.fsrsActivity})),e.fsrsTopicWeights&&(yield JSON.stringify({type:"weights",data:e.fsrsTopicWeights}));const a={chromeSettings:e.chromeSettings||{},notificationSettings:e.notificationSettings||{},theme:e.theme||"dark",fsrsGlobalParams:e.fsrsGlobalParams||{},ratingPromptState:e.ratingPromptState||{},dailyGoalTarget:e.dailyGoalTarget||null,longestStreak:e.longestStreak||0};void 0!==e.whitelistedWebsites&&(a.whitelistedWebsites=e.whitelistedWebsites),yield JSON.stringify({type:"settings",data:a})}(),c=new Fnv1aHasher,p=new TextEncoder;let g=0;const d=new ReadableStream({pull(e){const{value:t,done:r}=l.next();if(r){const t=c.digest(),r=JSON.stringify({type:"footer",data:{checksum:t,count:g}});return e.enqueue(p.encode(r+"\n")),void e.close()}const a=t+"\n";c.update(a),g++,e.enqueue(p.encode(a))}}).pipeThrough(new CompressionStream("gzip")),u=new Response(d,{headers:{"Content-Type":"application/gzip"}}),m=await u.blob(),f=new Blob([m],{type:"application/gzip"}),h=URL.createObjectURL(f),y=`algo_pro_backup_${(new Date).toISOString().split("T")[0]}.json.gz`;chrome.downloads.download({url:h,filename:y,saveAs:!0}),Logger.info("Backup",`Backup export completed successfully. Download started for ${y}.`),Logger.timeEnd("Backup","exportBackup")}static async importBackup(e,t){Logger.time("Backup","importBackup"),Logger.info("Backup",`Starting backup import from file: ${e.name} (${e.size} bytes)`);try{const r=await e.slice(0,2).arrayBuffer(),a=new Uint8Array(r),s=31===a[0]&&139===a[1];if(!s&&(123===a[0]||91===a[0]))return t("Parsing legacy backup file..."),void await this.importLegacy(e,t);let o;try{o=await this.validateStream(e,s)}catch(e){return console.error("Integrity/Checksum error during pre-pass validation:",e),void t(e.message,!0)}if(!o.isV2)return void t("Corrupted file format",!0);t("Pre-pass validated! Restoring data...");let i=e.stream();s&&(i=i.pipeThrough(new DecompressionStream("gzip")));const n=[],l=[],c=[],p=[],g=[];let d={},u={},m={};const f=readLines(i);for await(const e of f){if(!e.trim())continue;const t=JSON.parse(e);"page"===t.type?n[t.data.id]=t.data:"card"===t.type?l.push(t.data):"mark"===t.type?c.push(t.data):"bookmark"===t.type?p.push(t.data):"pagecontent"===t.type?g.push(t.data):"activity"===t.type?d=t.data:"weights"===t.type?u=t.data:"settings"===t.type&&(m=t.data)}const h=l.map(e=>{const t=n[e.u];if(!t)return e;const r={...e};return r.problemUrl=t.url,r.problemTitle=t.title,delete r.u,r}),y=p.map(e=>{const t=n[e.u];return t?{url:t.url,title:t.title,meta:e.meta||{favIconUrl:t.icon}}:e}),k={fsrsCards:h,fsrsActivity:d,fsrsTopicWeights:u,marks:c.map(e=>{const t=n[e.u];if(!t)return e;const r={...e};return r.url=t.url,delete r.u,r.type=r.type||"highlight",r}),bookmarks:y,pagecontents:g.map(e=>{const t=n[e.u];if(!t)return e;const r={...e};return r.url=t.url,delete r.u,r}),chromeSettings:m.chromeSettings||{},notificationSettings:m.notificationSettings||{},theme:m.theme||"dark",fsrsGlobalParams:m.fsrsGlobalParams||{},ratingPromptState:m.ratingPromptState||{},dailyGoalTarget:m.dailyGoalTarget||null,longestStreak:m.longestStreak||0};m.whitelistedWebsites&&m.whitelistedWebsites.length>0?k.whitelistedWebsites=m.whitelistedWebsites:await chrome.storage.local.remove("whitelistedWebsites"),await chrome.storage.local.set(k),t("Backup restored successfully!"),Logger.info("Backup","Backup restored successfully!"),Logger.timeEnd("Backup","importBackup")}catch(e){Logger.error("Backup","Backup restoration failed",e),console.error("Backup restoration failed:",e),t("Restoration failed: "+e.message,!0)}}static async validateStream(e,t){let r=e.stream();t&&(r=r.pipeThrough(new DecompressionStream("gzip")));const a=new Fnv1aHasher;let s=0,o=null,i=null;const n=readLines(r);for await(const e of n){if(!e.trim())continue;let t;try{t=JSON.parse(e)}catch(e){if(0===s)return{isV2:!1};throw new Error(`Corrupted file: Invalid JSON structure at line ${s+1}`)}if("header"===t.type){if(0!==s)throw new Error("Corrupted file: Backup header misplaced");o=t;const r=e+"\n";a.update(r)}else{if("footer"===t.type){i=t;break}{const t=e+"\n";a.update(t)}}s++}if(!o)return{isV2:!1};if(!i)throw new Error("Corrupted file: Missing checksum integrity footer");const l=a.digest();if(l!==i.data.checksum)throw new Error(`Integrity check failed: Checksum mismatch (expected ${i.data.checksum}, calculated ${l})`);return{isV2:!0,header:o,counts:o.data.counts}}static importLegacy(e,t){return new Promise((r,a)=>{const s=new FileReader;s.onload=async e=>{try{const a=JSON.parse(e.target.result),s={fsrsCards:Array.isArray(a)?a:a.cards||[],fsrsActivity:Array.isArray(a)?{}:a.activity||{},fsrsTopicWeights:Array.isArray(a)?{}:a.weights||{}};a.marks&&(s.marks=a.marks.map(e=>(e.type=e.type||"highlight",e))),a.bookmarks&&(s.bookmarks=a.bookmarks),a.pagecontents&&(s.pagecontents=a.pagecontents),a.chromeSettings&&(s.chromeSettings=a.chromeSettings),a.notificationSettings&&(s.notificationSettings=a.notificationSettings),a.theme&&(s.theme=a.theme),a.whitelistedWebsites&&a.whitelistedWebsites.length>0?s.whitelistedWebsites=a.whitelistedWebsites:a.whitelistedWebsites&&0===a.whitelistedWebsites.length&&await chrome.storage.local.remove("whitelistedWebsites"),a.fsrsGlobalParams&&(s.fsrsGlobalParams=a.fsrsGlobalParams),a.ratingPromptState&&(s.ratingPromptState=a.ratingPromptState),void 0!==a.dailyGoalTarget&&(s.dailyGoalTarget=a.dailyGoalTarget),void 0!==a.longestStreak&&(s.longestStreak=a.longestStreak),await chrome.storage.local.set(s),t("Legacy backup imported successfully!"),Logger.info("Backup","Legacy backup imported successfully!"),Logger.timeEnd("Backup","importBackup"),r()}catch(e){Logger.error("Backup","Legacy backup restoration failed",e),console.error("Legacy Backup Error:",e),t("Failed to parse legacy JSON backup file.",!0),a(e)}},s.onerror=()=>{t("Error reading legacy file.",!0),a(new Error("File reading error"))},s.readAsText(e)})}}
+/**
+ * @file features/common/data/backupManager.js
+ * @description Highly optimized backup and restoration manager for AlgoRecall.
+ * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
+ * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
+ */
+import '../logger.js';
+const Logger = globalThis.Logger;
+
+/**
+ * Incremental 32-bit FNV-1a Hasher for integrity verification.
+ */
+export class Fnv1aHasher {
+    constructor() {
+        this.hash = 0x811c9dc5;
+    }
+
+    /**
+     * Feed a string into the hasher.
+     * @param {string} str 
+     */
+    update(str) {
+        for (let i = 0; i < str.length; i++) {
+            this.hash ^= str.charCodeAt(i);
+            this.hash = (this.hash * 0x01000193) >>> 0;
+        }
+    }
+
+    /**
+     * Retrieve the final hex checksum digest.
+     * @returns {string}
+     */
+    digest() {
+        return this.hash.toString(16).padStart(8, '0');
+    }
+}
+
+/**
+ * Generator helper to read line-by-line from a stream of bytes.
+ * @param {ReadableStream} stream 
+ */
+export async function* readLines(stream) {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let { value, done } = await reader.read();
+    let buffer = "";
+    while (!done) {
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop(); // keep last incomplete line in buffer
+        for (const line of lines) {
+            yield line;
+        }
+        ({ value, done } = await reader.read());
+    }
+    buffer += decoder.decode(); // flush remaining
+    if (buffer) {
+        yield buffer;
+    }
+}
+
+export class BackupManager {
+    /**
+     * Exports all user data into a compressed, deduplicated backup file.
+     * Yields output chunks using a ReadableStream and triggers a download.
+     */
+    static async exportBackup() {
+        Logger.time('Backup', 'exportBackup');
+        Logger.info('Backup', 'Starting backup export process...');
+        const raw = await chrome.storage.local.get(null);
+
+        // Extract and deduplicate URLs across bookmarks, cards, marks, pagecontents
+        const pages = [];
+        const urlToPageId = new Map();
+
+        const getOrCreatePageId = (url, title = '', icon = '') => {
+            if (!url) return null;
+            let id = urlToPageId.get(url);
+            if (id === undefined) {
+                id = pages.length;
+                urlToPageId.set(url, id);
+                pages.push({ url, title, icon });
+            } else {
+                if (title && !pages[id].title) pages[id].title = title;
+                if (icon && !pages[id].icon) pages[id].icon = icon;
+            }
+            return id;
+        };
+
+        // Populate URLs from bookmarks
+        for (const b of raw.bookmarks || []) {
+            getOrCreatePageId(b.url, b.title, b.meta?.favIconUrl);
+        }
+
+        // Populate URLs from FSRS cards
+        for (const c of raw.fsrsCards || []) {
+            getOrCreatePageId(c.problemUrl, c.problemTitle);
+        }
+
+        // Populate URLs from highlights (marks)
+        for (const m of raw.marks || []) {
+            getOrCreatePageId(m.url);
+        }
+
+        // Populate URLs from pagecontents
+        for (const pc of raw.pagecontents || []) {
+            getOrCreatePageId(pc.url);
+        }
+
+        // Generate deduplicated structures
+        const dupBookmarks = (raw.bookmarks || []).map(b => ({
+            u: urlToPageId.get(b.url),
+            meta: b.meta
+        }));
+
+        const dupCards = (raw.fsrsCards || []).map(c => {
+            const copy = { ...c };
+            copy.u = urlToPageId.get(c.problemUrl);
+            delete copy.problemUrl;
+            delete copy.problemTitle;
+            return copy;
+        });
+
+        const dupMarks = (raw.marks || []).map(m => {
+            const copy = { ...m };
+            copy.u = urlToPageId.get(m.url);
+            delete copy.url;
+            return copy;
+        });
+
+        const dupPageContents = (raw.pagecontents || []).map(pc => {
+            const copy = { ...pc };
+            copy.u = urlToPageId.get(pc.url);
+            delete copy.url;
+            return copy;
+        });
+
+        // Setup streaming generator of lines
+        function* generateLines() {
+            const counts = {
+                pages: pages.length,
+                cards: dupCards.length,
+                marks: dupMarks.length,
+                bookmarks: dupBookmarks.length,
+                pagecontents: dupPageContents.length
+            };
+            yield JSON.stringify({ type: "header", data: { version: 2, timestamp: Date.now(), counts } });
+
+            for (let i = 0; i < pages.length; i++) {
+                yield JSON.stringify({ type: "page", data: { id: i, ...pages[i] } });
+            }
+
+            for (const card of dupCards) {
+                yield JSON.stringify({ type: "card", data: card });
+            }
+
+            for (const mark of dupMarks) {
+                yield JSON.stringify({ type: "mark", data: mark });
+            }
+
+            for (const b of dupBookmarks) {
+                yield JSON.stringify({ type: "bookmark", data: b });
+            }
+
+            for (const pc of dupPageContents) {
+                yield JSON.stringify({ type: "pagecontent", data: pc });
+            }
+
+            if (raw.fsrsActivity) {
+                yield JSON.stringify({ type: "activity", data: raw.fsrsActivity });
+            }
+
+            if (raw.fsrsTopicWeights) {
+                yield JSON.stringify({ type: "weights", data: raw.fsrsTopicWeights });
+            }
+
+            // Export general user preferences and statistics
+            const settings = {
+                chromeSettings: raw.chromeSettings || {},
+                notificationSettings: raw.notificationSettings || {},
+                theme: raw.theme || 'dark',
+                fsrsGlobalParams: raw.fsrsGlobalParams || {},
+                ratingPromptState: raw.ratingPromptState || {},
+                dailyGoalTarget: raw.dailyGoalTarget || null,
+                longestStreak: raw.longestStreak || 0
+            };
+            if (raw.whitelistedWebsites !== undefined) {
+                settings.whitelistedWebsites = raw.whitelistedWebsites;
+            }
+            yield JSON.stringify({ type: "settings", data: settings });
+        }
+
+        const lineGenerator = generateLines();
+        const hasher = new Fnv1aHasher();
+        const encoder = new TextEncoder();
+        let totalCount = 0;
+
+        const stream = new ReadableStream({
+            pull(controller) {
+                const { value, done } = lineGenerator.next();
+                if (done) {
+                    const checksum = hasher.digest();
+                    const footerLine = JSON.stringify({ type: "footer", data: { checksum, count: totalCount } });
+                    controller.enqueue(encoder.encode(footerLine + "\n"));
+                    controller.close();
+                    return;
+                }
+
+                const lineWithNewline = value + "\n";
+                hasher.update(lineWithNewline);
+                totalCount++;
+
+                controller.enqueue(encoder.encode(lineWithNewline));
+            }
+        });
+
+        // Native Compression Stream
+        const compressedStream = stream.pipeThrough(new CompressionStream('gzip'));
+        const response = new Response(compressedStream, {
+            headers: { 'Content-Type': 'application/gzip' }
+        });
+        const rawBlob = await response.blob();
+        const blob = new Blob([rawBlob], { type: 'application/gzip' });
+        const blobUrl = URL.createObjectURL(blob);
+
+        const filename = `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json.gz`;
+        chrome.downloads.download({
+            url: blobUrl,
+            filename: filename,
+            saveAs: true
+        });
+        Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
+        Logger.timeEnd('Backup', 'exportBackup');
+    }
+
+    /**
+     * Imports a backup file. Auto-detects Gzip/Text, performs schema version checks,
+     * validates checksum, and hydrates local storage atomically.
+     * @param {File} file 
+     * @param {Function} onStatus 
+     */
+    static async importBackup(file, onStatus) {
+        Logger.time('Backup', 'importBackup');
+        Logger.info('Backup', `Starting backup import from file: ${file.name} (${file.size} bytes)`);
+        try {
+            // 1. Detect format using magic bytes
+            const headerBuffer = await file.slice(0, 2).arrayBuffer();
+            const bytes = new Uint8Array(headerBuffer);
+            const isGzip = (bytes[0] === 0x1f && bytes[1] === 0x8b);
+            const isLegacy = !isGzip && (bytes[0] === 0x7b || bytes[0] === 0x5b); // '{' or '['
+
+            if (isLegacy) {
+                onStatus("Parsing legacy backup file...");
+                await this.importLegacy(file, onStatus);
+                return;
+            }
+
+            // 2. Perform fast pre-pass validation to check integrity (only for V2 backups)
+            let prePassResult;
+            try {
+                prePassResult = await this.validateStream(file, isGzip);
+            } catch (err) {
+                console.error("Integrity/Checksum error during pre-pass validation:", err);
+                onStatus(err.message, true);
+                return;
+            }
+
+            if (!prePassResult.isV2) {
+                onStatus("Corrupted file format", true);
+                return;
+            }
+
+            onStatus("Pre-pass validated! Restoring data...");
+
+            // 3. Reconstruct tables from lines in the second pass
+            let stream = file.stream();
+            if (isGzip) {
+                stream = stream.pipeThrough(new DecompressionStream('gzip'));
+            }
+
+            const pages = [];
+            const cards = [];
+            const marks = [];
+            const bookmarks = [];
+            const pagecontents = [];
+            let activity = {};
+            let weights = {};
+            let settings = {};
+
+            const linesIterable = readLines(stream);
+            for await (const line of linesIterable) {
+                if (!line.trim()) continue;
+                const parsed = JSON.parse(line);
+                if (parsed.type === "page") {
+                    pages[parsed.data.id] = parsed.data;
+                } else if (parsed.type === "card") {
+                    cards.push(parsed.data);
+                } else if (parsed.type === "mark") {
+                    marks.push(parsed.data);
+                } else if (parsed.type === "bookmark") {
+                    bookmarks.push(parsed.data);
+                } else if (parsed.type === "pagecontent") {
+                    pagecontents.push(parsed.data);
+                } else if (parsed.type === "activity") {
+                    activity = parsed.data;
+                } else if (parsed.type === "weights") {
+                    weights = parsed.data;
+                } else if (parsed.type === "settings") {
+                    settings = parsed.data;
+                }
+            }
+
+            // Reconstruct URL references
+            const reconstructedCards = cards.map(c => {
+                const page = pages[c.u];
+                if (!page) return c;
+                const rc = { ...c };
+                rc.problemUrl = page.url;
+                rc.problemTitle = page.title;
+                delete rc.u;
+                return rc;
+            });
+
+            const reconstructedBookmarks = bookmarks.map(b => {
+                const page = pages[b.u];
+                if (!page) return b;
+                return {
+                    url: page.url,
+                    title: page.title,
+                    meta: b.meta || { favIconUrl: page.icon }
+                };
+            });
+
+            const reconstructedMarks = marks.map(m => {
+                const page = pages[m.u];
+                if (!page) return m;
+                const rm = { ...m };
+                rm.url = page.url;
+                delete rm.u;
+                rm.type = rm.type || 'highlight';
+                return rm;
+            });
+
+            const reconstructedPageContents = pagecontents.map(pc => {
+                const page = pages[pc.u];
+                if (!page) return pc;
+                const rpc = { ...pc };
+                rpc.url = page.url;
+                delete rpc.u;
+                return rpc;
+            });
+
+            // Hydrate local storage atomically
+            const storageUpdate = {
+                fsrsCards: reconstructedCards,
+                fsrsActivity: activity,
+                fsrsTopicWeights: weights,
+                marks: reconstructedMarks,
+                bookmarks: reconstructedBookmarks,
+                pagecontents: reconstructedPageContents,
+                chromeSettings: settings.chromeSettings || {},
+                notificationSettings: settings.notificationSettings || {},
+                theme: settings.theme || 'dark',
+                fsrsGlobalParams: settings.fsrsGlobalParams || {},
+                ratingPromptState: settings.ratingPromptState || {},
+                dailyGoalTarget: settings.dailyGoalTarget || null,
+                longestStreak: settings.longestStreak || 0
+            };
+            
+            if (settings.whitelistedWebsites && settings.whitelistedWebsites.length > 0) {
+                storageUpdate.whitelistedWebsites = settings.whitelistedWebsites;
+            } else {
+                await chrome.storage.local.remove('whitelistedWebsites');
+            }
+
+            await chrome.storage.local.set(storageUpdate);
+            onStatus("Backup restored successfully!");
+            Logger.info('Backup', 'Backup restored successfully!');
+            Logger.timeEnd('Backup', 'importBackup');
+
+        } catch (err) {
+            Logger.error('Backup', 'Backup restoration failed', err);
+            console.error("Backup restoration failed:", err);
+            onStatus("Restoration failed: " + err.message, true);
+        }
+    }
+
+    /**
+     * Reads through the backup file stream without executing database writes,
+     * ensuring formatting constraints and the checksum match.
+     * @param {File} file 
+     * @param {boolean} isGzip 
+     * @returns {Promise<Object>} Verification results containing metadata counts.
+     */
+    static async validateStream(file, isGzip) {
+        let stream = file.stream();
+        if (isGzip) {
+            stream = stream.pipeThrough(new DecompressionStream('gzip'));
+        }
+
+        const hasher = new Fnv1aHasher();
+        let lineCount = 0;
+        let header = null;
+        let footer = null;
+
+        const linesIterable = readLines(stream);
+        for await (const line of linesIterable) {
+            if (!line.trim()) continue;
+
+            let parsed;
+            try {
+                parsed = JSON.parse(line);
+            } catch (err) {
+                // If it fails on the first line, it's definitely not V2 JSONL
+                if (lineCount === 0) {
+                    return { isV2: false };
+                }
+                throw new Error(`Corrupted file: Invalid JSON structure at line ${lineCount + 1}`);
+            }
+
+            if (parsed.type === "header") {
+                if (lineCount !== 0) {
+                    throw new Error("Corrupted file: Backup header misplaced");
+                }
+                header = parsed;
+                const lineWithNewline = line + "\n";
+                hasher.update(lineWithNewline);
+            } else if (parsed.type === "footer") {
+                footer = parsed;
+                break;
+            } else {
+                const lineWithNewline = line + "\n";
+                hasher.update(lineWithNewline);
+            }
+            lineCount++;
+        }
+
+        if (!header) {
+            return { isV2: false };
+        }
+
+        if (!footer) {
+            throw new Error("Corrupted file: Missing checksum integrity footer");
+        }
+
+        const calculatedChecksum = hasher.digest();
+        if (calculatedChecksum !== footer.data.checksum) {
+            throw new Error(`Integrity check failed: Checksum mismatch (expected ${footer.data.checksum}, calculated ${calculatedChecksum})`);
+        }
+
+        return { isV2: true, header, counts: header.data.counts };
+    }
+
+    /**
+     * Handles legacy JSON formatting structure and migrates it successfully to local storage.
+     * @param {File} file 
+     * @param {Function} onStatus 
+     */
+    static importLegacy(file, onStatus) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const imported = JSON.parse(event.target.result);
+                    
+                    const storageUpdate = {
+                        fsrsCards: Array.isArray(imported) ? imported : (imported.cards || []),
+                        fsrsActivity: Array.isArray(imported) ? {} : (imported.activity || {}),
+                        fsrsTopicWeights: Array.isArray(imported) ? {} : (imported.weights || {})
+                    };
+
+                    if (imported.marks) {
+                        storageUpdate.marks = imported.marks.map(m => {
+                            m.type = m.type || 'highlight';
+                            return m;
+                        });
+                    }
+                    if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks;
+                    if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
+                    if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
+                    if (imported.notificationSettings) storageUpdate.notificationSettings = imported.notificationSettings;
+
+                    if (imported.theme) storageUpdate.theme = imported.theme;
+                    if (imported.whitelistedWebsites && imported.whitelistedWebsites.length > 0) {
+                        storageUpdate.whitelistedWebsites = imported.whitelistedWebsites;
+                    } else if (imported.whitelistedWebsites && imported.whitelistedWebsites.length === 0) {
+                        await chrome.storage.local.remove('whitelistedWebsites');
+                    }
+                    if (imported.fsrsGlobalParams) storageUpdate.fsrsGlobalParams = imported.fsrsGlobalParams;
+                    if (imported.ratingPromptState) storageUpdate.ratingPromptState = imported.ratingPromptState;
+                    if (imported.dailyGoalTarget !== undefined) storageUpdate.dailyGoalTarget = imported.dailyGoalTarget;
+                    if (imported.longestStreak !== undefined) storageUpdate.longestStreak = imported.longestStreak;
+
+                    await chrome.storage.local.set(storageUpdate);
+                    onStatus("Legacy backup imported successfully!");
+                    Logger.info('Backup', 'Legacy backup imported successfully!');
+                    Logger.timeEnd('Backup', 'importBackup');
+                    resolve();
+                } catch (err) {
+                    Logger.error('Backup', 'Legacy backup restoration failed', err);
+                    console.error("Legacy Backup Error:", err);
+                    onStatus("Failed to parse legacy JSON backup file.", true);
+                    reject(err);
+                }
+            };
+            reader.onerror = () => {
+                onStatus("Error reading legacy file.", true);
+                reject(new Error("File reading error"));
+            };
+            reader.readAsText(file);
+        });
+    }
+}

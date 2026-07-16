@@ -1,2 +1,2396 @@
-/*! For license information please see fsrsScheduler.bundle.js.LICENSE.txt */
-(()=>{var t={244(t,e,s){"use strict";class i extends Error{constructor(t="FSRS Error"){super(t),this.name="FSRSError",Error.captureStackTrace?.(this,i)}}class r extends i{constructor(t){super(t),this.name="FSRSValidationError",Error.captureStackTrace?.(this,r)}}var a=(t=>(t[t.New=0]="New",t[t.Learning=1]="Learning",t[t.Review=2]="Review",t[t.Relearning=3]="Relearning",t))(a||{}),n=(t=>(t[t.Manual=0]="Manual",t[t.Again=1]="Again",t[t.Hard=2]="Hard",t[t.Good=3]="Good",t[t.Easy=4]="Easy",t))(n||{});class l{static card(t){return{...t,state:l.state(t.state),due:l.time(t.due),last_review:t.last_review?l.time(t.last_review):void 0}}static rating(t){if("string"==typeof t){const e=t.charAt(0).toUpperCase(),s=t.slice(1).toLowerCase(),i=n[`${e}${s}`];if(void 0===i)throw new r(`Invalid rating:[${t}]`);return i}if("number"==typeof t)return t;throw new r(`Invalid rating:[${t}]`)}static state(t){if("string"==typeof t){const e=t.charAt(0).toUpperCase(),s=t.slice(1).toLowerCase(),i=a[`${e}${s}`];if(void 0===i)throw new r(`Invalid state:[${t}]`);return i}if("number"==typeof t)return t;throw new r(`Invalid state:[${t}]`)}static time(t){if(t instanceof Date)return t;const e=new Date(t);if("object"==typeof t&&null!==t&&!Number.isNaN(Date.parse(t)||+e))return e;if("string"==typeof t){const e=Date.parse(t);if(Number.isNaN(e))throw new r(`Invalid date:[${t}]`);return new Date(e)}if("number"==typeof t)return new Date(t);throw new r(`Invalid date:[${t}]`)}static review_log(t){return{...t,due:l.time(t.due),rating:l.rating(t.rating),state:l.state(t.state),review:l.time(t.review)}}}function o(t,e,s){return new Date(s?l.time(t).getTime()+24*e*60*60*1e3:l.time(t).getTime()+60*e*1e3)}function d(t,e,s){if(!t||!e)throw new r("Invalid date");const i=l.time(t).getTime()-l.time(e).getTime();let a=0;switch(s){case"days":a=Math.floor(i/864e5);break;case"minutes":a=Math.floor(i/6e4)}return a}function u(t){return t<10?`0${t}`:`${t}`}Date.prototype.scheduler=function(t,e){return o(this,t,e)},Date.prototype.diff=function(t,e){return d(this,t,e)},Date.prototype.format=function(){return function(t){const e=l.time(t),s=e.getFullYear(),i=e.getMonth()+1,r=e.getDate(),a=e.getHours(),n=e.getMinutes(),o=e.getSeconds();return`${s}-${u(i)}-${u(r)} ${u(a)}:${u(n)}:${u(o)}`}(this)},Date.prototype.dueFormat=function(t,e,s){return function(t,e,s,i=c){t=l.time(t),e=l.time(e),i.length!==c.length&&(i=c);let r=t.getTime()-e.getTime(),a=0;for(r/=1e3,a=0;a<h.length&&!(r<h[a]);a++)r/=h[a];return`${Math.floor(r)}${s?i[a]:""}`}(this,t,e,s)};const h=[60,60,24,31,12],c=["second","min","hour","day","month","year"],_=Object.freeze([n.Again,n.Hard,n.Good,n.Easy]),g=[{start:2.5,end:7,factor:.15},{start:7,end:20,factor:.1},{start:20,end:1/0,factor:.05}];function p(t,e,s){return Math.min(Math.max(t,e),s)}function y(t,e){const s=10**e;return Math.round(t*s)/s}const f=t=>{const e=t.slice(-1),s=parseInt(t.slice(0,-1),10);if(Number.isNaN(s)||!Number.isFinite(s)||s<0)throw new r(`Invalid step value: ${t}`);switch(e){case"m":return s;case"h":return 60*s;case"d":return 1440*s;default:throw new r(`Invalid step unit: ${t}, expected m/h/d`)}},w=(t,e,s)=>{const i=e===a.Relearning||e===a.Review?t.relearning_steps:t.learning_steps,r=i.length;if(0===r||s>=r)return{};const l=i[0],o=f,d=()=>{if(1===r)return Math.round(1.5*o(l));const t=i[1];return Math.round((o(l)+o(t))/2)},u=t=>t<0||t>=r?null:i[t],h={},c=u(Math.max(0,s));if(e===a.Review)return h[n.Again]={scheduled_minutes:o(c),next_step:0},h;{h[n.Again]={scheduled_minutes:o(l),next_step:0},h[n.Hard]={scheduled_minutes:d(),next_step:s};const t=u(s+1);if(t){const e=o(t);e&&(h[n.Good]={scheduled_minutes:Math.round(e),next_step:s+1})}}return h};function m(){return`${this.review_time.getTime()}_${this.current.reps}_${this.current.difficulty*this.current.stability}`}var v=(t=>(t.SCHEDULER="Scheduler",t.LEARNING_STEPS="LearningSteps",t.SEED="Seed",t))(v||{});class b{last;current;review_time;next=new Map;algorithm;strategies;elapsed_days=0;constructor(t,e,s,i){this.algorithm=s,this.last=l.card(t),this.current=l.card(t),this.review_time=l.time(e),this.strategies=i,this.init()}checkGrade(t){if(!Number.isFinite(t)||t<1||t>4)throw new r(`Invalid grade "${t}",expected 1-4`)}init(){const{state:t,last_review:e}=this.current;let s=0;t!==a.New&&e&&(s=function(t,e){const s=Date.UTC(t.getUTCFullYear(),t.getUTCMonth(),t.getUTCDate()),i=Date.UTC(e.getUTCFullYear(),e.getUTCMonth(),e.getUTCDate());return Math.floor((i-s)/864e5)}(e,this.review_time)),this.current.last_review=this.review_time,this.elapsed_days=s,this.current.elapsed_days=s,this.current.reps+=1;let i=m;if(this.strategies){const t=this.strategies.get(v.SEED);t&&(i=t)}this.algorithm.seed=i.call(this)}preview(){return{[n.Again]:this.review(n.Again),[n.Hard]:this.review(n.Hard),[n.Good]:this.review(n.Good),[n.Easy]:this.review(n.Easy),[Symbol.iterator]:this.previewIterator.bind(this)}}*previewIterator(){for(const t of _)yield this.review(t)}review(t){const{state:e}=this.last;let s;switch(this.checkGrade(t),e){case a.New:s=this.newState(t);break;case a.Learning:case a.Relearning:s=this.learningState(t);break;case a.Review:s=this.reviewState(t)}return s}buildLog(t){const{last_review:e,due:s,elapsed_days:i}=this.last;return{rating:t,state:this.current.state,due:e||s,stability:this.current.stability,difficulty:this.current.difficulty,elapsed_days:this.elapsed_days,last_elapsed_days:i,scheduled_days:this.current.scheduled_days,learning_steps:this.current.learning_steps,review:this.review_time}}}class x{c;s0;s1;s2;constructor(t){const e=function(){let t=4022871197;return function(e){e=String(e);for(let s=0;s<e.length;s++){t+=e.charCodeAt(s);let i=.02519603282416938*t;t=i>>>0,i-=t,i*=t,t=i>>>0,i-=t,t+=4294967296*i}return 2.3283064365386963e-10*(t>>>0)}}();this.c=1,this.s0=e(" "),this.s1=e(" "),this.s2=e(" "),null==t&&(t=Date.now()),this.s0-=e(t),this.s0<0&&(this.s0+=1),this.s1-=e(t),this.s1<0&&(this.s1+=1),this.s2-=e(t),this.s2<0&&(this.s2+=1)}next(){const t=2091639*this.s0+2.3283064365386963e-10*this.c;return this.s0=this.s1,this.s1=this.s2,this.c=0|t,this.s2=t-this.c,this.s2}set state(t){this.c=t.c,this.s0=t.s0,this.s1=t.s1,this.s2=t.s2}get state(){return{c:this.c,s0:this.s0,s1:this.s1,s2:this.s2}}}const M=Object.freeze(["1m","10m"]),S=Object.freeze(["10m"]),R=.001,E=100,L=Object.freeze([.212,1.2931,2.3065,8.2956,6.4133,.8334,3.0194,.001,1.8722,.1666,.796,1.4835,.0614,.2629,1.6483,.6014,1.8729,.5425,.0912,.0658,.1542]),D=(t,e,s=!0)=>{const i=((t,e=!0)=>[[R,E],[R,E],[R,E],[R,E],[1,10],[.001,4],[.001,4],[.001,.75],[0,4.5],[0,.8],[.001,3.5],[.001,5],[.001,.25],[.001,.9],[0,4],[0,1],[1,6],[0,t],[0,t],[e?.01:0,.8],[.1,.8]])(2,s).slice(0,t.length);if(Math.max(0,e)>1){const s=p(t[11]||0,i[11][0],i[11][1]),r=p(t[13]||0,i[13][0],i[13][1]),a=p(t[14]||0,i[14][0],i[14][1]),n=-(Math.log(s)+Math.log(Math.pow(2,r)-1)+.3*a)/e,l=p(y(Math.sqrt(Math.max(n,0)),8),.01,2);i[17]&&(i[17]=[i[17][0],l]),i[18]&&(i[18]=[i[18][0],l])}return i.map(([e,s],i)=>p(t[i]||0,e,s))},N=(t,e=0,s=!0)=>{if(void 0===t)return[...L];switch(t.length){case 21:return D(Array.from(t),e,s);case 19:return console.debug("[FSRS-6]auto fill w from 19 to 21 length"),D(Array.from(t),e,s).concat([0,.5]);case 17:{const i=D(Array.from(t),e,s);return i[4]=+(2*i[5]+i[4]).toFixed(8),i[5]=+(Math.log(3*i[5]+1)/3).toFixed(8),i[6]=+(i[6]+.5).toFixed(8),console.debug("[FSRS-6]auto fill w from 17 to 21 length"),i.concat([0,0,0,.5])}default:return console.warn("[FSRS]Invalid parameters length, using default parameters"),[...L]}},C=t=>{const e=Array.isArray(t?.learning_steps)?t.learning_steps:M,s=Array.isArray(t?.relearning_steps)?t.relearning_steps:S,i=t?.enable_short_term??true,r=N(t?.w,s.length,i);return{request_retention:t?.request_retention||.9,maximum_interval:t?.maximum_interval||36500,w:r,enable_fuzz:t?.enable_fuzz??!1,enable_short_term:i,learning_steps:e,relearning_steps:s}};function $(t,e){const s={due:t?l.time(t):new Date,stability:0,difficulty:0,elapsed_days:0,scheduled_days:0,reps:0,lapses:0,learning_steps:0,state:a.New,last_review:void 0};return e&&"function"==typeof e?e(s):s}const A=t=>{const e="number"==typeof t?-t:-t[20];return{decay:e,factor:y(Math.exp(Math.pow(e,-1)*Math.log(.9))-1,8)}};function q(t,e,s){const{decay:i,factor:r}=A(t);return y(Math.pow(1+r*e/s,i),8)}class T{param;intervalModifier;_seed;constructor(t){this.param=new Proxy(C(t),this.params_handler_proxy()),this.intervalModifier=this.calculate_interval_modifier(this.param.request_retention),this.forgetting_curve=q.bind(this,this.param.w)}get interval_modifier(){return this.intervalModifier}set seed(t){this._seed=t}calculate_interval_modifier(t){if(t<=0||t>1)throw new r("Requested retention rate should be in the range (0,1]");const{decay:e,factor:s}=A(this.param.w);return y((Math.pow(t,1/e)-1)/s,8)}get parameters(){return this.param}set parameters(t){this.update_parameters(t)}params_handler_proxy(){const t=this;return{set:function(e,s,i){return"request_retention"===s&&Number.isFinite(i)?t.intervalModifier=t.calculate_interval_modifier(Number(i)):"w"===s&&(i=N(i,e.relearning_steps.length,e.enable_short_term),t.forgetting_curve=q.bind(this,i),t.intervalModifier=t.calculate_interval_modifier(Number(e.request_retention))),Reflect.set(e,s,i),!0}}}update_parameters(t){const e=C(t);for(const t in e){const s=t;this.param[s]=e[s]}}init_stability(t){return Math.max(this.param.w[t-1],.1)}init_difficulty(t){const e=this.param.w;return y(e[4]-Math.exp((t-1)*e[5])+1,8)}apply_fuzz(t,e){if(!this.param.enable_fuzz||t<2.5)return Math.round(t);const s=function(t){const e=new x(t),s=()=>e.next();return s.int32=()=>4294967296*e.next()|0,s.double=()=>s()+11102230246251565e-32*(2097152*s()|0),s.state=()=>e.state,s.importState=t=>(e.state=t,s),s}(this._seed)(),{min_ivl:i,max_ivl:r}=function(t,e,s){let i=1;for(const e of g)i+=e.factor*Math.max(Math.min(t,e.end)-e.start,0);t=Math.min(t,s);let r=Math.max(2,Math.round(t-i));const a=Math.min(Math.round(t+i),s);return t>e&&(r=Math.max(r,e+1)),r=Math.min(r,a),{min_ivl:r,max_ivl:a}}(t,e,this.param.maximum_interval);return Math.floor(s*(r-i+1)+i)}next_interval(t,e){const s=Math.min(Math.max(1,Math.round(t*this.intervalModifier)),this.param.maximum_interval);return this.apply_fuzz(s,e)}linear_damping(t,e){return y(t*(10-e)/9,8)}next_difficulty(t,e){const s=-this.param.w[6]*(e-3),i=t+this.linear_damping(s,t);return p(this.mean_reversion(this.init_difficulty(n.Easy),i),1,10)}mean_reversion(t,e){const s=this.param.w;return y(s[7]*t+(1-s[7])*e,8)}next_recall_stability(t,e,s,i){const r=this.param.w,a=n.Hard===i?r[15]:1,l=n.Easy===i?r[16]:1;return y(p(e*(1+Math.exp(r[8])*(11-t)*Math.pow(e,-r[9])*(Math.exp((1-s)*r[10])-1)*a*l),R,36500),8)}next_forget_stability(t,e,s){const i=this.param.w;return y(p(i[11]*Math.pow(t,-i[12])*(Math.pow(e+1,i[13])-1)*Math.exp((1-s)*i[14]),R,36500),8)}next_short_term_stability(t,e){const s=this.param.w,i=Math.pow(t,-s[19])*Math.exp(s[17]*(e-3+s[18]));return y(p(t*(e>=n.Hard?Math.max(i,1):i),R,36500),8)}forgetting_curve;next_state(t,e,s,i){const{difficulty:a,stability:n}=t??{difficulty:0,stability:0};if(e<0)throw new r(`Invalid delta_t "${e}"`);if(s<0||s>4)throw new r(`Invalid grade "${s}"`);if(0===a&&0===n)return{difficulty:p(this.init_difficulty(s),1,10),stability:this.init_stability(s)};if(0===s)return{difficulty:a,stability:n};if(a<1||n<R)throw new r(`Invalid memory state { difficulty: ${a}, stability: ${n} }`);const l=this.param.w;let o;if(i="number"==typeof i?i:this.forgetting_curve(e,n),0===e&&this.param.enable_short_term)o=this.next_short_term_stability(n,s);else if(1===s){const t=this.next_forget_stability(a,n,i);let[e,s]=[0,0];this.param.enable_short_term&&(e=l[17],s=l[18]),o=p(y(n/Math.exp(e*s),8),R,t)}else o=this.next_recall_stability(a,n,i,s);return{difficulty:this.next_difficulty(a,s),stability:o}}}class F extends b{learningStepsStrategy;constructor(t,e,s,i){super(t,e,s,i);let r=w;if(this.strategies){const t=this.strategies.get(v.LEARNING_STEPS);t&&(r=t)}this.learningStepsStrategy=r}getLearningInfo(t,e){const s=this.algorithm.parameters;t.learning_steps=t.learning_steps||0;const i=this.learningStepsStrategy(s,t.state,t.learning_steps);return{scheduled_minutes:Math.max(0,i[e]?.scheduled_minutes??0),next_steps:Math.max(0,i[e]?.next_step??0)}}applyLearningSteps(t,e,s){const{scheduled_minutes:i,next_steps:r}=this.getLearningInfo(this.current,e);if(i>0&&i<1440)t.learning_steps=r,t.scheduled_days=0,t.state=s,t.due=o(this.review_time,Math.round(i),!1);else if(t.state=a.Review,i>=1440)t.learning_steps=r,t.due=o(this.review_time,Math.round(i),!1),t.scheduled_days=Math.floor(i/1440);else{t.learning_steps=0;const e=this.algorithm.next_interval(t.stability,this.elapsed_days);t.scheduled_days=e,t.due=o(this.review_time,e,!0)}}newState(t){const e=this.next.get(t);if(e)return e;const s=this.next_ds(this.elapsed_days,t);this.applyLearningSteps(s,t,a.Learning);const i={card:s,log:this.buildLog(t)};return this.next.set(t,i),i}learningState(t){const e=this.next.get(t);if(e)return e;const s=this.next_ds(this.elapsed_days,t);this.applyLearningSteps(s,t,this.last.state);const i={card:s,log:this.buildLog(t)};return this.next.set(t,i),i}reviewState(t){const e=this.next.get(t);if(e)return e;const s=this.elapsed_days,i=this.algorithm.forgetting_curve(s,this.current.stability),r=this.next_ds(s,n.Again,i),l=this.next_ds(s,n.Hard,i),o=this.next_ds(s,n.Good,i),d=this.next_ds(s,n.Easy,i);this.next_interval(l,o,d,s),this.next_state(l,o,d),this.applyLearningSteps(r,n.Again,a.Relearning),r.lapses+=1;const u={card:r,log:this.buildLog(n.Again)},h={card:l,log:super.buildLog(n.Hard)},c={card:o,log:super.buildLog(n.Good)},_={card:d,log:super.buildLog(n.Easy)};return this.next.set(n.Again,u),this.next.set(n.Hard,h),this.next.set(n.Good,c),this.next.set(n.Easy,_),this.next.get(t)}next_ds(t,e,s){const i=this.algorithm.next_state({difficulty:this.current.difficulty,stability:this.current.stability},t,e,s),r=l.card(this.current);return r.difficulty=i.difficulty,r.stability=i.stability,r}next_interval(t,e,s,i){let r,a;r=this.algorithm.next_interval(t.stability,i),a=this.algorithm.next_interval(e.stability,i),r=Math.min(r,a),a=Math.max(a,r+1);const n=Math.max(this.algorithm.next_interval(s.stability,i),a+1);t.scheduled_days=r,t.due=o(this.review_time,r,!0),e.scheduled_days=a,e.due=o(this.review_time,a,!0),s.scheduled_days=n,s.due=o(this.review_time,n,!0)}next_state(t,e,s){t.state=a.Review,t.learning_steps=0,e.state=a.Review,e.learning_steps=0,s.state=a.Review,s.learning_steps=0}}class H extends b{newState(t){const e=this.next.get(t);if(e)return e;this.current.scheduled_days=0,this.current.elapsed_days=0;const s=this.next_ds(0,n.Again),i=this.next_ds(0,n.Hard),r=this.next_ds(0,n.Good),a=this.next_ds(0,n.Easy);return this.next_interval(s,i,r,a,0),this.next_state(s,i,r,a),this.update_next(s,i,r,a),this.next.get(t)}next_ds(t,e,s){const i=this.algorithm.next_state({difficulty:this.current.difficulty,stability:this.current.stability},t,e,s),r=l.card(this.current);return r.difficulty=i.difficulty,r.stability=i.stability,r}learningState(t){return this.reviewState(t)}reviewState(t){const e=this.next.get(t);if(e)return e;const s=this.elapsed_days,i=this.algorithm.forgetting_curve(s,this.current.stability),r=this.next_ds(s,n.Again,i),a=this.next_ds(s,n.Hard,i),l=this.next_ds(s,n.Good,i),o=this.next_ds(s,n.Easy,i);return this.next_interval(r,a,l,o,s),this.next_state(r,a,l,o),r.lapses+=1,this.update_next(r,a,l,o),this.next.get(t)}next_interval(t,e,s,i,r){let a,n,l,d;a=this.algorithm.next_interval(t.stability,r),n=this.algorithm.next_interval(e.stability,r),l=this.algorithm.next_interval(s.stability,r),d=this.algorithm.next_interval(i.stability,r),a=Math.min(a,n),n=Math.max(n,a+1),l=Math.max(l,n+1),d=Math.max(d,l+1),t.scheduled_days=a,t.due=o(this.review_time,a,!0),e.scheduled_days=n,e.due=o(this.review_time,n,!0),s.scheduled_days=l,s.due=o(this.review_time,l,!0),i.scheduled_days=d,i.due=o(this.review_time,d,!0)}next_state(t,e,s,i){t.state=a.Review,t.learning_steps=0,e.state=a.Review,e.learning_steps=0,s.state=a.Review,s.learning_steps=0,i.state=a.Review,i.learning_steps=0}update_next(t,e,s,i){const r={card:t,log:this.buildLog(n.Again)},a={card:e,log:super.buildLog(n.Hard)},l={card:s,log:super.buildLog(n.Good)},o={card:i,log:super.buildLog(n.Easy)};this.next.set(n.Again,r),this.next.set(n.Hard,a),this.next.set(n.Good,l),this.next.set(n.Easy,o)}}class I{fsrs;constructor(t){this.fsrs=t}replay(t,e,s){return this.fsrs.next(t,e,s)}handleManualRating(t,e,s,i,l,o,u){if(void 0===e)throw new r("reschedule: state is required for manual rating");let h,c;if(e===a.New)h={rating:n.Manual,state:e,due:u??s,stability:t.stability,difficulty:t.difficulty,elapsed_days:i,last_elapsed_days:t.elapsed_days,scheduled_days:t.scheduled_days,learning_steps:t.learning_steps,review:s},c=$(s),c.last_review=s;else{if(void 0===u)throw new r("reschedule: due is required for manual rating");const a=d(u,s,"days");h={rating:n.Manual,state:t.state,due:t.last_review||t.due,stability:t.stability,difficulty:t.difficulty,elapsed_days:i,last_elapsed_days:t.elapsed_days,scheduled_days:t.scheduled_days,learning_steps:t.learning_steps,review:s},c={...t,state:e,due:u,last_review:s,stability:l||t.stability,difficulty:o||t.difficulty,elapsed_days:i,scheduled_days:a,reps:t.reps+1}}return{card:c,log:h}}reschedule(t,e){const s=[];let i=$(t.due);for(const t of e){let e;if(t.review=l.time(t.review),t.rating===n.Manual){let s=0;i.state!==a.New&&i.last_review&&(s=d(t.review,i.last_review,"days")),e=this.handleManualRating(i,t.state,t.review,s,t.stability,t.difficulty,t.due?l.time(t.due):void 0)}else e=this.replay(i,t.review,t.rating);s.push(e),i=e.card}return s}calculateManualRecord(t,e,s,i){if(!s)return null;const{card:r,log:a}=s,n=l.card(t);return n.due.getTime()===r.due.getTime()?null:(n.scheduled_days=d(r.due,n.due,"days"),this.handleManualRating(n,r.state,l.time(e),a.elapsed_days,i?r.stability:void 0,i?r.difficulty:void 0,r.due))}}function G(t,e){return"function"==typeof e?e(t):t}class z extends T{strategyHandler=new Map;Scheduler;constructor(t){super(t);const{enable_short_term:e}=this.parameters;this.Scheduler=e?F:H}params_handler_proxy(){const t=this;return{set:function(e,s,i){return"request_retention"===s&&Number.isFinite(i)?t.intervalModifier=t.calculate_interval_modifier(Number(i)):"enable_short_term"===s?t.Scheduler=!0===i?F:H:"w"===s&&(i=N(i,e.relearning_steps.length,e.enable_short_term),t.forgetting_curve=q.bind(this,i),t.intervalModifier=t.calculate_interval_modifier(Number(e.request_retention))),Reflect.set(e,s,i),!0}}}useStrategy(t,e){return this.strategyHandler.set(t,e),this}clearStrategy(t){return t?this.strategyHandler.delete(t):this.strategyHandler.clear(),this}getScheduler(t,e){return new(this.strategyHandler.get(v.SCHEDULER)||this.Scheduler)(t,e,this,this.strategyHandler)}repeat(t,e,s){return G(this.getScheduler(t,e).preview(),s)}next(t,e,s,i){const a=this.getScheduler(t,e),o=l.rating(s);if(o===n.Manual)throw new r("Cannot review a manual rating");return G(a.review(o),i)}get_retrievability(t,e,s=!0){const i=l.card(t);e=e?l.time(e):new Date;const r=i.state!==a.New?Math.max(d(e,i.last_review,"days"),0):0,n=i.state!==a.New?this.forgetting_curve(r,+i.stability.toFixed(8)):0;return s?`${(100*n).toFixed(2)}%`:n}rollback(t,e,s){const i=l.card(t),o=l.review_log(e);if(o.rating===n.Manual)throw new r("Cannot rollback a manual rating");let d,u,h;switch(o.state){case a.New:d=o.due,u=void 0,h=0;break;case a.Learning:case a.Relearning:case a.Review:d=o.review,u=o.due,h=i.lapses-(o.rating===n.Again&&o.state===a.Review?1:0)}return G({...i,due:d,stability:o.stability,difficulty:o.difficulty,elapsed_days:o.last_elapsed_days,scheduled_days:o.scheduled_days,reps:Math.max(0,i.reps-1),lapses:Math.max(0,h),learning_steps:o.learning_steps,state:o.state,last_review:u},s)}forget(t,e,s=!1,i){const r=l.card(t);e=l.time(e);const o=r.state===a.New?0:d(e,r.due,"days"),u={rating:n.Manual,state:r.state,due:r.due,stability:r.stability,difficulty:r.difficulty,elapsed_days:0,last_elapsed_days:r.elapsed_days,scheduled_days:o,learning_steps:r.learning_steps,review:e};return G({card:{...r,due:e,stability:0,difficulty:0,elapsed_days:0,scheduled_days:0,reps:s?0:r.reps,lapses:s?0:r.lapses,learning_steps:0,state:a.New,last_review:r.last_review},log:u},i)}reschedule(t,e=[],s={}){const{recordLogHandler:i,reviewsOrderBy:r,skipManual:a=!0,now:o=new Date,update_memory_state:d=!1}=s;r&&"function"==typeof r&&e.sort(r),a&&(e=e.filter(t=>t.rating!==n.Manual));const u=new I(this),h=u.reschedule(s.first_card||$(),e),c=h.length,_=l.card(t),g=u.calculateManualRecord(_,o,c?h[c-1]:void 0,d);return{collections:"function"==typeof i?h.map(i):h,reschedule_item:g?G(g,i):null}}}const U=t=>new z(t||{});t=s.hmd(t);const j="undefined"!=typeof Scheduler?Scheduler:s(729);class k extends j{constructor(t=null){super(),this.w=[.4,.6,2.4,5.8,4.93,.94,.86,.01,1.49,.14,.94,2.18,.05,.34,1.26,.29,2.61],this.decay=-.5,this.factor=19/81,this.requestRetention=.9,t&&(t.w&&Array.isArray(t.w)&&17===t.w.length&&(this.w=t.w),void 0===t.decay||isNaN(t.decay)||(this.decay=parseFloat(t.decay)),void 0===t.factor||isNaN(t.factor)||(this.factor=parseFloat(t.factor)),void 0===t.requestRetention||isNaN(t.requestRetention)||(this.requestRetention=parseFloat(t.requestRetention)))}createCard(t,e,s,i,r=[]){"undefined"!=typeof window&&window.Logger&&window.Logger.debug("FSRS","Creating new card",{problemTitle:t,problemUrl:e});const a=new Date,n=$(a);return{id:Date.now().toString(),problemTitle:t,problemUrl:e,textRead:s,approach:i,tags:r,historyLog:[{rating:0,date:a.getTime()}],due:n.due.getTime(),stability:n.stability,difficulty:n.difficulty,elapsed_days:n.elapsed_days,scheduled_days:n.scheduled_days,reps:n.reps,lapses:n.lapses,state:n.state,last_review:n.last_review?n.last_review.getTime():null}}reviewCard(t,e,s=null,i=Date.now()){"undefined"!=typeof window&&window.Logger&&window.Logger.debug("FSRS",`Reviewing card: ${t.problemTitle} with rating ${e}`);let r={...t};r.previousDue=t.due,r.historyLog=r.historyLog||[],r.historyLog.push({rating:e,date:i});let a=t.last_review;if(!a&&t.historyLog&&t.historyLog.length>0){const e=t.historyLog[t.historyLog.length-1];a="object"==typeof e?e.date:e}const n=s&&17===s.length?s:this.w,l=U({w:n,request_retention:this.requestRetention}),o={due:new Date(r.due),stability:r.stability,difficulty:r.difficulty,elapsed_days:r.elapsed_days,scheduled_days:r.scheduled_days,reps:r.reps,lapses:r.lapses,state:r.state,last_review:a?new Date(a):void 0},d=l.next(o,new Date(i),e);return r.due=d.card.due.getTime(),r.stability=d.card.stability,r.difficulty=d.card.difficulty,r.elapsed_days=d.card.elapsed_days,r.scheduled_days=d.card.scheduled_days,r.reps=d.card.reps,r.lapses=d.card.lapses,r.state=d.card.state,r.last_review=d.card.last_review?d.card.last_review.getTime():null,r}getRetrievability(t,e=Date.now()){let s=t.last_review;if(!s&&t.historyLog&&t.historyLog.length>0){const e=t.historyLog[t.historyLog.length-1];s="object"==typeof e?e.date:e}if(t.stability<=0||!s)return 0;const i={due:new Date(t.due),stability:t.stability,difficulty:t.difficulty,elapsed_days:t.elapsed_days,scheduled_days:t.scheduled_days,reps:t.reps,lapses:t.lapses,state:t.state,last_review:new Date(s)};return U({w:this.w,request_retention:this.requestRetention}).get_retrievability(i,new Date(e),!1)||0}getDefaultRequestRetention(){return this.requestRetention}isHighDifficulty(t){return t.difficulty>=7}isGraduated(t){return 2===t.state&&t.stability>7}resetConfiguration(){this.w=[.4,.6,2.4,5.8,4.93,.94,.86,.01,1.49,.14,.94,2.18,.05,.34,1.26,.29,2.61],this.decay=-.5,this.factor=19/81,this.requestRetention=.9}exportConfiguration(){return{w:[...this.w],decay:this.decay,factor:this.factor,requestRetention:this.requestRetention}}importConfiguration(t){t&&(t.w&&Array.isArray(t.w)&&17===t.w.length&&(this.w=t.w),void 0!==t.decay&&(this.decay=parseFloat(t.decay)),void 0!==t.factor&&(this.factor=parseFloat(t.factor)),void 0!==t.requestRetention&&(this.requestRetention=parseFloat(t.requestRetention)))}}t.exports?t.exports=k:"undefined"!=typeof window&&(window.FsrsScheduler=k)},729(t){class e{constructor(){if(new.target===e)throw new TypeError("Cannot construct Scheduler instances directly.")}createCard(t,e,s,i,r=[]){throw new Error("Method 'createCard()' must be implemented.")}reviewCard(t,e,s=null,i=Date.now()){throw new Error("Method 'reviewCard()' must be implemented.")}getRetrievability(t,e=Date.now()){throw new Error("Method 'getRetrievability()' must be implemented.")}getProjectedRetrievability(t,e){throw new Error("Method 'getProjectedRetrievability()' must be implemented.")}getDefaultRequestRetention(){throw new Error("Method 'getDefaultRequestRetention()' must be implemented.")}isHighDifficulty(t){throw new Error("Method 'isHighDifficulty()' must be implemented.")}isGraduated(t){throw new Error("Method 'isGraduated()' must be implemented.")}supportsOptimization(){return!1}async optimize(t){throw new Error("Method 'optimize()' is not supported by this scheduler.")}resetConfiguration(){throw new Error("Method 'resetConfiguration()' is not supported by this scheduler.")}exportConfiguration(){throw new Error("Method 'exportConfiguration()' is not supported by this scheduler.")}importConfiguration(t){throw new Error("Method 'importConfiguration()' is not supported by this scheduler.")}}t.exports&&(t.exports=e)}};const e={};function s(i){const r=e[i];if(void 0!==r)return r.exports;const a=e[i]={id:i,loaded:!1,exports:{}};return t[i](a,a.exports,s),a.loaded=!0,a.exports}s.hmd=t=>((t=Object.create(t)).children||(t.children=[]),Object.defineProperty(t,"exports",{enumerable:!0,set(){throw new Error("ES Modules may not assign module.exports or exports.*, Use ESM export syntax, instead: "+t.id)}}),t),s(244)})();
+/******/ (() => { // webpackBootstrap
+/******/ 	var __webpack_modules__ = ({
+
+/***/ "./features/tracker/scheduler/fsrsScheduler.js"
+/*!*****************************************************!*\
+  !*** ./features/tracker/scheduler/fsrsScheduler.js ***!
+  \*****************************************************/
+(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var ts_fsrs__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ts-fsrs */ "./node_modules/ts-fsrs/dist/index.mjs");
+/* module decorator */ module = __webpack_require__.hmd(module);
+/**
+ * @file features/tracker/scheduler/fsrsScheduler.js
+ * @description Concrete implementation of the Free Spaced Repetition Scheduler (FSRS) algorithm.
+ * Extends the abstract Scheduler base class to provide mathematically precise card
+ * stability, difficulty, retrievability, and scheduled review intervals using ts-fsrs.
+ */
+
+
+
+// Fallback logic if we are running outside Webpack bundling context (which we shouldn't be now)
+const BaseScheduler = typeof Scheduler !== 'undefined' ? Scheduler : ( true ? __webpack_require__(/*! ./scheduler.js */ "./features/tracker/scheduler/scheduler.js") : 0);
+
+class FsrsScheduler extends BaseScheduler {
+    /**
+     * Initializes the FSRS scheduler with standard FSRS-4.5 weights and constants.
+     * @param {Object|null} [params=null] - Configuration overrides.
+     */
+    constructor(params = null) {
+        super();
+        this.w = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
+        this.decay = -0.5;
+        this.factor = 19 / 81;
+        this.requestRetention = 0.90; // Target memory retention rate
+
+        if (params) {
+            if (params.w && Array.isArray(params.w) && params.w.length === 17) {
+                this.w = params.w;
+            }
+            if (params.decay !== undefined && !isNaN(params.decay)) {
+                this.decay = parseFloat(params.decay);
+            }
+            if (params.factor !== undefined && !isNaN(params.factor)) {
+                this.factor = parseFloat(params.factor);
+            }
+            if (params.requestRetention !== undefined && !isNaN(params.requestRetention)) {
+                this.requestRetention = parseFloat(params.requestRetention);
+            }
+        }
+    }
+
+    createCard(problemTitle, problemUrl, textRead, approach, tags = []) {
+        if (typeof window !== 'undefined' && window.Logger) window.Logger.debug('FSRS', 'Creating new card', { problemTitle, problemUrl });
+        const now = new Date();
+        
+        // ts-fsrs provides createEmptyCard() which scaffolds the standard FSRS structure
+        const emptyCard = (0,ts_fsrs__WEBPACK_IMPORTED_MODULE_0__.createEmptyCard)(now);
+        
+        return {
+            id: Date.now().toString(),
+            problemTitle,
+            problemUrl,
+            textRead,
+            approach,
+            tags,
+            historyLog: [{ rating: 0, date: now.getTime() }], // Track exactly when this was created/reviewed
+            
+            // FSRS standardized schema fields:
+            due: emptyCard.due.getTime(),
+            stability: emptyCard.stability,
+            difficulty: emptyCard.difficulty,
+            elapsed_days: emptyCard.elapsed_days,
+            scheduled_days: emptyCard.scheduled_days,
+            reps: emptyCard.reps,
+            lapses: emptyCard.lapses,
+            state: emptyCard.state,
+            last_review: emptyCard.last_review ? emptyCard.last_review.getTime() : null
+        };
+    }
+
+    reviewCard(card, rating, customWeights = null, now = Date.now()) {
+        if (typeof window !== 'undefined' && window.Logger) window.Logger.debug('FSRS', `Reviewing card: ${card.problemTitle} with rating ${rating}`);
+        let newCard = { ...card };
+        
+        newCard.previousDue = card.due;
+        newCard.historyLog = newCard.historyLog || [];
+        newCard.historyLog.push({ rating, date: now });
+
+        let lastReview = card.last_review;
+        if (!lastReview && card.historyLog && card.historyLog.length > 0) {
+            const lastLog = card.historyLog[card.historyLog.length - 1];
+            lastReview = typeof lastLog === 'object' ? lastLog.date : lastLog;
+        }
+
+        const w = (customWeights && customWeights.length === 17) ? customWeights : this.w;
+
+        // Initialize ts-fsrs scheduler with standard or custom weights
+        const scheduler = (0,ts_fsrs__WEBPACK_IMPORTED_MODULE_0__.fsrs)({
+            w: w,
+            request_retention: this.requestRetention
+        });
+
+        // Convert plain object back to ts-fsrs Card interface format
+        const tsCard = {
+            due: new Date(newCard.due),
+            stability: newCard.stability,
+            difficulty: newCard.difficulty,
+            elapsed_days: newCard.elapsed_days,
+            scheduled_days: newCard.scheduled_days,
+            reps: newCard.reps,
+            lapses: newCard.lapses,
+            state: newCard.state,
+            last_review: lastReview ? new Date(lastReview) : undefined
+        };
+
+        // ts-fsrs ratings are: 1=Again, 2=Hard, 3=Good, 4=Easy
+        const result = scheduler.next(tsCard, new Date(now), rating);
+        
+        // Map back to JSON-serializable structure
+        newCard.due = result.card.due.getTime();
+        newCard.stability = result.card.stability;
+        newCard.difficulty = result.card.difficulty;
+        newCard.elapsed_days = result.card.elapsed_days;
+        newCard.scheduled_days = result.card.scheduled_days;
+        newCard.reps = result.card.reps;
+        newCard.lapses = result.card.lapses;
+        newCard.state = result.card.state;
+        newCard.last_review = result.card.last_review ? result.card.last_review.getTime() : null;
+
+        return newCard;
+    }
+
+    getRetrievability(card, now = Date.now()) {
+        let lastReview = card.last_review;
+        if (!lastReview && card.historyLog && card.historyLog.length > 0) {
+            const lastLog = card.historyLog[card.historyLog.length - 1];
+            lastReview = typeof lastLog === 'object' ? lastLog.date : lastLog;
+        }
+
+        if (card.stability <= 0 || !lastReview) {
+            return 0;
+        }
+
+        const tsCard = {
+            due: new Date(card.due),
+            stability: card.stability,
+            difficulty: card.difficulty,
+            elapsed_days: card.elapsed_days,
+            scheduled_days: card.scheduled_days,
+            reps: card.reps,
+            lapses: card.lapses,
+            state: card.state,
+            last_review: new Date(lastReview)
+        };
+
+        // ts-fsrs native retrievability computation
+        const scheduler = (0,ts_fsrs__WEBPACK_IMPORTED_MODULE_0__.fsrs)({
+            w: this.w,
+            request_retention: this.requestRetention
+        });
+
+        // get_retrievability takes the card state and current date, returns probability (0.0 to 1.0)
+        return scheduler.get_retrievability(tsCard, new Date(now), false) || 0;
+    }
+
+    getDefaultRequestRetention() {
+        return this.requestRetention;
+    }
+
+    isHighDifficulty(card) {
+        // In FSRS, difficulty scales from 1 (easiest) to 10 (hardest).
+        return card.difficulty >= 7;
+    }
+
+    isGraduated(card) {
+        // FSRS graduated criteria: state is Review (2) and stability indicates long-term retention.
+        return card.state === 2 && card.stability > 7;
+    }
+
+
+
+    resetConfiguration() {
+        this.w = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
+        this.decay = -0.5;
+        this.factor = 19 / 81;
+        this.requestRetention = 0.90;
+    }
+
+    exportConfiguration() {
+        return {
+            w: [...this.w],
+            decay: this.decay,
+            factor: this.factor,
+            requestRetention: this.requestRetention
+        };
+    }
+
+    importConfiguration(config) {
+        if (!config) return;
+        if (config.w && Array.isArray(config.w) && config.w.length === 17) {
+            this.w = config.w;
+        }
+        if (config.decay !== undefined) this.decay = parseFloat(config.decay);
+        if (config.factor !== undefined) this.factor = parseFloat(config.factor);
+        if (config.requestRetention !== undefined) this.requestRetention = parseFloat(config.requestRetention);
+    }
+}
+
+if ( true && module.exports) {
+    module.exports = FsrsScheduler;
+} else if (typeof window !== 'undefined') {
+    window.FsrsScheduler = FsrsScheduler;
+}
+
+
+/***/ },
+
+/***/ "./features/tracker/scheduler/scheduler.js"
+/*!*************************************************!*\
+  !*** ./features/tracker/scheduler/scheduler.js ***!
+  \*************************************************/
+(module) {
+
+/**
+ * @file features/tracker/scheduler/scheduler.js
+ * @description Abstract base class defining the standard interface for scheduling algorithms.
+ * Any scheduling algorithm (e.g., FSRS, SM-2, Leitner) must extend this class to be fully
+ * pluggable within the extension architecture.
+ */
+
+class Scheduler {
+    constructor() {
+        if (new.target === Scheduler) {
+            throw new TypeError("Cannot construct Scheduler instances directly.");
+        }
+    }
+
+    /**
+     * Initializes a new flashcard schema with default scheduling parameters.
+     * @param {string} problemTitle - The title of the problem.
+     * @param {string} problemUrl - The canonical URL of the problem.
+     * @param {string} textRead - Saved notes context.
+     * @param {string} approach - Textual description of the problem-solving approach.
+     * @param {string[]} [tags=[]] - Category tags associated with this card.
+     * @returns {Object} Newly initialized card schema.
+     */
+    createCard(problemTitle, problemUrl, textRead, approach, tags = []) {
+        throw new Error("Method 'createCard()' must be implemented.");
+    }
+
+    /**
+     * Transition card parameters based on review rating.
+     * @param {Object} card - The active flashcard.
+     * @param {number} rating - Review quality (1=Again, 2=Hard, 3=Good, 4=Easy).
+     * @param {number[]|null} [customWeights=null] - Optional override weights.
+     * @param {number} [now=Date.now()] - Custom baseline timestamp.
+     * @returns {Object} A copy of the card with updated scheduling metrics.
+     */
+    reviewCard(card, rating, customWeights = null, now = Date.now()) {
+        throw new Error("Method 'reviewCard()' must be implemented.");
+    }
+
+    /**
+     * Computes the mathematical retrievability probability (0.0 to 1.0) of a card.
+     * @param {Object} card - The active flashcard.
+     * @param {number} [now=Date.now()] - Evaluation timestamp.
+     * @returns {number} Retrievability percentage representation.
+     */
+    getRetrievability(card, now = Date.now()) {
+        throw new Error("Method 'getRetrievability()' must be implemented.");
+    }
+
+    /**
+     * Computes projected retrievability over a future time span based on current stability.
+     * @param {number} stability - The card or average stability metric.
+     * @param {number} elapsedDays - Future evaluation point in days.
+     * @returns {number} Projected retrievability probability (0.0 to 1.0).
+     */
+    getProjectedRetrievability(stability, elapsedDays) {
+        throw new Error("Method 'getProjectedRetrievability()' must be implemented.");
+    }
+
+    /**
+     * Retrieves the baseline target memory retention rate for the scheduling algorithm.
+     * @returns {number} Default request retention target (e.g., 0.90 for 90%).
+     */
+    getDefaultRequestRetention() {
+        throw new Error("Method 'getDefaultRequestRetention()' must be implemented.");
+    }
+
+    /**
+     * Determines whether the card is considered to have a highly difficult rating
+     * based on the algorithm's specific difficulty scale.
+     * @param {Object} card - The active flashcard.
+     * @returns {boolean} True if the card difficulty is strictly 'high'.
+     */
+    isHighDifficulty(card) {
+        throw new Error("Method 'isHighDifficulty()' must be implemented.");
+    }
+
+    /**
+     * Evaluates whether a card has passed the learning phase into 'graduated' review.
+     * @param {Object} card - The active flashcard.
+     * @returns {boolean} True if graduated.
+     */
+    isGraduated(card) {
+        throw new Error("Method 'isGraduated()' must be implemented.");
+    }
+
+    /**
+     * Determines whether the current scheduler implementation supports personalized optimization.
+     * @returns {boolean} True if optimization is supported.
+     */
+    supportsOptimization() {
+        return false;
+    }
+
+    /**
+     * Trains and applies optimized scheduling parameters based on historical review data.
+     * @param {Object[]} reviewHistory - Historical review log data.
+     * @returns {Promise<Object>} The optimization results and metadata.
+     */
+    async optimize(reviewHistory) {
+        throw new Error("Method 'optimize()' is not supported by this scheduler.");
+    }
+
+    /**
+     * Resets the scheduling parameters to their algorithmic defaults.
+     */
+    resetConfiguration() {
+        throw new Error("Method 'resetConfiguration()' is not supported by this scheduler.");
+    }
+
+    /**
+     * Exports the current scheduling parameters.
+     * @returns {Object} Current configuration parameters.
+     */
+    exportConfiguration() {
+        throw new Error("Method 'exportConfiguration()' is not supported by this scheduler.");
+    }
+
+    /**
+     * Imports and applies scheduling parameters.
+     * @param {Object} config - Configuration parameters.
+     */
+    importConfiguration(config) {
+        throw new Error("Method 'importConfiguration()' is not supported by this scheduler.");
+    }
+
+    /**
+     * Helper to export to CommonJS if running in Node environment for testing.
+     */
+}
+
+if ( true && module.exports) {
+    module.exports = Scheduler;
+}
+
+
+/***/ },
+
+/***/ "./node_modules/ts-fsrs/dist/index.mjs"
+/*!*********************************************!*\
+  !*** ./node_modules/ts-fsrs/dist/index.mjs ***!
+  \*********************************************/
+(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   AbstractScheduler: () => (/* binding */ AbstractScheduler),
+/* harmony export */   BasicLearningStepsStrategy: () => (/* binding */ BasicLearningStepsStrategy),
+/* harmony export */   CLAMP_PARAMETERS: () => (/* binding */ CLAMP_PARAMETERS),
+/* harmony export */   ConvertStepUnitToMinutes: () => (/* binding */ ConvertStepUnitToMinutes),
+/* harmony export */   DefaultInitSeedStrategy: () => (/* binding */ DefaultInitSeedStrategy),
+/* harmony export */   FSRS: () => (/* binding */ FSRS),
+/* harmony export */   FSRS5_DEFAULT_DECAY: () => (/* binding */ FSRS5_DEFAULT_DECAY),
+/* harmony export */   FSRS6_DEFAULT_DECAY: () => (/* binding */ FSRS6_DEFAULT_DECAY),
+/* harmony export */   FSRSAlgorithm: () => (/* binding */ FSRSAlgorithm),
+/* harmony export */   FSRSVersion: () => (/* binding */ FSRSVersion),
+/* harmony export */   GenSeedStrategyWithCardId: () => (/* binding */ GenSeedStrategyWithCardId),
+/* harmony export */   Grades: () => (/* binding */ Grades),
+/* harmony export */   INIT_S_MAX: () => (/* binding */ INIT_S_MAX),
+/* harmony export */   Rating: () => (/* binding */ Rating),
+/* harmony export */   S_MAX: () => (/* binding */ S_MAX),
+/* harmony export */   S_MIN: () => (/* binding */ S_MIN),
+/* harmony export */   State: () => (/* binding */ State),
+/* harmony export */   StrategyMode: () => (/* binding */ StrategyMode),
+/* harmony export */   TypeConvert: () => (/* binding */ TypeConvert),
+/* harmony export */   W17_W18_Ceiling: () => (/* binding */ W17_W18_Ceiling),
+/* harmony export */   checkParameters: () => (/* binding */ checkParameters),
+/* harmony export */   clamp: () => (/* binding */ clamp),
+/* harmony export */   clipParameters: () => (/* binding */ clipParameters),
+/* harmony export */   computeDecayFactor: () => (/* binding */ computeDecayFactor),
+/* harmony export */   createEmptyCard: () => (/* binding */ createEmptyCard),
+/* harmony export */   dateDiffInDays: () => (/* binding */ dateDiffInDays),
+/* harmony export */   date_diff: () => (/* binding */ date_diff),
+/* harmony export */   date_scheduler: () => (/* binding */ date_scheduler),
+/* harmony export */   default_enable_fuzz: () => (/* binding */ default_enable_fuzz),
+/* harmony export */   default_enable_short_term: () => (/* binding */ default_enable_short_term),
+/* harmony export */   default_learning_steps: () => (/* binding */ default_learning_steps),
+/* harmony export */   default_maximum_interval: () => (/* binding */ default_maximum_interval),
+/* harmony export */   default_relearning_steps: () => (/* binding */ default_relearning_steps),
+/* harmony export */   default_request_retention: () => (/* binding */ default_request_retention),
+/* harmony export */   default_w: () => (/* binding */ default_w),
+/* harmony export */   fixDate: () => (/* binding */ fixDate),
+/* harmony export */   fixRating: () => (/* binding */ fixRating),
+/* harmony export */   fixState: () => (/* binding */ fixState),
+/* harmony export */   forgetting_curve: () => (/* binding */ forgetting_curve),
+/* harmony export */   formatDate: () => (/* binding */ formatDate),
+/* harmony export */   fsrs: () => (/* binding */ fsrs),
+/* harmony export */   generatorParameters: () => (/* binding */ generatorParameters),
+/* harmony export */   get_fuzz_range: () => (/* binding */ get_fuzz_range),
+/* harmony export */   migrateParameters: () => (/* binding */ migrateParameters),
+/* harmony export */   roundTo: () => (/* binding */ roundTo),
+/* harmony export */   show_diff_message: () => (/* binding */ show_diff_message)
+/* harmony export */ });
+class FSRSError extends Error {
+  constructor(message = "FSRS Error") {
+    super(message);
+    this.name = "FSRSError";
+    Error.captureStackTrace?.(this, FSRSError);
+  }
+}
+class FSRSValidationError extends FSRSError {
+  constructor(message) {
+    super(message);
+    this.name = "FSRSValidationError";
+    Error.captureStackTrace?.(this, FSRSValidationError);
+  }
+}
+
+var State = /* @__PURE__ */ ((State2) => {
+  State2[State2["New"] = 0] = "New";
+  State2[State2["Learning"] = 1] = "Learning";
+  State2[State2["Review"] = 2] = "Review";
+  State2[State2["Relearning"] = 3] = "Relearning";
+  return State2;
+})(State || {});
+var Rating = /* @__PURE__ */ ((Rating2) => {
+  Rating2[Rating2["Manual"] = 0] = "Manual";
+  Rating2[Rating2["Again"] = 1] = "Again";
+  Rating2[Rating2["Hard"] = 2] = "Hard";
+  Rating2[Rating2["Good"] = 3] = "Good";
+  Rating2[Rating2["Easy"] = 4] = "Easy";
+  return Rating2;
+})(Rating || {});
+
+class TypeConvert {
+  static card(card) {
+    return {
+      ...card,
+      state: TypeConvert.state(card.state),
+      due: TypeConvert.time(card.due),
+      last_review: card.last_review ? TypeConvert.time(card.last_review) : void 0
+    };
+  }
+  static rating(value) {
+    if (typeof value === "string") {
+      const firstLetter = value.charAt(0).toUpperCase();
+      const restOfString = value.slice(1).toLowerCase();
+      const ret = Rating[`${firstLetter}${restOfString}`];
+      if (ret === void 0) {
+        throw new FSRSValidationError(`Invalid rating:[${value}]`);
+      }
+      return ret;
+    } else if (typeof value === "number") {
+      return value;
+    }
+    throw new FSRSValidationError(`Invalid rating:[${value}]`);
+  }
+  static state(value) {
+    if (typeof value === "string") {
+      const firstLetter = value.charAt(0).toUpperCase();
+      const restOfString = value.slice(1).toLowerCase();
+      const ret = State[`${firstLetter}${restOfString}`];
+      if (ret === void 0) {
+        throw new FSRSValidationError(`Invalid state:[${value}]`);
+      }
+      return ret;
+    } else if (typeof value === "number") {
+      return value;
+    }
+    throw new FSRSValidationError(`Invalid state:[${value}]`);
+  }
+  static time(value) {
+    if (value instanceof Date) {
+      return value;
+    }
+    const date = new Date(value);
+    if (typeof value === "object" && value !== null && !Number.isNaN(Date.parse(value) || +date)) {
+      return date;
+    } else if (typeof value === "string") {
+      const timestamp = Date.parse(value);
+      if (!Number.isNaN(timestamp)) {
+        return new Date(timestamp);
+      } else {
+        throw new FSRSValidationError(`Invalid date:[${value}]`);
+      }
+    } else if (typeof value === "number") {
+      return new Date(value);
+    }
+    throw new FSRSValidationError(`Invalid date:[${value}]`);
+  }
+  static review_log(log) {
+    return {
+      ...log,
+      due: TypeConvert.time(log.due),
+      rating: TypeConvert.rating(log.rating),
+      state: TypeConvert.state(log.state),
+      review: TypeConvert.time(log.review)
+    };
+  }
+}
+
+/* istanbul ignore next -- @preserve */
+Date.prototype.scheduler = function(t, isDay) {
+  return date_scheduler(this, t, isDay);
+};
+/* istanbul ignore next -- @preserve */
+Date.prototype.diff = function(pre, unit) {
+  return date_diff(this, pre, unit);
+};
+/* istanbul ignore next -- @preserve */
+Date.prototype.format = function() {
+  return formatDate(this);
+};
+/* istanbul ignore next -- @preserve */
+Date.prototype.dueFormat = function(last_review, unit, timeUnit) {
+  return show_diff_message(this, last_review, unit, timeUnit);
+};
+function date_scheduler(now, t, isDay) {
+  return new Date(
+    isDay ? TypeConvert.time(now).getTime() + t * 24 * 60 * 60 * 1e3 : TypeConvert.time(now).getTime() + t * 60 * 1e3
+  );
+}
+function date_diff(now, pre, unit) {
+  if (!now || !pre) {
+    throw new FSRSValidationError("Invalid date");
+  }
+  const diff = TypeConvert.time(now).getTime() - TypeConvert.time(pre).getTime();
+  let r = 0;
+  switch (unit) {
+    case "days":
+      r = Math.floor(diff / (24 * 60 * 60 * 1e3));
+      break;
+    case "minutes":
+      r = Math.floor(diff / (60 * 1e3));
+      break;
+  }
+  return r;
+}
+function formatDate(dateInput) {
+  const date = TypeConvert.time(dateInput);
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  return `${year}-${padZero(month)}-${padZero(day)} ${padZero(hours)}:${padZero(
+    minutes
+  )}:${padZero(seconds)}`;
+}
+function padZero(num) {
+  return num < 10 ? `0${num}` : `${num}`;
+}
+const TIMEUNIT = [60, 60, 24, 31, 12];
+const TIMEUNITFORMAT = ["second", "min", "hour", "day", "month", "year"];
+function show_diff_message(due, last_review, unit, timeUnit = TIMEUNITFORMAT) {
+  due = TypeConvert.time(due);
+  last_review = TypeConvert.time(last_review);
+  if (timeUnit.length !== TIMEUNITFORMAT.length) {
+    timeUnit = TIMEUNITFORMAT;
+  }
+  let diff = due.getTime() - last_review.getTime();
+  let i = 0;
+  diff /= 1e3;
+  for (i = 0; i < TIMEUNIT.length; i++) {
+    if (diff < TIMEUNIT[i]) {
+      break;
+    } else {
+      diff /= TIMEUNIT[i];
+    }
+  }
+  return `${Math.floor(diff)}${unit ? timeUnit[i] : ""}`;
+}
+/* istanbul ignore next -- @preserve */
+function fixDate(value) {
+  return TypeConvert.time(value);
+}
+/* istanbul ignore next -- @preserve */
+function fixState(value) {
+  return TypeConvert.state(value);
+}
+/* istanbul ignore next -- @preserve */
+function fixRating(value) {
+  return TypeConvert.rating(value);
+}
+const Grades = Object.freeze([
+  Rating.Again,
+  Rating.Hard,
+  Rating.Good,
+  Rating.Easy
+]);
+const FUZZ_RANGES = [
+  {
+    start: 2.5,
+    end: 7,
+    factor: 0.15
+  },
+  {
+    start: 7,
+    end: 20,
+    factor: 0.1
+  },
+  {
+    start: 20,
+    end: Infinity,
+    factor: 0.05
+  }
+];
+function get_fuzz_range(interval, elapsed_days, maximum_interval) {
+  let delta = 1;
+  for (const range of FUZZ_RANGES) {
+    delta += range.factor * Math.max(Math.min(interval, range.end) - range.start, 0);
+  }
+  interval = Math.min(interval, maximum_interval);
+  let min_ivl = Math.max(2, Math.round(interval - delta));
+  const max_ivl = Math.min(Math.round(interval + delta), maximum_interval);
+  if (interval > elapsed_days) {
+    min_ivl = Math.max(min_ivl, elapsed_days + 1);
+  }
+  min_ivl = Math.min(min_ivl, max_ivl);
+  return { min_ivl, max_ivl };
+}
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+function roundTo(num, decimals) {
+  const factor = 10 ** decimals;
+  return Math.round(num * factor) / factor;
+}
+function dateDiffInDays(last, cur) {
+  const utc1 = Date.UTC(
+    last.getUTCFullYear(),
+    last.getUTCMonth(),
+    last.getUTCDate()
+  );
+  const utc2 = Date.UTC(
+    cur.getUTCFullYear(),
+    cur.getUTCMonth(),
+    cur.getUTCDate()
+  );
+  return Math.floor(
+    (utc2 - utc1) / 864e5
+    /** 1000 * 60 * 60 * 24*/
+  );
+}
+
+const ConvertStepUnitToMinutes = (step) => {
+  const unit = step.slice(-1);
+  const value = parseInt(step.slice(0, -1), 10);
+  if (Number.isNaN(value) || !Number.isFinite(value) || value < 0) {
+    throw new FSRSValidationError(`Invalid step value: ${step}`);
+  }
+  switch (unit) {
+    case "m":
+      return value;
+    case "h":
+      return value * 60;
+    case "d":
+      return value * 1440;
+    default:
+      throw new FSRSValidationError(
+        `Invalid step unit: ${step}, expected m/h/d`
+      );
+  }
+};
+const BasicLearningStepsStrategy = (params, state, cur_step) => {
+  const learning_steps = state === State.Relearning || state === State.Review ? params.relearning_steps : params.learning_steps;
+  const steps_length = learning_steps.length;
+  if (steps_length === 0 || cur_step >= steps_length) return {};
+  const firstStep = learning_steps[0];
+  const toMinutes = ConvertStepUnitToMinutes;
+  const getAgainInterval = () => {
+    return toMinutes(firstStep);
+  };
+  const getHardInterval = () => {
+    if (steps_length === 1) return Math.round(toMinutes(firstStep) * 1.5);
+    const nextStep = learning_steps[1];
+    return Math.round((toMinutes(firstStep) + toMinutes(nextStep)) / 2);
+  };
+  const getStepInfo = (index) => {
+    if (index < 0 || index >= steps_length) {
+      return null;
+    } else {
+      return learning_steps[index];
+    }
+  };
+  const getGoodMinutes = (step) => {
+    return toMinutes(step);
+  };
+  const result = {};
+  const step_info = getStepInfo(Math.max(0, cur_step));
+  if (state === State.Review) {
+    result[Rating.Again] = {
+      scheduled_minutes: toMinutes(step_info),
+      next_step: 0
+    };
+    return result;
+  } else {
+    result[Rating.Again] = {
+      scheduled_minutes: getAgainInterval(),
+      next_step: 0
+    };
+    result[Rating.Hard] = {
+      scheduled_minutes: getHardInterval(),
+      next_step: cur_step
+    };
+    const next_info = getStepInfo(cur_step + 1);
+    if (next_info) {
+      const nextMin = getGoodMinutes(next_info);
+      if (nextMin) {
+        result[Rating.Good] = {
+          scheduled_minutes: Math.round(nextMin),
+          next_step: cur_step + 1
+        };
+      }
+    }
+  }
+  return result;
+};
+
+function DefaultInitSeedStrategy() {
+  const time = this.review_time.getTime();
+  const reps = this.current.reps;
+  const mul = this.current.difficulty * this.current.stability;
+  return `${time}_${reps}_${mul}`;
+}
+function GenSeedStrategyWithCardId(card_id_field) {
+  return function() {
+    const card_id = Reflect.get(this.current, card_id_field) ?? 0;
+    const reps = this.current.reps;
+    return String(card_id + reps || 0);
+  };
+}
+
+var StrategyMode = /* @__PURE__ */ ((StrategyMode2) => {
+  StrategyMode2["SCHEDULER"] = "Scheduler";
+  StrategyMode2["LEARNING_STEPS"] = "LearningSteps";
+  StrategyMode2["SEED"] = "Seed";
+  return StrategyMode2;
+})(StrategyMode || {});
+
+class AbstractScheduler {
+  last;
+  current;
+  review_time;
+  next = /* @__PURE__ */ new Map();
+  algorithm;
+  strategies;
+  elapsed_days = 0;
+  // init
+  constructor(card, now, algorithm, strategies) {
+    this.algorithm = algorithm;
+    this.last = TypeConvert.card(card);
+    this.current = TypeConvert.card(card);
+    this.review_time = TypeConvert.time(now);
+    this.strategies = strategies;
+    this.init();
+  }
+  checkGrade(grade) {
+    if (!Number.isFinite(grade) || grade < 1 || grade > 4) {
+      throw new FSRSValidationError(`Invalid grade "${grade}",expected 1-4`);
+    }
+  }
+  init() {
+    const { state, last_review } = this.current;
+    let interval = 0;
+    if (state !== State.New && last_review) {
+      interval = dateDiffInDays(last_review, this.review_time);
+    }
+    this.current.last_review = this.review_time;
+    this.elapsed_days = interval;
+    this.current.elapsed_days = interval;
+    this.current.reps += 1;
+    let seed_strategy = DefaultInitSeedStrategy;
+    if (this.strategies) {
+      const custom_strategy = this.strategies.get(StrategyMode.SEED);
+      if (custom_strategy) {
+        seed_strategy = custom_strategy;
+      }
+    }
+    this.algorithm.seed = seed_strategy.call(this);
+  }
+  preview() {
+    return {
+      [Rating.Again]: this.review(Rating.Again),
+      [Rating.Hard]: this.review(Rating.Hard),
+      [Rating.Good]: this.review(Rating.Good),
+      [Rating.Easy]: this.review(Rating.Easy),
+      [Symbol.iterator]: this.previewIterator.bind(this)
+    };
+  }
+  *previewIterator() {
+    for (const grade of Grades) {
+      yield this.review(grade);
+    }
+  }
+  review(grade) {
+    const { state } = this.last;
+    let item;
+    this.checkGrade(grade);
+    switch (state) {
+      case State.New:
+        item = this.newState(grade);
+        break;
+      case State.Learning:
+      case State.Relearning:
+        item = this.learningState(grade);
+        break;
+      case State.Review:
+        item = this.reviewState(grade);
+        break;
+    }
+    return item;
+  }
+  buildLog(rating) {
+    const { last_review, due, elapsed_days } = this.last;
+    return {
+      rating,
+      state: this.current.state,
+      due: last_review || due,
+      stability: this.current.stability,
+      difficulty: this.current.difficulty,
+      elapsed_days: this.elapsed_days,
+      last_elapsed_days: elapsed_days,
+      scheduled_days: this.current.scheduled_days,
+      learning_steps: this.current.learning_steps,
+      review: this.review_time
+    };
+  }
+}
+
+class Alea {
+  c;
+  s0;
+  s1;
+  s2;
+  constructor(seed) {
+    const mash = Mash();
+    this.c = 1;
+    this.s0 = mash(" ");
+    this.s1 = mash(" ");
+    this.s2 = mash(" ");
+    if (seed == null) seed = Date.now();
+    this.s0 -= mash(seed);
+    if (this.s0 < 0) this.s0 += 1;
+    this.s1 -= mash(seed);
+    if (this.s1 < 0) this.s1 += 1;
+    this.s2 -= mash(seed);
+    if (this.s2 < 0) this.s2 += 1;
+  }
+  next() {
+    const t = 2091639 * this.s0 + this.c * 23283064365386963e-26;
+    this.s0 = this.s1;
+    this.s1 = this.s2;
+    this.c = t | 0;
+    this.s2 = t - this.c;
+    return this.s2;
+  }
+  set state(state) {
+    this.c = state.c;
+    this.s0 = state.s0;
+    this.s1 = state.s1;
+    this.s2 = state.s2;
+  }
+  get state() {
+    return {
+      c: this.c,
+      s0: this.s0,
+      s1: this.s1,
+      s2: this.s2
+    };
+  }
+}
+function Mash() {
+  let n = 4022871197;
+  return function mash(data) {
+    data = String(data);
+    for (let i = 0; i < data.length; i++) {
+      n += data.charCodeAt(i);
+      let h = 0.02519603282416938 * n;
+      n = h >>> 0;
+      h -= n;
+      h *= n;
+      n = h >>> 0;
+      h -= n;
+      n += h * 4294967296;
+    }
+    return (n >>> 0) * 23283064365386963e-26;
+  };
+}
+function alea(seed) {
+  const xg = new Alea(seed);
+  const prng = () => xg.next();
+  prng.int32 = () => xg.next() * 4294967296 | 0;
+  prng.double = () => prng() + (prng() * 2097152 | 0) * 11102230246251565e-32;
+  prng.state = () => xg.state;
+  prng.importState = (state) => {
+    xg.state = state;
+    return prng;
+  };
+  return prng;
+}
+
+const version="5.4.1";
+
+const default_request_retention = 0.9;
+const default_maximum_interval = 36500;
+const default_enable_fuzz = false;
+const default_enable_short_term = true;
+const default_learning_steps = Object.freeze([
+  "1m",
+  "10m"
+]);
+const default_relearning_steps = Object.freeze([
+  "10m"
+]);
+const FSRSVersion = `v${version} using FSRS-6.0`;
+const S_MIN = 1e-3;
+const S_MAX = 36500;
+const INIT_S_MAX = 100;
+const FSRS5_DEFAULT_DECAY = 0.5;
+const FSRS6_DEFAULT_DECAY = 0.1542;
+const default_w = Object.freeze([
+  0.212,
+  1.2931,
+  2.3065,
+  8.2956,
+  6.4133,
+  0.8334,
+  3.0194,
+  1e-3,
+  1.8722,
+  0.1666,
+  0.796,
+  1.4835,
+  0.0614,
+  0.2629,
+  1.6483,
+  0.6014,
+  1.8729,
+  0.5425,
+  0.0912,
+  0.0658,
+  FSRS6_DEFAULT_DECAY
+]);
+const W17_W18_Ceiling = 2;
+const CLAMP_PARAMETERS = (w17_w18_ceiling, enable_short_term = default_enable_short_term) => [
+  [S_MIN, INIT_S_MAX],
+  [S_MIN, INIT_S_MAX],
+  [S_MIN, INIT_S_MAX],
+  [S_MIN, INIT_S_MAX],
+  [1, 10],
+  [1e-3, 4],
+  [1e-3, 4],
+  [1e-3, 0.75],
+  [0, 4.5],
+  [0, 0.8],
+  [1e-3, 3.5],
+  [1e-3, 5],
+  [1e-3, 0.25],
+  [1e-3, 0.9],
+  [0, 4],
+  [0, 1],
+  [1, 6],
+  [0, w17_w18_ceiling],
+  [0, w17_w18_ceiling],
+  [
+    enable_short_term ? 0.01 : 0,
+    0.8
+  ],
+  [0.1, 0.8]
+];
+
+const clipParameters = (parameters, numRelearningSteps, enableShortTerm = default_enable_short_term) => {
+  const clip = CLAMP_PARAMETERS(W17_W18_Ceiling, enableShortTerm).slice(
+    0,
+    parameters.length
+  );
+  if (Math.max(0, numRelearningSteps) > 1) {
+    const w11 = clamp(parameters[11] || 0, clip[11][0], clip[11][1]);
+    const w13 = clamp(parameters[13] || 0, clip[13][0], clip[13][1]);
+    const w14 = clamp(parameters[14] || 0, clip[14][0], clip[14][1]);
+    const value = -(Math.log(w11) + Math.log(Math.pow(2, w13) - 1) + w14 * 0.3) / numRelearningSteps;
+    const w17_w18_ceiling = clamp(
+      roundTo(Math.sqrt(Math.max(value, 0)), 8),
+      0.01,
+      W17_W18_Ceiling
+    );
+    if (clip[17]) clip[17] = [clip[17][0], w17_w18_ceiling];
+    if (clip[18]) clip[18] = [clip[18][0], w17_w18_ceiling];
+  }
+  return clip.map(
+    ([min, max], index) => clamp(parameters[index] || 0, min, max)
+  );
+};
+const checkParameters = (parameters) => {
+  const invalid = parameters.find((param) => !Number.isFinite(param));
+  if (invalid !== void 0) {
+    throw new FSRSValidationError(
+      `Non-finite or NaN value in parameters ${parameters}`
+    );
+  } else if (![17, 19, 21].includes(parameters.length)) {
+    throw new FSRSValidationError(
+      `Invalid parameter length: ${parameters.length}. Must be 17, 19 or 21 for FSRSv4, 5 and 6 respectively.`
+    );
+  }
+  return parameters;
+};
+const migrateParameters = (parameters, numRelearningSteps = 0, enableShortTerm = default_enable_short_term) => {
+  if (parameters === void 0) {
+    return [...default_w];
+  }
+  switch (parameters.length) {
+    case 21:
+      return clipParameters(
+        Array.from(parameters),
+        numRelearningSteps,
+        enableShortTerm
+      );
+    case 19:
+      console.debug("[FSRS-6]auto fill w from 19 to 21 length");
+      return clipParameters(
+        Array.from(parameters),
+        numRelearningSteps,
+        enableShortTerm
+      ).concat([0, FSRS5_DEFAULT_DECAY]);
+    case 17: {
+      const w = clipParameters(
+        Array.from(parameters),
+        numRelearningSteps,
+        enableShortTerm
+      );
+      w[4] = +(w[5] * 2 + w[4]).toFixed(8);
+      w[5] = +(Math.log(w[5] * 3 + 1) / 3).toFixed(8);
+      w[6] = +(w[6] + 0.5).toFixed(8);
+      console.debug("[FSRS-6]auto fill w from 17 to 21 length");
+      return w.concat([0, 0, 0, FSRS5_DEFAULT_DECAY]);
+    }
+    default:
+      console.warn("[FSRS]Invalid parameters length, using default parameters");
+      return [...default_w];
+  }
+};
+const generatorParameters = (props) => {
+  const learning_steps = Array.isArray(props?.learning_steps) ? props.learning_steps : default_learning_steps;
+  const relearning_steps = Array.isArray(props?.relearning_steps) ? props.relearning_steps : default_relearning_steps;
+  const enable_short_term = props?.enable_short_term ?? default_enable_short_term;
+  const w = migrateParameters(
+    props?.w,
+    relearning_steps.length,
+    enable_short_term
+  );
+  return {
+    request_retention: props?.request_retention || default_request_retention,
+    maximum_interval: props?.maximum_interval || default_maximum_interval,
+    w,
+    enable_fuzz: props?.enable_fuzz ?? default_enable_fuzz,
+    enable_short_term,
+    learning_steps,
+    relearning_steps
+  };
+};
+function createEmptyCard(now, afterHandler) {
+  const emptyCard = {
+    due: now ? TypeConvert.time(now) : /* @__PURE__ */ new Date(),
+    stability: 0,
+    difficulty: 0,
+    elapsed_days: 0,
+    scheduled_days: 0,
+    reps: 0,
+    lapses: 0,
+    learning_steps: 0,
+    state: State.New,
+    last_review: void 0
+  };
+  if (afterHandler && typeof afterHandler === "function") {
+    return afterHandler(emptyCard);
+  } else {
+    return emptyCard;
+  }
+}
+
+const computeDecayFactor = (decayOrParams) => {
+  const decay = typeof decayOrParams === "number" ? -decayOrParams : -decayOrParams[20];
+  const factor = Math.exp(Math.pow(decay, -1) * Math.log(0.9)) - 1;
+  return { decay, factor: roundTo(factor, 8) };
+};
+function forgetting_curve(decayOrParams, elapsed_days, stability) {
+  const { decay, factor } = computeDecayFactor(decayOrParams);
+  return roundTo(Math.pow(1 + factor * elapsed_days / stability, decay), 8);
+}
+class FSRSAlgorithm {
+  param;
+  intervalModifier;
+  _seed;
+  constructor(params) {
+    this.param = new Proxy(
+      generatorParameters(params),
+      this.params_handler_proxy()
+    );
+    this.intervalModifier = this.calculate_interval_modifier(
+      this.param.request_retention
+    );
+    this.forgetting_curve = forgetting_curve.bind(this, this.param.w);
+  }
+  get interval_modifier() {
+    return this.intervalModifier;
+  }
+  set seed(seed) {
+    this._seed = seed;
+  }
+  /**
+   * @see https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm#fsrs-5
+   *
+   * The formula used is: $$I(r,s) = (r^{\frac{1}{DECAY}} - 1) / FACTOR \times s$$
+   * @param request_retention 0<request_retention<=1,Requested retention rate
+   * @throws {Error} Requested retention rate should be in the range (0,1]
+   */
+  calculate_interval_modifier(request_retention) {
+    if (request_retention <= 0 || request_retention > 1) {
+      throw new FSRSValidationError(
+        "Requested retention rate should be in the range (0,1]"
+      );
+    }
+    const { decay, factor } = computeDecayFactor(this.param.w);
+    return roundTo((Math.pow(request_retention, 1 / decay) - 1) / factor, 8);
+  }
+  /**
+   * Get the parameters of the algorithm.
+   */
+  get parameters() {
+    return this.param;
+  }
+  /**
+   * Set the parameters of the algorithm.
+   * @param params Partial<FSRSParameters>
+   */
+  set parameters(params) {
+    this.update_parameters(params);
+  }
+  params_handler_proxy() {
+    const _this = this;
+    return {
+      set: function(target, prop, value) {
+        if (prop === "request_retention" && Number.isFinite(value)) {
+          _this.intervalModifier = _this.calculate_interval_modifier(
+            Number(value)
+          );
+        } else if (prop === "w") {
+          value = migrateParameters(
+            value,
+            target.relearning_steps.length,
+            target.enable_short_term
+          );
+          _this.forgetting_curve = forgetting_curve.bind(this, value);
+          _this.intervalModifier = _this.calculate_interval_modifier(
+            Number(target.request_retention)
+          );
+        }
+        Reflect.set(target, prop, value);
+        return true;
+      }
+    };
+  }
+  update_parameters(params) {
+    const _params = generatorParameters(params);
+    for (const key in _params) {
+      const paramKey = key;
+      this.param[paramKey] = _params[paramKey];
+    }
+  }
+  /**
+     * The formula used is :
+     * $$ S_0(G) = w_{G-1}$$
+     * $$S_0 = \max \lbrace S_0,0.1\rbrace $$
+  
+     * @param g Grade (rating at Anki) [1.again,2.hard,3.good,4.easy]
+     * @return Stability (interval when R=90%)
+     */
+  init_stability(g) {
+    return Math.max(this.param.w[g - 1], 0.1);
+  }
+  /**
+   * The formula used is :
+   * $$D_0(G) = w_4 - e^{(G-1) \cdot w_5} + 1 $$
+   * $$D_0 = \min \lbrace \max \lbrace D_0(G),1 \rbrace,10 \rbrace$$
+   * where the $$D_0(1)=w_4$$ when the first rating is good.
+   *
+   * @param {Grade} g Grade (rating at Anki) [1.again,2.hard,3.good,4.easy]
+   * @return {number} Difficulty $$D \in [1,10]$$
+   */
+  init_difficulty(g) {
+    const w = this.param.w;
+    const d = w[4] - Math.exp((g - 1) * w[5]) + 1;
+    return roundTo(d, 8);
+  }
+  /**
+   * If fuzzing is disabled or ivl is less than 2.5, it returns the original interval.
+   * @param {number} ivl - The interval to be fuzzed.
+   * @param {number} elapsed_days t days since the last review
+   * @return {number} - The fuzzed interval.
+   **/
+  apply_fuzz(ivl, elapsed_days) {
+    if (!this.param.enable_fuzz || ivl < 2.5) return Math.round(ivl);
+    const generator = alea(this._seed);
+    const fuzz_factor = generator();
+    const { min_ivl, max_ivl } = get_fuzz_range(
+      ivl,
+      elapsed_days,
+      this.param.maximum_interval
+    );
+    return Math.floor(fuzz_factor * (max_ivl - min_ivl + 1) + min_ivl);
+  }
+  /**
+   *   @see The formula used is : {@link FSRSAlgorithm.calculate_interval_modifier}
+   *   @param {number} s - Stability (interval when R=90%)
+   *   @param {number} elapsed_days t days since the last review
+   */
+  next_interval(s, elapsed_days) {
+    const newInterval = Math.min(
+      Math.max(1, Math.round(s * this.intervalModifier)),
+      this.param.maximum_interval
+    );
+    return this.apply_fuzz(newInterval, elapsed_days);
+  }
+  /**
+   * @see https://github.com/open-spaced-repetition/fsrs4anki/issues/697
+   */
+  linear_damping(delta_d, old_d) {
+    return roundTo(delta_d * (10 - old_d) / 9, 8);
+  }
+  /**
+   * The formula used is :
+   * $$\text{delta}_d = -w_6 \cdot (g - 3)$$
+   * $$\text{next}_d = D + \text{linear damping}(\text{delta}_d , D)$$
+   * $$D^\prime(D,R) = w_7 \cdot D_0(4) +(1 - w_7) \cdot \text{next}_d$$
+   * @param {number} d Difficulty $$D \in [1,10]$$
+   * @param {Grade} g Grade (rating at Anki) [1.again,2.hard,3.good,4.easy]
+   * @return {number} $$\text{next}_D$$
+   */
+  next_difficulty(d, g) {
+    const delta_d = -this.param.w[6] * (g - 3);
+    const next_d = d + this.linear_damping(delta_d, d);
+    return clamp(
+      this.mean_reversion(this.init_difficulty(Rating.Easy), next_d),
+      1,
+      10
+    );
+  }
+  /**
+   * The formula used is :
+   * $$w_7 \cdot \text{init} +(1 - w_7) \cdot \text{current}$$
+   * @param {number} init $$w_2 : D_0(3) = w_2 + (R-2) \cdot w_3= w_2$$
+   * @param {number} current $$D - w_6 \cdot (R - 2)$$
+   * @return {number} difficulty
+   */
+  mean_reversion(init, current) {
+    const w = this.param.w;
+    return roundTo(w[7] * init + (1 - w[7]) * current, 8);
+  }
+  /**
+   * The formula used is :
+   * $$S^\prime_r(D,S,R,G) = S\cdot(e^{w_8}\cdot (11-D)\cdot S^{-w_9}\cdot(e^{w_{10}\cdot(1-R)}-1)\cdot w_{15}(\text{if} G=2) \cdot w_{16}(\text{if} G=4)+1)$$
+   * @param {number} d Difficulty D \in [1,10]
+   * @param {number} s Stability (interval when R=90%)
+   * @param {number} r Retrievability (probability of recall)
+   * @param {Grade} g Grade (Rating[0.again,1.hard,2.good,3.easy])
+   * @return {number} S^\prime_r new stability after recall
+   */
+  next_recall_stability(d, s, r, g) {
+    const w = this.param.w;
+    const hard_penalty = Rating.Hard === g ? w[15] : 1;
+    const easy_bound = Rating.Easy === g ? w[16] : 1;
+    return roundTo(
+      clamp(
+        s * (1 + Math.exp(w[8]) * (11 - d) * Math.pow(s, -w[9]) * (Math.exp((1 - r) * w[10]) - 1) * hard_penalty * easy_bound),
+        S_MIN,
+        36500
+      ),
+      8
+    );
+  }
+  /**
+   * The formula used is :
+   * $$S^\prime_f(D,S,R) = w_{11}\cdot D^{-w_{12}}\cdot ((S+1)^{w_{13}}-1) \cdot e^{w_{14}\cdot(1-R)}$$
+   * enable_short_term = true : $$S^\prime_f \in \min \lbrace \max \lbrace S^\prime_f,0.01\rbrace, \frac{S}{e^{w_{17} \cdot w_{18}}} \rbrace$$
+   * enable_short_term = false : $$S^\prime_f \in \min \lbrace \max \lbrace S^\prime_f,0.01\rbrace, S \rbrace$$
+   * @param {number} d Difficulty D \in [1,10]
+   * @param {number} s Stability (interval when R=90%)
+   * @param {number} r Retrievability (probability of recall)
+   * @return {number} S^\prime_f new stability after forgetting
+   */
+  next_forget_stability(d, s, r) {
+    const w = this.param.w;
+    return roundTo(
+      clamp(
+        w[11] * Math.pow(d, -w[12]) * (Math.pow(s + 1, w[13]) - 1) * Math.exp((1 - r) * w[14]),
+        S_MIN,
+        36500
+      ),
+      8
+    );
+  }
+  /**
+   * The formula used is :
+   * $$S^\prime_s(S,G) = S \cdot e^{w_{17} \cdot (G-3+w_{18})}$$
+   * @param {number} s Stability (interval when R=90%)
+   * @param {Grade} g Grade (Rating[0.again,1.hard,2.good,3.easy])
+   */
+  next_short_term_stability(s, g) {
+    const w = this.param.w;
+    const sinc = Math.pow(s, -w[19]) * Math.exp(w[17] * (g - 3 + w[18]));
+    const maskedSinc = g >= Rating.Hard ? Math.max(sinc, 1) : sinc;
+    return roundTo(clamp(s * maskedSinc, S_MIN, 36500), 8);
+  }
+  /**
+   * The formula used is :
+   * $$R(t,S) = (1 + \text{FACTOR} \times \frac{t}{9 \cdot S})^{\text{DECAY}}$$
+   * @param {number} elapsed_days t days since the last review
+   * @param {number} stability Stability (interval when R=90%)
+   * @return {number} r Retrievability (probability of recall)
+   */
+  forgetting_curve;
+  /**
+   * Calculates the next state of memory based on the current state, time elapsed, and grade.
+   *
+   * @param memory_state - The current state of memory, which can be null.
+   * @param t - The time elapsed since the last review.
+   * @param {Rating} g Grade (Rating[0.Manual,1.Again,2.Hard,3.Good,4.Easy])
+   * @param r - Optional retrievability value. If not provided, it will be calculated.
+   * @returns The next state of memory with updated difficulty and stability.
+   */
+  next_state(memory_state, t, g, r) {
+    const { difficulty: d, stability: s } = memory_state ?? {
+      difficulty: 0,
+      stability: 0
+    };
+    if (t < 0) {
+      throw new FSRSValidationError(`Invalid delta_t "${t}"`);
+    }
+    if (g < 0 || g > 4) {
+      throw new FSRSValidationError(`Invalid grade "${g}"`);
+    }
+    if (d === 0 && s === 0) {
+      return {
+        difficulty: clamp(this.init_difficulty(g), 1, 10),
+        stability: this.init_stability(g)
+      };
+    }
+    if (g === 0) {
+      return {
+        difficulty: d,
+        stability: s
+      };
+    }
+    if (d < 1 || s < S_MIN) {
+      throw new FSRSValidationError(
+        `Invalid memory state { difficulty: ${d}, stability: ${s} }`
+      );
+    }
+    const w = this.param.w;
+    r = typeof r === "number" ? r : this.forgetting_curve(t, s);
+    let new_s;
+    if (t === 0 && this.param.enable_short_term) {
+      new_s = this.next_short_term_stability(s, g);
+    } else if (g === 1) {
+      const s_after_fail = this.next_forget_stability(d, s, r);
+      let [w_17, w_18] = [0, 0];
+      if (this.param.enable_short_term) {
+        w_17 = w[17];
+        w_18 = w[18];
+      }
+      const next_s_min = s / Math.exp(w_17 * w_18);
+      new_s = clamp(roundTo(next_s_min, 8), S_MIN, s_after_fail);
+    } else {
+      new_s = this.next_recall_stability(d, s, r, g);
+    }
+    const new_d = this.next_difficulty(d, g);
+    return { difficulty: new_d, stability: new_s };
+  }
+}
+
+class BasicScheduler extends AbstractScheduler {
+  learningStepsStrategy;
+  constructor(card, now, algorithm, strategies) {
+    super(card, now, algorithm, strategies);
+    let learningStepStrategy = BasicLearningStepsStrategy;
+    if (this.strategies) {
+      const custom_strategy = this.strategies.get(StrategyMode.LEARNING_STEPS);
+      if (custom_strategy) {
+        learningStepStrategy = custom_strategy;
+      }
+    }
+    this.learningStepsStrategy = learningStepStrategy;
+  }
+  getLearningInfo(card, grade) {
+    const parameters = this.algorithm.parameters;
+    card.learning_steps = card.learning_steps || 0;
+    const steps_strategy = this.learningStepsStrategy(
+      parameters,
+      card.state,
+      card.learning_steps
+    );
+    const scheduled_minutes = Math.max(
+      0,
+      steps_strategy[grade]?.scheduled_minutes ?? 0
+    );
+    const next_steps = Math.max(0, steps_strategy[grade]?.next_step ?? 0);
+    return {
+      scheduled_minutes,
+      next_steps
+    };
+  }
+  /**
+   * @description This function applies the learning steps based on the current card's state and grade.
+   */
+  applyLearningSteps(nextCard, grade, to_state) {
+    const { scheduled_minutes, next_steps } = this.getLearningInfo(
+      this.current,
+      grade
+    );
+    if (scheduled_minutes > 0 && scheduled_minutes < 1440) {
+      nextCard.learning_steps = next_steps;
+      nextCard.scheduled_days = 0;
+      nextCard.state = to_state;
+      nextCard.due = date_scheduler(
+        this.review_time,
+        Math.round(scheduled_minutes),
+        false
+        /** true:days false: minute */
+      );
+    } else {
+      nextCard.state = State.Review;
+      if (scheduled_minutes >= 1440) {
+        nextCard.learning_steps = next_steps;
+        nextCard.due = date_scheduler(
+          this.review_time,
+          Math.round(scheduled_minutes),
+          false
+          /** true:days false: minute */
+        );
+        nextCard.scheduled_days = Math.floor(scheduled_minutes / 1440);
+      } else {
+        nextCard.learning_steps = 0;
+        const interval = this.algorithm.next_interval(
+          nextCard.stability,
+          this.elapsed_days
+        );
+        nextCard.scheduled_days = interval;
+        nextCard.due = date_scheduler(this.review_time, interval, true);
+      }
+    }
+  }
+  newState(grade) {
+    const exist = this.next.get(grade);
+    if (exist) {
+      return exist;
+    }
+    const next = this.next_ds(this.elapsed_days, grade);
+    this.applyLearningSteps(next, grade, State.Learning);
+    const item = {
+      card: next,
+      log: this.buildLog(grade)
+    };
+    this.next.set(grade, item);
+    return item;
+  }
+  learningState(grade) {
+    const exist = this.next.get(grade);
+    if (exist) {
+      return exist;
+    }
+    const next = this.next_ds(this.elapsed_days, grade);
+    this.applyLearningSteps(
+      next,
+      grade,
+      this.last.state
+      /** Learning or Relearning */
+    );
+    const item = {
+      card: next,
+      log: this.buildLog(grade)
+    };
+    this.next.set(grade, item);
+    return item;
+  }
+  reviewState(grade) {
+    const exist = this.next.get(grade);
+    if (exist) {
+      return exist;
+    }
+    const interval = this.elapsed_days;
+    const retrievability = this.algorithm.forgetting_curve(
+      interval,
+      this.current.stability
+    );
+    const next_again = this.next_ds(interval, Rating.Again, retrievability);
+    const next_hard = this.next_ds(interval, Rating.Hard, retrievability);
+    const next_good = this.next_ds(interval, Rating.Good, retrievability);
+    const next_easy = this.next_ds(interval, Rating.Easy, retrievability);
+    this.next_interval(next_hard, next_good, next_easy, interval);
+    this.next_state(next_hard, next_good, next_easy);
+    this.applyLearningSteps(next_again, Rating.Again, State.Relearning);
+    next_again.lapses += 1;
+    const item_again = {
+      card: next_again,
+      log: this.buildLog(Rating.Again)
+    };
+    const item_hard = {
+      card: next_hard,
+      log: super.buildLog(Rating.Hard)
+    };
+    const item_good = {
+      card: next_good,
+      log: super.buildLog(Rating.Good)
+    };
+    const item_easy = {
+      card: next_easy,
+      log: super.buildLog(Rating.Easy)
+    };
+    this.next.set(Rating.Again, item_again);
+    this.next.set(Rating.Hard, item_hard);
+    this.next.set(Rating.Good, item_good);
+    this.next.set(Rating.Easy, item_easy);
+    return this.next.get(grade);
+  }
+  /**
+   * Review next_ds
+   */
+  next_ds(t, g, r) {
+    const next_state = this.algorithm.next_state(
+      {
+        difficulty: this.current.difficulty,
+        stability: this.current.stability
+      },
+      t,
+      g,
+      r
+    );
+    const card = TypeConvert.card(this.current);
+    card.difficulty = next_state.difficulty;
+    card.stability = next_state.stability;
+    return card;
+  }
+  /**
+   * Review next_interval
+   */
+  next_interval(next_hard, next_good, next_easy, interval) {
+    let hard_interval, good_interval;
+    hard_interval = this.algorithm.next_interval(next_hard.stability, interval);
+    good_interval = this.algorithm.next_interval(next_good.stability, interval);
+    hard_interval = Math.min(hard_interval, good_interval);
+    good_interval = Math.max(good_interval, hard_interval + 1);
+    const easy_interval = Math.max(
+      this.algorithm.next_interval(next_easy.stability, interval),
+      good_interval + 1
+    );
+    next_hard.scheduled_days = hard_interval;
+    next_hard.due = date_scheduler(this.review_time, hard_interval, true);
+    next_good.scheduled_days = good_interval;
+    next_good.due = date_scheduler(this.review_time, good_interval, true);
+    next_easy.scheduled_days = easy_interval;
+    next_easy.due = date_scheduler(this.review_time, easy_interval, true);
+  }
+  /**
+   * Review next_state
+   */
+  next_state(next_hard, next_good, next_easy) {
+    next_hard.state = State.Review;
+    next_hard.learning_steps = 0;
+    next_good.state = State.Review;
+    next_good.learning_steps = 0;
+    next_easy.state = State.Review;
+    next_easy.learning_steps = 0;
+  }
+}
+
+class LongTermScheduler extends AbstractScheduler {
+  newState(grade) {
+    const exist = this.next.get(grade);
+    if (exist) {
+      return exist;
+    }
+    this.current.scheduled_days = 0;
+    this.current.elapsed_days = 0;
+    const first_interval = 0;
+    const next_again = this.next_ds(first_interval, Rating.Again);
+    const next_hard = this.next_ds(first_interval, Rating.Hard);
+    const next_good = this.next_ds(first_interval, Rating.Good);
+    const next_easy = this.next_ds(first_interval, Rating.Easy);
+    this.next_interval(
+      next_again,
+      next_hard,
+      next_good,
+      next_easy,
+      first_interval
+    );
+    this.next_state(next_again, next_hard, next_good, next_easy);
+    this.update_next(next_again, next_hard, next_good, next_easy);
+    return this.next.get(grade);
+  }
+  next_ds(t, g, r) {
+    const next_state = this.algorithm.next_state(
+      {
+        difficulty: this.current.difficulty,
+        stability: this.current.stability
+      },
+      t,
+      g,
+      r
+    );
+    const card = TypeConvert.card(this.current);
+    card.difficulty = next_state.difficulty;
+    card.stability = next_state.stability;
+    return card;
+  }
+  /**
+   * @see https://github.com/open-spaced-repetition/ts-fsrs/issues/98#issuecomment-2241923194
+   */
+  learningState(grade) {
+    return this.reviewState(grade);
+  }
+  reviewState(grade) {
+    const exist = this.next.get(grade);
+    if (exist) {
+      return exist;
+    }
+    const interval = this.elapsed_days;
+    const retrievability = this.algorithm.forgetting_curve(
+      interval,
+      this.current.stability
+    );
+    const next_again = this.next_ds(interval, Rating.Again, retrievability);
+    const next_hard = this.next_ds(interval, Rating.Hard, retrievability);
+    const next_good = this.next_ds(interval, Rating.Good, retrievability);
+    const next_easy = this.next_ds(interval, Rating.Easy, retrievability);
+    this.next_interval(next_again, next_hard, next_good, next_easy, interval);
+    this.next_state(next_again, next_hard, next_good, next_easy);
+    next_again.lapses += 1;
+    this.update_next(next_again, next_hard, next_good, next_easy);
+    return this.next.get(grade);
+  }
+  /**
+   * Review/New next_interval
+   */
+  next_interval(next_again, next_hard, next_good, next_easy, interval) {
+    let again_interval, hard_interval, good_interval, easy_interval;
+    again_interval = this.algorithm.next_interval(
+      next_again.stability,
+      interval
+    );
+    hard_interval = this.algorithm.next_interval(next_hard.stability, interval);
+    good_interval = this.algorithm.next_interval(next_good.stability, interval);
+    easy_interval = this.algorithm.next_interval(next_easy.stability, interval);
+    again_interval = Math.min(again_interval, hard_interval);
+    hard_interval = Math.max(hard_interval, again_interval + 1);
+    good_interval = Math.max(good_interval, hard_interval + 1);
+    easy_interval = Math.max(easy_interval, good_interval + 1);
+    next_again.scheduled_days = again_interval;
+    next_again.due = date_scheduler(this.review_time, again_interval, true);
+    next_hard.scheduled_days = hard_interval;
+    next_hard.due = date_scheduler(this.review_time, hard_interval, true);
+    next_good.scheduled_days = good_interval;
+    next_good.due = date_scheduler(this.review_time, good_interval, true);
+    next_easy.scheduled_days = easy_interval;
+    next_easy.due = date_scheduler(this.review_time, easy_interval, true);
+  }
+  /**
+   * Review/New next_state
+   */
+  next_state(next_again, next_hard, next_good, next_easy) {
+    next_again.state = State.Review;
+    next_again.learning_steps = 0;
+    next_hard.state = State.Review;
+    next_hard.learning_steps = 0;
+    next_good.state = State.Review;
+    next_good.learning_steps = 0;
+    next_easy.state = State.Review;
+    next_easy.learning_steps = 0;
+  }
+  update_next(next_again, next_hard, next_good, next_easy) {
+    const item_again = {
+      card: next_again,
+      log: this.buildLog(Rating.Again)
+    };
+    const item_hard = {
+      card: next_hard,
+      log: super.buildLog(Rating.Hard)
+    };
+    const item_good = {
+      card: next_good,
+      log: super.buildLog(Rating.Good)
+    };
+    const item_easy = {
+      card: next_easy,
+      log: super.buildLog(Rating.Easy)
+    };
+    this.next.set(Rating.Again, item_again);
+    this.next.set(Rating.Hard, item_hard);
+    this.next.set(Rating.Good, item_good);
+    this.next.set(Rating.Easy, item_easy);
+  }
+}
+
+class Reschedule {
+  fsrs;
+  /**
+   * Creates an instance of the `Reschedule` class.
+   * @param fsrs - An instance of the FSRS class used for scheduling.
+   */
+  constructor(fsrs) {
+    this.fsrs = fsrs;
+  }
+  /**
+   * Replays a review for a card and determines the next review date based on the given rating.
+   * @param card - The card being reviewed.
+   * @param reviewed - The date the card was reviewed.
+   * @param rating - The grade given to the card during the review.
+   * @returns A `RecordLogItem` containing the updated card and review log.
+   */
+  replay(card, reviewed, rating) {
+    return this.fsrs.next(card, reviewed, rating);
+  }
+  /**
+   * Processes a manual review for a card, allowing for custom state, stability, difficulty, and due date.
+   * @param card - The card being reviewed.
+   * @param state - The state of the card after the review.
+   * @param reviewed - The date the card was reviewed.
+   * @param elapsed_days - The number of days since the last review.
+   * @param stability - (Optional) The stability of the card.
+   * @param difficulty - (Optional) The difficulty of the card.
+   * @param due - (Optional) The due date for the next review.
+   * @returns A `RecordLogItem` containing the updated card and review log.
+   * @throws Will throw an error if the state or due date is not provided when required.
+   */
+  handleManualRating(card, state, reviewed, elapsed_days, stability, difficulty, due) {
+    if (typeof state === "undefined") {
+      throw new FSRSValidationError(
+        "reschedule: state is required for manual rating"
+      );
+    }
+    let log;
+    let next_card;
+    if (state === State.New) {
+      log = {
+        rating: Rating.Manual,
+        state,
+        due: due ?? reviewed,
+        stability: card.stability,
+        difficulty: card.difficulty,
+        elapsed_days,
+        last_elapsed_days: card.elapsed_days,
+        scheduled_days: card.scheduled_days,
+        learning_steps: card.learning_steps,
+        review: reviewed
+      };
+      next_card = createEmptyCard(reviewed);
+      next_card.last_review = reviewed;
+    } else {
+      if (typeof due === "undefined") {
+        throw new FSRSValidationError(
+          "reschedule: due is required for manual rating"
+        );
+      }
+      const scheduled_days = date_diff(due, reviewed, "days");
+      log = {
+        rating: Rating.Manual,
+        state: card.state,
+        due: card.last_review || card.due,
+        stability: card.stability,
+        difficulty: card.difficulty,
+        elapsed_days,
+        last_elapsed_days: card.elapsed_days,
+        scheduled_days: card.scheduled_days,
+        learning_steps: card.learning_steps,
+        review: reviewed
+      };
+      next_card = {
+        ...card,
+        state,
+        due,
+        last_review: reviewed,
+        stability: stability || card.stability,
+        difficulty: difficulty || card.difficulty,
+        elapsed_days,
+        scheduled_days,
+        reps: card.reps + 1
+      };
+    }
+    return { card: next_card, log };
+  }
+  /**
+   * Reschedules a card based on its review history.
+   *
+   * @param current_card - The card to be rescheduled.
+   * @param reviews - An array of review history objects.
+   * @returns An array of record log items representing the rescheduling process.
+   */
+  reschedule(current_card, reviews) {
+    const collections = [];
+    let cur_card = createEmptyCard(current_card.due);
+    for (const review of reviews) {
+      let item;
+      review.review = TypeConvert.time(review.review);
+      if (review.rating === Rating.Manual) {
+        let interval = 0;
+        if (cur_card.state !== State.New && cur_card.last_review) {
+          interval = date_diff(review.review, cur_card.last_review, "days");
+        }
+        item = this.handleManualRating(
+          cur_card,
+          review.state,
+          review.review,
+          interval,
+          review.stability,
+          review.difficulty,
+          review.due ? TypeConvert.time(review.due) : void 0
+        );
+      } else {
+        item = this.replay(cur_card, review.review, review.rating);
+      }
+      collections.push(item);
+      cur_card = item.card;
+    }
+    return collections;
+  }
+  calculateManualRecord(current_card, now, record_log_item, update_memory) {
+    if (!record_log_item) {
+      return null;
+    }
+    const { card: reschedule_card, log } = record_log_item;
+    const cur_card = TypeConvert.card(current_card);
+    if (cur_card.due.getTime() === reschedule_card.due.getTime()) {
+      return null;
+    }
+    cur_card.scheduled_days = date_diff(
+      reschedule_card.due,
+      cur_card.due,
+      "days"
+    );
+    return this.handleManualRating(
+      cur_card,
+      reschedule_card.state,
+      TypeConvert.time(now),
+      log.elapsed_days,
+      update_memory ? reschedule_card.stability : void 0,
+      update_memory ? reschedule_card.difficulty : void 0,
+      reschedule_card.due
+    );
+  }
+}
+
+function applyAfterHandler(value, afterHandler) {
+  return typeof afterHandler === "function" ? afterHandler(value) : value;
+}
+class FSRS extends FSRSAlgorithm {
+  strategyHandler = /* @__PURE__ */ new Map();
+  Scheduler;
+  constructor(param) {
+    super(param);
+    const { enable_short_term } = this.parameters;
+    this.Scheduler = enable_short_term ? BasicScheduler : LongTermScheduler;
+  }
+  params_handler_proxy() {
+    const _this = this;
+    return {
+      set: function(target, prop, value) {
+        if (prop === "request_retention" && Number.isFinite(value)) {
+          _this.intervalModifier = _this.calculate_interval_modifier(
+            Number(value)
+          );
+        } else if (prop === "enable_short_term") {
+          _this.Scheduler = value === true ? BasicScheduler : LongTermScheduler;
+        } else if (prop === "w") {
+          value = migrateParameters(
+            value,
+            target.relearning_steps.length,
+            target.enable_short_term
+          );
+          _this.forgetting_curve = forgetting_curve.bind(this, value);
+          _this.intervalModifier = _this.calculate_interval_modifier(
+            Number(target.request_retention)
+          );
+        }
+        Reflect.set(target, prop, value);
+        return true;
+      }
+    };
+  }
+  useStrategy(mode, handler) {
+    this.strategyHandler.set(mode, handler);
+    return this;
+  }
+  clearStrategy(mode) {
+    if (mode) {
+      this.strategyHandler.delete(mode);
+    } else {
+      this.strategyHandler.clear();
+    }
+    return this;
+  }
+  getScheduler(card, now) {
+    const schedulerStrategy = this.strategyHandler.get(
+      StrategyMode.SCHEDULER
+    );
+    const Scheduler = schedulerStrategy || this.Scheduler;
+    const instance = new Scheduler(card, now, this, this.strategyHandler);
+    return instance;
+  }
+  /**
+   * Display the collection of cards and logs for the four scenarios after scheduling the card at the current time.
+   * @param card Card to be processed
+   * @param now Current time or scheduled time
+   * @param afterHandler Convert the result to another type. (Optional)
+   * @example
+   * ```typescript
+   * const card: Card = createEmptyCard(new Date());
+   * const f = fsrs();
+   * const recordLog = f.repeat(card, new Date());
+   * ```
+   * @example
+   * ```typescript
+   * interface RevLogUnchecked
+   *   extends Omit<ReviewLog, "due" | "review" | "state" | "rating"> {
+   *   cid: string;
+   *   due: Date | number;
+   *   state: StateType;
+   *   review: Date | number;
+   *   rating: RatingType;
+   * }
+   *
+   * interface RepeatRecordLog {
+   *   card: CardUnChecked; //see method: createEmptyCard
+   *   log: RevLogUnchecked;
+   * }
+   *
+   * function repeatAfterHandler(recordLog: RecordLog) {
+   *     const record: { [key in Grade]: RepeatRecordLog } = {} as {
+   *       [key in Grade]: RepeatRecordLog;
+   *     };
+   *     for (const grade of Grades) {
+   *       record[grade] = {
+   *         card: {
+   *           ...(recordLog[grade].card as Card & { cid: string }),
+   *           due: recordLog[grade].card.due.getTime(),
+   *           state: State[recordLog[grade].card.state] as StateType,
+   *           last_review: recordLog[grade].card.last_review
+   *             ? recordLog[grade].card.last_review!.getTime()
+   *             : null,
+   *         },
+   *         log: {
+   *           ...recordLog[grade].log,
+   *           cid: (recordLog[grade].card as Card & { cid: string }).cid,
+   *           due: recordLog[grade].log.due.getTime(),
+   *           review: recordLog[grade].log.review.getTime(),
+   *           state: State[recordLog[grade].log.state] as StateType,
+   *           rating: Rating[recordLog[grade].log.rating] as RatingType,
+   *         },
+   *       };
+   *     }
+   *     return record;
+   * }
+   * const card: Card = createEmptyCard(new Date(), cardAfterHandler); //see method:  createEmptyCard
+   * const f = fsrs();
+   * const recordLog = f.repeat(card, new Date(), repeatAfterHandler);
+   * ```
+   */
+  repeat(card, now, afterHandler) {
+    const instance = this.getScheduler(card, now);
+    const recordLog = instance.preview();
+    return applyAfterHandler(recordLog, afterHandler);
+  }
+  /**
+   * Display the collection of cards and logs for the card scheduled at the current time, after applying a specific grade rating.
+   * @param card Card to be processed
+   * @param now Current time or scheduled time
+   * @param grade Rating of the review (Again, Hard, Good, Easy)
+   * @param afterHandler Convert the result to another type. (Optional)
+   * @example
+   * ```typescript
+   * const card: Card = createEmptyCard(new Date());
+   * const f = fsrs();
+   * const recordLogItem = f.next(card, new Date(), Rating.Again);
+   * ```
+   * @example
+   * ```typescript
+   * interface RevLogUnchecked
+   *   extends Omit<ReviewLog, "due" | "review" | "state" | "rating"> {
+   *   cid: string;
+   *   due: Date | number;
+   *   state: StateType;
+   *   review: Date | number;
+   *   rating: RatingType;
+   * }
+   *
+   * interface NextRecordLog {
+   *   card: CardUnChecked; //see method: createEmptyCard
+   *   log: RevLogUnchecked;
+   * }
+   *
+  function nextAfterHandler(recordLogItem: RecordLogItem) {
+    const recordItem = {
+      card: {
+        ...(recordLogItem.card as Card & { cid: string }),
+        due: recordLogItem.card.due.getTime(),
+        state: State[recordLogItem.card.state] as StateType,
+        last_review: recordLogItem.card.last_review
+          ? recordLogItem.card.last_review!.getTime()
+          : null,
+      },
+      log: {
+        ...recordLogItem.log,
+        cid: (recordLogItem.card as Card & { cid: string }).cid,
+        due: recordLogItem.log.due.getTime(),
+        review: recordLogItem.log.review.getTime(),
+        state: State[recordLogItem.log.state] as StateType,
+        rating: Rating[recordLogItem.log.rating] as RatingType,
+      },
+    };
+    return recordItem
+  }
+   * const card: Card = createEmptyCard(new Date(), cardAfterHandler); //see method:  createEmptyCard
+   * const f = fsrs();
+   * const recordLogItem = f.repeat(card, new Date(), Rating.Again, nextAfterHandler);
+   * ```
+   */
+  next(card, now, grade, afterHandler) {
+    const instance = this.getScheduler(card, now);
+    const g = TypeConvert.rating(grade);
+    if (g === Rating.Manual) {
+      throw new FSRSValidationError("Cannot review a manual rating");
+    }
+    const recordLogItem = instance.review(g);
+    return applyAfterHandler(recordLogItem, afterHandler);
+  }
+  /**
+   * Get the retrievability of the card
+   * @param card  Card to be processed
+   * @param now  Current time or scheduled time
+   * @param format  default:true , Convert the result to another type. (Optional)
+   * @returns  The retrievability of the card,if format is true, the result is a string, otherwise it is a number
+   */
+  get_retrievability(card, now, format = true) {
+    const processedCard = TypeConvert.card(card);
+    now = now ? TypeConvert.time(now) : /* @__PURE__ */ new Date();
+    const t = processedCard.state !== State.New ? Math.max(date_diff(now, processedCard.last_review, "days"), 0) : 0;
+    const r = processedCard.state !== State.New ? this.forgetting_curve(t, +processedCard.stability.toFixed(8)) : 0;
+    return format ? `${(r * 100).toFixed(2)}%` : r;
+  }
+  /**
+   *
+   * @param card Card to be processed
+   * @param log last review log
+   * @param afterHandler Convert the result to another type. (Optional)
+   * @example
+   * ```typescript
+   * const now = new Date();
+   * const f = fsrs();
+   * const emptyCardFormAfterHandler = createEmptyCard(now);
+   * const repeatFormAfterHandler = f.repeat(emptyCardFormAfterHandler, now);
+   * const { card, log } = repeatFormAfterHandler[Rating.Hard];
+   * const rollbackFromAfterHandler = f.rollback(card, log);
+   * ```
+   *
+   * @example
+   * ```typescript
+   * const now = new Date();
+   * const f = fsrs();
+   * const emptyCardFormAfterHandler = createEmptyCard(now, cardAfterHandler);  //see method: createEmptyCard
+   * const repeatFormAfterHandler = f.repeat(emptyCardFormAfterHandler, now, repeatAfterHandler); //see method: fsrs.repeat()
+   * const { card, log } = repeatFormAfterHandler[Rating.Hard];
+   * const rollbackFromAfterHandler = f.rollback(card, log, cardAfterHandler);
+   * ```
+   */
+  rollback(card, log, afterHandler) {
+    const processedCard = TypeConvert.card(card);
+    const processedLog = TypeConvert.review_log(log);
+    if (processedLog.rating === Rating.Manual) {
+      throw new FSRSValidationError("Cannot rollback a manual rating");
+    }
+    let last_due;
+    let last_review;
+    let last_lapses;
+    switch (processedLog.state) {
+      case State.New:
+        last_due = processedLog.due;
+        last_review = void 0;
+        last_lapses = 0;
+        break;
+      case State.Learning:
+      case State.Relearning:
+      case State.Review:
+        last_due = processedLog.review;
+        last_review = processedLog.due;
+        last_lapses = processedCard.lapses - (processedLog.rating === Rating.Again && processedLog.state === State.Review ? 1 : 0);
+        break;
+    }
+    const prevCard = {
+      ...processedCard,
+      due: last_due,
+      stability: processedLog.stability,
+      difficulty: processedLog.difficulty,
+      elapsed_days: processedLog.last_elapsed_days,
+      scheduled_days: processedLog.scheduled_days,
+      reps: Math.max(0, processedCard.reps - 1),
+      lapses: Math.max(0, last_lapses),
+      learning_steps: processedLog.learning_steps,
+      state: processedLog.state,
+      last_review
+    };
+    return applyAfterHandler(prevCard, afterHandler);
+  }
+  /**
+   *
+   * @param card Card to be processed
+   * @param now Current time or scheduled time
+   * @param reset_count Should the review count information(reps,lapses) be reset. (Optional)
+   * @param afterHandler Convert the result to another type. (Optional)
+   * @example
+   * ```typescript
+   * const now = new Date();
+   * const f = fsrs();
+   * const emptyCard = createEmptyCard(now);
+   * const scheduling_cards = f.repeat(emptyCard, now);
+   * const { card, log } = scheduling_cards[Rating.Hard];
+   * const forgetCard = f.forget(card, new Date(), true);
+   * ```
+   *
+   * @example
+   * ```typescript
+   * interface RepeatRecordLog {
+   *   card: CardUnChecked; //see method: createEmptyCard
+   *   log: RevLogUnchecked; //see method: fsrs.repeat()
+   * }
+   *
+   * function forgetAfterHandler(recordLogItem: RecordLogItem): RepeatRecordLog {
+   *     return {
+   *       card: {
+   *         ...(recordLogItem.card as Card & { cid: string }),
+   *         due: recordLogItem.card.due.getTime(),
+   *         state: State[recordLogItem.card.state] as StateType,
+   *         last_review: recordLogItem.card.last_review
+   *           ? recordLogItem.card.last_review!.getTime()
+   *           : null,
+   *       },
+   *       log: {
+   *         ...recordLogItem.log,
+   *         cid: (recordLogItem.card as Card & { cid: string }).cid,
+   *         due: recordLogItem.log.due.getTime(),
+   *         review: recordLogItem.log.review.getTime(),
+   *         state: State[recordLogItem.log.state] as StateType,
+   *         rating: Rating[recordLogItem.log.rating] as RatingType,
+   *       },
+   *     };
+   * }
+   * const now = new Date();
+   * const f = fsrs();
+   * const emptyCardFormAfterHandler = createEmptyCard(now, cardAfterHandler); //see method:  createEmptyCard
+   * const repeatFormAfterHandler = f.repeat(emptyCardFormAfterHandler, now, repeatAfterHandler); //see method: fsrs.repeat()
+   * const { card } = repeatFormAfterHandler[Rating.Hard];
+   * const forgetFromAfterHandler = f.forget(card, date_scheduler(now, 1, true), false, forgetAfterHandler);
+   * ```
+   */
+  forget(card, now, reset_count = false, afterHandler) {
+    const processedCard = TypeConvert.card(card);
+    now = TypeConvert.time(now);
+    const scheduled_days = processedCard.state === State.New ? 0 : date_diff(now, processedCard.due, "days");
+    const forget_log = {
+      rating: Rating.Manual,
+      state: processedCard.state,
+      due: processedCard.due,
+      stability: processedCard.stability,
+      difficulty: processedCard.difficulty,
+      elapsed_days: 0,
+      last_elapsed_days: processedCard.elapsed_days,
+      scheduled_days,
+      learning_steps: processedCard.learning_steps,
+      review: now
+    };
+    const forget_card = {
+      ...processedCard,
+      due: now,
+      stability: 0,
+      difficulty: 0,
+      elapsed_days: 0,
+      scheduled_days: 0,
+      reps: reset_count ? 0 : processedCard.reps,
+      lapses: reset_count ? 0 : processedCard.lapses,
+      learning_steps: 0,
+      state: State.New,
+      last_review: processedCard.last_review
+    };
+    const recordLogItem = { card: forget_card, log: forget_log };
+    return applyAfterHandler(recordLogItem, afterHandler);
+  }
+  /**
+   * Reschedules the current card and returns the rescheduled collections and reschedule item.
+   *
+   * @template T - The type of the record log item.
+   * @param {CardInput | Card} current_card - The current card to be rescheduled.
+   * @param {Array<FSRSHistory>} reviews - The array of FSRSHistory objects representing the reviews.
+   * @param {Partial<RescheduleOptions<T>>} options - The optional reschedule options.
+   * @returns {IReschedule<T>} - The rescheduled collections and reschedule item.
+   *
+   * @example
+   * ```typescript
+   * const f = fsrs()
+   * const grades: Grade[] = [Rating.Good, Rating.Good, Rating.Good, Rating.Good]
+   * const reviews_at = [
+   *   new Date(2024, 8, 13),
+   *   new Date(2024, 8, 13),
+   *   new Date(2024, 8, 17),
+   *   new Date(2024, 8, 28),
+   * ]
+   *
+   * const reviews: FSRSHistory[] = []
+   * for (let i = 0; i < grades.length; i++) {
+   *   reviews.push({
+   *     rating: grades[i],
+   *     review: reviews_at[i],
+   *   })
+   * }
+   *
+   * const results_short = scheduler.reschedule(
+   *   createEmptyCard(),
+   *   reviews,
+   *   {
+   *     skipManual: false,
+   *   }
+   * )
+   * console.log(results_short)
+   * ```
+   */
+  reschedule(current_card, reviews = [], options = {}) {
+    const {
+      recordLogHandler,
+      reviewsOrderBy,
+      skipManual = true,
+      now = /* @__PURE__ */ new Date(),
+      update_memory_state: updateMemoryState = false
+    } = options;
+    if (reviewsOrderBy && typeof reviewsOrderBy === "function") {
+      reviews.sort(reviewsOrderBy);
+    }
+    if (skipManual) {
+      reviews = reviews.filter((review) => review.rating !== Rating.Manual);
+    }
+    const rescheduleSvc = new Reschedule(this);
+    const collections = rescheduleSvc.reschedule(
+      options.first_card || createEmptyCard(),
+      reviews
+    );
+    const len = collections.length;
+    const cur_card = TypeConvert.card(current_card);
+    const manual_item = rescheduleSvc.calculateManualRecord(
+      cur_card,
+      now,
+      len ? collections[len - 1] : void 0,
+      updateMemoryState
+    );
+    return {
+      collections: typeof recordLogHandler === "function" ? collections.map(recordLogHandler) : collections,
+      reschedule_item: manual_item ? applyAfterHandler(manual_item, recordLogHandler) : null
+    };
+  }
+}
+const fsrs = (params) => {
+  return new FSRS(params || {});
+};
+
+
+//# sourceMappingURL=index.mjs.map
+
+
+/***/ }
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	const __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		const cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		const module = __webpack_module_cache__[moduleId] = {
+/******/ 			id: moduleId,
+/******/ 			loaded: false,
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		if (!(moduleId in __webpack_modules__)) {
+/******/ 			delete __webpack_module_cache__[moduleId];
+/******/ 			const e = new Error("Cannot find module '" + moduleId + "'");
+/******/ 			e.code = 'MODULE_NOT_FOUND';
+/******/ 			throw e;
+/******/ 		}
+/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Flag the module as loaded
+/******/ 		module.loaded = true;
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	(() => {
+/******/ 		// define getter/value functions for harmony exports
+/******/ 		__webpack_require__.d = (exports, definition) => {
+/******/ 			if(Array.isArray(definition)) {
+/******/ 				var i = 0;
+/******/ 				while(i < definition.length) {
+/******/ 					var key = definition[i++];
+/******/ 					var binding = definition[i++];
+/******/ 					if(!__webpack_require__.o(exports, key)) {
+/******/ 						if(binding === 0) {
+/******/ 							Object.defineProperty(exports, key, { enumerable: true, value: definition[i++] });
+/******/ 						} else {
+/******/ 							Object.defineProperty(exports, key, { enumerable: true, get: binding });
+/******/ 						}
+/******/ 					} else if(binding === 0) { i++; }
+/******/ 				}
+/******/ 			} else {
+/******/ 				for(var key in definition) {
+/******/ 					if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 						Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 					}
+/******/ 				}
+/******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/harmony module decorator */
+/******/ 	(() => {
+/******/ 		__webpack_require__.hmd = (module) => {
+/******/ 			module = Object.create(module);
+/******/ 			if (!module.children) module.children = [];
+/******/ 			Object.defineProperty(module, 'exports', {
+/******/ 				enumerable: true,
+/******/ 				set() {
+/******/ 					throw new Error('ES Modules may not assign module.exports or exports.*, Use ESM export syntax, instead: ' + module.id);
+/******/ 				}
+/******/ 			});
+/******/ 			return module;
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	(() => {
+/******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	(() => {
+/******/ 		// define __esModule on exports
+/******/ 		__webpack_require__.r = (exports) => {
+/******/ 			if(Symbol.toStringTag) {
+/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 			}
+/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/************************************************************************/
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	let __webpack_exports__ = __webpack_require__("./features/tracker/scheduler/fsrsScheduler.js");
+/******/ 	
+/******/ })()
+;
+//# sourceMappingURL=fsrsScheduler.bundle.js.map

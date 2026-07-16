@@ -1,1 +1,73 @@
-export class CoverageTable{constructor(t){this.dataUtils=t}render(t){const a=document.getElementById(t);if(!a)return;const e=this.dataUtils.getStatsByTag(),n=this.dataUtils.cards.length;if(0===e.length)return void(a.innerHTML='<div class="retention-empty">No tags found.</div>');let l='\n            <table class="coverage-table">\n                <thead>\n                    <tr>\n                        <th>Tag</th>\n                        <th>Cards</th>\n                        <th>Coverage <span class="help-icon" data-tooltip="The percentage of your total flashcard deck that belongs to this specific tag. Helps you identify if you are over-studying or under-studying a specific subject.">?</span></th>\n                        <th>Retrievability <span class="help-icon" data-tooltip="The current probability of successfully recalling cards in this tag, calculated mathematically using the FSRS forgetting curve.">?</span></th>\n                        <th>Avg Stability <span class="help-icon tooltip-right-align" data-tooltip="The average time (in days) it takes for your memory to decay from 100% to 90% for cards in this tag.">?</span></th>\n                        <th>Due <span class="help-icon tooltip-right-align" data-tooltip="The number of cards in this tag that are currently due for review.">?</span></th>\n                    </tr>\n                </thead>\n                <tbody>\n        ';e.forEach(t=>{const a=n>0?Math.round(t.count/n*100):0,e=0===(o=t.due)?"tag-color-4":o<=5?"tag-color-2":o<=10?"tag-color-5":o<=20?"tag-color-1":"tag-color-6";var o;l+=`\n                <tr>\n                    <td class="tag-name-cell"><span class="tag-badge clickable-tag ${e}" data-tag="${t.tag}" style="cursor:pointer;" title="View all cards for this tag">${t.tag}</span></td>\n                    <td>${t.count}</td>\n                    <td class="coverage-bar-cell">\n                        <div class="cov-val">${a}%</div>\n                        <div class="lapse-bar-track"><div class="lapse-bar-fill cov-fill" style="width:${a}%;"></div></div>\n                    </td>\n                    <td>${t.trueRetention}%</td>\n                    <td>${t.avgStability.toFixed(1)}d</td>\n                    <td class="${t.due>0?"due-alert":""}">${t.due}</td>\n                </tr>\n            `}),l+="</tbody></table>",a.innerHTML=l,a.querySelectorAll(".clickable-tag").forEach(t=>{t.addEventListener("click",()=>{const a=t.getAttribute("data-tag"),e=chrome.runtime.getURL(`features/common/data/data.html?view=total&tag=${encodeURIComponent(a)}`);chrome.tabs.create({url:e})})})}}
+export class CoverageTable {
+    constructor(dataUtils) {
+        this.dataUtils = dataUtils;
+    }
+
+    render(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const stats = this.dataUtils.getStatsByTag();
+        const totalCards = this.dataUtils.cards.length;
+
+        if (stats.length === 0) {
+            container.innerHTML = '<div class="retention-empty">No tags found.</div>';
+            return;
+        }
+
+        let tableHtml = `
+            <table class="coverage-table">
+                <thead>
+                    <tr>
+                        <th>Tag</th>
+                        <th>Cards</th>
+                        <th>Coverage <span class="help-icon" data-tooltip="The percentage of your total flashcard deck that belongs to this specific tag. Helps you identify if you are over-studying or under-studying a specific subject.">?</span></th>
+                        <th>Retrievability <span class="help-icon" data-tooltip="The current probability of successfully recalling cards in this tag, calculated mathematically using the FSRS forgetting curve.">?</span></th>
+                        <th>Avg Stability <span class="help-icon tooltip-right-align" data-tooltip="The average time (in days) it takes for your memory to decay from 100% to 90% for cards in this tag.">?</span></th>
+                        <th>Due <span class="help-icon tooltip-right-align" data-tooltip="The number of cards in this tag that are currently due for review.">?</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        const getTagColorClass = (dueCount) => {
+            if (dueCount === 0) return 'tag-color-4'; // Green (No due)
+            if (dueCount <= 5) return 'tag-color-2'; // Light Blue (Few due)
+            if (dueCount <= 10) return 'tag-color-5'; // Yellow/Orange (Some due)
+            if (dueCount <= 20) return 'tag-color-1'; // Pink (Many due)
+            return 'tag-color-6'; // Red (A lot due)
+        };
+
+        stats.forEach(s => {
+            const pct = totalCards > 0 ? Math.round((s.count / totalCards) * 100) : 0;
+            const colorClass = getTagColorClass(s.due);
+
+            tableHtml += `
+                <tr>
+                    <td class="tag-name-cell"><span class="tag-badge clickable-tag ${colorClass}" data-tag="${s.tag}" style="cursor:pointer;" title="View all cards for this tag">${s.tag}</span></td>
+                    <td>${s.count}</td>
+                    <td class="coverage-bar-cell">
+                        <div class="cov-val">${pct}%</div>
+                        <div class="lapse-bar-track"><div class="lapse-bar-fill cov-fill" style="width:${pct}%;"></div></div>
+                    </td>
+                    <td>${s.trueRetention}%</td>
+                    <td>${s.avgStability.toFixed(1)}d</td>
+                    <td class="${s.due > 0 ? 'due-alert' : ''}">${s.due}</td>
+                </tr>
+            `;
+        });
+
+        tableHtml += `</tbody></table>`;
+        container.innerHTML = tableHtml;
+
+        // Add event listeners for clickable tags
+        const clickableTags = container.querySelectorAll('.clickable-tag');
+        clickableTags.forEach(tagSpan => {
+            tagSpan.addEventListener('click', () => {
+                const tag = tagSpan.getAttribute('data-tag');
+                const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=total&tag=${encodeURIComponent(tag)}`);
+                chrome.tabs.create({ url: dataUrl });
+            });
+        });
+    }
+}

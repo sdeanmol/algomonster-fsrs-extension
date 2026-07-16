@@ -1,1 +1,115 @@
-import{RecoveryTracking}from"./recoveryTracking.js";import{ReviewStats}from"./reviewStats.js";export class PerformanceTab{constructor(e){this.dataUtils=e,this.reviewStats=new ReviewStats(this.dataUtils),this.recoveryTracking=new RecoveryTracking(this.dataUtils),this.rendered=!1}render(e){const n=document.getElementById(e);n&&(this.rendered||(n.innerHTML='\n                <div class="performance-grid">\n                    <div id="performance-next-action-container"></div>\n                    <div class="performance-panel ana-panel-wide">\n                        <div class="ana-panel-header">\n                            <span class="ana-panel-title">\n                                Review Statistics\n                                <span class="help-icon" data-tooltip="Shows the volume of your review activity over daily, weekly, or monthly periods.">?</span>\n                            </span>\n                            <div class="performance-controls">\n                                <select id="review-period-select" class="modern-select">\n                                    <option value="daily">Daily (14 days)</option>\n                                    <option value="weekly">Weekly (12 weeks)</option>\n                                    <option value="monthly">Monthly (12 months)</option>\n                                </select>\n                            </div>\n                        </div>\n                        <div id="review-stats-container"></div>\n                    </div>\n\n                    <div class="performance-panel ana-panel-wide">\n                        <div class="ana-panel-header">\n                            <span class="ana-panel-title">\n                                Trouble Spots & Recovery\n                                <span class="help-icon" data-tooltip="Highlights cards you\'ve forgotten multiple times (Lapses). \'Still Struggling\' means the card has not yet graduated to long-term memory again.">?</span>\n                            </span>\n                            <div class="performance-controls">\n                                <select id="performance-filter-tag" class="modern-select">\n                                    <option value="all">All Tags</option>\n                                    \x3c!-- Options populated dynamically if needed --\x3e\n                                </select>\n                            </div>\n                        </div>\n                        <div id="recovery-tracking-container"></div>\n                    </div>\n                </div>\n            ',n.querySelector("#performance-filter-tag").addEventListener("change",e=>{this.recoveryTracking.setTagFilter(e.target.value),this.recoveryTracking.render("recovery-tracking-container")}),n.querySelector("#review-period-select").addEventListener("change",e=>{this.reviewStats.setPeriod(e.target.value),this.reviewStats.render("review-stats-container")}),this.rendered=!0),this.reviewStats.render("review-stats-container"),this.recoveryTracking.render("recovery-tracking-container"),this.renderNextAction("performance-next-action-container"))}renderNextAction(e){const n=document.getElementById(e);if(!n)return;const t=this.dataUtils;let i=0;t.cards.forEach(e=>{(t.scheduler?t.scheduler.isHighDifficulty(e):(e.difficulty||0)>=7)&&(e.lapses||0)>=1&&i++}),n.innerHTML=i>0?`\n                <div class="actionable-insight-banner warning" style="margin-bottom:0;">\n                    <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n                        <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>\n                    </svg>\n                    <div class="insight-content">\n                        <h3>Next Action: Reformulate Problem Cards</h3>\n                        <p>The scheduling algorithm has identified <strong>${i} cards</strong> with a High Difficulty rating that you have lapsed on. Your next action is to <strong>edit these cards</strong>: simplify the information, add a mnemonic, or break them down into smaller pieces.</p>\n                    </div>\n                </div>\n            `:'\n                <div class="actionable-insight-banner success" style="margin-bottom:0;">\n                    <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n                        <polyline points="20 6 9 17 4 12"></polyline>\n                    </svg>\n                    <div class="insight-content">\n                        <h3>Next Action: Consistent Reviews</h3>\n                        <p>You have no major trouble spots right now! Keep up the daily reviews to maintain your high recovery rate.</p>\n                    </div>\n                </div>\n            '}}
+import { RecoveryTracking } from './recoveryTracking.js';
+import { ReviewStats } from './reviewStats.js';
+
+export class PerformanceTab {
+    constructor(dataUtils) {
+        this.dataUtils = dataUtils;
+        this.reviewStats = new ReviewStats(this.dataUtils);
+        this.recoveryTracking = new RecoveryTracking(this.dataUtils);
+        this.rendered = false;
+    }
+
+    render(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        if (!this.rendered) {
+            container.innerHTML = `
+                <div class="performance-grid">
+                    <div id="performance-next-action-container"></div>
+                    <div class="performance-panel ana-panel-wide">
+                        <div class="ana-panel-header">
+                            <span class="ana-panel-title">
+                                Review Statistics
+                                <span class="help-icon" data-tooltip="Shows the volume of your review activity over daily, weekly, or monthly periods.">?</span>
+                            </span>
+                            <div class="performance-controls">
+                                <select id="review-period-select" class="modern-select">
+                                    <option value="daily">Daily (14 days)</option>
+                                    <option value="weekly">Weekly (12 weeks)</option>
+                                    <option value="monthly">Monthly (12 months)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="review-stats-container"></div>
+                    </div>
+
+                    <div class="performance-panel ana-panel-wide">
+                        <div class="ana-panel-header">
+                            <span class="ana-panel-title">
+                                Trouble Spots & Recovery
+                                <span class="help-icon" data-tooltip="Highlights cards you've forgotten multiple times (Lapses). 'Still Struggling' means the card has not yet graduated to long-term memory again.">?</span>
+                            </span>
+                            <div class="performance-controls">
+                                <select id="performance-filter-tag" class="modern-select">
+                                    <option value="all">All Tags</option>
+                                    <!-- Options populated dynamically if needed -->
+                                </select>
+                            </div>
+                        </div>
+                        <div id="recovery-tracking-container"></div>
+                    </div>
+                </div>
+            `;
+            
+            // Basic event listener for future filter expansion
+            const tagFilter = container.querySelector('#performance-filter-tag');
+            tagFilter.addEventListener('change', (e) => {
+                this.recoveryTracking.setTagFilter(e.target.value);
+                this.recoveryTracking.render('recovery-tracking-container');
+            });
+            const periodSelect = container.querySelector('#review-period-select');
+            periodSelect.addEventListener('change', (e) => {
+                this.reviewStats.setPeriod(e.target.value);
+                this.reviewStats.render('review-stats-container');
+            });
+            
+            this.rendered = true;
+        }
+
+        this.reviewStats.render('review-stats-container');
+        this.recoveryTracking.render('recovery-tracking-container');
+        this.renderNextAction('performance-next-action-container');
+    }
+
+    renderNextAction(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const dataUtils = this.dataUtils;
+        let struggling = 0;
+        dataUtils.cards.forEach(c => {
+            // Determine difficulty dynamically from the active scheduling algorithm
+            const isHard = dataUtils.scheduler ? dataUtils.scheduler.isHighDifficulty(c) : (c.difficulty || 0) >= 7;
+            if (isHard && (c.lapses || 0) >= 1) {
+                struggling++;
+            }
+        });
+
+        if (struggling > 0) {
+            container.innerHTML = `
+                <div class="actionable-insight-banner warning" style="margin-bottom:0;">
+                    <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <div class="insight-content">
+                        <h3>Next Action: Reformulate Problem Cards</h3>
+                        <p>The scheduling algorithm has identified <strong>${struggling} cards</strong> with a High Difficulty rating that you have lapsed on. Your next action is to <strong>edit these cards</strong>: simplify the information, add a mnemonic, or break them down into smaller pieces.</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="actionable-insight-banner success" style="margin-bottom:0;">
+                    <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <div class="insight-content">
+                        <h3>Next Action: Consistent Reviews</h3>
+                        <p>You have no major trouble spots right now! Keep up the daily reviews to maintain your high recovery rate.</p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+}

@@ -9,8 +9,11 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'build'),
     filename: 'dist/[name].bundle.js',
+    chunkFilename: 'dist/[id].bundle.js',
+    assetModuleFilename: 'dist/[hash][ext][query]',
     publicPath: '/'
   },
+  devtool: 'source-map',
   module: {
     rules: [
       // No loaders needed, native Chrome V8 handles modern JS
@@ -36,7 +39,19 @@ module.exports = {
         { 
           from: 'features', 
           to: 'features',
-          globOptions: { ignore: ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'] }
+          globOptions: { 
+            ignore: [
+              '**/*.test.js', 
+              '**/__tests__/**', 
+              '**/*.md', 
+              '**/*.ts',
+              '**/tracker/config/fsrsConfig.js',
+              '**/tracker/scheduler/fsrsScheduler.js',
+              '**/tracker/scheduler/fsrsOptimizer.worker.js',
+              '**/tracker/scheduler/fsrsOptimizer.js',
+              '**/tracker/scheduler/fsrsOptimizerFast.js'
+            ] 
+          }
         },
         { from: 'icons', to: 'icons' }
       ]
