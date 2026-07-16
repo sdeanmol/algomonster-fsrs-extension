@@ -80,7 +80,7 @@ describe('Tracker Integration', () => {
 
         expect(saveSpy).toHaveBeenCalled();
         const newCard = window.AlgoRecall.state.cards[window.AlgoRecall.state.cards.length - 1];
-        expect(newCard.state).toBe(2); 
+        expect(newCard.state).toBe(1); // 1 = Learning
         expect(newCard.tags).toContain('TestTag');
     });
 
