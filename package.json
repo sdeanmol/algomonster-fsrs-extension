@@ -7,8 +7,8 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
-    "build": "webpack --mode production && zip -r release.zip . -x '*.git*' '*tests/*' '*node_modules/*' '*backup/*' 'package*.json' '*scripts/*' 'playwright.config.js' 'jest.config.js' '*test.js*' '*test-backup.mjs*' '*test-report.html*' 'CUSTOMIZATION.md' 'feature_enhancements_requirements.md' 'babel.config.json' 'webpack.config.js' 'src/*'",
-    "dev": "webpack --mode development --watch"
+    "build": "rm -rf build && webpack --mode production && cd build && rm -f ../release.zip && zip -r ../release.zip .",
+    "dev": "rm -rf build && webpack --mode development --watch"
   },
   "dependencies": {
     "firebase": "^10.12.0"

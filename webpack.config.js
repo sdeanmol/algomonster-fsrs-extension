@@ -1,18 +1,15 @@
 const path = require('path');
-
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   entry: {
-    background: './background/background.js',
-    popup: './features/dashboard/popup/popup.js',
-    content: './content/content.js',
     config: './features/tracker/config/fsrsConfig.js',
     fsrsScheduler: './features/tracker/scheduler/fsrsScheduler.js'
   },
   output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: '[name].bundle.js',
-    publicPath: '/dist/'
+    path: path.resolve(__dirname, 'build'),
+    filename: 'dist/[name].bundle.js',
+    publicPath: '/'
   },
   module: {
     rules: [
@@ -21,5 +18,28 @@ module.exports = {
   },
   resolve: {
     extensions: ['.js']
-  }
+  },
+  plugins: [
+    new CopyPlugin({
+      patterns: [
+        { from: 'manifest.json', to: '.' },
+        { 
+          from: 'background', 
+          to: 'background',
+          globOptions: { ignore: ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'] }
+        },
+        { 
+          from: 'content', 
+          to: 'content',
+          globOptions: { ignore: ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'] }
+        },
+        { 
+          from: 'features', 
+          to: 'features',
+          globOptions: { ignore: ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'] }
+        },
+        { from: 'icons', to: 'icons' }
+      ]
+    })
+  ]
 };

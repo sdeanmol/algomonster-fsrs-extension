@@ -1,0 +1,310 @@
+/*
+ * @file features/highlighter/options/highlightOptions.css
+ * @description Styling rules for default highlight color selection grids and custom color slot controls.
+ * Upstream dependency: features/common/base.css
+ */
+body {
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
+    display: flex;
+    justify-content: center;
+    padding: 40px 0;
+}
+
+.container {
+    width: 100%;
+    max-width: 960px;
+    padding: 0 24px;
+}
+
+/* Header */
+.header {
+    margin-bottom: 32px;
+    text-align: center;
+}
+.header h2 {
+    color: var(--md-text-high);
+    font-size: 24px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+.header-icon {
+    width: 28px;
+    height: 28px;
+    stroke: var(--md-primary);
+}
+.header p {
+    color: var(--md-text-med);
+    font-size: 14px;
+    margin-top: 6px;
+}
+
+/* Settings Layout Grid */
+.settings-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .settings-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.settings-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Panels (Cards) */
+.panel {
+    background-color: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: var(--shadow-1);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.panel:hover {
+    border-color: var(--md-border-hover);
+    box-shadow: var(--shadow-2);
+}
+
+.panel-subtitle {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--md-text-high);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.section-icon {
+    width: 18px;
+    height: 18px;
+    stroke: var(--md-primary);
+}
+
+.panel-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.badge {
+    background-color: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid rgba(168, 199, 250, 0.15);
+}
+
+.settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.settings-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--md-text-med);
+}
+
+.divider {
+    border: 0;
+    height: 1px;
+    background: var(--md-border);
+    margin: 20px 0;
+}
+
+/* Default Color Swatch Row */
+.color-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.color-picker {
+    -webkit-appearance: none;
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    background: none;
+    padding: 0;
+    box-shadow: var(--shadow-1);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.color-picker:hover {
+    transform: scale(1.1);
+}
+.color-picker::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+.color-picker::-webkit-color-swatch {
+    border: 2px solid var(--md-border);
+    border-radius: 50%;
+}
+.color-hex {
+    font-family: SFMono-Regular, Consolas, monospace;
+    color: var(--md-text-low);
+    font-size: 13.5px;
+}
+
+/* Editor Slots styling */
+.slots-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.slot-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: var(--md-surface-variant);
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--md-border);
+}
+.slot-row .color-picker {
+    width: 28px;
+    height: 28px;
+}
+.slot-row .color-picker::-webkit-color-swatch {
+    border: 1px solid var(--md-border);
+}
+.slot-row .color-hex {
+    font-size: 12.5px;
+    color: var(--md-text-med);
+    flex-grow: 1;
+}
+
+/* Buttons in Action Pane */
+.action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* Palettes rendering */
+.palettes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 480px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+.palette-card {
+    background-color: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.palette-card:hover {
+    border-color: var(--md-border-hover);
+}
+.palette-card.active {
+    border-color: var(--md-primary);
+    box-shadow: 0 0 10px rgba(168, 199, 250, 0.15);
+}
+
+.palette-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.palette-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.palette-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--md-text-high);
+}
+.active-tag {
+    background-color: rgba(168, 199, 250, 0.12);
+    color: var(--md-primary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 9.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    border: 1px solid rgba(168, 199, 250, 0.1);
+}
+
+.palette-colors {
+    display: flex;
+    gap: 6px;
+}
+.color-bubble {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.4);
+}
+
+.palette-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.btn-action {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 12px;
+    transition: background-color 0.2s;
+}
+.btn-action-activate {
+    color: var(--md-primary);
+    background-color: rgba(168, 199, 250, 0.08);
+}
+.btn-action-activate:hover {
+    background-color: rgba(168, 199, 250, 0.15);
+}
+.btn-action-edit {
+    color: var(--md-warning);
+    background-color: rgba(253, 226, 147, 0.08);
+}
+.btn-action-edit:hover {
+    background-color: rgba(253, 226, 147, 0.15);
+}
+.btn-action-delete {
+    color: var(--md-danger);
+    background-color: rgba(242, 139, 130, 0.08);
+}
+.btn-action-delete:hover {
+    background-color: rgba(242, 139, 130, 0.15);
+}
+/* R10.4 Reduced Motion Mode */
+@media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

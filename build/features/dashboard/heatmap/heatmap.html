@@ -1,0 +1,87 @@
+<!--
+  * @file features/dashboard/heatmap/heatmap.html
+  * @description Visual layout page presenting contribution heatmaps and streak cards.
+  * Downstream scripts: features/dashboard/heatmap/heatmap.js, features/dashboard/heatmap/heatmap-stats.js
+  -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Activity Heatmap</title>
+    <script src="../../common/theme-sync.js"></script>
+    <link rel="stylesheet" href="../../common/base.css">
+    <link rel="stylesheet" href="heatmap.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="header-top">
+                <h1>
+                    <svg class="svg-icon page-header-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Contribution Heatmap
+                </h1>
+                <div class="heatmap-legend">
+                    <span>Less</span>
+                    <span class="legend-box level-0"></span>
+                    <span class="legend-box level-1"></span>
+                    <span class="legend-box level-2"></span>
+                    <span class="legend-box level-3"></span>
+                    <span class="legend-box level-4"></span>
+                    <span>More</span>
+                </div>
+            </div>
+
+            <!-- Filter Panel -->
+            <div class="filter-bar">
+                <span class="filter-title">
+                    <svg class="svg-icon filter-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    Filter View:
+                </span>
+                <select id="filter-type" class="input-field select-field">
+                    <option value="lifetime">Lifetime History</option>
+                    <option value="year-wise">Year Wise</option>
+                    <option value="month-wise">Month Wise</option>
+                    <option value="day-wise">Day Wise</option>
+                </select>
+
+                <select id="select-year" class="input-field select-field hide-select"></select>
+                <select id="select-month" class="input-field select-field hide-select"></select>
+                <select id="select-day" class="input-field select-field hide-select"></select>
+                
+                <span id="filter-summary-text" class="filter-summary"></span>
+            </div>
+        </div>
+        
+        <!-- Heatmap Board -->
+        <div class="heatmap-wrapper">
+            <div class="heatmap-container">
+                <!-- Weekday Labels -->
+                <div class="weekday-labels">
+                    <span>Sun</span>
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                </div>
+                <!-- The Grid Cells -->
+                <div class="heatmap" id="full-heatmap-grid"></div>
+            </div>
+        </div>
+
+        <!-- Gamified Streaks Dashboard -->
+        <div id="heatmap-stats-container" class="stats-grid">
+            <!-- Dynamic stats cards will be loaded here by JS -->
+        </div>
+        
+        <p class="tip-text">
+            <em>Tip: Click on any colored square to view the specific algorithmic patterns you reviewed that day!</em>
+        </p>
+    </div>
+    
+    <script src="heatmap-stats.js"></script>
+    <script src="heatmap.js"></script>
+</body>
+</html>

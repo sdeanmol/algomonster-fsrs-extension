@@ -1,0 +1,1 @@
+export class DashboardComponent{constructor(t){this.coordinator=t}init(){this.bindEvents()}bindEvents(){}showStatus(t,o=!1){this.coordinator.showStatus(t,o)}}
