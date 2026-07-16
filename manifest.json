@@ -33,6 +33,12 @@
     "service_worker": "background/background.js",
     "type": "module"
   },
+  "cross_origin_embedder_policy": {
+    "value": "require-corp"
+  },
+  "cross_origin_opener_policy": {
+    "value": "same-origin"
+  },
   "content_scripts": [
     {
       "matches": [

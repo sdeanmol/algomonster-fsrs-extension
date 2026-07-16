@@ -1,10 +1,12 @@
 const path = require('path');
 
+
 module.exports = {
   entry: {
     background: './background/background.js',
     popup: './features/dashboard/popup/popup.js',
-    content: './content/content.js'
+    content: './content/content.js',
+    config: './features/tracker/config/fsrsConfig.js'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -12,16 +14,7 @@ module.exports = {
   },
   module: {
     rules: [
-      {
-        test: /\.js$/,
-        exclude: /node_modules/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            presets: ['@babel/preset-env']
-          }
-        }
-      }
+      // No loaders needed, native Chrome V8 handles modern JS
     ]
   },
   resolve: {

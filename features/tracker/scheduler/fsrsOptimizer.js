@@ -3,10 +3,11 @@
  * @description Lightweight JavaScript optimizer for personalized FSRS weights.
  */
 
+import { computeParameters, FSRSBindingItem, FSRSBindingReview } from '@open-spaced-repetition/binding';
+
 class FsrsOptimizer {
     constructor() {
-        this.learningRate = 0.01;
-        this.epochs = 50;
+        this.epochs = 50; // Kept for compatibility, but official optimizer handles iterations internally
     }
 
     /**
@@ -35,52 +36,64 @@ class FsrsOptimizer {
     }
 
     /**
-     * Highly simplified heuristic stochastic gradient descent for FSRS weights.
-     * Tunes initial stability weights (w[0]-w[3]) based on empirical retention vs target retention.
+     * Uses the official @open-spaced-repetition/binding WebAssembly implementation 
+     * to perform true log-loss gradient descent across the review history time-series.
      */
     async trainWeights(history, currentWeights, targetRetention = 0.90) {
-        let w = [...currentWeights];
-        
-        // Ensure we don't block UI if processing thousands of items
-        await new Promise(r => setTimeout(r, 100));
+        if (!history || history.length === 0) return currentWeights;
 
-        let totalReps = 0;
-        let totalLapses = 0;
+        const trainSet = [];
 
         history.forEach(card => {
-            if (card.reps > 0) {
-                totalReps += card.reps;
-                totalLapses += (card.lapses || 0);
+            if (card.historyLog && card.historyLog.length > 0) {
+                const reviews = [];
+                let firstDate = card.historyLog[0].date;
+                
+                card.historyLog.forEach((log, index) => {
+                    // Map algomonster string ratings to FSRS numeric ratings
+                    // 1: Again, 2: Hard, 3: Good, 4: Easy
+                    let ratingNum = 3;
+                    if (log.rating === 'again') ratingNum = 1;
+                    else if (log.rating === 'hard') ratingNum = 2;
+                    else if (log.rating === 'good') ratingNum = 3;
+                    else if (log.rating === 'easy') ratingNum = 4;
+                    
+                    // Calculate deltaT (days since last review)
+                    let deltaT = 0;
+                    if (index > 0) {
+                        let prevDate = card.historyLog[index - 1].date;
+                        // Use accurate day differences, avoiding Math.round on fractional ms to match the extension's original 24h intervals
+                        deltaT = Math.round((log.date - prevDate) / (1000 * 60 * 60 * 24));
+                    }
+                    
+                    reviews.push(new FSRSBindingReview(ratingNum, deltaT));
+                });
+                
+                trainSet.push(new FSRSBindingItem(reviews));
             }
         });
 
-        if (totalReps === 0) return w; // No data to learn from
+        if (trainSet.length === 0) return currentWeights;
 
-        const empiricalRetention = (totalReps - totalLapses) / totalReps;
-        
-        // Target retention is usually 0.90 (or specified by user). If user remembers more, increase initial stabilities.
-        // If they forget more, decrease initial stabilities.
-        const diff = empiricalRetention - targetRetention;
-        const adjustment = diff * this.learningRate * 10; // Simple scaling
-
-        for (let i = 0; i < this.epochs; i++) {
-            // Simulated gradient descent step
-            w[0] = Math.max(0.1, w[0] + adjustment * 0.1);
-            w[1] = Math.max(0.1, w[1] + adjustment * 0.2);
-            w[2] = Math.max(0.1, w[2] + adjustment * 0.3);
-            w[3] = Math.max(0.1, w[3] + adjustment * 0.4);
+        try {
+            console.log(`[FSRS Optimizer] Training on ${trainSet.length} cards...`);
+            // Run the official WASM optimizer
+            const optimizedWeights = await computeParameters(trainSet, {
+                enableShortTerm: false,
+                timeout: 30000 // 30 sec timeout for huge histories
+            });
             
-            // Adjust difficulty baseline slightly
-            w[4] = Math.max(1, Math.min(10, w[4] - adjustment * 0.5));
+            console.log(`[FSRS Optimizer] Success. New weights:`, optimizedWeights);
+            return optimizedWeights;
+        } catch (e) {
+            console.error(`[FSRS Optimizer] Training failed. Falling back to current weights. Error:`, e);
+            return currentWeights;
         }
-
-        // Return a rounded version of weights
-        return w.map(weight => Math.round(weight * 10000) / 10000);
     }
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = FsrsOptimizer;
-} else if (typeof window !== 'undefined') {
+// Export for webpack and tests
+export default FsrsOptimizer;
+if (typeof window !== 'undefined') {
     window.FsrsOptimizer = FsrsOptimizer;
 }
