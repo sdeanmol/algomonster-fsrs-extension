@@ -5,6 +5,10 @@
 
 import FsrsOptimizer from './fsrsOptimizer.js';
 
+self.addEventListener('error', (event) => {
+    self.postMessage({ type: 'error', error: event.message || 'Unknown Worker Error' });
+});
+
 self.addEventListener('unhandledrejection', (event) => {
     self.postMessage({ action: 'trainWeightsResult', success: false, error: 'WASM Worker Error: ' + event.reason });
 });
