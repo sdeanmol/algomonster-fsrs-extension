@@ -125,8 +125,8 @@ class FsrsOptimizer {
             console.log(`[FSRS Optimizer] Success. New weights:`, optimizedWeights);
             return optimizedWeights;
         } catch (e) {
-            console.error(`[FSRS Optimizer] Training failed. Falling back to current weights. Error:`, e);
-            return currentWeights;
+            console.error(`[FSRS Optimizer] Training failed. Error:`, e);
+            throw e;
         }
     }
 }

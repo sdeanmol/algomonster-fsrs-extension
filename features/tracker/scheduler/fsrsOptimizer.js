@@ -25,10 +25,10 @@ class FsrsOptimizer {
 
     computeEligibility(history, threshold = 1000) {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
-        
+
         let reviewCount = 0;
         let uniqueCards = new Set();
-        
+
         history.forEach(card => {
             if (card.historyLog && card.historyLog.length > 1) {
                 reviewCount += (card.historyLog.length - 1);
@@ -56,7 +56,7 @@ class FsrsOptimizer {
                     const reviews = [];
                     let firstLog = card.historyLog[0];
                     let firstDate = typeof firstLog === 'object' ? firstLog.date : firstLog;
-                    
+
                     let hasValidDeltaT = false;
                     card.historyLog.forEach((log, index) => {
                         let ratingNum = 3;
@@ -68,12 +68,12 @@ class FsrsOptimizer {
                             else if (log.rating === 'good') ratingNum = 3;
                             else if (log.rating === 'easy') ratingNum = 4;
                             else if (typeof log.rating === 'number') ratingNum = log.rating;
-                            
+
                             logDate = log.date;
                         } else {
                             logDate = log;
                         }
-                        
+
                         let deltaT = 0;
                         if (index > 0) {
                             let prevLog = card.historyLog[index - 1];
@@ -84,7 +84,7 @@ class FsrsOptimizer {
 
                         reviews.push(new binding.FSRSBindingReview(ratingNum, deltaT));
                     });
-                    
+
                     if (hasValidDeltaT) {
                         trainSet.push(new binding.FSRSBindingItem(reviews));
                     }
@@ -104,14 +104,14 @@ class FsrsOptimizer {
             console.log(`[FSRS Optimizer] Training on ${trainSet.length} cards...`);
             const optimizedWeights = await binding.computeParameters(trainSet, {
                 enableShortTerm: false,
-                timeout: 900000 
+                timeout: 900000
             });
-            
+
             console.log(`[FSRS Optimizer] Success. New weights:`, optimizedWeights);
             return optimizedWeights;
         } catch (e) {
-            console.error(`[FSRS Optimizer] Training failed. Falling back to current weights. Error:`, e);
-            return currentWeights;
+            console.error(`[FSRS Optimizer] Training failed. Falling back to faster optimizer Error:`, e);
+            throw e;
         }
     }
 }
