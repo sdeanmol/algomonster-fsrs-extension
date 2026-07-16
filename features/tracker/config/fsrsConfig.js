@@ -139,7 +139,7 @@ class FSRSConfigManager {
         const statusMsg = document.getElementById('opt-status-msg');
 
         // Setup simple CSS dots animation for the button
-        btn.innerHTML = 'Training<span id="train-dots">...</span>';
+        btn.innerHTML = 'Training<span id="train-dots" style="display:inline-block; width:1.2em; text-align:left;">...</span>';
         btn.disabled = true;
 
         statusMsg.textContent = 'Training in progress... This may take a few minutes depending on your device.';
