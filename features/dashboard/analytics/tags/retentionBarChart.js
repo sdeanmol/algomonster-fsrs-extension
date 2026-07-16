@@ -27,6 +27,14 @@ export class RetentionBarChart {
         // Display top 10 max for neatness
         stats = stats.slice(0, 10);
 
+        const getTagColorClass = (dueCount) => {
+            if (dueCount === 0) return 'tag-color-4'; // Green (No due)
+            if (dueCount <= 5) return 'tag-color-2'; // Light Blue (Few due)
+            if (dueCount <= 10) return 'tag-color-5'; // Yellow/Orange (Some due)
+            if (dueCount <= 20) return 'tag-color-1'; // Pink (Many due)
+            return 'tag-color-6'; // Red (A lot due)
+        };
+
         let html = '<div class="retention-bars-container">';
         
         stats.forEach(s => {
@@ -51,9 +59,11 @@ export class RetentionBarChart {
                 displayVal = `${s.lapses}`;
             }
 
+            const colorClass = getTagColorClass(s.due);
+
             html += `
                 <div class="h-bar-row">
-                    <div class="h-bar-label">${s.tag}</div>
+                    <div class="h-bar-label"><span class="tag-badge clickable-tag ${colorClass}" data-tag="${s.tag}" style="cursor:pointer;" title="View all cards for this tag">${s.tag}</span></div>
                     <div class="h-bar-track-wrapper">
                         <div class="h-bar-track">
                             <div class="h-bar-fill" style="width:${val}%; background: var(--md-primary);"></div>
@@ -66,5 +76,15 @@ export class RetentionBarChart {
 
         html += '</div>';
         container.innerHTML = html;
+
+        // Add event listeners for clickable tags
+        const clickableTags = container.querySelectorAll('.clickable-tag');
+        clickableTags.forEach(tagSpan => {
+            tagSpan.addEventListener('click', () => {
+                const tag = tagSpan.getAttribute('data-tag');
+                const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=total&tag=${encodeURIComponent(tag)}`);
+                chrome.tabs.create({ url: dataUrl });
+            });
+        });
     }
 }

@@ -30,14 +30,21 @@ export class CoverageTable {
                 <tbody>
         `;
 
+        const getTagColorClass = (dueCount) => {
+            if (dueCount === 0) return 'tag-color-4'; // Green (No due)
+            if (dueCount <= 5) return 'tag-color-2'; // Light Blue (Few due)
+            if (dueCount <= 10) return 'tag-color-5'; // Yellow/Orange (Some due)
+            if (dueCount <= 20) return 'tag-color-1'; // Pink (Many due)
+            return 'tag-color-6'; // Red (A lot due)
+        };
+
         stats.forEach(s => {
             const pct = totalCards > 0 ? Math.round((s.count / totalCards) * 100) : 0;
-            // Highlight low coverage conceptually - say < 10% is low
-            const lowCovClass = (pct < 10 && totalCards > 20) ? 'coverage-low' : '';
-            
+            const colorClass = getTagColorClass(s.due);
+
             tableHtml += `
-                <tr class="${lowCovClass}">
-                    <td class="tag-name-cell"><span class="tag-badge clickable-tag" data-tag="${s.tag}" style="cursor:pointer;" title="View all cards for this tag">${s.tag}</span></td>
+                <tr>
+                    <td class="tag-name-cell"><span class="tag-badge clickable-tag ${colorClass}" data-tag="${s.tag}" style="cursor:pointer;" title="View all cards for this tag">${s.tag}</span></td>
                     <td>${s.count}</td>
                     <td class="coverage-bar-cell">
                         <div class="cov-val">${pct}%</div>

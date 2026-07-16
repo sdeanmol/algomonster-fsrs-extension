@@ -12,7 +12,7 @@ export class TagsTab {
     render(containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
-        
+
         if (!this.rendered) {
             container.innerHTML = `
                 <div class="tags-grid">
@@ -21,7 +21,14 @@ export class TagsTab {
                         <div class="ana-panel-header">
                             <span class="ana-panel-title">
                                 Tag Coverage Analysis
-                                <span class="help-icon" data-tooltip="Shows how completely each tag is represented in your total flashcard deck. Click a tag to see those specific cards.">?</span>
+                                <span class="help-icon" data-tooltip="Shows how completely each tag is represented in your total flashcard deck. Click a tag to see those specific cards. 
+
+Tag Colors (Due Cards):
+• Green: 0 due
+• Light Blue: 1-5 due
+• Yellow: 6-10 due
+• Pink: 11-20 due
+• Red: 21+ due">?</span>
                             </span>
                         </div>
                         <div id="coverage-table-container"></div>
@@ -44,7 +51,7 @@ export class TagsTab {
                     </div>
                 </div>
             `;
-            
+
             const sortBySelect = container.querySelector('#tag-sort-by');
             sortBySelect.addEventListener('change', (e) => {
                 this.retentionBarChart.setSortBy(e.target.value);
@@ -66,10 +73,10 @@ export class TagsTab {
         const stats = this.dataUtils.getStatsByTag();
         const globalStats = this.dataUtils.getSummaryStats();
         // Compare against genuine current retrievability
-        const globalRetention = globalStats.trueRetention || 90; 
-        
+        const globalRetention = globalStats.trueRetention || 90;
+
         let weakestTag = null;
-        
+
         stats.forEach(s => {
             // Only consider tags with significant data and lower than the global retention average
             if (s.count >= 5 && (!weakestTag || s.trueRetention < weakestTag.trueRetention)) {

@@ -452,8 +452,9 @@
 }
 
 .coverage-low .tag-badge {
-    border-color: var(--md-warning);
-    color: var(--md-warning);
+    border-color: var(--md-warning) !important;
+    color: var(--md-warning) !important;
+    background: transparent !important;
 }
 
 .coverage-bar-cell {
@@ -898,7 +899,7 @@
     border: 1px solid var(--md-border);
     font-size: 12px;
     font-weight: 400;
-    white-space: normal;
+    white-space: pre-wrap;
     width: max-content;
     max-width: 250px;
     line-height: 1.4;
@@ -931,3 +932,20 @@
         scroll-behavior: auto !important;
     }
 }
+
+/* Tag Color Palettes (Material Design v3 inspired) - Default (Dark) */
+.tag-badge.tag-color-0 { background: #4A4458; color: #E8DEF8; border-color: #635E70; }
+.tag-badge.tag-color-1 { background: #633B48; color: #FFD8E4; border-color: #7D5460; }
+.tag-badge.tag-color-2 { background: #004D61; color: #C3E8FF; border-color: #20677C; }
+.tag-badge.tag-color-3 { background: #00497B; color: #C2E7FF; border-color: #206395; }
+.tag-badge.tag-color-4 { background: #0F5223; color: #C4EED0; border-color: #2D6C3D; }
+.tag-badge.tag-color-5 { background: #5A4300; color: #FFDF99; border-color: #755D1A; }
+.tag-badge.tag-color-6 { background: #8C1D18; color: #F9DEDC; border-color: #A83832; }
+
+html.light-theme .tag-badge.tag-color-0 { background: #E8DEF8; color: #1D192B; border-color: #CAC4D0; }
+html.light-theme .tag-badge.tag-color-1 { background: #FFD8E4; color: #31111D; border-color: #E2BDC9; }
+html.light-theme .tag-badge.tag-color-2 { background: #C3E8FF; color: #001F2A; border-color: #A2C8DF; }
+html.light-theme .tag-badge.tag-color-3 { background: #C2E7FF; color: #001D35; border-color: #A1C6DE; }
+html.light-theme .tag-badge.tag-color-4 { background: #C4EED0; color: #00210B; border-color: #A4CCB0; }
+html.light-theme .tag-badge.tag-color-5 { background: #FFDF99; color: #251A00; border-color: #DEBF79; }
+html.light-theme .tag-badge.tag-color-6 { background: #F9DEDC; color: #410E0B; border-color: #D8C0BE; }
