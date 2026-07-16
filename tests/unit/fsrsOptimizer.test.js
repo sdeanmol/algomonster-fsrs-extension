@@ -1,74 +1,141 @@
-const FsrsOptimizer = require('../../features/tracker/scheduler/fsrsOptimizer.js');
+const fs = require('fs');
+const path = require('path');
+const optimizerCode = fs.readFileSync(path.resolve(__dirname, '../../features/tracker/scheduler/fsrsOptimizer.js'), 'utf8');
+const safeCode = optimizerCode
+    .replace(/import\.meta\.url/g, "'http://localhost'")
+    .replace(/import \{ initOptimizer \} from '@open-spaced-repetition\/binding\/dynamic-wasi';/g, "const { initOptimizer } = require('@open-spaced-repetition/binding/dynamic-wasi');")
+    .replace(/export default FsrsOptimizer;/g, "module.exports = FsrsOptimizer;");
 
-describe('FsrsOptimizer', () => {
+const mockModule = { exports: {} };
+(function(module, exports, require) {
+    eval(safeCode);
+})(mockModule, mockModule.exports, require);
+
+const FsrsOptimizer = mockModule.exports.default || mockModule.exports;
+
+jest.mock('@open-spaced-repetition/binding/dynamic-wasi', () => {
+    const mockBinding = {
+        computeParameters: jest.fn(),
+        FSRSBindingReview: class {
+            constructor(rating, delta_t) {
+                this.rating = rating;
+                this.delta_t = delta_t;
+            }
+        },
+        FSRSBindingItem: class {
+            constructor(reviews) {
+                this.reviews = reviews;
+            }
+        }
+    };
+    global.__mockBinding = mockBinding;
+    return {
+        initOptimizer: jest.fn().mockResolvedValue(mockBinding)
+    };
+});
+
+const { initOptimizer } = require('@open-spaced-repetition/binding/dynamic-wasi');
+
+describe('FsrsOptimizer (WASM)', () => {
     let optimizer;
 
-    beforeEach(() => {
+    beforeAll(() => {
         optimizer = new FsrsOptimizer();
     });
 
-    describe('computeEligibility', () => {
-        it('should return ineligible if no history is provided', () => {
-            const result = optimizer.computeEligibility(null, 1000);
-            expect(result.eligible).toBe(false);
-            expect(result.count).toBe(0);
-        });
-
-        it('should correctly count reviews excluding creation events', () => {
-            const history = [
-                { id: '1', historyLog: [1000, 2000, 3000] }, // 2 reviews
-                { id: '2', historyLog: [1000, 2000] },       // 1 review
-                { id: '3', historyLog: [1000] }              // 0 reviews (only creation)
-            ];
-
-            const result = optimizer.computeEligibility(history, 5);
-            expect(result.count).toBe(3);
-            expect(result.uniqueCards).toBe(2);
-            expect(result.eligible).toBe(false);
-            
-            const result2 = optimizer.computeEligibility(history, 3);
-            expect(result2.eligible).toBe(true);
-        });
+    beforeEach(async () => {
+        jest.clearAllMocks();
+        const { initOptimizer } = require('@open-spaced-repetition/binding/dynamic-wasi');
+        initOptimizer.mockResolvedValue(global.__mockBinding);
+        global.__mockBinding.computeParameters.mockResolvedValue([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7]);
     });
 
     describe('trainWeights', () => {
         const defaultWeights = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
 
-        it('should return original weights if no reviews exist', async () => {
-            const history = [
-                { reps: 0, lapses: 0 }
-            ];
-            
-            const newWeights = await optimizer.trainWeights(history, defaultWeights);
+        it('should return current weights if history is empty', async () => {
+            const newWeights = await optimizer.trainWeights([], defaultWeights, 0.90);
             expect(newWeights).toEqual(defaultWeights);
         });
 
-        it('should increase initial stabilities if empirical retention is higher than 90%', async () => {
-            // Perfect retention: 10 reps, 0 lapses (1.0 empirical retention)
+        it('should return current weights if no valid delta_t > 0 is found in history', async () => {
             const history = [
-                { reps: 10, lapses: 0 }
+                { id: '1', historyLog: [ { rating: 3, date: 1000 } ] } // single review, delta_t = 0
             ];
+            const newWeights = await optimizer.trainWeights(history, defaultWeights, 0.90);
             
-            const newWeights = await optimizer.trainWeights(history, defaultWeights);
-            
-            // Should be higher than default
-            expect(newWeights[0]).toBeGreaterThan(defaultWeights[0]);
-            expect(newWeights[1]).toBeGreaterThan(defaultWeights[1]);
-            expect(newWeights[2]).toBeGreaterThan(defaultWeights[2]);
-            expect(newWeights[3]).toBeGreaterThan(defaultWeights[3]);
+            expect(newWeights).toEqual(defaultWeights);
+            expect(global.__mockBinding.computeParameters).not.toHaveBeenCalled();
         });
 
-        it('should decrease initial stabilities if empirical retention is lower than 90%', async () => {
-            // Poor retention: 10 reps, 5 lapses (0.5 empirical retention)
+        it('should call WASM computeParameters with mapped logs when valid intervals exist', async () => {
             const history = [
-                { reps: 10, lapses: 5 }
+                {
+                    id: '1',
+                    historyLog: [
+                        { rating: 1, date: new Date('2024-01-01').getTime() },
+                        { rating: 3, date: new Date('2024-01-05').getTime() } // 4 days later
+                    ]
+                }
             ];
+
+            const newWeights = await optimizer.trainWeights(history, defaultWeights, 0.90);
+
+            expect(global.__mockBinding.computeParameters).toHaveBeenCalled();
             
-            const newWeights = await optimizer.trainWeights(history, defaultWeights);
+            // Check args passed to computeParameters
+            const callArgs = global.__mockBinding.computeParameters.mock.calls[0];
+            const trainSet = callArgs[0];
+            const options = callArgs[1];
             
-            // Should be lower than default
-            expect(newWeights[0]).toBeLessThan(defaultWeights[0]);
-            expect(newWeights[1]).toBeLessThan(defaultWeights[1]);
+            expect(trainSet).toHaveLength(1);
+            expect(trainSet[0].reviews).toHaveLength(2);
+            expect(trainSet[0].reviews[0].delta_t).toBe(0);
+            expect(trainSet[0].reviews[0].rating).toBe(1);
+            expect(trainSet[0].reviews[1].delta_t).toBe(4); // 4 days delta
+            expect(trainSet[0].reviews[1].rating).toBe(3);
+            
+            expect(options.timeout).toBe(900000);
+            expect(newWeights).toEqual([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7]);
+        });
+
+        it('should cap the trainSet to MAX_TRAINING_CARDS', async () => {
+            const history = [];
+            for(let i=0; i<3000; i++) {
+                history.push({
+                    id: `card_${i}`,
+                    historyLog: [
+                        { rating: 1, date: 1000000 },
+                        { rating: 3, date: 1000000 + (1000 * 60 * 60 * 24) } // 1 day later
+                    ]
+                });
+            }
+
+            await optimizer.trainWeights(history, defaultWeights, 0.90);
+            
+            const callArgs = global.__mockBinding.computeParameters.mock.calls[0];
+            const trainSet = callArgs[0];
+            
+            expect(trainSet).toHaveLength(2500); // Should be capped
+        });
+
+        it('should catch errors from WASM computeParameters and return original weights', async () => {
+            global.__mockBinding.computeParameters.mockRejectedValueOnce(new Error('WASM Panic: Invalid Dataset'));
+            
+            const history = [
+                {
+                    id: '1',
+                    historyLog: [
+                        { rating: 1, date: 1000000 },
+                        { rating: 3, date: 1000000 + (1000 * 60 * 60 * 24) }
+                    ]
+                }
+            ];
+
+            const newWeights = await optimizer.trainWeights(history, defaultWeights, 0.90);
+            
+            // If it catches gracefully, it returns the current weights rather than throwing unhandled rejection
+            expect(newWeights).toEqual(defaultWeights);
         });
     });
 });

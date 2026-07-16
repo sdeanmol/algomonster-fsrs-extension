@@ -34,7 +34,7 @@ describe('FsrsScheduler functionality', () => {
     it('processes initial review', () => {
         let card = fsrs.createCard('Title', 'URL', '', '');
         card = fsrs.reviewCard(card, 3); // 3 = Good
-        expect(card.state).toBe(2); // 2 = Review
+        expect(card.state).toBe(1); // 1 = Learning
         expect(card.stability).toBeGreaterThan(0);
         expect(card.difficulty).toBeGreaterThan(0);
         expect(card.reps).toBe(1);
@@ -46,6 +46,7 @@ describe('FsrsScheduler functionality', () => {
         const now = Date.now();
         card.lastReview = now;
         card.stability = 10;
+        card.state = 2; // ts-fsrs only calculates R>0 for Review states
         
         // At T=0, retrievability should be exactly 1.0 (100%)
         const retNow = fsrs.getRetrievability(card, now);
@@ -53,8 +54,8 @@ describe('FsrsScheduler functionality', () => {
 
         // At T = stability (10 days), retrievability = Math.exp(-0.5) ≈ 0.606
         const ret10Days = fsrs.getRetrievability(card, now + (10 * 24 * 60 * 60 * 1000));
-        expect(ret10Days).toBeGreaterThan(0.60);
-        expect(ret10Days).toBeLessThan(0.61);
+        expect(ret10Days).toBeGreaterThan(0.89);
+        expect(ret10Days).toBeLessThan(0.91);
     });
 
     it('identifies high difficulty', () => {

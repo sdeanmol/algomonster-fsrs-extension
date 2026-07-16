@@ -49,7 +49,7 @@ class FsrsOptimizer {
 
         try {
             const binding = await getBinding();
-            const trainSet = [];
+            let trainSet = [];
 
             history.forEach(card => {
                 if (card.historyLog && card.historyLog.length > 0) {
