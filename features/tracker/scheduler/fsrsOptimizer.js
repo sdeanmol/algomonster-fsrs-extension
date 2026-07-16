@@ -47,24 +47,33 @@ class FsrsOptimizer {
         history.forEach(card => {
             if (card.historyLog && card.historyLog.length > 0) {
                 const reviews = [];
-                let firstDate = card.historyLog[0].date;
+                let firstLog = card.historyLog[0];
+                let firstDate = typeof firstLog === 'object' ? firstLog.date : firstLog;
                 
                 card.historyLog.forEach((log, index) => {
-                    // Map algomonster string ratings to FSRS numeric ratings
-                    // 1: Again, 2: Hard, 3: Good, 4: Easy
                     let ratingNum = 3;
-                    if (log.rating === 'again') ratingNum = 1;
-                    else if (log.rating === 'hard') ratingNum = 2;
-                    else if (log.rating === 'good') ratingNum = 3;
-                    else if (log.rating === 'easy') ratingNum = 4;
+                    let logDate;
+
+                    if (typeof log === 'object' && log !== null) {
+                        if (log.rating === 'again') ratingNum = 1;
+                        else if (log.rating === 'hard') ratingNum = 2;
+                        else if (log.rating === 'good') ratingNum = 3;
+                        else if (log.rating === 'easy') ratingNum = 4;
+                        else if (typeof log.rating === 'number') ratingNum = log.rating;
+                        
+                        logDate = log.date;
+                    } else {
+                        // Legacy support for pure timestamp arrays
+                        logDate = log;
+                    }
                     
-                    // Calculate deltaT (days since last review)
                     let deltaT = 0;
                     if (index > 0) {
-                        let prevDate = card.historyLog[index - 1].date;
-                        // Use accurate day differences, avoiding Math.round on fractional ms to match the extension's original 24h intervals
-                        deltaT = Math.round((log.date - prevDate) / (1000 * 60 * 60 * 24));
+                        let prevLog = card.historyLog[index - 1];
+                        let prevDate = typeof prevLog === 'object' ? prevLog.date : prevLog;
+                        deltaT = Math.round((logDate - prevDate) / (1000 * 60 * 60 * 24));
                     }
+
                     
                     reviews.push(new FSRSBindingReview(ratingNum, deltaT));
                 });

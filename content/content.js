@@ -52,11 +52,11 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
             if (window.Logger) window.Logger.debug('ContentScript', `Domain ${currentDomain} is whitelisted. Proceeding with init.`);
 
             if (result.fsrsGlobalParams) {
-                if (result.fsrsGlobalParams.w) this.state.fsrs.w = result.fsrsGlobalParams.w;
-                if (result.fsrsGlobalParams.decay !== undefined) this.state.fsrs.decay = result.fsrsGlobalParams.decay;
-                if (result.fsrsGlobalParams.factor !== undefined) this.state.fsrs.factor = result.fsrsGlobalParams.factor;
+                if (result.fsrsGlobalParams.w) this.state.scheduler.w = result.fsrsGlobalParams.w;
+                if (result.fsrsGlobalParams.decay !== undefined) this.state.scheduler.decay = result.fsrsGlobalParams.decay;
+                if (result.fsrsGlobalParams.factor !== undefined) this.state.scheduler.factor = result.fsrsGlobalParams.factor;
                 if (result.fsrsGlobalParams.requestRetention !== undefined) {
-                    this.state.fsrs.requestRetention = result.fsrsGlobalParams.requestRetention;
+                    this.state.scheduler.requestRetention = result.fsrsGlobalParams.requestRetention;
                 }
             }
 
@@ -216,10 +216,10 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
             }
             if (changes.fsrsGlobalParams) {
                 const params = changes.fsrsGlobalParams.newValue || {};
-                if (params.w) this.state.fsrs.w = params.w;
-                if (params.decay !== undefined) this.state.fsrs.decay = params.decay;
-                if (params.factor !== undefined) this.state.fsrs.factor = params.factor;
-                if (params.requestRetention !== undefined) this.state.fsrs.requestRetention = params.requestRetention;
+                if (params.w) this.state.scheduler.w = params.w;
+                if (params.decay !== undefined) this.state.scheduler.decay = params.decay;
+                if (params.factor !== undefined) this.state.scheduler.factor = params.factor;
+                if (params.requestRetention !== undefined) this.state.scheduler.requestRetention = params.requestRetention;
             }
             if (changes.approachDrafts) {
                 this.tracker.refreshWidgetState();

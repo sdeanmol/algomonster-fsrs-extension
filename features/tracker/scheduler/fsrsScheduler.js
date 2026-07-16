@@ -52,7 +52,7 @@ class FsrsScheduler extends BaseScheduler {
             textRead,
             approach,
             tags,
-            historyLog: [now.getTime()], // Track exactly when this was created/reviewed
+            historyLog: [{ rating: 0, date: now.getTime() }], // Track exactly when this was created/reviewed
             
             // FSRS standardized schema fields:
             due: emptyCard.due.getTime(),
@@ -73,7 +73,13 @@ class FsrsScheduler extends BaseScheduler {
         
         newCard.previousDue = card.due;
         newCard.historyLog = newCard.historyLog || [];
-        newCard.historyLog.push(now);
+        newCard.historyLog.push({ rating, date: now });
+
+        let lastReview = card.last_review;
+        if (!lastReview && card.historyLog && card.historyLog.length > 0) {
+            const lastLog = card.historyLog[card.historyLog.length - 1];
+            lastReview = typeof lastLog === 'object' ? lastLog.date : lastLog;
+        }
 
         const w = (customWeights && customWeights.length === 17) ? customWeights : this.w;
 
@@ -93,7 +99,7 @@ class FsrsScheduler extends BaseScheduler {
             reps: newCard.reps,
             lapses: newCard.lapses,
             state: newCard.state,
-            last_review: newCard.last_review ? new Date(newCard.last_review) : undefined
+            last_review: lastReview ? new Date(lastReview) : undefined
         };
 
         // ts-fsrs ratings are: 1=Again, 2=Hard, 3=Good, 4=Easy
@@ -114,7 +120,13 @@ class FsrsScheduler extends BaseScheduler {
     }
 
     getRetrievability(card, now = Date.now()) {
-        if (card.stability <= 0 || !card.last_review) {
+        let lastReview = card.last_review;
+        if (!lastReview && card.historyLog && card.historyLog.length > 0) {
+            const lastLog = card.historyLog[card.historyLog.length - 1];
+            lastReview = typeof lastLog === 'object' ? lastLog.date : lastLog;
+        }
+
+        if (card.stability <= 0 || !lastReview) {
             return 0;
         }
 
@@ -127,7 +139,7 @@ class FsrsScheduler extends BaseScheduler {
             reps: card.reps,
             lapses: card.lapses,
             state: card.state,
-            last_review: card.last_review ? new Date(card.last_review) : undefined
+            last_review: new Date(lastReview)
         };
 
         // ts-fsrs native retrievability computation
