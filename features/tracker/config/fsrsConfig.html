@@ -21,6 +21,9 @@
                 <p id="page-subtitle" class="subtitle">Fine-tune memory retention, decay constants, and FSRS weights parameters.</p>
             </div>
             <div class="header-actions">
+                <button id="reset-all-btn" class="btn btn-danger" style="margin-right: 12px;">
+                    Reset All
+                </button>
                 <button id="back-to-popup-btn" class="btn btn-secondary">
                     Close Config
                 </button>
@@ -56,6 +59,52 @@
                         <span class="input-hint">Default is 19/81 (≈0.2346). Scales stability.</span>
                     </div>
                 </div>
+
+                <div style="margin-top: 16px;">
+                    <button id="reset-global-btn" class="btn btn-secondary">Reset Global Parameters</button>
+                </div>
+            </div>
+
+            <!-- Personal Memory Optimization Card -->
+            <div class="card optimization-card">
+                <h2>🧠 Optimize for Your Personal Memory</h2>
+                <p class="section-intro">
+                    FSRS uses your historical review data to estimate your personal forgetting curve. Continue reviewing normally until you have completed at least <span id="opt-threshold-display">1000</span> reviews. Once enough data has been collected, you can optimize the scheduler so future intervals better match your own memory patterns.
+                </p>
+
+                <div class="opt-status-container">
+                    <div id="opt-progress-section">
+                        <div class="opt-progress-header">
+                            <span class="opt-progress-title">Personal Memory Training</span>
+                            <span id="opt-progress-text" class="opt-progress-text">0 / 1000 Reviews</span>
+                        </div>
+                        <div class="opt-progress-track">
+                            <div id="opt-progress-fill" class="opt-progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <p id="opt-status-msg" class="opt-status-msg">Keep reviewing to unlock personalized optimization.</p>
+                    </div>
+
+                    <div id="opt-actions-section" class="opt-actions" style="display: none; margin-top: 16px;">
+                        <button id="btn-auto-train" class="btn btn-primary">Auto Train Weights</button>
+                        <button id="btn-export-weights" class="btn btn-secondary">Export</button>
+                        <button id="reset-opt-btn" class="btn btn-secondary">Reset Optimization</button>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label for="opt-threshold-input">Minimum Required Reviews</label>
+                        <input type="number" id="opt-threshold-input" class="input-field" value="1000" min="5" style="width: 100px;">
+                        <span class="input-hint">Threshold required to unlock optimization.</span>
+                        <div id="opt-threshold-warning" class="actionable-insight-banner warning" style="display: none; margin-top: 12px; padding: 12px; flex-direction: row; align-items: flex-start; gap: 8px;">
+                            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px;">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                            <div style="font-size: 13px;">
+                                <strong style="display: block; margin-bottom: 4px; font-size: 14px;">Warning: Low Review Sample Size</strong>
+                                FSRS relies on statistical confidence. Optimizing with fewer than 1000 reviews can cause the algorithm to overfit to short-term memory anomalies. This may lead to erratic scheduling intervals. Proceed only for testing purposes.
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- FSRS Global Weights Configuration Card -->
@@ -71,7 +120,7 @@
 
                 <div class="weights-actions">
                     <button id="save-global-btn" class="btn btn-primary">Save Parameters</button>
-                    <button id="reset-defaults-btn" class="btn btn-secondary">Restore FSRS Defaults</button>
+                    <button id="reset-weights-btn" class="btn btn-secondary">Reset Coefficients</button>
                 </div>
             </div>
 
@@ -102,6 +151,7 @@
     <!-- Status message toast -->
     <div id="status-toast" class="toast"></div>
 
+    <script src="../scheduler/fsrsOptimizer.js"></script>
     <script src="fsrsConfig.js"></script>
 </body>
 </html>

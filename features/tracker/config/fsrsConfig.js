@@ -59,11 +59,131 @@ class FSRSConfigManager {
         // Save global parameters
         document.getElementById('save-global-btn').addEventListener('click', () => this.saveGlobalConfig());
 
-        // Reset defaults
-        document.getElementById('reset-defaults-btn').addEventListener('click', () => this.restoreDefaults());
+        // Reset buttons
+        document.getElementById('reset-global-btn').addEventListener('click', () => this.restoreGlobalParameters());
+        const resetOptBtn = document.getElementById('reset-opt-btn');
+        if (resetOptBtn) resetOptBtn.addEventListener('click', () => this.resetOptimization());
+        document.getElementById('reset-weights-btn').addEventListener('click', () => this.restoreWeights());
+        const resetAllBtn = document.getElementById('reset-all-btn');
+        if (resetAllBtn) resetAllBtn.addEventListener('click', () => this.restoreDefaults());
 
         // Add tag profile
         document.getElementById('add-tag-profile-btn').addEventListener('click', () => this.handleAddTagProfile());
+
+        // Optimization Listeners
+        const thresholdInput = document.getElementById('opt-threshold-input');
+        if (thresholdInput) {
+            thresholdInput.addEventListener('change', () => {
+                document.getElementById('opt-threshold-display').textContent = thresholdInput.value;
+                this.checkOptimizationEligibility();
+            });
+        }
+
+        const autoTrainBtn = document.getElementById('btn-auto-train');
+        if (autoTrainBtn) {
+            autoTrainBtn.addEventListener('click', () => this.handleAutoTrain());
+        }
+
+        const exportBtn = document.getElementById('btn-export-weights');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => this.handleExportWeights());
+        }
+    }
+
+    /**
+     * Checks history to see if enough reviews exist to unlock optimization.
+     */
+    async checkOptimizationEligibility() {
+        if (typeof FsrsOptimizer === 'undefined') return;
+
+        const result = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
+        const historyArray = result.fsrsCards || [];
+        
+        const threshold = parseInt(document.getElementById('opt-threshold-input').value) || 1000;
+        
+        const thresholdWarning = document.getElementById('opt-threshold-warning');
+        if (thresholdWarning) {
+            thresholdWarning.style.display = threshold < 1000 ? 'flex' : 'none';
+        }
+        
+        const optimizer = new FsrsOptimizer();
+        const eligibility = optimizer.computeEligibility(historyArray, threshold);
+
+        const progressFill = document.getElementById('opt-progress-fill');
+        const progressText = document.getElementById('opt-progress-text');
+        const statusMsg = document.getElementById('opt-status-msg');
+        const actionsSection = document.getElementById('opt-actions-section');
+
+        const percentage = Math.min(100, Math.round((eligibility.count / threshold) * 100));
+        progressFill.style.width = `${percentage}%`;
+        progressText.textContent = `${eligibility.count} / ${threshold} Reviews`;
+
+        if (eligibility.eligible) {
+            progressFill.style.backgroundColor = 'var(--md-primary)';
+            statusMsg.textContent = `Eligible! You have enough history to train personalized weights.`;
+            statusMsg.style.color = 'var(--md-primary)';
+            actionsSection.style.display = 'flex';
+        } else {
+            progressFill.style.backgroundColor = 'var(--md-primary-container)';
+            statusMsg.textContent = `Keep reviewing to unlock personalized optimization.`;
+            statusMsg.style.color = 'var(--md-text-low)';
+            actionsSection.style.display = 'none';
+        }
+    }
+
+    /**
+     * Executes the Auto Train weights workflow.
+     */
+    async handleAutoTrain() {
+        const btn = document.getElementById('btn-auto-train');
+        btn.textContent = 'Training...';
+        btn.disabled = true;
+
+        try {
+            const result = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
+            const historyArray = result.fsrsCards || [];
+            
+            const optimizer = new FsrsOptimizer();
+            
+            // Get current weights and target retention
+            let currentWeights = [];
+            for (let i = 0; i < 17; i++) {
+                currentWeights.push(parseFloat(document.getElementById(`weight-input-${i}`).value));
+            }
+            const targetRetention = parseFloat(document.getElementById('retention-slider').value) || 0.90;
+
+            const optimizedWeights = await optimizer.trainWeights(historyArray, currentWeights, targetRetention);
+            
+            // Save newly trained weights globally
+            this.injectWeightsInputs(optimizedWeights);
+            this.saveGlobalConfig(true);
+
+            this.showToast("Personal memory optimization successful!", false);
+            
+            document.getElementById('opt-status-msg').textContent = "Scheduler optimized successfully using your personal history!";
+            document.getElementById('opt-status-msg').style.color = 'var(--md-primary)';
+        } catch (err) {
+            console.error("Optimization failed:", err);
+            this.showToast("Optimization failed. See console.", true);
+        } finally {
+            btn.textContent = 'Auto Train Weights';
+            btn.disabled = false;
+        }
+    }
+
+    handleExportWeights() {
+        const weights = [];
+        for (let i = 0; i < 17; i++) {
+            weights.push(parseFloat(document.getElementById(`weight-input-${i}`).value));
+        }
+        
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(weights));
+        const anchor = document.createElement('a');
+        anchor.setAttribute("href", dataStr);
+        anchor.setAttribute("download", "fsrs_weights_export.json");
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
     }
 
     /**
@@ -88,6 +208,9 @@ class FSRSConfigManager {
 
             // Render tag profiles
             this.renderTagProfiles(result.fsrsTopicWeights || {});
+
+            // Check optimization eligibility
+            this.checkOptimizationEligibility();
         });
     }
 
@@ -196,10 +319,10 @@ class FSRSConfigManager {
     }
 
     /**
-     * Restores global parameters to algorithmic baseline defaults.
+     * Restores all global parameters to algorithmic baseline defaults.
      */
     restoreDefaults() {
-        if (confirm("Restore all FSRS parameters and coefficients to standard default values?")) {
+        if (confirm("Restore ALL parameters, optimization status, and coefficients to standard default values?")) {
             const newParams = {
                 w: [...this.defaultWeights],
                 decay: this.defaultDecay,
@@ -209,7 +332,58 @@ class FSRSConfigManager {
 
             chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
                 this.loadFSRSConfig();
-                this.showToast("Restored standard FSRS defaults.");
+                this.showToast("Restored all FSRS defaults.");
+            });
+        }
+    }
+
+    /**
+     * Restores only the global parameters (retention, decay, factor).
+     */
+    restoreGlobalParameters() {
+        if (confirm("Reset Global Parameters to standard defaults?")) {
+            chrome.storage.local.get(['fsrsGlobalParams'], (result) => {
+                const params = result.fsrsGlobalParams || {};
+                params.requestRetention = this.defaultRetention;
+                params.decay = this.defaultDecay;
+                params.factor = this.defaultFactor;
+                chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
+                    this.loadFSRSConfig();
+                    this.showToast("Global parameters reset.");
+                });
+            });
+        }
+    }
+
+    /**
+     * Resets optimization status (removes personalized tag and timestamp).
+     */
+    resetOptimization() {
+        if (confirm("Reset Personal Memory Optimization status?")) {
+            chrome.storage.local.get(['fsrsGlobalParams'], (result) => {
+                const params = result.fsrsGlobalParams || {};
+                delete params.version;
+                delete params.timestamp;
+                chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
+                    this.loadFSRSConfig();
+                    this.showToast("Optimization status reset.");
+                });
+            });
+        }
+    }
+
+    /**
+     * Restores only the FSRS coefficients (w0-w16).
+     */
+    restoreWeights() {
+        if (confirm("Reset FSRS Coefficients to default weights?")) {
+            chrome.storage.local.get(['fsrsGlobalParams'], (result) => {
+                const params = result.fsrsGlobalParams || {};
+                params.w = [...this.defaultWeights];
+                chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
+                    this.loadFSRSConfig();
+                    this.showToast("FSRS coefficients reset.");
+                });
             });
         }
     }

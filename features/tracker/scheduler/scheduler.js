@@ -85,6 +85,46 @@ class Scheduler {
     }
 
     /**
+     * Determines whether the current scheduler implementation supports personalized optimization.
+     * @returns {boolean} True if optimization is supported.
+     */
+    supportsOptimization() {
+        return false;
+    }
+
+    /**
+     * Trains and applies optimized scheduling parameters based on historical review data.
+     * @param {Object[]} reviewHistory - Historical review log data.
+     * @returns {Promise<Object>} The optimization results and metadata.
+     */
+    async optimize(reviewHistory) {
+        throw new Error("Method 'optimize()' is not supported by this scheduler.");
+    }
+
+    /**
+     * Resets the scheduling parameters to their algorithmic defaults.
+     */
+    resetConfiguration() {
+        throw new Error("Method 'resetConfiguration()' is not supported by this scheduler.");
+    }
+
+    /**
+     * Exports the current scheduling parameters.
+     * @returns {Object} Current configuration parameters.
+     */
+    exportConfiguration() {
+        throw new Error("Method 'exportConfiguration()' is not supported by this scheduler.");
+    }
+
+    /**
+     * Imports and applies scheduling parameters.
+     * @param {Object} config - Configuration parameters.
+     */
+    importConfiguration(config) {
+        throw new Error("Method 'importConfiguration()' is not supported by this scheduler.");
+    }
+
+    /**
      * Helper to export to CommonJS if running in Node environment for testing.
      */
 }

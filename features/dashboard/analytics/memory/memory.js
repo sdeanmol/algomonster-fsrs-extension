@@ -17,6 +17,7 @@ export class MemoryTab {
             container.innerHTML = `
                 <div class="memory-grid">
                     <div id="memory-next-action-container"></div>
+                    <div id="personal-memory-status-container"></div>
                     <div class="memory-panel ana-panel-wide">
                         <div class="ana-panel-header">
                             <span class="ana-panel-title">
@@ -70,6 +71,45 @@ export class MemoryTab {
         this.retentionChart.render('retention-curves-container');
         this.predictionComparison.render('prediction-comparison-container');
         this.renderNextAction('memory-next-action-container');
+        this.renderPersonalMemoryStatus('personal-memory-status-container');
+    }
+
+    renderPersonalMemoryStatus(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        chrome.storage.local.get(['fsrsGlobalParams'], (result) => {
+            const params = result.fsrsGlobalParams || {};
+            const isPersonalized = params.version && params.version.includes('personalized');
+            const timestamp = params.timestamp ? new Date(params.timestamp).toLocaleDateString() : 'Never';
+            
+            const stats = this.dataUtils.getSummaryStats();
+            
+            let statusBadge = '<span class="tag-badge" style="background:var(--md-surface-variant); color:var(--md-text-low);">Default Weights</span>';
+            if (isPersonalized) {
+                statusBadge = '<span class="tag-badge" style="background:var(--md-primary-container); color:var(--md-primary);">Optimized</span>';
+            }
+
+            container.innerHTML = `
+                <div class="memory-panel ana-panel-wide" style="display:flex; justify-content:space-between; align-items:center; padding:16px;">
+                    <div>
+                        <h3 style="margin:0 0 4px 0; font-size:14px;">Personal Memory Model</h3>
+                        <p style="margin:0; font-size:12px; color:var(--md-text-low);">Uses your history to predict forgetting.</p>
+                    </div>
+                    <div style="display:flex; gap:24px; align-items:center;">
+                        <div style="text-align:right;">
+                            <span style="font-size:11px; color:var(--md-text-low); display:block; text-transform:uppercase;">Source</span>
+                            ${statusBadge}
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-size:11px; color:var(--md-text-low); display:block; text-transform:uppercase;">Last Trained</span>
+                            <span style="font-size:14px; font-weight:600;">${timestamp}</span>
+                        </div>
+                        <a href="../../tracker/config/fsrsConfig.html" target="_blank" class="btn btn-secondary" style="padding:6px 12px; font-size:12px;">Configure</a>
+                    </div>
+                </div>
+            `;
+        });
     }
 
     renderNextAction(containerId) {

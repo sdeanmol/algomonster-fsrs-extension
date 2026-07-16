@@ -139,6 +139,61 @@ class FsrsScheduler extends BaseScheduler {
         // FSRS graduated criteria: state is Review and stability indicates long-term retention.
         return card.state === 2 && card.stability > 7;
     }
+
+    supportsOptimization() {
+        return true;
+    }
+
+    async optimize(reviewHistory) {
+        let OptimizerClass;
+        if (typeof FsrsOptimizer !== 'undefined') {
+            OptimizerClass = FsrsOptimizer;
+        } else if (typeof require !== 'undefined') {
+            OptimizerClass = require('./fsrsOptimizer.js');
+        } else if (typeof window !== 'undefined' && window.FsrsOptimizer) {
+            OptimizerClass = window.FsrsOptimizer;
+        }
+
+        if (!OptimizerClass) throw new Error("FsrsOptimizer class not found.");
+        
+        const optimizer = new OptimizerClass();
+        const optimizedWeights = await optimizer.trainWeights(reviewHistory, this.w, this.requestRetention);
+        
+        this.w = optimizedWeights;
+        
+        return {
+            status: 'success',
+            newWeights: optimizedWeights,
+            timestamp: Date.now(),
+            version: '1.0.0-personalized'
+        };
+    }
+
+    resetConfiguration() {
+        this.w = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
+        this.decay = -0.5;
+        this.factor = 19 / 81;
+        this.requestRetention = 0.90;
+    }
+
+    exportConfiguration() {
+        return {
+            w: [...this.w],
+            decay: this.decay,
+            factor: this.factor,
+            requestRetention: this.requestRetention
+        };
+    }
+
+    importConfiguration(config) {
+        if (!config) return;
+        if (config.w && Array.isArray(config.w) && config.w.length === 17) {
+            this.w = config.w;
+        }
+        if (config.decay !== undefined) this.decay = parseFloat(config.decay);
+        if (config.factor !== undefined) this.factor = parseFloat(config.factor);
+        if (config.requestRetention !== undefined) this.requestRetention = parseFloat(config.requestRetention);
+    }
 }
 
 if (typeof module !== 'undefined' && module.exports) {
