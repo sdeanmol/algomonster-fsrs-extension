@@ -3,17 +3,16 @@
  * @description Lightweight JavaScript optimizer for personalized FSRS weights.
  */
 
-import { initOptimizer } from '@open-spaced-repetition/binding/dynamic-wasi';
+
 
 let _bindingInstance = null;
-const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-binding.wasm32-wasi.wasm', import.meta.url);
-
 async function getBinding() {
     if (!_bindingInstance) {
-        _bindingInstance = await initOptimizer({
-            wasm: wasmUrl,
-            worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', import.meta.url))
-        });
+        // Explicitly import the inline WASI implementation that executes synchronously
+        // in the current thread (the fsrsOptimizer.worker.js thread), avoiding the 
+        // SharedArrayBuffer deadlock caused by dynamic-wasi crossing worker boundaries!
+        const binding = await import('@open-spaced-repetition/binding-wasm32-wasi');
+        _bindingInstance = binding;
     }
     return _bindingInstance;
 }
@@ -118,7 +117,7 @@ class FsrsOptimizer {
             
             const optimizedWeights = await binding.computeParameters(trainSet, {
                 enableShortTerm: false,
-                timeout: 900000,
+                timeout: 1000,
                 progress: (current, total) => {
                     if (onProgress) onProgress(current, total);
                 }

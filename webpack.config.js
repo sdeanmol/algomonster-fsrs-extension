@@ -47,6 +47,7 @@ module.exports = {
               '**/*.ts',
               '**/tracker/config/fsrsConfig.js',
               '**/tracker/scheduler/fsrsScheduler.js',
+              '**/tracker/scheduler/fsrsOptimizer.worker.js',
               '**/tracker/scheduler/fsrsOptimizer.js',
               '**/tracker/scheduler/fsrsOptimizerFast.js'
             ] 

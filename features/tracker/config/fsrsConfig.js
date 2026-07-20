@@ -5,8 +5,7 @@
  * and custom per-topic profiles mapped directly to tags.
  */
 
-import FsrsOptimizer from '../scheduler/fsrsOptimizer.js';
-import FsrsOptimizerFast from '../scheduler/fsrsOptimizerFast.js';
+
 
 class FSRSConfigManager {
     constructor() {
@@ -14,6 +13,7 @@ class FSRSConfigManager {
         this.defaultDecay = -0.5;
         this.defaultFactor = 0.234567;
         this.defaultRetention = 0.90;
+        this.optimizerWorker = null;
 
         this.weightsHelp = [
             "w0: Initial stability for Again rating",
@@ -166,30 +166,56 @@ class FSRSConfigManager {
             }
             const targetRetention = parseFloat(document.getElementById('retention-slider').value) || 0.90;
 
-            let optimizedWeights;
-            const onProgress = (current, total) => {
-                console.log(`[FSRS] Progress callback fired: ${current}/${total}`);
-            };
-
-            try {
-                // Try using the WASM optimizer first
-                const optimizer = new FsrsOptimizer();
-
-                // Add a timeout fallback around the execution
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error("Training timed out after 1 minute.")), 60000)
-                );
-
-                optimizedWeights = await Promise.race([
-                    optimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress),
-                    timeoutPromise
-                ]);
-            } catch (wasmError) {
-                console.warn("WASM Optimizer failed. Falling back to Fast JS Optimizer.", wasmError);
-                // Fallback to the Fast JS heuristic optimizer
-                const fastOptimizer = new FsrsOptimizerFast();
-                optimizedWeights = await fastOptimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress);
+            if (!this.optimizerWorker) {
+                this.optimizerWorker = new Worker(new URL('../scheduler/fsrsOptimizer.worker.js', import.meta.url));
             }
+
+            let dotIntervalCleared = false;
+            const optimizedWeights = await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error("Training timed out after 1 minute. The dataset might be too large or the algorithm failed to converge."));
+                }, 60000);
+
+                this.optimizerWorker.onmessage = (e) => {
+                    if (e.data.action === 'trainWeightsResult') {
+                        clearTimeout(timeout);
+                        if (e.data.success) {
+                            resolve(e.data.optimizedWeights);
+                        } else {
+                            reject(new Error(e.data.error));
+                        }
+                    } else if (e.data.action === 'progress') {
+                        const { current, total } = e.data;
+                        console.log(`[FSRS] Progress callback fired: ${current}/${total}`);
+                        const statusMsg = document.getElementById('opt-status-msg');
+                        if (statusMsg) {
+                            statusMsg.textContent = `Optimizing: ${current} / ${total} steps completed...`;
+                        }
+                        
+                        if (!dotIntervalCleared) {
+                            clearInterval(dotInterval);
+                            dotIntervalCleared = true;
+                            const dots = document.getElementById('train-dots');
+                            if (dots) dots.textContent = ''; // Clear the generic dots
+                        }
+                        
+                        // Optionally update a progress bar if we add one later
+                        const fill = document.getElementById('opt-progress-fill');
+                        if (fill && total > 0) {
+                            const percent = Math.min(100, Math.round((current / total) * 100));
+                            fill.style.width = `${percent}%`;
+                        }
+                    }
+                };
+                this.optimizerWorker.onerror = (err) => {
+                    clearTimeout(timeout);
+                    reject(err);
+                };
+                this.optimizerWorker.postMessage({
+                    action: 'trainWeights',
+                    payload: { history: historyArray, currentWeights, targetRetention }
+                });
+            });
 
             // Save newly trained weights globally
             this.injectWeightsInputs(optimizedWeights);
