@@ -12,7 +12,7 @@ async function getBinding() {
     if (!_bindingInstance) {
         _bindingInstance = await initOptimizer({
             wasm: wasmUrl,
-            worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', import.meta.url), { type: 'module' })
+            worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', import.meta.url))
         });
     }
     return _bindingInstance;
@@ -74,18 +74,28 @@ class FsrsOptimizer {
                             logDate = log;
                         }
 
-                        let deltaT = 0;
-                        if (index > 0) {
-                            let prevLog = card.historyLog[index - 1];
-                            let prevDate = typeof prevLog === 'object' ? prevLog.date : prevLog;
-                            deltaT = Math.round((logDate - prevDate) / (1000 * 60 * 60 * 24));
-                            if (deltaT > 0) hasValidDeltaT = true;
-                        }
+                        // Only valid FSRS ratings (1-4) should be passed to the optimizer
+                        if (ratingNum >= 1 && ratingNum <= 4) {
+                            let deltaT = 0;
+                            
+                            // For FSRS, the first actual review MUST have delta_t = 0.
+                            // Subsequent reviews calculate delta_t based on the previous log.
+                            if (reviews.length > 0 && index > 0) {
+                                let prevLog = card.historyLog[index - 1];
+                                let prevDate = typeof prevLog === 'object' ? prevLog.date : prevLog;
+                                deltaT = Math.round((logDate - prevDate) / (1000 * 60 * 60 * 24));
+                                if (deltaT < 0) deltaT = 0;
+                            }
 
-                        reviews.push(new binding.FSRSBindingReview(ratingNum, deltaT));
+                            if (deltaT > 0) hasValidDeltaT = true;
+                            
+                            reviews.push(new binding.FSRSBindingReview(ratingNum, deltaT));
+                        }
                     });
 
-                    if (hasValidDeltaT) {
+                    // We only want to train on cards that have actually been reviewed more than once
+                    // (i.e. they have at least one follow-up review with deltaT > 0)
+                    if (hasValidDeltaT && reviews.length > 1) {
                         trainSet.push(new binding.FSRSBindingItem(reviews));
                     }
                 }
@@ -102,6 +112,7 @@ class FsrsOptimizer {
             }
 
             console.log(`[FSRS Optimizer] Training on ${trainSet.length} cards...`);
+            
             const optimizedWeights = await binding.computeParameters(trainSet, {
                 enableShortTerm: false,
                 timeout: 900000

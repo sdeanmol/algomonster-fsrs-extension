@@ -12,6 +12,7 @@ class FSRSConfigManager {
         this.defaultDecay = -0.5;
         this.defaultFactor = 0.234567;
         this.defaultRetention = 0.90;
+        this.optimizerWorker = null;
 
         this.weightsHelp = [
             "w0: Initial stability for Again rating",
@@ -164,15 +165,16 @@ class FSRSConfigManager {
             }
             const targetRetention = parseFloat(document.getElementById('retention-slider').value) || 0.90;
 
-            const worker = new Worker(new URL('../scheduler/fsrsOptimizer.worker.js', import.meta.url), { type: 'module' });
+            if (!this.optimizerWorker) {
+                this.optimizerWorker = new Worker(new URL('../scheduler/fsrsOptimizer.worker.js', import.meta.url));
+            }
 
             const optimizedWeights = await new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    reject(new Error("Training timed out after 20 minutes. The WASM module might have failed to initialize or the dataset is very large."));
-                    worker.terminate();
-                }, 1200000);
+                    reject(new Error("Training timed out after 1 minute. The dataset might be too large or the algorithm failed to converge."));
+                }, 60000);
 
-                worker.onmessage = (e) => {
+                this.optimizerWorker.onmessage = (e) => {
                     if (e.data.action === 'trainWeightsResult') {
                         clearTimeout(timeout);
                         if (e.data.success) {
@@ -180,15 +182,13 @@ class FSRSConfigManager {
                         } else {
                             reject(new Error(e.data.error));
                         }
-                        worker.terminate();
                     }
                 };
-                worker.onerror = (err) => {
+                this.optimizerWorker.onerror = (err) => {
                     clearTimeout(timeout);
                     reject(err);
-                    worker.terminate();
                 };
-                worker.postMessage({
+                this.optimizerWorker.postMessage({
                     action: 'trainWeights',
                     payload: { history: historyArray, currentWeights, targetRetention }
                 });
@@ -414,7 +414,7 @@ class FSRSConfigManager {
                     const display = document.getElementById('opt-threshold-display');
                     if (display) display.textContent = '1000';
                 }
-                
+
                 this.loadFSRSConfig();
                 this.showToast("Restored all FSRS defaults.");
             });
