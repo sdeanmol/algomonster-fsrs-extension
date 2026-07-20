@@ -4,6 +4,7 @@
  */
 
 import { initOptimizer } from '@open-spaced-repetition/binding/dynamic-wasi';
+import { Rating } from 'ts-fsrs';
 
 let _bindingInstance = null;
 const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-binding.wasm32-wasi.wasm', import.meta.url);
@@ -59,14 +60,14 @@ class FsrsOptimizer {
 
                     let hasValidDeltaT = false;
                     card.historyLog.forEach((log, index) => {
-                        let ratingNum = 3;
+                        let ratingNum = Rating.Good;
                         let logDate;
 
                         if (typeof log === 'object' && log !== null) {
-                            if (log.rating === 'again') ratingNum = 1;
-                            else if (log.rating === 'hard') ratingNum = 2;
-                            else if (log.rating === 'good') ratingNum = 3;
-                            else if (log.rating === 'easy') ratingNum = 4;
+                            if (log.rating === 'again') ratingNum = Rating.Again;
+                            else if (log.rating === 'hard') ratingNum = Rating.Hard;
+                            else if (log.rating === 'good') ratingNum = Rating.Good;
+                            else if (log.rating === 'easy') ratingNum = Rating.Easy;
                             else if (typeof log.rating === 'number') ratingNum = log.rating;
 
                             logDate = log.date;
@@ -75,7 +76,7 @@ class FsrsOptimizer {
                         }
 
                         // Only valid FSRS ratings (1-4) should be passed to the optimizer
-                        if (ratingNum >= 1 && ratingNum <= 4) {
+                        if (ratingNum >= Rating.Again && ratingNum <= Rating.Easy) {
                             let deltaT = 0;
 
                             // For FSRS, the first actual review MUST have delta_t = 0.

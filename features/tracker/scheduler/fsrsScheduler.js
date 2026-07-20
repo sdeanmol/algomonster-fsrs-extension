@@ -52,7 +52,7 @@ class FsrsScheduler extends BaseScheduler {
             textRead,
             approach,
             tags,
-            historyLog: [{ rating: 0, date: now.getTime() }], // Track exactly when this was created/reviewed
+            historyLog: [{ rating: Rating.Manual, date: now.getTime() }], // Track exactly when this was created/reviewed
             
             // FSRS standardized schema fields:
             due: emptyCard.due.getTime(),
@@ -163,7 +163,7 @@ class FsrsScheduler extends BaseScheduler {
 
     isGraduated(card) {
         // FSRS graduated criteria: state is Review (2) and stability indicates long-term retention.
-        return card.state === 2 && card.stability > 7;
+        return card.state === State.Review && card.stability > 7;
     }
 
 
