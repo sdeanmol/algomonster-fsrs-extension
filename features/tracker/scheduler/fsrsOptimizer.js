@@ -101,7 +101,10 @@ class FsrsOptimizer {
                 }
             });
 
-            if (trainSet.length === 0) return currentWeights;
+            if (trainSet.length === 0) {
+                console.warn(`[FSRS Optimizer] Skipping WASM optimization because trainSet is empty. You need cards with multiple days of reviews (deltaT > 0).`);
+                return currentWeights;
+            }
 
             // Cap the trainSet to a maximum limit to prevent WASM OOM or extreme timeouts
             const MAX_TRAINING_CARDS = 2500;

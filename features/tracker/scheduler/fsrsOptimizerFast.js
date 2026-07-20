@@ -55,7 +55,10 @@ class FsrsOptimizer {
             }
         });
 
-        if (totalReps === 0) return w; // No data to learn from
+        if (totalReps === 0) {
+            console.warn(`[FSRS Optimizer Fast] Skipping optimization because there are 0 total reps across all cards.`);
+            return w; // No data to learn from
+        }
 
         const empiricalRetention = (totalReps - totalLapses) / totalReps;
 
@@ -73,6 +76,12 @@ class FsrsOptimizer {
 
             // Adjust difficulty baseline slightly
             w[4] = Math.max(1, Math.min(10, w[4] - adjustment * 0.5));
+            
+            if (onProgress) {
+                onProgress(i + 1, this.epochs);
+                // Yield to event loop to allow UI to paint the progress update
+                await new Promise(r => setTimeout(r, 10));
+            }
         }
 
         // Return a rounded version of weights

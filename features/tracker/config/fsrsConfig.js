@@ -168,30 +168,18 @@ class FSRSConfigManager {
 
             let optimizedWeights;
             const onProgress = (current, total) => {
-                const statusMsg = document.getElementById('opt-status-msg');
-                if (statusMsg) {
-                    statusMsg.textContent = `Optimizing: ${current} / ${total} steps completed...`;
-                }
-                const dots = document.getElementById('train-dots');
-                if (dots) dots.textContent = ''; // Clear the generic dots when real progress starts
-                
-                // Optionally update a progress bar if we add one later
-                const fill = document.getElementById('opt-progress-fill');
-                if (fill && total > 0) {
-                    const percent = Math.min(100, Math.round((current / total) * 100));
-                    fill.style.width = `${percent}%`;
-                }
+                console.log(`[FSRS] Progress callback fired: ${current}/${total}`);
             };
 
             try {
                 // Try using the WASM optimizer first
                 const optimizer = new FsrsOptimizer();
-                
+
                 // Add a timeout fallback around the execution
-                const timeoutPromise = new Promise((_, reject) => 
+                const timeoutPromise = new Promise((_, reject) =>
                     setTimeout(() => reject(new Error("Training timed out after 1 minute.")), 60000)
                 );
-                
+
                 optimizedWeights = await Promise.race([
                     optimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress),
                     timeoutPromise
