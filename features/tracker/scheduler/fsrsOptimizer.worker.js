@@ -21,18 +21,18 @@ self.onmessage = async (e) => {
         if (action === 'trainWeights') {
             const { history, currentWeights, targetRetention } = payload;
             let optimizedWeights;
-            
+
             try {
                 // Try using the WASM optimizer first
                 const optimizer = new FsrsOptimizer();
                 optimizedWeights = await optimizer.trainWeights(history, currentWeights, targetRetention);
             } catch (wasmError) {
-                console.warn("WASM Optimizer failed or panicked. Falling back to Fast JS Optimizer.", wasmError);
+                console.warn("WASM Optimizer failed. Falling back to Fast JS Optimizer.", wasmError);
                 // Fallback to the Fast JS heuristic optimizer
                 const fastOptimizer = new FsrsOptimizerFast();
                 optimizedWeights = await fastOptimizer.trainWeights(history, currentWeights, targetRetention);
             }
-            
+
             self.postMessage({ action: 'trainWeightsResult', success: true, optimizedWeights });
         }
     } catch (err) {
