@@ -39,7 +39,7 @@ class FsrsOptimizer {
      * Tunes initial stability weights (w[0]-w[3]) based on empirical retention vs target retention.
      * Used as a fallback because WASM binding for exact log-loss gradient descent can fail on certain MV3 environments.
      */
-    async trainWeights(history, currentWeights, targetRetention = 0.90) {
+    async trainWeights(history, currentWeights, targetRetention = 0.90, onProgress = null) {
         let w = [...currentWeights];
 
         // Ensure we don't block UI if processing thousands of items

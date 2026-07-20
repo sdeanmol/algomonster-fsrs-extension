@@ -44,7 +44,7 @@ class FsrsOptimizer {
         };
     }
 
-    async trainWeights(history, currentWeights, targetRetention = 0.90) {
+    async trainWeights(history, currentWeights, targetRetention = 0.90, onProgress = null) {
         if (!history || history.length === 0) return currentWeights;
 
         try {
@@ -115,7 +115,10 @@ class FsrsOptimizer {
             
             const optimizedWeights = await binding.computeParameters(trainSet, {
                 enableShortTerm: false,
-                timeout: 900000
+                timeout: 900000,
+                progress: (current, total) => {
+                    if (onProgress) onProgress(current, total);
+                }
             });
 
             console.log(`[FSRS Optimizer] Success. New weights:`, optimizedWeights);
