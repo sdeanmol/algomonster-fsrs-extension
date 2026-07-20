@@ -144,7 +144,7 @@ class FSRSConfigManager {
         btn.innerHTML = 'Training<span id="train-dots" style="display:inline-block; width:1.2em; text-align:left;">...</span>';
         btn.disabled = true;
 
-        statusMsg.textContent = 'Training in progress... This can take up to 15 minutes for very large histories. Please keep this tab open.';
+        statusMsg.textContent = 'Training in progress... This can take up to 5 minutes for very large histories. Please keep this tab open.';
         statusMsg.style.color = 'var(--md-primary)';
 
         // Simple dot animation interval
@@ -175,15 +175,8 @@ class FSRSConfigManager {
                 // Try using the WASM optimizer first
                 const optimizer = new FsrsOptimizer();
 
-                // Add a timeout fallback around the execution
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error("Training timed out after 1 minute.")), 60000)
-                );
 
-                optimizedWeights = await Promise.race([
-                    optimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress),
-                    timeoutPromise
-                ]);
+                optimizedWeights = await optimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress)
             } catch (wasmError) {
                 console.warn("WASM Optimizer failed. Falling back to Fast JS Optimizer.", wasmError);
                 // Fallback to the Fast JS heuristic optimizer
@@ -193,7 +186,7 @@ class FSRSConfigManager {
 
             // Save newly trained weights globally
             this.injectWeightsInputs(optimizedWeights);
-            this.saveGlobalConfig(true);
+            this.saveGlobalConfig();
 
             this.showToast("Personal memory optimization successful!", false);
 

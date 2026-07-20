@@ -77,7 +77,7 @@ class FsrsOptimizer {
                         // Only valid FSRS ratings (1-4) should be passed to the optimizer
                         if (ratingNum >= 1 && ratingNum <= 4) {
                             let deltaT = 0;
-                            
+
                             // For FSRS, the first actual review MUST have delta_t = 0.
                             // Subsequent reviews calculate delta_t based on the previous log.
                             if (reviews.length > 0 && index > 0) {
@@ -88,7 +88,7 @@ class FsrsOptimizer {
                             }
 
                             if (deltaT > 0) hasValidDeltaT = true;
-                            
+
                             reviews.push(new binding.FSRSBindingReview(ratingNum, deltaT));
                         }
                     });
@@ -115,10 +115,10 @@ class FsrsOptimizer {
             }
 
             console.log(`[FSRS Optimizer] Training on ${trainSet.length} cards...`);
-            
+
             const optimizedWeights = await binding.computeParameters(trainSet, {
                 enableShortTerm: false,
-                timeout: 900000,
+                timeout: 60000,
                 progress: (current, total) => {
                     if (onProgress) onProgress(current, total);
                 }

@@ -43,7 +43,7 @@ class FsrsOptimizer {
         let w = [...currentWeights];
 
         // Ensure we don't block UI if processing thousands of items
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 6000));
 
         let totalReps = 0;
         let totalLapses = 0;
@@ -76,16 +76,17 @@ class FsrsOptimizer {
 
             // Adjust difficulty baseline slightly
             w[4] = Math.max(1, Math.min(10, w[4] - adjustment * 0.5));
-            
+
             if (onProgress) {
                 onProgress(i + 1, this.epochs);
                 // Yield to event loop to allow UI to paint the progress update
                 await new Promise(r => setTimeout(r, 10));
             }
         }
-
+        optimizedWeights = w.map(weight => Math.round(weight * 10000) / 10000);
+        console.log(`[FSRS Optimizer Fast] Success. New weights:`, optimizedWeights);
         // Return a rounded version of weights
-        return w.map(weight => Math.round(weight * 10000) / 10000);
+        return optimizedWeights
     }
 }
 
