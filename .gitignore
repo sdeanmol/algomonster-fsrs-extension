@@ -27,3 +27,4 @@ test-results/
 release.zip
 *.zip
 *.tar.gz
+build/

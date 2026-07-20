@@ -68,8 +68,8 @@ class AlgoRecallBackground {
         await this.setupDailyNudgeAlarm();
         Logger.debug('Background', `Extension installed/updated. Reason: ${details ? details.reason : 'unknown'}`);
         
-        // Redirect to Onboarding Welcome page on initial install
-        if (details && details.reason === 'install') {
+        // Redirect to Onboarding Welcome page on initial install (and update for debugging)
+        if (details && (details.reason === 'install' || details.reason === 'update')) {
             chrome.tabs.create({ url: chrome.runtime.getURL('features/common/welcome/welcome.html') });
         } else {
             chrome.notifications.create('test-install', {

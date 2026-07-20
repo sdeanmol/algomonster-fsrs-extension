@@ -13,7 +13,7 @@ module.exports = {
     assetModuleFilename: 'dist/[hash][ext][query]',
     publicPath: '/'
   },
-  devtool: 'source-map',
+  devtool: 'inline-source-map',
   module: {
     rules: [
       // No loaders needed, native Chrome V8 handles modern JS

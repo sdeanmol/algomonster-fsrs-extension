@@ -1,1 +1,264 @@
-window.AlgoRecall=window.AlgoRecall||{},window.AlgoRecall.HeatmapDashboard=class{constructor(){this.activityData={},this.monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"]}init(){chrome.storage.local.get(["fsrsActivity"],e=>{this.activityData=e.fsrsActivity||{},window.AlgoRecall.state=window.AlgoRecall.state||{},window.AlgoRecall.state.activityData=this.activityData,this.setupFilters(),this.renderHeatmap()})}setupFilters(){const e=document.getElementById("filter-type"),t=document.getElementById("select-year"),a=document.getElementById("select-month"),s=document.getElementById("select-day"),n=new Date,i=n.getFullYear().toString(),l=(n.getMonth()+1).toString().padStart(2,"0"),o=n.getDate().toString().padStart(2,"0");let r=new Set([i]);Object.keys(this.activityData).forEach(e=>r.add(e.split("-")[0])),t.innerHTML=Array.from(r).sort().reverse().map(e=>`<option value="${e}">${e}</option>`).join(""),t.value=i;const d=()=>{const e=t.value;let s=new Set;if(Object.keys(this.activityData).filter(t=>t.startsWith(e)).forEach(e=>s.add(e.split("-")[1])),0===s.size)for(let e=1;e<=12;e++)s.add(e.toString().padStart(2,"0"));a.innerHTML=Array.from(s).sort().map(e=>`<option value="${e}">${this.monthNames[parseInt(e)-1]}</option>`).join(""),e===i&&s.has(l)?a.value=l:a.value=a.options[0].value},c=()=>{const e=t.value,n=a.value;let r=new Set;if(Object.keys(this.activityData).filter(t=>t.startsWith(`${e}-${n}`)).forEach(e=>r.add(e.split("-")[2])),0===r.size){const t=new Date(parseInt(e),parseInt(n),0).getDate();for(let e=1;e<=t;e++)r.add(e.toString().padStart(2,"0"))}s.innerHTML=Array.from(r).sort().map(e=>`<option value="${e}">Day ${parseInt(e)}</option>`).join(""),e===i&&n===l&&r.has(o)?s.value=o:s.value=s.options[0].value};d(),c(),e.addEventListener("change",()=>{const n=e.value;t.classList.toggle("hide-select","lifetime"===n),a.classList.toggle("hide-select","month-wise"!==n&&"day-wise"!==n),s.classList.toggle("hide-select","day-wise"!==n),this.renderHeatmap()}),t.addEventListener("change",()=>{d(),c(),this.renderHeatmap()}),a.addEventListener("change",()=>{c(),this.renderHeatmap()}),s.addEventListener("change",()=>this.renderHeatmap())}renderHeatmap(){const e=document.getElementById("full-heatmap-grid"),t=document.getElementById("filter-summary-text");if(!e)return;e.innerHTML="";const a=document.getElementById("filter-type").value,s=document.getElementById("select-year").value,n=document.getElementById("select-month").value,i=document.getElementById("select-day").value;let l,o,r=0;const d=parseInt(s,10),c=parseInt(n,10)-1,m=parseInt(i,10);if("lifetime"===a){const e=new Date,a=Object.keys(this.activityData).sort();if(a.length>0){const t=a[0].split("-"),s=new Date(parseInt(t[0],10),parseInt(t[1],10)-1,parseInt(t[2],10));s.setDate(s.getDate()-s.getDay());const n=e.getTime()-s.getTime();o=Math.max(364,Math.floor(n/864e5)+1),l=s}else o=364,l=new Date(e),l.setDate(e.getDate()-o+1),l.setDate(l.getDate()-l.getDay());t&&(t.innerText="Showing: Full Academic History")}else if("year-wise"===a){l=new Date(d,0,1),l.setDate(l.getDate()-l.getDay());const e=new Date(d,11,31).getTime()-l.getTime();o=Math.floor(e/864e5)+1,t&&(t.innerText=`Showing: Full Year ${d}`)}else if("month-wise"===a){l=new Date(d,c,1),l.setDate(l.getDate()-l.getDay());const e=new Date(d,c+1,0).getTime()-l.getTime();o=Math.floor(e/864e5)+1,t&&(t.innerText=`Showing: ${this.monthNames[c]} ${d}`)}else"day-wise"===a&&(l=new Date(d,c,m),l.setDate(l.getDate()-l.getDay()),o=7,t&&(t.innerText=`Target: ${this.monthNames[c]} ${m}, ${d}`));for(let t=0;t<o;t++){const o=new Date(l);o.setDate(l.getDate()+t);const d=new Date(o.getTime()-6e4*o.getTimezoneOffset()).toISOString().split("T")[0],c=o.getFullYear().toString(),m=(o.getMonth()+1).toString().padStart(2,"0"),g=o.getDate().toString().padStart(2,"0");let h=this.activityData[d]||0;const y=document.createElement("div");y.className="heatmap-cell",y.setAttribute("role","button"),y.setAttribute("tabindex","0");const p=o.toLocaleDateString(void 0,{weekday:"short",month:"short",day:"numeric",year:"numeric"}),u=1===h?`1 review on ${p}`:`${h} reviews on ${p}`;y.title=u,y.setAttribute("aria-label",u);let v=!1;if("year-wise"===a&&c!==s&&(v=!0),"month-wise"!==a||c===s&&m===n||(v=!0),"day-wise"!==a||c===s&&m===n&&g===i||(v=!0),v)y.style.opacity="0.08",y.style.pointerEvents="none",y.classList.add("level-0");else{r+=h,0===h?y.classList.add("level-0"):h<=2?y.classList.add("level-1"):h<=5?y.classList.add("level-2"):h<=8?y.classList.add("level-3"):y.classList.add("level-4");const e=()=>{chrome.tabs.create({url:`features/common/data/data.html?view=history&date=${d}`})};y.addEventListener("click",e),y.addEventListener("keydown",t=>{"Enter"!==t.key&&" "!==t.key||(t.preventDefault(),e())})}e.appendChild(y)}t&&r>0&&(t.innerText+=` (${r} Total Reviews)`),window.AlgoRecall.HeatmapStats&&window.AlgoRecall.HeatmapStats.renderStatsDashboard(this.activityData),setTimeout(()=>{const e=document.querySelector(".heatmap-wrapper");e&&"lifetime"===a&&(e.scrollLeft=e.scrollWidth)},50)}},document.addEventListener("DOMContentLoaded",()=>{(new window.AlgoRecall.HeatmapDashboard).init()});
+window.AlgoRecall = window.AlgoRecall || {};
+
+/**
+ * @class HeatmapDashboard
+ * @description Main controller for the dedicated full-screen contribution heatmap page.
+ * Manages calendar date cascades, filters (lifetime, yearly, monthly, weekly), SVG cell grids,
+ * and handles click events to query historical reviews details for specific days.
+ */
+window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
+    constructor() {
+        this.activityData = {};
+        this.monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    }
+
+    /**
+     * Initializes activity settings from storage and binds cascaded filter listeners.
+     */
+    init() {
+        chrome.storage.local.get(['fsrsActivity'], (result) => {
+            this.activityData = result.fsrsActivity || {};
+            
+            // Populate backup compatibility state
+            window.AlgoRecall.state = window.AlgoRecall.state || {};
+            window.AlgoRecall.state.activityData = this.activityData;
+            
+            this.setupFilters();
+            this.renderHeatmap();
+        });
+    }
+
+    /**
+     * Initializes and wires select dropdown filter nodes (year, month, day selectors)
+     * dynamically based on years populated in activity data history.
+     */
+    setupFilters() {
+        const typeSelect = document.getElementById('filter-type');
+        const yearSelect = document.getElementById('select-year');
+        const monthSelect = document.getElementById('select-month');
+        const daySelect = document.getElementById('select-day');
+
+        const today = new Date();
+        const currentYear = today.getFullYear().toString();
+        const currentMonth = (today.getMonth() + 1).toString().padStart(2, '0');
+        const currentDay = today.getDate().toString().padStart(2, '0');
+
+        // Ensure current year is always available and selected by default
+        let years = new Set([currentYear]); 
+        Object.keys(this.activityData).forEach(d => years.add(d.split('-')[0]));
+        
+        yearSelect.innerHTML = Array.from(years).sort().reverse().map(y => `<option value="${y}">${y}</option>`).join('');
+        yearSelect.value = currentYear;
+
+        // Safely cascade Month updates
+        const updateMonthDropdown = () => {
+            const targetYear = yearSelect.value;
+            let activeMonths = new Set();
+            
+            Object.keys(this.activityData).filter(d => d.startsWith(targetYear)).forEach(d => activeMonths.add(d.split('-')[1]));
+            
+            if (activeMonths.size === 0) {
+                for(let i=1; i<=12; i++) activeMonths.add(i.toString().padStart(2, '0'));
+            }
+            
+            monthSelect.innerHTML = Array.from(activeMonths).sort().map(m => `<option value="${m}">${this.monthNames[parseInt(m)-1]}</option>`).join('');
+            
+            if (targetYear === currentYear && activeMonths.has(currentMonth)) {
+                monthSelect.value = currentMonth;
+            } else {
+                monthSelect.value = monthSelect.options[0].value;
+            }
+        };
+
+        // Safely cascade Day updates
+        const updateDayDropdown = () => {
+            const targetYear = yearSelect.value;
+            const targetMonth = monthSelect.value;
+            let activeDays = new Set();
+            
+            Object.keys(this.activityData).filter(d => d.startsWith(`${targetYear}-${targetMonth}`)).forEach(d => activeDays.add(d.split('-')[2]));
+            
+            if (activeDays.size === 0) {
+                const daysInMonth = new Date(parseInt(targetYear), parseInt(targetMonth), 0).getDate();
+                for(let i=1; i<=daysInMonth; i++) activeDays.add(i.toString().padStart(2, '0'));
+            }
+            
+            daySelect.innerHTML = Array.from(activeDays).sort().map(d => `<option value="${d}">Day ${parseInt(d)}</option>`).join('');
+            
+            if (targetYear === currentYear && targetMonth === currentMonth && activeDays.has(currentDay)) {
+                daySelect.value = currentDay;
+            } else {
+                daySelect.value = daySelect.options[0].value;
+            }
+        };
+
+        updateMonthDropdown();
+        updateDayDropdown();
+
+        // Attach Event Listeners
+        typeSelect.addEventListener('change', () => {
+            const mode = typeSelect.value;
+            yearSelect.classList.toggle('hide-select', mode === 'lifetime');
+            monthSelect.classList.toggle('hide-select', mode !== 'month-wise' && mode !== 'day-wise');
+            daySelect.classList.toggle('hide-select', mode !== 'day-wise');
+            this.renderHeatmap();
+        });
+
+        yearSelect.addEventListener('change', () => {
+            updateMonthDropdown();
+            updateDayDropdown();
+            this.renderHeatmap();
+        });
+
+        monthSelect.addEventListener('change', () => {
+            updateDayDropdown();
+            this.renderHeatmap();
+        });
+
+        daySelect.addEventListener('change', () => this.renderHeatmap());
+    }
+
+    /**
+     * Computes grid sizing bounds based on selected filters, resets grid contents,
+     * and appends interactive cells with visual colors matching review activity levels.
+     */
+    renderHeatmap() {
+        const grid = document.getElementById('full-heatmap-grid');
+        const summaryText = document.getElementById('filter-summary-text');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        const mode = document.getElementById('filter-type').value;
+        const chosenYear = document.getElementById('select-year').value;
+        const chosenMonth = document.getElementById('select-month').value;
+        const chosenDay = document.getElementById('select-day').value;
+
+        let startDate, totalDays;
+        let totalReviewsCalculated = 0;
+
+        const y = parseInt(chosenYear, 10);
+        const m = parseInt(chosenMonth, 10) - 1; 
+        const d = parseInt(chosenDay, 10);
+
+        if (mode === 'lifetime') {
+            const today = new Date();
+            const activeDates = Object.keys(this.activityData).sort();
+            
+            if (activeDates.length > 0) {
+                const parts = activeDates[0].split('-');
+                const oldestDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                oldestDate.setDate(oldestDate.getDate() - oldestDate.getDay()); 
+                
+                const diffTime = today.getTime() - oldestDate.getTime();
+                totalDays = Math.max(364, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1); 
+                startDate = oldestDate;
+            } else {
+                totalDays = 364; 
+                startDate = new Date(today);
+                startDate.setDate(today.getDate() - totalDays + 1);
+                startDate.setDate(startDate.getDate() - startDate.getDay()); 
+            }
+            if (summaryText) summaryText.innerText = "Showing: Full Academic History";
+        } 
+        else if (mode === 'year-wise') {
+            startDate = new Date(y, 0, 1);
+            startDate.setDate(startDate.getDate() - startDate.getDay()); 
+            
+            const endOfYear = new Date(y, 11, 31);
+            const diffTime = endOfYear.getTime() - startDate.getTime();
+            totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            if (summaryText) summaryText.innerText = `Showing: Full Year ${y}`;
+        } 
+        else if (mode === 'month-wise') {
+            startDate = new Date(y, m, 1);
+            startDate.setDate(startDate.getDate() - startDate.getDay()); 
+            
+            const lastDayOfMonth = new Date(y, m + 1, 0);
+            const diffTime = lastDayOfMonth.getTime() - startDate.getTime();
+            totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            if (summaryText) summaryText.innerText = `Showing: ${this.monthNames[m]} ${y}`;
+        } 
+        else if (mode === 'day-wise') {
+            startDate = new Date(y, m, d);
+            startDate.setDate(startDate.getDate() - startDate.getDay()); 
+            totalDays = 7; 
+            if (summaryText) summaryText.innerText = `Target: ${this.monthNames[m]} ${d}, ${y}`;
+        }
+
+        // Render loop
+        for (let i = 0; i < totalDays; i++) {
+            const cellDate = new Date(startDate);
+            cellDate.setDate(startDate.getDate() + i);
+            
+            const dateString = new Date(cellDate.getTime() - (cellDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            const currentYearString = cellDate.getFullYear().toString();
+            const currentMonthString = (cellDate.getMonth() + 1).toString().padStart(2, '0');
+            const currentDayString = cellDate.getDate().toString().padStart(2, '0');
+
+            let count = this.activityData[dateString] || 0;
+            
+            const cell = document.createElement('div');
+            cell.className = 'heatmap-cell';
+            cell.setAttribute('role', 'button');
+            cell.setAttribute('tabindex', '0');
+            
+            const displayDate = cellDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            const ariaLabelText = count === 1 ? `1 review on ${displayDate}` : `${count} reviews on ${displayDate}`;
+            cell.title = ariaLabelText;
+            cell.setAttribute('aria-label', ariaLabelText);
+
+            let isOutsideFilterRange = false;
+            if (mode === 'year-wise' && currentYearString !== chosenYear) isOutsideFilterRange = true;
+            if (mode === 'month-wise' && (currentYearString !== chosenYear || currentMonthString !== chosenMonth)) isOutsideFilterRange = true;
+            if (mode === 'day-wise' && (currentYearString !== chosenYear || currentMonthString !== chosenMonth || currentDayString !== chosenDay)) isOutsideFilterRange = true;
+
+            if (isOutsideFilterRange) {
+                cell.style.opacity = "0.08"; 
+                cell.style.pointerEvents = "none";
+                cell.classList.add('level-0');
+            } else {
+                totalReviewsCalculated += count;
+                if (count === 0) cell.classList.add('level-0');
+                else if (count <= 2) cell.classList.add('level-1');
+                else if (count <= 5) cell.classList.add('level-2');
+                else if (count <= 8) cell.classList.add('level-3');
+                else cell.classList.add('level-4');
+
+                const handleCellClick = () => {
+                    chrome.tabs.create({ url: `features/common/data/data.html?view=history&date=${dateString}` });
+                };
+
+                cell.addEventListener('click', handleCellClick);
+                
+                cell.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleCellClick();
+                    }
+                });
+            }
+
+            grid.appendChild(cell);
+        }
+
+        if (summaryText && totalReviewsCalculated > 0) {
+            summaryText.innerText += ` (${totalReviewsCalculated} Total Reviews)`;
+        }
+
+        // Render Stats Dashboard
+        if (window.AlgoRecall.HeatmapStats) {
+            window.AlgoRecall.HeatmapStats.renderStatsDashboard(this.activityData);
+        }
+
+        // Scroll Grid
+        setTimeout(() => {
+            const wrapper = document.querySelector('.heatmap-wrapper');
+            if (wrapper && mode === 'lifetime') wrapper.scrollLeft = wrapper.scrollWidth;
+        }, 50);
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const dashboard = new window.AlgoRecall.HeatmapDashboard();
+    dashboard.init();
+});

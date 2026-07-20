@@ -1,1 +1,95 @@
-import{DashboardComponent}from"./DashboardComponent.js";export class HeatmapComponent extends DashboardComponent{constructor(e){super(e),this.isLifetimeView=!1}async load(e=!1){try{const t=(await chrome.storage.local.get(["fsrsActivity"])).fsrsActivity||{},s=document.getElementById("heatmap-grid");if(!s)return;s.innerHTML="";const i=new Date,a=i.getDay();let o=0,n=new Date(i);if(e&&Object.keys(t).length>0){const e=Object.keys(t).sort()[0].split("-"),s=new Date(e[0],e[1]-1,e[2]);s.setDate(s.getDate()-s.getDay());const a=i.getTime()-s.getTime();o=Math.floor(a/864e5)+1,n=s}else o=77+(a+1),n.setDate(i.getDate()-o+1);for(let e=0;e<o;e++){const i=new Date(n);i.setDate(n.getDate()+e);const a=new Date(i.getTime()-6e4*i.getTimezoneOffset()).toISOString().split("T")[0],o=t[a]||0,l=document.createElement("div");l.className="heatmap-cell";const r=1===o?`1 review on ${a}`:`${o} reviews on ${a}`;l.title=r,l.setAttribute("role","img"),l.setAttribute("aria-label",r),l.setAttribute("tabindex","0"),0===o?l.classList.add("level-0"):o<=2?l.classList.add("level-1"):o<=5?l.classList.add("level-2"):o<=8?l.classList.add("level-3"):l.classList.add("level-4"),s.appendChild(l)}setTimeout(()=>{s.scrollLeft=s.scrollWidth},10)}catch(e){console.error("Error rendering heatmap:",e)}}bindEvents(){const e=document.getElementById("toggle-lifetime-btn");e&&e.addEventListener("click",()=>{this.isLifetimeView=!this.isLifetimeView,e.innerText=this.isLifetimeView?"Show Last 12 Weeks":"Show Lifetime",this.load(this.isLifetimeView)})}}
+import { DashboardComponent } from './DashboardComponent.js';
+
+/**
+ * @class HeatmapComponent
+ * @extends DashboardComponent
+ * @description Renders a contribution activity heatmap grid inside the dashboard popup.
+ * Calculates review volume metrics grouped by calendar date string in user's timezone.
+ */
+export class HeatmapComponent extends DashboardComponent {
+    constructor(coordinator) {
+        super(coordinator);
+        this.isLifetimeView = false;
+    }
+
+    /**
+     * Loads FSRS review activity counts from storage and renders heat cells inside grid containers.
+     * Supports showing lifetime counts or constraints to the last 12 weeks.
+     * @param {boolean} [lifetime=false] - If true, scales from the oldest recorded review date; otherwise, shows last 12 weeks.
+     */
+    async load(lifetime = false) {
+        try {
+            const result = await chrome.storage.local.get(['fsrsActivity']);
+            const activity = result.fsrsActivity || {};
+            const grid = document.getElementById('heatmap-grid');
+            if (!grid) return;
+            
+            grid.innerHTML = ''; 
+
+            const today = new Date();
+            const dayOfWeek = today.getDay(); 
+            
+            let totalDays = 0;
+            let startDate = new Date(today);
+
+            if (lifetime && Object.keys(activity).length > 0) {
+                const dateKeys = Object.keys(activity).sort();
+                const oldestDateParts = dateKeys[0].split('-'); 
+                const oldestDate = new Date(oldestDateParts[0], oldestDateParts[1] - 1, oldestDateParts[2]);
+                oldestDate.setDate(oldestDate.getDate() - oldestDate.getDay());
+                
+                const diffTime = today.getTime() - oldestDate.getTime();
+                totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; 
+                startDate = oldestDate;
+            } else {
+                totalDays = (11 * 7) + (dayOfWeek + 1); 
+                startDate.setDate(today.getDate() - totalDays + 1);
+            }
+
+            for (let i = 0; i < totalDays; i++) {
+                const cellDate = new Date(startDate);
+                cellDate.setDate(startDate.getDate() + i);
+                
+                const dateString = new Date(cellDate.getTime() - (cellDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                const count = activity[dateString] || 0;
+
+                const cell = document.createElement('div');
+                cell.className = 'heatmap-cell';
+                
+                const ariaLabelText = count === 1 ? `1 review on ${dateString}` : `${count} reviews on ${dateString}`;
+                cell.title = ariaLabelText;
+                cell.setAttribute('role', 'img'); // Or 'gridcell' if part of a grid, 'img' is simpler for purely visual data
+                cell.setAttribute('aria-label', ariaLabelText);
+                cell.setAttribute('tabindex', '0');
+
+                if (count === 0) cell.classList.add('level-0');
+                else if (count <= 2) cell.classList.add('level-1');
+                else if (count <= 5) cell.classList.add('level-2');
+                else if (count <= 8) cell.classList.add('level-3');
+                else cell.classList.add('level-4');
+
+                grid.appendChild(cell);
+            }
+
+            setTimeout(() => {
+                grid.scrollLeft = grid.scrollWidth;
+            }, 10);
+        } catch (error) {
+            console.error("Error rendering heatmap:", error);
+        }
+    }
+
+    /**
+     * Binds click events for lifetime view toggle interactions.
+     */
+    bindEvents() {
+        const toggleLifetimeBtn = document.getElementById('toggle-lifetime-btn');
+        if (toggleLifetimeBtn) {
+            toggleLifetimeBtn.addEventListener('click', () => {
+                this.isLifetimeView = !this.isLifetimeView;
+                toggleLifetimeBtn.innerText = this.isLifetimeView ? "Show Last 12 Weeks" : "Show Lifetime";
+                this.load(this.isLifetimeView);
+            });
+        }
+    }
+}

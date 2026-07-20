@@ -1,1 +1,329 @@
-window.AlgoRecall=window.AlgoRecall||{},window.AlgoRecall.Orchestrator=class{constructor(){window.Logger&&window.Logger.info("ContentScript","Orchestrator initializing..."),this.state=window.AlgoRecall.state,this.utils=window.AlgoRecall.Utils,this.notifier=window.AlgoRecall.Notifier,this.highlighter=new window.AlgoRecall.Highlighter,this.tracker=new window.AlgoRecall.Tracker,this.domObserver=null}async init(){window.Logger&&window.Logger.time("ContentScript","Init Storage Load"),chrome.storage.local.get(["fsrsCards","fsrsTopicWeights","marks","bookmarks","pagecontents","chromeSettings","theme","whitelistedWebsites","fsrsGlobalParams"],e=>{window.Logger&&window.Logger.timeEnd("ContentScript","Init Storage Load");const t=e.whitelistedWebsites||[{domain:"algo.monster"},{domain:"systemdesignschool.io"},{domain:"codeforces.com"},{domain:"leetcode.com"},{domain:"codechef.com"},{domain:"atcoder.jp"},{domain:"hackerrank.com"},{domain:"hackerearth.com"},{domain:"codewars.com"},{domain:"codingame.com"}],s=window.location.hostname;t.some(e=>s.includes(e.domain))?(window.Logger&&window.Logger.debug("ContentScript",`Domain ${s} is whitelisted. Proceeding with init.`),e.fsrsGlobalParams&&(e.fsrsGlobalParams.w&&(this.state.scheduler.w=e.fsrsGlobalParams.w),void 0!==e.fsrsGlobalParams.decay&&(this.state.scheduler.decay=e.fsrsGlobalParams.decay),void 0!==e.fsrsGlobalParams.factor&&(this.state.scheduler.factor=e.fsrsGlobalParams.factor),void 0!==e.fsrsGlobalParams.requestRetention&&(this.state.scheduler.requestRetention=e.fsrsGlobalParams.requestRetention)),e.fsrsCards&&(this.state.cards=e.fsrsCards),e.fsrsTopicWeights&&(this.state.topicWeights=e.fsrsTopicWeights),e.marks&&(this.state.marks=e.marks),e.bookmarks&&(this.state.bookmarks=e.bookmarks),e.pagecontents&&(this.state.pagecontents=e.pagecontents),e.theme&&(this.state.currentTheme=e.theme),e.chromeSettings&&(this.state.chromeSettings={...this.state.chromeSettings,...e.chromeSettings}),this.state.chromeSettings.palettes&&0!==this.state.chromeSettings.palettes.length||(this.state.chromeSettings.palettes=[{name:"Default",colors:["#f1c40f","#e74c3c","#3498db","#2ecc71","#9b59b6"]},{name:"Warm Pastels",colors:["#ffadad","#ffd6a5","#fdffb6","#caffbf","#9bf6ff"]},{name:"Ocean Breeze",colors:["#a8dadc","#457b9d","#1d3557","#e63946","#f1faee"]},{name:"Forest Moss",colors:["#2d6a4f","#40916c","#52b788","#74c69d","#95d5b2"]},{name:"Sunset Glow",colors:["#f72585","#7209b7","#3f0712","#f77f00","#fcbf49"]}],this.state.chromeSettings.activePaletteIndex=0),this.tracker.createUI(),this.highlighter.createHighlighterUI(),this.highlighter.applyHighlightsForCurrentPage(),this.bindEvents(),this.setupMutationObserver()):window.Logger&&window.Logger.info("ContentScript",`Domain ${s} is not whitelisted. Exiting.`)})}bindEvents(){document.addEventListener("click",e=>{e.target.closest('a, button, [role="button"]')&&(setTimeout(this.triggerAggressiveUIUpdate.bind(this),50),setTimeout(this.triggerAggressiveUIUpdate.bind(this),400))}),chrome.storage.onChanged.addListener(this.handleStorageChanged.bind(this)),chrome.runtime.onMessage.addListener(this.handleMessage.bind(this))}setupMutationObserver(){this.domObserver=new MutationObserver(()=>{clearTimeout(this.state.highlightDebounceTimer),this.state.highlightDebounceTimer=setTimeout(()=>{this.highlighter.applyHighlightsForCurrentPage(),document.body&&(document.getElementById("algo-fsrs-launcher")||this.tracker.createUI(),document.getElementById("algo-highlight-tooltip")||this.highlighter.createHighlighterUI()),window.location.href!==this.state.lastCheckedUrl&&this.triggerAggressiveUIUpdate()},100)}),this.domObserver.observe(document.body,{childList:!0,subtree:!0,characterData:!0})}handleStorageChanged(e,t){if(window.Logger&&window.Logger.debug("ContentScript",`Storage changed in ${t}`,Object.keys(e)),"local"===t){if(e.chromeSettings){this.state.chromeSettings={...this.state.chromeSettings,...e.chromeSettings.newValue};const t=document.getElementById("algo-highlight-tooltip");if(this.state.chromeSettings.showMarkerPopup){const e=window.getSelection();if(e&&!e.isCollapsed&&""!==e.toString().trim()&&t&&"none"===t.style.display){const s=e.getRangeAt(0),o=s.getClientRects();let i=o.length>0?o[o.length-1]:null;if(!i){const e=s.getBoundingClientRect();e&&(e.width>0||e.height>0)&&(i=e)}i&&(this.highlighter.renderTooltipColors(null,null),t.style.display="flex",t.style.left=`${i.right+window.scrollX}px`,t.style.top=`${i.bottom+window.scrollY}px`)}}else t&&(t.style.display="none")}if(e.fsrsCards&&(this.state.cards=e.fsrsCards.newValue||[],this.tracker.refreshWidgetState()),e.fsrsTopicWeights&&(this.state.topicWeights=e.fsrsTopicWeights.newValue||{}),e.marks&&(this.state.marks=e.marks.newValue||[],this.highlighter.applyHighlightsForCurrentPage()),e.bookmarks&&(this.state.bookmarks=e.bookmarks.newValue||[]),e.pagecontents&&(this.state.pagecontents=e.pagecontents.newValue||[]),e.whitelistedWebsites){const t=window.location.hostname;(e.whitelistedWebsites.newValue||[{domain:"algo.monster"},{domain:"systemdesignschool.io"},{domain:"codeforces.com"},{domain:"leetcode.com"},{domain:"codechef.com"},{domain:"atcoder.jp"},{domain:"hackerrank.com"},{domain:"hackerearth.com"},{domain:"codewars.com"},{domain:"codingame.com"}]).some(e=>t.includes(e.domain))?!document.getElementById("algo-fsrs-overlay")&&document.body&&(this.tracker.createUI(),this.highlighter.createHighlighterUI()):(this.highlighter.removeHighlighterUI(),this.tracker.removeUI())}if(e.fsrsGlobalParams){const t=e.fsrsGlobalParams.newValue||{};t.w&&(this.state.scheduler.w=t.w),void 0!==t.decay&&(this.state.scheduler.decay=t.decay),void 0!==t.factor&&(this.state.scheduler.factor=t.factor),void 0!==t.requestRetention&&(this.state.scheduler.requestRetention=t.requestRetention)}e.approachDrafts&&this.tracker.refreshWidgetState(),e.theme&&(this.state.currentTheme=e.theme.newValue||"dark",this.applyThemeClass())}}handleMessage(e,t,s){if(window.Logger&&window.Logger.debug("ContentScript",`Received message: ${e.action}`),"spa_url_changed"===e.action&&setTimeout(this.triggerAggressiveUIUpdate.bind(this),50),"show_custom_notification"===e.action)try{this.notifier.showPageNotification(e.title,e.message,e.type,e.count),s&&s({success:!0})}catch(e){window.Logger&&window.Logger.error("ContentScript","Failed to show page notification",e),s&&s({success:!1,error:e.message})}}triggerAggressiveUIUpdate(){if(this.state.lastCheckedUrl=window.location.href,!document.getElementById("algo-fsrs-container")&&document.body)this.tracker.createUI();else{const e=document.getElementById("algo-fsrs-launcher"),t=document.getElementById("algo-fsrs-container");e&&t&&"block"!==t.style.display&&(e.style.display="flex");const s=document.getElementById("fsrs-current-tags");s&&(s.innerText=this.utils.getAutoTags().join(", ")),this.tracker.refreshWidgetState()}this.highlighter.applyHighlightsForCurrentPage()}applyThemeClass(){const e=document.getElementById("algo-fsrs-launcher"),t=document.getElementById("algo-fsrs-container"),s=document.getElementById("algo-highlight-tooltip"),o="light"===this.state.currentTheme;e&&e.classList.toggle("light-theme",o),t&&t.classList.toggle("light-theme",o),s&&s.classList.toggle("light-theme",o),document.querySelectorAll(".algo-custom-notification").forEach(e=>{e.classList.toggle("light-theme",o)})}},document.addEventListener("DOMContentLoaded",()=>{window.AlgoRecall.orchestrator=new window.AlgoRecall.Orchestrator,window.AlgoRecall.orchestrator.init()}),"interactive"!==document.readyState&&"complete"!==document.readyState||window.AlgoRecall.orchestrator||(window.AlgoRecall.orchestrator=new window.AlgoRecall.Orchestrator,window.AlgoRecall.orchestrator.init()),window.addEventListener("error",function(e){window.Logger&&e.filename&&e.filename.includes(chrome.runtime.id)&&window.Logger.error("ContentScript","Unhandled runtime error",{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,error:e.error})}),window.addEventListener("unhandledrejection",function(e){window.Logger&&window.Logger.error("ContentScript","Unhandled promise rejection",e.reason)});
+window.AlgoRecall = window.AlgoRecall || {};
+
+/**
+ * @class AlgoRecallOrchestrator
+ * @description Main content script orchestrator injected into whitelisted coding domains.
+ * Initializes settings, cards, and styling configurations from storage, boots the highlighter and tracker UI overlays,
+ * registers click triggers for SPA client-side navigations, and monitors DOM updates via MutationObserver.
+ */
+window.AlgoRecall.Orchestrator = class Orchestrator {
+    constructor() {
+        if (window.Logger) {
+            window.Logger.info('ContentScript', 'Orchestrator initializing...');
+        }
+        this.state = window.AlgoRecall.state;
+        this.utils = window.AlgoRecall.Utils;
+        this.notifier = window.AlgoRecall.Notifier;
+        
+        // Instantiate component controllers
+        this.highlighter = new window.AlgoRecall.Highlighter();
+        this.tracker = new window.AlgoRecall.Tracker();
+        
+        this.domObserver = null;
+    }
+
+    /**
+     * Initializes the orchestrator and components.
+     */
+    async init() {
+        if (window.Logger) window.Logger.time('ContentScript', 'Init Storage Load');
+        chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result) => {
+            if (window.Logger) window.Logger.timeEnd('ContentScript', 'Init Storage Load');
+            // Verify whitelisting
+            const whitelistedWebsites = result.whitelistedWebsites || [
+                { domain: "algo.monster" },
+                { domain: "systemdesignschool.io" },
+                { domain: "codeforces.com" },
+                { domain: "leetcode.com" },
+                { domain: "codechef.com" },
+                { domain: "atcoder.jp" },
+                { domain: "hackerrank.com" },
+                { domain: "hackerearth.com" },
+                { domain: "codewars.com" },
+                { domain: "codingame.com" }
+            ];
+
+            const currentDomain = window.location.hostname;
+            const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
+            if (!isWhitelisted) {
+                if (window.Logger) window.Logger.info('ContentScript', `Domain ${currentDomain} is not whitelisted. Exiting.`);
+                return; // Exit early, disabled by user
+            }
+            if (window.Logger) window.Logger.debug('ContentScript', `Domain ${currentDomain} is whitelisted. Proceeding with init.`);
+
+            if (result.fsrsGlobalParams) {
+                if (result.fsrsGlobalParams.w) this.state.scheduler.w = result.fsrsGlobalParams.w;
+                if (result.fsrsGlobalParams.decay !== undefined) this.state.scheduler.decay = result.fsrsGlobalParams.decay;
+                if (result.fsrsGlobalParams.factor !== undefined) this.state.scheduler.factor = result.fsrsGlobalParams.factor;
+                if (result.fsrsGlobalParams.requestRetention !== undefined) {
+                    this.state.scheduler.requestRetention = result.fsrsGlobalParams.requestRetention;
+                }
+            }
+
+            if (result.fsrsCards) this.state.cards = result.fsrsCards;
+            if (result.fsrsTopicWeights) this.state.topicWeights = result.fsrsTopicWeights;
+
+            if (result.marks) this.state.marks = result.marks;
+            if (result.bookmarks) this.state.bookmarks = result.bookmarks;
+            if (result.pagecontents) this.state.pagecontents = result.pagecontents;
+            if (result.theme) this.state.currentTheme = result.theme;
+            if (result.chromeSettings) {
+                this.state.chromeSettings = { ...this.state.chromeSettings, ...result.chromeSettings };
+            }
+            // Ensure palettes are initialized
+            if (!this.state.chromeSettings.palettes || this.state.chromeSettings.palettes.length === 0) {
+                this.state.chromeSettings.palettes = [
+                    { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
+                    { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
+                    { name: 'Ocean Breeze', colors: ['#a8dadc', '#457b9d', '#1d3557', '#e63946', '#f1faee'] },
+                    { name: 'Forest Moss', colors: ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'] },
+                    { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
+                ];
+                this.state.chromeSettings.activePaletteIndex = 0;
+            }
+
+            // Create Highlighter & Tracker UI elements
+            this.tracker.createUI();
+            this.highlighter.createHighlighterUI();
+            this.highlighter.applyHighlightsForCurrentPage();
+
+            this.bindEvents();
+            this.setupMutationObserver();
+        });
+    }
+
+    /**
+     * Binds general orchestrator events, click/messaging/storage listeners.
+     */
+    bindEvents() {
+        // 1. Hyper-Responsive Click Listener
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('a, button, [role="button"]')) {
+                setTimeout(this.triggerAggressiveUIUpdate.bind(this), 50);
+                setTimeout(this.triggerAggressiveUIUpdate.bind(this), 400);
+            }
+        });
+
+        // 2. Storage Changed Listener
+        chrome.storage.onChanged.addListener(this.handleStorageChanged.bind(this));
+
+        // 3. Message Listener
+        chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
+    }
+
+    /**
+     * Sets up the DOM observer to watch for React component re-rendering/navigations.
+     */
+    setupMutationObserver() {
+        this.domObserver = new MutationObserver(() => {
+            clearTimeout(this.state.highlightDebounceTimer);
+            this.state.highlightDebounceTimer = setTimeout(() => {
+                this.highlighter.applyHighlightsForCurrentPage();
+                
+                // If client-side routing/hydration wiped out our elements, re-inject them
+                if (document.body) {
+                    if (!document.getElementById('algo-fsrs-launcher')) {
+                        this.tracker.createUI();
+                    }
+                    if (!document.getElementById('algo-highlight-tooltip')) {
+                        this.highlighter.createHighlighterUI();
+                    }
+                }
+                
+                // If the URL changed without a click, force an update
+                if (window.location.href !== this.state.lastCheckedUrl) {
+                    this.triggerAggressiveUIUpdate();
+                }
+            }, 100);
+        });
+        this.domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }
+
+    /**
+     * Handles chrome.storage.local modification updates dynamically.
+     * @param {Object} changes - Object describing key storage differences.
+     * @param {string} areaName - Storage classification bucket name.
+     */
+    handleStorageChanged(changes, areaName) {
+        if (window.Logger) window.Logger.debug('ContentScript', `Storage changed in ${areaName}`, Object.keys(changes));
+        if (areaName === 'local') {
+            if (changes.chromeSettings) {
+                this.state.chromeSettings = { ...this.state.chromeSettings, ...changes.chromeSettings.newValue };
+                const tooltip = document.getElementById('algo-highlight-tooltip');
+                if (!this.state.chromeSettings.showMarkerPopup) {
+                    if (tooltip) tooltip.style.display = 'none';
+                } else {
+                    // Automatically show the tooltip if text is already selected on the page
+                    const selection = window.getSelection();
+                    if (selection && !selection.isCollapsed && selection.toString().trim() !== '' && tooltip && tooltip.style.display === 'none') {
+                        const range = selection.getRangeAt(0);
+                        const rects = range.getClientRects();
+                        let lastRect = rects.length > 0 ? rects[rects.length - 1] : null;
+                        if (!lastRect) {
+                            const bounding = range.getBoundingClientRect();
+                            if (bounding && (bounding.width > 0 || bounding.height > 0)) lastRect = bounding;
+                        }
+                        if (lastRect) {
+                            this.highlighter.renderTooltipColors(null, null);
+                            tooltip.style.display = 'flex';
+                            tooltip.style.left = `${lastRect.right + window.scrollX}px`;
+                            tooltip.style.top = `${lastRect.bottom + window.scrollY}px`;
+                        }
+                    }
+                }
+            }
+            if (changes.fsrsCards) {
+                this.state.cards = changes.fsrsCards.newValue || [];
+                this.tracker.refreshWidgetState();
+            }
+            if (changes.fsrsTopicWeights) {
+                this.state.topicWeights = changes.fsrsTopicWeights.newValue || {};
+            }
+            if (changes.marks) {
+                this.state.marks = changes.marks.newValue || [];
+                this.highlighter.applyHighlightsForCurrentPage();
+            }
+            if (changes.bookmarks) {
+                this.state.bookmarks = changes.bookmarks.newValue || [];
+            }
+            if (changes.pagecontents) {
+                this.state.pagecontents = changes.pagecontents.newValue || [];
+            }
+            if (changes.whitelistedWebsites) {
+                const currentDomain = window.location.hostname;
+                const whitelistedWebsites = changes.whitelistedWebsites.newValue || [
+                    { domain: "algo.monster" },
+                    { domain: "systemdesignschool.io" },
+                    { domain: "codeforces.com" },
+                    { domain: "leetcode.com" },
+                    { domain: "codechef.com" },
+                    { domain: "atcoder.jp" },
+                    { domain: "hackerrank.com" },
+                    { domain: "hackerearth.com" },
+                    { domain: "codewars.com" },
+                    { domain: "codingame.com" }
+                ];
+                const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
+                if (!isWhitelisted) {
+                    this.highlighter.removeHighlighterUI();
+                    this.tracker.removeUI();
+                } else {
+                    if (!document.getElementById('algo-fsrs-overlay') && document.body) {
+                        this.tracker.createUI();
+                        this.highlighter.createHighlighterUI();
+                    }
+                }
+            }
+            if (changes.fsrsGlobalParams) {
+                const params = changes.fsrsGlobalParams.newValue || {};
+                if (params.w) this.state.scheduler.w = params.w;
+                if (params.decay !== undefined) this.state.scheduler.decay = params.decay;
+                if (params.factor !== undefined) this.state.scheduler.factor = params.factor;
+                if (params.requestRetention !== undefined) this.state.scheduler.requestRetention = params.requestRetention;
+            }
+            if (changes.approachDrafts) {
+                this.tracker.refreshWidgetState();
+            }
+            if (changes.theme) {
+                this.state.currentTheme = changes.theme.newValue || 'dark';
+                this.applyThemeClass();
+            }
+        }
+    }
+
+    /**
+     * Handles runtime messages sent from the background worker.
+     * @param {Object} request - Messaging payload dictionary.
+     * @param {Object} sender - Sender source details metadata.
+     * @param {Function} sendResponse - Callback function routing replies.
+     */
+    handleMessage(request, sender, sendResponse) {
+        if (window.Logger) window.Logger.debug('ContentScript', `Received message: ${request.action}`);
+        if (request.action === "spa_url_changed") {
+            setTimeout(this.triggerAggressiveUIUpdate.bind(this), 50);
+        }
+        if (request.action === "show_custom_notification") {
+            try {
+                this.notifier.showPageNotification(request.title, request.message, request.type, request.count);
+                if (sendResponse) sendResponse({ success: true });
+            } catch (e) {
+                if (window.Logger) window.Logger.error('ContentScript', 'Failed to show page notification', e);
+                if (sendResponse) sendResponse({ success: false, error: e.message });
+            }
+        }
+    }
+
+    /**
+     * Centrally updates the floating widgets' layout values when URL adjustments or navigations occur.
+     * Restores launcher buttons and re-reads tag configurations.
+     */
+    triggerAggressiveUIUpdate() {
+        this.state.lastCheckedUrl = window.location.href;
+
+        if (!document.getElementById('algo-fsrs-container') && document.body) {
+            this.tracker.createUI(); // Inject if the SPA accidentally destroyed it
+        } else {
+            // Restore launcher display on page transition so it's not permanently lost
+            const launcher = document.getElementById('algo-fsrs-launcher');
+            const container = document.getElementById('algo-fsrs-container');
+            if (launcher && container && container.style.display !== 'block') {
+                launcher.style.display = 'flex';
+            }
+
+            // Instantly update the contents of the existing widget
+            const tagsEl = document.getElementById('fsrs-current-tags');
+            if (tagsEl) {
+                tagsEl.innerText = this.utils.getAutoTags().join(', ');
+            }
+            this.tracker.refreshWidgetState();
+        }
+        this.highlighter.applyHighlightsForCurrentPage();
+    }
+
+    /**
+     * Updates visual class names (light-theme toggle) on active extension container elements
+     * to match the user's color scheme settings.
+     */
+    applyThemeClass() {
+        const launcher = document.getElementById('algo-fsrs-launcher');
+        const container = document.getElementById('algo-fsrs-container');
+        const tooltip = document.getElementById('algo-highlight-tooltip');
+        
+        const isLight = this.state.currentTheme === 'light';
+        
+        if (launcher) launcher.classList.toggle('light-theme', isLight);
+        if (container) container.classList.toggle('light-theme', isLight);
+        if (tooltip) tooltip.classList.toggle('light-theme', isLight);
+        
+        document.querySelectorAll('.algo-custom-notification').forEach(n => {
+            n.classList.toggle('light-theme', isLight);
+        });
+    }
+};
+
+// Auto-run coordinates bootstrapping inside content scope
+document.addEventListener('DOMContentLoaded', () => {
+    window.AlgoRecall.orchestrator = new window.AlgoRecall.Orchestrator();
+    window.AlgoRecall.orchestrator.init();
+});
+
+// Fallback if DOMContentLoaded fired early
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+    if (!window.AlgoRecall.orchestrator) {
+        window.AlgoRecall.orchestrator = new window.AlgoRecall.Orchestrator();
+        window.AlgoRecall.orchestrator.init();
+    }
+}
+
+// Global Error Handlers for Content Script Isolation
+window.addEventListener('error', function(event) {
+    if (window.Logger && event.filename && event.filename.includes(chrome.runtime.id)) {
+        window.Logger.error('ContentScript', 'Unhandled runtime error', { message: event.message, filename: event.filename, lineno: event.lineno, colno: event.colno, error: event.error });
+    }
+});
+
+window.addEventListener('unhandledrejection', function(event) {
+    if (window.Logger) {
+        window.Logger.error('ContentScript', 'Unhandled promise rejection', event.reason);
+    }
+});
