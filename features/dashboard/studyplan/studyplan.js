@@ -86,11 +86,19 @@ class StudyPlanController {
         }
 
         const totalCards = this.allCards.length;
-        const maxDaily = parseInt(dailyLimitInput?.value) || 30;
-        const dailyTarget = Math.min(Math.ceil(totalCards / daysLeft), maxDaily);
+        const limitVal = parseInt(dailyLimitInput?.value);
+        
+        let dailyTarget = Math.ceil(totalCards / daysLeft);
+        let willFinish = true;
+        
+        // If they provided a valid limit that restricts finishing all cards
+        if (!isNaN(limitVal) && limitVal > 0 && limitVal < dailyTarget) {
+            dailyTarget = limitVal;
+            willFinish = false;
+        }
 
         document.getElementById('preview-days').textContent = daysLeft;
-        document.getElementById('preview-total').textContent = totalCards;
+        document.getElementById('preview-total').textContent = willFinish ? totalCards : (dailyTarget * daysLeft);
         document.getElementById('preview-daily').textContent = dailyTarget;
 
         preview.style.display = 'block';
@@ -110,7 +118,12 @@ class StudyPlanController {
         const examTime = new Date(examDate + 'T23:59:59').getTime();
         const now = Date.now();
         const daysLeft = Math.max(1, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
-        const maxDaily = parseInt(dailyLimitInput?.value) || 30;
+        const limitVal = parseInt(dailyLimitInput?.value);
+        let cardsPerDay = Math.ceil(this.allCards.length / daysLeft);
+        
+        if (!isNaN(limitVal) && limitVal > 0 && limitVal < cardsPerDay) {
+            cardsPerDay = limitVal;
+        }
 
         // Backup original due dates
         this.allCards.forEach(card => {
@@ -133,11 +146,13 @@ class StudyPlanController {
         startOfToday.setHours(0, 0, 0, 0);
 
         sortedCards.forEach((card, index) => {
-            const dayOffset = Math.floor(index / maxDaily);
-            const clampedDay = Math.min(dayOffset, daysLeft - 1);
+            const dayOffset = Math.floor(index / cardsPerDay);
+            
+            // If they hit their max daily limit across all days, leave remaining cards untouched
+            if (dayOffset >= daysLeft) return;
             
             const dueDate = new Date(startOfToday);
-            dueDate.setDate(dueDate.getDate() + clampedDay);
+            dueDate.setDate(dueDate.getDate() + dayOffset);
             // Set time to 9:00 AM for a reasonable study start
             dueDate.setHours(9, 0, 0, 0);
 
@@ -152,7 +167,7 @@ class StudyPlanController {
         const settings = {
             isActive: true,
             examDate: examDate,
-            dailyTarget: Math.min(Math.ceil(this.allCards.length / daysLeft), maxDaily),
+            dailyTarget: cardsPerDay,
             activatedAt: now
         };
 
@@ -263,7 +278,10 @@ class StudyPlanController {
             dayDate.setDate(dayDate.getDate() + i);
             
             const dayStart = dayDate.getTime();
-            const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+            
+            const nextDay = new Date(dayDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const dayEnd = nextDay.getTime();
 
             const cardsForDay = this.allCards.filter(c => c.due >= dayStart && c.due < dayEnd).length;
             
