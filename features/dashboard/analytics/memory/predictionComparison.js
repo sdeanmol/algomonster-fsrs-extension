@@ -21,16 +21,27 @@ export class PredictionComparison {
         const timePoints = [0, 1, 3, 7, 14, 21, 30];
         const avgStability = this.dataUtils.getSummaryStats().avgStability || 10;
         const decay = -0.5;
+        const factor = 19 / 81;
 
-        // Prediction
+        // Prediction using ts-fsrs
         const predPoints = timePoints.map(t => {
-            const R = Math.exp(decay * t / avgStability);
+            let R = 0;
+            if (this.dataUtils.scheduler && typeof this.dataUtils.scheduler.getProjectedRetrievability === 'function') {
+                R = this.dataUtils.scheduler.getProjectedRetrievability(avgStability, t);
+            } else {
+                R = Math.pow(1 + (factor * t) / avgStability, decay);
+            }
             return { t, R, x: xScale(t), y: yScale(R) };
         });
 
-        // Actual (Simulated lower recall)
+        // Actual (Simulated lower recall based on ts-fsrs logic)
         const actPoints = timePoints.map(t => {
-            const R = Math.exp(decay * t / (avgStability * 0.85)); // 15% worse stability
+            let R = 0;
+            if (this.dataUtils.scheduler && typeof this.dataUtils.scheduler.getProjectedRetrievability === 'function') {
+                R = this.dataUtils.scheduler.getProjectedRetrievability(avgStability * 0.85, t); // 15% worse stability
+            } else {
+                R = Math.pow(1 + (factor * t) / (avgStability * 0.85), decay);
+            }
             return { t, R, x: xScale(t), y: yScale(R) };
         });
         

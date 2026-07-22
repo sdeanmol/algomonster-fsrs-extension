@@ -100,37 +100,63 @@ export class DataUtils {
     getLearningVelocity() {
         const now = Date.now();
         const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+        const twoWeeksAgo = now - (14 * 24 * 60 * 60 * 1000);
         
         let newCardsLastWeek = 0;
+        let newCardsPrevWeek = 0;
         let graduatedLastWeek = 0;
+        let graduatedPrevWeek = 0;
         
         this.cards.forEach(card => {
+            let firstReview = card.lastReview;
             if (card.historyLog && card.historyLog.length > 0) {
-                const firstReview = card.historyLog[0].date;
-                if (firstReview > oneWeekAgo) {
-                    newCardsLastWeek++;
-                }
-            } else if (card.lastReview > oneWeekAgo && card.reps === 1) {
-                newCardsLastWeek++;
+                firstReview = card.historyLog[0].date;
             }
             
-            if (card.stability > 7 && card.lastReview > oneWeekAgo) {
-                graduatedLastWeek++;
+            if (firstReview) {
+                if (firstReview > oneWeekAgo) {
+                    newCardsLastWeek++;
+                } else if (firstReview > twoWeeksAgo && firstReview <= oneWeekAgo) {
+                    newCardsPrevWeek++;
+                }
+            }
+            
+            if (card.stability > 7 && card.lastReview) {
+                if (card.lastReview > oneWeekAgo) {
+                    graduatedLastWeek++;
+                } else if (card.lastReview > twoWeeksAgo && card.lastReview <= oneWeekAgo) {
+                    graduatedPrevWeek++;
+                }
             }
         });
         
         let reviewsLastWeek = 0;
-        for (let i = 0; i < 7; i++) {
+        let reviewsPrevWeek = 0;
+        
+        for (let i = 0; i < 14; i++) {
             const d = new Date(this.today);
             d.setDate(d.getDate() - i);
             const key = this.formatDateKey(d);
-            reviewsLastWeek += (this.activity[key] || 0);
+            const val = this.activity[key] || 0;
+            if (i < 7) {
+                reviewsLastWeek += val;
+            } else {
+                reviewsPrevWeek += val;
+            }
         }
+
+        const calcTrend = (current, previous) => {
+            if (previous === 0) return current > 0 ? 100 : 0;
+            return Math.round(((current - previous) / previous) * 100);
+        };
 
         return {
             newCardsPerDay: (newCardsLastWeek / 7).toFixed(1),
+            newCardsTrend: calcTrend(newCardsLastWeek, newCardsPrevWeek),
             graduatedPerWeek: graduatedLastWeek,
-            reviewsPerDay: (reviewsLastWeek / 7).toFixed(1)
+            graduatedTrend: calcTrend(graduatedLastWeek, graduatedPrevWeek),
+            reviewsPerDay: (reviewsLastWeek / 7).toFixed(1),
+            reviewsTrend: calcTrend(reviewsLastWeek, reviewsPrevWeek)
         };
     }
 

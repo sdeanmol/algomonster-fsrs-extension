@@ -25,11 +25,10 @@ export class MemoryHealth {
         else if (healthScore < 70) { statusText = 'Needs Attention'; statusClass = 'health-warning'; }
         else if (healthScore < 85) { statusText = 'Good'; statusClass = 'health-good'; }
 
-        // Determine trend (dummy logic for now without historical snapshot, 
-        // ideally we'd compare against last week's health score)
-        const trend = stats.streak > 2 ? '▲ +3 this week' : '▼ -1 this week';
-        const trendMsg = stats.streak > 2 ? 'Your review consistency improved.' : 'Keep reviewing to improve memory health.';
-        const trendClass = stats.streak > 2 ? 'trend-up' : 'trend-down';
+        // Determine trend based on current streak consistency
+        const trend = stats.streak >= 3 ? '▲ Consistent' : (stats.streak > 0 ? '▶ Active' : '▼ Needs Review');
+        const trendMsg = stats.streak >= 3 ? 'You are building strong long-term memory.' : 'Review more consistently to improve memory health.';
+        const trendClass = stats.streak >= 3 ? 'trend-up' : (stats.streak > 0 ? '' : 'trend-down');
 
         const svgCircle = `
             <svg class="health-ring" viewBox="0 0 120 120">
