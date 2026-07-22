@@ -5,6 +5,7 @@
   -->
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
@@ -13,13 +14,18 @@
     <link rel="stylesheet" href="../../common/base.css">
     <link rel="stylesheet" href="editor.css">
 </head>
+
 <body>
     <div class="editor-container">
         <!-- Header -->
         <div class="editor-header">
             <div class="header-left">
                 <span class="back-arrow" id="header-back-btn" title="Close and return">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 4px; width: 12px; height: 12px;" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 4px; width: 12px; height: 12px;"
+                        aria-hidden="true">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
                     Close
                 </span>
                 <div class="title-info">
@@ -28,8 +34,13 @@
                 </div>
             </div>
             <div class="header-right">
-                <button id="preview-toggle-btn" class="btn btn-secondary btn-sm" title="Toggle Markdown Preview" aria-label="Toggle Markdown Preview">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                <button id="preview-toggle-btn" class="btn btn-secondary btn-sm" title="Toggle Markdown Preview"
+                    aria-label="Toggle Markdown Preview">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"
+                        aria-hidden="true">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
                     Preview
                 </button>
                 <span id="save-status" class="status-indicator">Loading FSRS data...</span>
@@ -37,6 +48,18 @@
         </div>
 
         <div class="workspace">
+            <div class="complexity-bar">
+                <div class="complexity-field">
+                    <label>Time Complexity:</label>
+                    <input type="text" id="time-complexity-input" placeholder="Enter time complexity"
+                        class="input-field">
+                </div>
+                <div class="complexity-field">
+                    <label>Space Complexity:</label>
+                    <input type="text" id="space-complexity-input" placeholder="Enter space complexity"
+                        class="input-field">
+                </div>
+            </div>
             <textarea id="editor-textarea" class="fullscreen-textarea" placeholder="How did you solve this pattern? Jot down your key insights, complexity analysis, approach steps...
 Supports Markdown: **bold**, *italic*, `code`, ```code blocks```, ## headings, - lists"></textarea>
             <div id="editor-preview" class="editor-preview fsrs-markdown" style="display: none;"></div>
@@ -46,11 +69,19 @@ Supports Markdown: **bold**, *italic*, `code`, ```code blocks```, ## headings, -
         <div class="editor-footer">
             <div class="footer-actions">
                 <button id="save-btn" class="btn btn-secondary">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor;" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor;"
+                        aria-hidden="true">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
                     Save Progress
                 </button>
                 <button id="save-close-btn" class="btn btn-primary">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor;" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor;"
+                        aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
                     Save & Close
                 </button>
             </div>
@@ -64,4 +95,5 @@ Supports Markdown: **bold**, *italic*, `code`, ```code blocks```, ## headings, -
     <script src="../../common/markdown.js"></script>
     <script src="editor.js"></script>
 </body>
+
 </html>

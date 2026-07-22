@@ -51,6 +51,8 @@ class EditorManager {
                 this.isCardExisting = true;
                 document.getElementById('problem-title').textContent = card.title || "FSRS Insights";
                 document.getElementById('editor-textarea').value = card.approach || "";
+                document.getElementById('time-complexity-input').value = card.timeComplexity || "";
+                document.getElementById('space-complexity-input').value = card.spaceComplexity || "";
                 document.getElementById('save-status').textContent = "Loaded FSRS card";
             } else {
                 this.isCardExisting = false;
@@ -59,14 +61,20 @@ class EditorManager {
                 
                 const draftVal = drafts[this.cleanUrl];
                 let draftText = "";
+                let tc = "";
+                let sc = "";
                 if (draftVal) {
                     if (typeof draftVal === 'object') {
                         draftText = draftVal.approach || "";
+                        tc = draftVal.timeComplexity || "";
+                        sc = draftVal.spaceComplexity || "";
                     } else {
                         draftText = draftVal;
                     }
                 }
                 document.getElementById('editor-textarea').value = draftText;
+                document.getElementById('time-complexity-input').value = tc;
+                document.getElementById('space-complexity-input').value = sc;
                 document.getElementById('save-status').textContent = "Loaded draft notes";
             }
         });
@@ -76,8 +84,7 @@ class EditorManager {
      * Hooks listeners to editor button controls, textareas, and window lifecycle updates.
      */
     bindEvents() {
-        const textarea = document.getElementById('editor-textarea');
-        textarea.addEventListener('input', () => {
+        const triggerAutoSave = () => {
             document.getElementById('save-status').textContent = "Typing...";
             clearTimeout(this.autoSaveTimer);
             this.autoSaveTimer = setTimeout(() => {
@@ -85,7 +92,12 @@ class EditorManager {
                     document.getElementById('save-status').textContent = "Changes saved automatically";
                 });
             }, 300);
-        });
+        };
+
+        const textarea = document.getElementById('editor-textarea');
+        textarea.addEventListener('input', triggerAutoSave);
+        document.getElementById('time-complexity-input').addEventListener('input', triggerAutoSave);
+        document.getElementById('space-complexity-input').addEventListener('input', triggerAutoSave);
 
         // Explicit Save Button
         document.getElementById('save-btn').addEventListener('click', () => {
@@ -151,6 +163,8 @@ class EditorManager {
      */
     saveContent(callback) {
         const text = document.getElementById('editor-textarea').value;
+        const tc = document.getElementById('time-complexity-input').value.trim();
+        const sc = document.getElementById('space-complexity-input').value.trim();
         
         chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result) => {
             if (this.isCardExisting) {
@@ -158,6 +172,8 @@ class EditorManager {
                 const index = cards.findIndex(c => c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
                 if (index > -1) {
                     cards[index].approach = text;
+                    cards[index].timeComplexity = tc;
+                    cards[index].spaceComplexity = sc;
                     chrome.storage.local.set({ fsrsCards: cards }, () => {
                         if (callback) callback();
                     });
@@ -169,8 +185,14 @@ class EditorManager {
                 const existingDraft = drafts[this.cleanUrl];
                 if (existingDraft && typeof existingDraft === 'object') {
                     existingDraft.approach = text;
+                    existingDraft.timeComplexity = tc;
+                    existingDraft.spaceComplexity = sc;
                 } else {
-                    drafts[this.cleanUrl] = text;
+                    drafts[this.cleanUrl] = {
+                        approach: text,
+                        timeComplexity: tc,
+                        spaceComplexity: sc
+                    };
                 }
                 chrome.storage.local.set({ approachDrafts: drafts }, () => {
                     if (callback) callback();
