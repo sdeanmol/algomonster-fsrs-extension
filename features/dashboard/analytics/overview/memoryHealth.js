@@ -65,19 +65,19 @@ export class MemoryHealth {
                 <div class="health-metrics-grid">
                     <div class="health-metric">
                         <div class="hm-val">${stats.trueRetention}%</div>
-                        <div class="hm-lbl">Retention</div>
+                        <div class="hm-lbl">Retention <span class="help-icon" data-tooltip="Probability you will remember your cards right now (FSRS Retrievability).">?</span></div>
                     </div>
                     <div class="health-metric">
                         <div class="hm-val">${stats.totalLapses}</div>
-                        <div class="hm-lbl">Total Lapses</div>
+                        <div class="hm-lbl">Total Lapses <span class="help-icon" data-tooltip="Total number of times you have forgotten a card (rated 'Again').">?</span></div>
                     </div>
                     <div class="health-metric">
                         <div class="hm-val">${stats.avgStability.toFixed(1)}d</div>
-                        <div class="hm-lbl">Avg Stability</div>
+                        <div class="hm-lbl">Avg Stability <span class="help-icon" data-tooltip="Average time it takes for your retention to drop from 100% to 90%.">?</span></div>
                     </div>
                     <div class="health-metric">
                         <div class="hm-val">${stats.streak}d</div>
-                        <div class="hm-lbl">Streak</div>
+                        <div class="hm-lbl">Streak <span class="help-icon" data-tooltip="Consecutive days you have studied at least one card.">?</span></div>
                     </div>
                 </div>
             </div>
