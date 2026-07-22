@@ -22,10 +22,12 @@ export class ReviewTimeAnalytics {
         let maxReviews = Math.max(...data.map(d => d.reviews), 1);
         
         // Find best time
-        let best = data[0];
+        let best = null;
         data.forEach(d => {
-            if (d.retention > best.retention && d.reviews > 5) {
-                best = d;
+            if (d.reviews > 5) {
+                if (!best || d.retention > best.retention) {
+                    best = d;
+                }
             }
         });
         
@@ -37,7 +39,7 @@ export class ReviewTimeAnalytics {
             night: 'Night (9PM - 5AM)'
         };
 
-        const highlightText = best.reviews > 5 
+        const highlightText = best
             ? `You retain information best when reviewing in the <strong>${best.bucket}</strong> (${best.retention}% recall).`
             : `Keep reviewing to discover your optimal study time!`;
 
@@ -50,18 +52,18 @@ export class ReviewTimeAnalytics {
         `;
         
         data.forEach(d => {
-            const hPct = (d.reviews / maxReviews) * 100;
-            const timeStr = d.avgDurationMs ? (d.avgDurationMs / 1000).toFixed(1) + 's' : 'N/A';
+            const hPct = d.retention || 0;
+            const timeStr = (d.avgDurationMs !== null && d.avgDurationMs !== undefined) ? (d.avgDurationMs / 1000).toFixed(1) + 's' : 'N/A';
             
             html += `
-                <div class="time-bucket-col">
+                <div class="time-bucket-col" title="Recall: ${d.retention}%, Avg Time: ${timeStr}, Reviews: ${d.reviews}">
                     <div class="time-bucket-stats">
                         <span>Recall: <strong>${d.retention}%</strong></span>
                         <span>Avg Time: <strong>${timeStr}</strong></span>
                     </div>
                     <div class="time-bar-wrapper">
                         <div class="time-bar" style="height: ${Math.max(5, hPct)}%;">
-                            <span class="time-bar-val">${d.reviews}</span>
+                            <span class="time-bar-val">${d.retention}%</span>
                         </div>
                     </div>
                     <div class="time-bucket-lbl">${nameMap[d.bucket].split(' ')[0]}</div>

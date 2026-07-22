@@ -68,13 +68,18 @@ class FsrsScheduler extends BaseScheduler {
         };
     }
 
-    reviewCard(card, rating, customWeights = null, now = Date.now()) {
+    reviewCard(card, rating, customWeights = null, now = Date.now(), timeTaken = null) {
         if (typeof window !== 'undefined' && window.Logger) window.Logger.debug('FSRS', `Reviewing card: ${card.problemTitle} with rating ${rating}`);
         let newCard = { ...card };
 
         newCard.previousDue = card.due;
         newCard.historyLog = newCard.historyLog || [];
-        newCard.historyLog.push({ rating, date: now });
+        
+        const logEntry = { rating, date: now };
+        if (timeTaken !== null) {
+            logEntry.duration = timeTaken;
+        }
+        newCard.historyLog.push(logEntry);
 
         let lastReview = getLastReviewDate(card);
 

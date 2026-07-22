@@ -309,15 +309,17 @@ export class DataUtils {
                         else if (h >= 12 && h < 17) bucket = 'afternoon';
                         else if (h >= 17 && h < 21) bucket = 'evening';
                         
-                        times[bucket].reviews++;
-                        times[bucket].reps++;
-                        if (log.rating === 1) { 
-                            times[bucket].lapses++;
-                        }
-                        
-                        if (card.reviewDurations && card.reviewDurations[index] !== undefined) {
-                            times[bucket].duration += card.reviewDurations[index];
-                            times[bucket].durationCount++;
+                        if (log.rating > 0) {
+                            times[bucket].reviews++;
+                            times[bucket].reps++;
+                            if (log.rating === 1) { 
+                                times[bucket].lapses++;
+                            }
+                            
+                            if (log.duration !== undefined) {
+                                times[bucket].duration += log.duration;
+                                times[bucket].durationCount++;
+                            }
                         }
                     }
                 });

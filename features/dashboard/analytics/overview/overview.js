@@ -58,12 +58,16 @@ export class OverviewTab {
         let title = 'You are all caught up!';
         let message = 'Your next step is to <strong>enjoy the rest of your day</strong>. Alternatively, you can learn some new cards.';
 
+        const targetRetention = (this.dataUtils.scheduler && this.dataUtils.scheduler.requestRetention)
+            ? this.dataUtils.scheduler.requestRetention * 100
+            : 90;
+
         if (dueCount > 0) {
             type = 'warning';
             icon = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>';
             title = 'Reviews Pending';
             message = `You have <strong>${dueCount} cards due</strong> right now. Your next action is to head back to the dashboard and clear your queue.`;
-        } else if (health < 75 && stats.totalCards > 10) {
+        } else if (health < (targetRetention - 7) && stats.totalCards > 10) {
             type = 'warning';
             icon = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>';
             title = 'Memory Health Dropping';

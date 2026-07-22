@@ -757,15 +757,8 @@ window.AlgoRecall.Tracker = class Tracker {
             }
         }
 
-        this.state.cards[index] = this.state.scheduler.reviewCard(card, rating, customWeightsToApply);
+        this.state.cards[index] = this.state.scheduler.reviewCard(card, rating, customWeightsToApply, Date.now(), timeTaken);
         this.state.cards[index].lastRating = rating;
-        
-        if (!this.state.cards[index].reviewDurations) {
-            this.state.cards[index].reviewDurations = [];
-        }
-        if (timeTaken > 0) {
-            this.state.cards[index].reviewDurations.push(timeTaken);
-        }
         
         this.saveCards();
         this.logReviewActivity();
