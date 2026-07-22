@@ -300,7 +300,8 @@ class FSRSDataDashboard {
         else if (this.currentView === 'history' && this.targetDate) {
             const filteredCards = this.allCards.filter(c => {
                 if (!c.historyLog) return false;
-                return c.historyLog.some(timestamp => {
+                return c.historyLog.some(logEntry => {
+                    const timestamp = (typeof logEntry === 'object' && logEntry !== null) ? logEntry.date : logEntry;
                     const dateObj = new Date(timestamp);
                     const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
                     return localDateStr.startsWith(this.targetDate);

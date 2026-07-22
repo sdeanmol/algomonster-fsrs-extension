@@ -8,9 +8,9 @@ class FSRSHistoryDashboard {
     constructor() {
         this.activityData = {};
         this.chromeSettings = {};
-        this.currentView = 'year'; 
+        this.currentView = 'year';
         this.selectedYear = null;
-        this.selectedMonth = null; 
+        this.selectedMonth = null;
         this.monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     }
 
@@ -44,7 +44,7 @@ class FSRSHistoryDashboard {
     setView(view, targetYear = null, targetMonth = null) {
         this.currentView = view;
         if (view === 'year') {
-            this.selectedYear = null; 
+            this.selectedYear = null;
             this.selectedMonth = null;
         } else if (view === 'month') {
             this.selectedYear = targetYear || this.selectedYear || this.getMostRecentYear();
@@ -81,7 +81,7 @@ class FSRSHistoryDashboard {
      * @param {Event} [event] - The trigger event.
      */
     openDataTab(dateRange, event) {
-        if (event) event.stopPropagation(); 
+        if (event) event.stopPropagation();
         chrome.tabs.create({ url: `features/common/data/data.html?view=history&date=${dateRange}` });
     }
 
@@ -109,7 +109,7 @@ class FSRSHistoryDashboard {
         // 2. Render Cards
         const container = document.getElementById('chart-container');
         if (!container) return;
-        container.className = `grid grid-${this.currentView}s`; 
+        container.className = `grid grid-${this.currentView}s`;
         container.innerHTML = '';
 
         if (Object.keys(this.activityData).length === 0) {
@@ -132,7 +132,7 @@ class FSRSHistoryDashboard {
                     </div>
                 `;
             });
-        } 
+        }
         else if (this.currentView === 'month') {
             const monthData = this.aggregateByMonth(this.selectedYear);
             if (Object.keys(monthData).length === 0) {
@@ -153,7 +153,7 @@ class FSRSHistoryDashboard {
                     `;
                 });
             }
-        } 
+        }
         else if (this.currentView === 'day') {
             const dayData = this.aggregateByDay(this.selectedMonth);
             if (Object.keys(dayData).length === 0) {
@@ -162,7 +162,7 @@ class FSRSHistoryDashboard {
                 Object.keys(dayData).sort().reverse().forEach(dateString => {
                     const dateObj = new Date(dateString);
                     const displayDate = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-                    
+
                     container.innerHTML += `
                         <div class="card card-day" data-date="${dateString}" title="View cards reviewed on this day">
                             <div class="card-title">${displayDate}</div>
@@ -230,7 +230,7 @@ class FSRSHistoryDashboard {
             const dayData = this.aggregateByDay(this.selectedMonth);
             const [year, month] = this.selectedMonth.split('-');
             const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
-            
+
             for (let d = 1; d <= daysInMonth; d++) {
                 const dStr = d.toString().padStart(2, '0');
                 const dateStr = `${this.selectedMonth}-${dStr}`;
@@ -245,13 +245,13 @@ class FSRSHistoryDashboard {
         }
 
         const maxVal = Math.max(...dataPoints.map(p => p.value), 1);
-        
+
         // Create title
         const title = document.createElement('h3');
         title.className = 'chart-title-label';
-        title.innerText = this.currentView === 'year' 
-            ? 'Reviews per Year' 
-            : this.currentView === 'month' 
+        title.innerText = this.currentView === 'year'
+            ? 'Reviews per Year'
+            : this.currentView === 'month'
                 ? `Reviews in ${this.selectedYear}`
                 : `Reviews in ${this.monthNames[parseInt(this.selectedMonth.split('-')[1]) - 1]} ${this.selectedMonth.split('-')[0]}`;
         chartWrapper.appendChild(title);
@@ -310,7 +310,7 @@ class FSRSHistoryDashboard {
                 barCol.setAttribute('role', 'button');
                 barCol.setAttribute('tabindex', '0');
                 barCol.setAttribute('aria-label', tooltipText);
-                
+
                 barCol.addEventListener('click', dp.action);
                 barCol.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -390,7 +390,7 @@ class FSRSHistoryDashboard {
         const months = {};
         for (const [dateString, count] of Object.entries(this.activityData)) {
             if (dateString.startsWith(targetYear)) {
-                const monthKey = dateString.substring(0, 7); 
+                const monthKey = dateString.substring(0, 7);
                 if (!months[monthKey]) months[monthKey] = { total: 0 };
                 months[monthKey].total += count;
             }
