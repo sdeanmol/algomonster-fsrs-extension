@@ -512,8 +512,8 @@ class FSRSDataDashboard {
 
             table += `<tr class="${isChecked ? 'row-selected' : ''}">
                 <td class="td-checkbox"><input type="checkbox" class="card-checkbox row-checkbox" data-id="${card.id}" ${isChecked ? 'checked' : ''}></td>
-                <td><a href="${card.problemUrl}" target="_blank">${card.problemTitle || 'Untitled'}</a></td>
-                <td>${tagsHtml}</td>
+                <td style="white-space: normal; word-wrap: break-word; max-width: 250px;"><a href="${card.problemUrl}" target="_blank">${card.problemTitle || 'Untitled'}</a></td>
+                <td style="white-space: normal; word-wrap: break-word; max-width: 200px;">${tagsHtml}</td>
                 <td>${statusBadge}</td>
                 <td><span class="badge badge-state ${stateClass}">${stateLabel}</span></td>
                 <td>${reps}</td>
