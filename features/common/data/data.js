@@ -10,7 +10,7 @@ class FSRSDataDashboard {
         this.allCards = [];
         this.currentView = 'total';
         this.targetDate = null;
-        
+
         this.searchQuery = '';
         this.selectedTag = 'all';
         this.selectedStatus = 'all';
@@ -40,11 +40,11 @@ class FSRSDataDashboard {
         chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result) => {
             this.allCards = result.fsrsCards || [];
             this.chromeSettings = result.chromeSettings || {};
-            
+
             // Dynamic Filter Populators
             this.populateTagsFilter();
             this.populatePlatformFilter();
-            
+
             // Pre-select tag filter from URL
             if (urlTag) {
                 const tagSelect = document.getElementById('tag-select');
@@ -287,11 +287,11 @@ class FSRSDataDashboard {
         if (this.currentView === 'total') {
             if (titleEl) titleEl.innerText = 'Total Saved Patterns';
             baseCards = [...this.allCards];
-        } 
+        }
         else if (this.currentView === 'due') {
             baseCards = this.allCards.filter(c => c.due <= now).sort((a, b) => a.due - b.due);
             if (titleEl) titleEl.innerText = 'Patterns Due Today';
-        } 
+        }
         else if (this.currentView === 'retention') {
             isRetention = true;
             baseCards = this.allCards.filter(c => c.lapses > 0).sort((a, b) => b.lapses - a.lapses);
@@ -308,14 +308,16 @@ class FSRSDataDashboard {
                 });
             });
             baseCards = [...new Set(filteredCards)]; // Deduplicate
-            
+
             let dateDisplay = this.targetDate;
             if (this.targetDate.length === 7) {
                 const [y, m] = this.targetDate.split('-');
                 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                dateDisplay = `${monthNames[parseInt(m)-1]} ${y}`;
+                dateDisplay = `${monthNames[parseInt(m) - 1]} ${y}`;
             } else if (this.targetDate.length === 10) {
-                dateDisplay = new Date(this.targetDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                const [y, m, d] = this.targetDate.split('-');
+                const localDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+                dateDisplay = localDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             }
             if (titleEl) titleEl.innerText = `Activity for ${dateDisplay}`;
         }
@@ -351,13 +353,13 @@ class FSRSDataDashboard {
             const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(this.searchQuery.toLowerCase());
             const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(this.searchQuery.toLowerCase());
             const tagMatch = card.tags && card.tags.some(t => t.toLowerCase().includes(this.searchQuery.toLowerCase()));
-            
+
             const matchesSearch = !this.searchQuery || titleMatch || urlMatch || tagMatch;
             const matchesTag = this.selectedTag === 'all' || (card.tags && card.tags.includes(this.selectedTag));
             const isCardDue = card.due <= now;
-            const matchesStatus = this.selectedStatus === 'all' || 
-                                  (this.selectedStatus === 'due' && isCardDue) || 
-                                  (this.selectedStatus === 'safe' && !isCardDue);
+            const matchesStatus = this.selectedStatus === 'all' ||
+                (this.selectedStatus === 'due' && isCardDue) ||
+                (this.selectedStatus === 'safe' && !isCardDue);
 
             // R2.6: Platform filter
             const cardPlatform = this.extractPlatform(card.problemUrl);
@@ -380,8 +382,9 @@ class FSRSDataDashboard {
 
         // 4. Subtitle Stats
         if (subtitleEl) {
+            debugger;
             if (this.currentView === 'total') {
-                subtitleEl.innerText = isFilterActive 
+                subtitleEl.innerText = isFilterActive
                     ? `Showing ${filtered.length} matching pattern(s) out of ${this.allCards.length} total.`
                     : `You have saved ${this.allCards.length} algorithmic patterns.`;
             } else if (this.currentView === 'due') {
@@ -389,12 +392,11 @@ class FSRSDataDashboard {
                     ? `Showing ${filtered.length} matching due pattern(s) out of ${baseCards.length} due today.`
                     : `You have ${baseCards.length} pattern(s) awaiting review.`;
             } else if (this.currentView === 'retention') {
-                let totalReps = 0; let totalLapses = 0;
-                this.allCards.forEach(c => { totalReps += c.reps || 0; totalLapses += c.lapses || 0; });
-                const retentionRate = totalReps > 0 ? Math.round(((totalReps - totalLapses) / totalReps) * 100) : 0;
-                subtitleEl.innerText = `Overall Memory Retention: ${retentionRate}% (${totalReps} total reviews, ${totalLapses} forgotten patterns).`;
+                subtitleEl.innerText = isFilterActive
+                    ? `Showing ${filtered.length} matching pattern(s).`
+                    : `Showing all patterns with at least 1 lapse.`;
             } else if (this.currentView === 'history') {
-                subtitleEl.innerText = `You reviewed ${filtered.length} unique pattern(s) during this period.`;
+                subtitleEl.innerText = `Showing ${filtered.length} unique pattern(s) reviewed on this date. (Note: The dashboard activity count includes multiple reviews per pattern).`;
             } else if (this.currentView === 'forecast') {
                 subtitleEl.innerText = isFilterActive
                     ? `Showing ${filtered.length} matching pattern(s) out of ${baseCards.length} due on this date.`
@@ -408,7 +410,7 @@ class FSRSDataDashboard {
         // 6. Render
         if (!contentEl) return;
         contentEl.innerHTML = '';
-        
+
         if (this.currentView === 'retention' && baseCards.length > 0) {
             const titleHeader = document.createElement('h3');
             titleHeader.textContent = "Most Forgotten Patterns";
@@ -489,15 +491,15 @@ class FSRSDataDashboard {
 
         cardsArray.forEach(card => {
             const isPastDue = card.due <= now;
-            const statusBadge = isPastDue 
-                ? '<span class="badge badge-due">Due Now</span>' 
+            const statusBadge = isPastDue
+                ? '<span class="badge badge-due">Due Now</span>'
                 : `<span class="badge badge-safe">${new Date(card.due).toLocaleDateString()}</span>`;
-                
+
             const tagsHtml = (card.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
             const reps = card.reps || 0;
             const lapses = card.lapses || 0;
             const state = card.state || 0;
-            
+
             // Format FSRS stats
             const stabilityFormatted = card.stability > 0 ? `${card.stability.toFixed(1)}d` : 'New';
             const difficultyFormatted = card.difficulty > 0 ? `${card.difficulty.toFixed(1)}/10` : 'N/A';
@@ -530,7 +532,7 @@ class FSRSDataDashboard {
                 </td>
             </tr>`;
         });
-        
+
         return table + `</tbody></table></div>`;
     }
 
@@ -838,7 +840,7 @@ class FSRSDataDashboard {
         // Right Card: Top Tags Breakdown
         const tagsCard = document.createElement('div');
         tagsCard.className = 'analytics-card';
-        
+
         let tagsHtml = '';
         if (sortedTags.length === 0) {
             tagsHtml = '<div class="empty-analytics-msg">No tags added yet.</div>';

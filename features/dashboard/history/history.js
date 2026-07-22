@@ -14,12 +14,42 @@ class FSRSHistoryDashboard {
         this.monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     }
 
-    /**
-     * Initializes activity statistics and triggers UI renders.
-     */
     init() {
-        chrome.storage.local.get(['fsrsActivity', 'chromeSettings'], (result) => {
-            this.activityData = result.fsrsActivity || {};
+        chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'chromeSettings'], (result) => {
+            let activityData = result.fsrsActivity || {};
+            const allCards = result.fsrsCards || [];
+
+            // Self-heal: Rebuild activityData from existing cards, counting UNIQUE patterns reviewed per day
+            let expectedActivity = {};
+            allCards.forEach(c => {
+                if (c.historyLog) {
+                    const uniqueDatesForCard = new Set();
+                    c.historyLog.forEach(logEntry => {
+                        const timestamp = (typeof logEntry === 'object' && logEntry !== null) ? logEntry.date : logEntry;
+                        const dateObj = new Date(timestamp);
+                        const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                        uniqueDatesForCard.add(localDateStr);
+                    });
+                    uniqueDatesForCard.forEach(dateStr => {
+                        expectedActivity[dateStr] = (expectedActivity[dateStr] || 0) + 1;
+                    });
+                }
+            });
+
+            // If there's a mismatch (due to deleted cards), sync it back to storage
+            let needsUpdate = false;
+            for (const key of new Set([...Object.keys(activityData), ...Object.keys(expectedActivity)])) {
+                if (activityData[key] !== expectedActivity[key]) {
+                    needsUpdate = true;
+                    break;
+                }
+            }
+            if (needsUpdate) {
+                activityData = expectedActivity;
+                chrome.storage.local.set({ fsrsActivity: activityData });
+            }
+
+            this.activityData = activityData;
             this.chromeSettings = result.chromeSettings || {};
             this.attachListeners();
             this.renderView();
@@ -167,7 +197,7 @@ class FSRSHistoryDashboard {
                         <div class="card card-day" data-date="${dateString}" title="View cards reviewed on this day">
                             <div class="card-title">${displayDate}</div>
                             <div class="card-value">${dayData[dateString]}</div>
-                            <div class="card-subtitle">Reviews</div>
+                            <div class="card-subtitle">Cards Reviewed</div>
                             <div class="card-day-link">
                                 <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; margin-right:4px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
                                 View Cards

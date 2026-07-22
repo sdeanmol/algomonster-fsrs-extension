@@ -151,6 +151,7 @@ h1 {
     color: var(--md-success);
     font-weight: 800;
     line-height: 1.2;
+    text-align: center;
 }
 
 .card-subtitle {
