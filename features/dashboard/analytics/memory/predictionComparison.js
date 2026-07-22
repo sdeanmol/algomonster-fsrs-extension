@@ -40,7 +40,7 @@ export class PredictionComparison {
             ? `Actual recall is ${Math.round(diff*100)}% below expected. Consider reviewing more consistently.`
             : `Actual recall is tracking closely to predictions!`;
 
-        let svgContent = `<svg class="prediction-svg multi-line" viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="xMidYMid meet">`;
+        let svgContent = `<svg class="prediction-svg multi-line" viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="none" style="width: 100%; height: 100%; min-height: 250px;">`;
 
         // Grid lines
         [0, 0.5, 1.0].forEach(r => {

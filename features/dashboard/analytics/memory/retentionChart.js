@@ -74,7 +74,7 @@ export class RetentionChart {
         const xScale = (t) => padL + (t / 30) * chartW;
         const yScale = (r) => padT + (1 - r) * chartH;
 
-        let svgContent = `<svg class="retention-curve-svg multi-line" viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="xMidYMid meet">`;
+        let svgContent = `<svg class="retention-curve-svg multi-line" viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="none" style="width: 100%; height: 100%; min-height: 250px;">`;
 
         // Grid lines
         [0, 0.25, 0.5, 0.75, 1.0].forEach(r => {

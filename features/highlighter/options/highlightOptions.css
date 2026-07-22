@@ -45,15 +45,9 @@ body {
 /* Settings Layout Grid */
 .settings-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
     gap: 24px;
     margin-bottom: 20px;
-}
-
-@media (max-width: 768px) {
-    .settings-layout {
-        grid-template-columns: 1fr;
-    }
 }
 
 .settings-column {

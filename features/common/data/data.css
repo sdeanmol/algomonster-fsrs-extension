@@ -8,7 +8,13 @@
 body {
     background-color: var(--md-bg);
     color: var(--md-text-high);
-    padding: 40px 20px;
+    padding: 20px 10px;
+}
+
+@media (min-width: 768px) {
+    body {
+        padding: 40px 20px;
+    }
 }
 
 .container {
@@ -86,7 +92,8 @@ h1 {
     padding: 8px 12px;
     border-radius: 8px;
     font-size: 13px;
-    width: 160px;
+    min-width: 120px;
+    flex: 1;
 }
 
 .filters-row {
@@ -250,8 +257,12 @@ td a:hover {
 /* Actions column */
 .td-actions {
     white-space: nowrap;
+}
+
+.actions-wrapper {
     display: flex;
     gap: 4px;
+    align-items: center;
 }
 
 /* Tag Badges */
@@ -460,7 +471,7 @@ td a:hover {
 
 .edit-field-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
     gap: 12px;
 }
 
@@ -483,15 +494,9 @@ td a:hover {
 /* ========== Analytics Panels & Graphs Grid ========== */
 .analytics-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
     gap: 20px;
     margin-bottom: 24px;
-}
-
-@media (max-width: 680px) {
-    .analytics-grid {
-        grid-template-columns: 1fr;
-    }
 }
 
 .analytics-card {
@@ -545,7 +550,7 @@ td a:hover {
 /* Legend List */
 .analytics-legend {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
     gap: 8px 16px;
 }
 
@@ -649,10 +654,21 @@ td a:hover {
     background: rgba(0, 0, 0, 0.4);
 }
 
-/* ========== Responsive ========== */
+/* R10.4 Reduced Motion Mode */
+@media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ========== Mobile Responsiveness ========== */
 @media (max-width: 768px) {
     .filters-row {
         flex-direction: column;
+        align-items: stretch;
         gap: 12px;
     }
     .select-field {
@@ -660,6 +676,7 @@ td a:hover {
     }
     .reset-group {
         margin-left: 0;
+        align-self: flex-start;
     }
     .bulk-actions-bar {
         flex-direction: column;
@@ -672,13 +689,10 @@ td a:hover {
     .edit-field-row {
         grid-template-columns: 1fr;
     }
-}
-/* R10.4 Reduced Motion Mode */
-@media (prefers-reduced-motion: reduce) {
-    *, ::before, ::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
+    .table-responsive table {
+        min-width: max-content;
+    }
+    .data-table-container {
+        overflow: visible;
     }
 }

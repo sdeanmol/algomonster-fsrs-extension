@@ -267,6 +267,20 @@ body {
     width: 100%;
 }
 
+/* Responsive Layout for Welcome */
+@media (max-width: 600px) {
+    .container {
+        padding: 16px 12px;
+    }
+    .welcome-actions {
+        flex-direction: column;
+        gap: 12px;
+    }
+    .welcome-actions button {
+        width: 100%;
+    }
+}
+
 /* R10.4 Reduced Motion Mode */
 @media (prefers-reduced-motion: reduce) {
     *, ::before, ::after {

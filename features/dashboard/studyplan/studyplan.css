@@ -67,7 +67,7 @@ h1 {
 
 .setup-form {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
 }
@@ -106,7 +106,7 @@ h1 {
 
 .preview-stats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
     gap: 16px;
     text-align: center;
 }
@@ -260,7 +260,8 @@ h1 {
     background: var(--md-surface-variant);
     border: 1px solid var(--md-border);
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     margin-bottom: 28px;
 }
 
@@ -356,12 +357,19 @@ tr.past-row td {
 
 /* Responsive */
 @media (max-width: 600px) {
+    body {
+        padding: 16px 12px;
+    }
+    .setup-panel, .active-panel {
+        padding: 20px 16px;
+    }
     .countdown-section {
         flex-direction: column;
         text-align: center;
     }
     .countdown-stats-row {
         justify-content: center;
+        flex-wrap: wrap;
     }
     .setup-form {
         grid-template-columns: 1fr;

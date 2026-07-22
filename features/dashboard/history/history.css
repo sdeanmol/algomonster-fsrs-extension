@@ -99,15 +99,15 @@ h1 {
 }
 
 .grid-years {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
 }
 
 .grid-months {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
 }
 
 .grid-days {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr));
 }
 
 .card {
@@ -359,6 +359,27 @@ h1 {
     visibility: visible;
     transform: translateX(-50%) translateY(0);
 }
+/* Responsive Layout for History */
+@media (max-width: 600px) {
+    body {
+        padding: 16px 12px;
+    }
+    .controls {
+        flex-wrap: wrap;
+    }
+    .controls button {
+        flex: 1;
+        text-align: center;
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+}
+
 /* R10.4 Reduced Motion Mode */
 @media (prefers-reduced-motion: reduce) {
     *, ::before, ::after {

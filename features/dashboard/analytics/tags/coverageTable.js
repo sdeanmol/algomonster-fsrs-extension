@@ -16,7 +16,7 @@ export class CoverageTable {
         }
 
         let tableHtml = `
-            <table class="coverage-table">
+            <div class="table-responsive"><table class="coverage-table">
                 <thead>
                     <tr>
                         <th>Tag</th>
@@ -57,7 +57,7 @@ export class CoverageTable {
             `;
         });
 
-        tableHtml += `</tbody></table>`;
+        tableHtml += `</tbody></table></div>`;
         container.innerHTML = tableHtml;
 
         // Add event listeners for clickable tags

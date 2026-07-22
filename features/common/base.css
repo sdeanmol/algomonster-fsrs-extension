@@ -5,38 +5,42 @@
  */
 :root {
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    
+
     /* Core MD3 Dark Palette (Default) */
     --md-bg: #0e0e11;
     --md-surface: #17181c;
     --md-surface-variant: #22232a;
     --md-border: #2d2f39;
     --md-border-hover: #3d404f;
-    
-    --md-primary: #a8c7fa; /* Google Light Blue Accent */
+
+    --md-primary: #a8c7fa;
+    /* Google Light Blue Accent */
     --md-on-primary: #062e6f;
     --md-primary-container: #1b3d75;
     --md-on-primary-container: #d3e3fd;
-    
+
     --md-secondary: #c4c6d0;
     --md-on-secondary: #2e3038;
     --md-secondary-container: #44474e;
     --md-on-secondary-container: #e2e2ec;
 
-    --md-success: #81c995; /* Light Green */
+    --md-success: #81c995;
+    /* Light Green */
     --md-success-container: #143825;
-    --md-warning: #fde293; /* Light Yellow/Orange */
+    --md-warning: #fde293;
+    /* Light Yellow/Orange */
     --md-warning-container: #3d2b00;
-    --md-danger: #f28b82; /* Light Red */
+    --md-danger: #f28b82;
+    /* Light Red */
     --md-danger-container: #3d100c;
 
     --md-text-high: #e3e2e6;
     --md-text-med: #c7c6ca;
     --md-text-low: #8e9099;
 
-    --shadow-1: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-    --shadow-2: 0 4px 6px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.2);
-    --shadow-3: 0 10px 20px rgba(0,0,0,0.4), 0 6px 6px rgba(0,0,0,0.3);
+    --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-2: 0 4px 6px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-3: 0 10px 20px rgba(0, 0, 0, 0.4), 0 6px 6px rgba(0, 0, 0, 0.3);
 }
 
 :root.light-theme {
@@ -46,35 +50,47 @@
     --md-surface-variant: #f0f4f9;
     --md-border: #dbe2ef;
     --md-border-hover: #b9cadc;
-    
-    --md-primary: #1a73e8; /* Vibrant Blue */
+
+    --md-primary: #1a73e8;
+    /* Vibrant Blue */
     --md-on-primary: #ffffff;
     --md-primary-container: #d2e3fc;
     --md-on-primary-container: #0d1d3a;
-    
+
     --md-secondary: #5c6068;
     --md-on-secondary: #ffffff;
     --md-secondary-container: #e2e6ee;
     --md-on-secondary-container: #1b1d22;
 
-    --md-success: #1e8e3e; /* Vibrant Green */
+    --md-success: #1e8e3e;
+    /* Vibrant Green */
     --md-success-container: #e6f4ea;
-    --md-warning: #f9ab00; /* Vibrant Orange/Yellow */
+    --md-warning: #f9ab00;
+    /* Vibrant Orange/Yellow */
     --md-warning-container: #fef7e0;
-    --md-danger: #d93025; /* Vibrant Red */
+    --md-danger: #d93025;
+    /* Vibrant Red */
     --md-danger-container: #fce8e6;
 
     --md-text-high: #1c1c1f;
     --md-text-med: #45474a;
     --md-text-low: #75777a;
 
-    --shadow-1: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-2: 0 4px 6px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
-    --shadow-3: 0 10px 20px rgba(0,0,0,0.1), 0 6px 6px rgba(0,0,0,0.06);
+    --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-2: 0 4px 6px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+    --shadow-3: 0 10px 20px rgba(0, 0, 0, 0.1), 0 6px 6px rgba(0, 0, 0, 0.06);
 }
 
 /* Global Transitions for smooth theme switching */
-body, .panel, .stat-box, .card, .btn, input, select, textarea, .slider {
+body,
+.panel,
+.stat-box,
+.card,
+.btn,
+input,
+select,
+textarea,
+.slider {
     transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease;
 }
 
@@ -97,13 +113,16 @@ body {
     width: 8px;
     height: 8px;
 }
+
 ::-webkit-scrollbar-track {
     background: var(--md-bg);
 }
+
 ::-webkit-scrollbar-thumb {
     background: var(--md-border);
     border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
     background: var(--md-border-hover);
 }
@@ -133,6 +152,7 @@ body {
     outline: none;
     width: 100%;
 }
+
 .input-field:focus {
     border-color: var(--md-primary);
     box-shadow: 0 0 0 2px rgba(168, 199, 250, 0.2);
@@ -145,13 +165,15 @@ body {
     justify-content: center;
     gap: 8px;
     padding: 10px 16px;
-    border-radius: 20px; /* MD3 pill shape */
+    border-radius: 20px;
+    /* MD3 pill shape */
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     border: none;
     transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
 }
+
 .btn:active {
     transform: scale(0.97);
 }
@@ -161,6 +183,7 @@ body {
     color: var(--md-on-primary-container);
     border: 1px solid rgba(168, 199, 250, 0.2);
 }
+
 .btn-primary:hover {
     background-color: #244985;
 }
@@ -170,6 +193,7 @@ body {
     color: var(--md-text-high);
     border: 1px solid var(--md-border);
 }
+
 .btn-secondary:hover {
     background-color: #2c2e37;
     border-color: var(--md-border-hover);
@@ -180,6 +204,7 @@ body {
     color: var(--md-danger);
     border: 1px solid rgba(242, 139, 130, 0.2);
 }
+
 .btn-danger:hover {
     background-color: #551914;
 }
@@ -195,6 +220,7 @@ body {
     font-weight: 600;
     transition: background-color 0.2s;
 }
+
 .btn-text:hover {
     background-color: rgba(168, 199, 250, 0.08);
 }
@@ -205,20 +231,26 @@ body {
     width: 44px;
     height: 24px;
 }
+
 .toggle-switch input {
     opacity: 0;
     width: 0;
     height: 0;
 }
+
 .slider {
     position: absolute;
     cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-color: var(--md-border);
     transition: .2s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 24px;
     border: 1px solid var(--md-border-hover);
 }
+
 .slider:before {
     position: absolute;
     content: "";
@@ -230,11 +262,13 @@ body {
     transition: .2s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 50%;
 }
-input:checked + .slider {
+
+input:checked+.slider {
     background-color: var(--md-primary-container);
     border-color: var(--md-primary);
 }
-input:checked + .slider:before {
+
+input:checked+.slider:before {
     transform: translateX(20px);
     background-color: var(--md-primary);
 }
@@ -261,6 +295,7 @@ input:checked + .slider:before {
     align-items: center;
     gap: 8px;
 }
+
 .toast.show {
     bottom: 24px;
     transform: translateX(-50%) scale(1);
@@ -271,19 +306,128 @@ input:checked + .slider:before {
 :root.light-theme .btn-primary:hover {
     background-color: #b3d1ff !important;
 }
+
 :root.light-theme .btn-secondary:hover {
     background-color: var(--md-border) !important;
 }
+
 :root.light-theme .btn-danger:hover {
     background-color: #fbc6c2 !important;
 }
 
+/* Responsive Table Wrapper */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+}
+
+.table-responsive table {
+    width: 100%;
+    min-width: max-content;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Global Responsive Layout Utilities */
+.flex-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.responsive-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 20px;
+}
+
+.grid-auto-fit-sm {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+    gap: 12px;
+}
+
+.grid-auto-fit-md {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 16px;
+}
+
+/* Dynamic Text & Word Break Utilities */
+.overflow-break {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.text-ellipsis {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Fluid Typography */
+.fluid-h1 {
+    font-size: clamp(1.4rem, 4vw, 2.5rem);
+    line-height: 1.2;
+}
+
+.fluid-h2 {
+    font-size: clamp(1.15rem, 3vw, 2rem);
+    line-height: 1.3;
+}
+
+/* Images & Media Scaling */
+img,
+svg,
+video,
+canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Modal and Overlay Constraints */
+.modal-content,
+.dialog-content {
+    max-width: min(95vw, 600px);
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: auto;
+    box-sizing: border-box;
+}
+
 /* R10.4 Reduced Motion Mode */
 @media (prefers-reduced-motion: reduce) {
-    *, ::before, ::after {
+
+    *,
+    ::before,
+    ::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+}
+
+/* Global Mobile & Narrow Viewport Responsiveness */
+@media (max-width: 1024px) {
+    .panel {
+        padding: 16px;
+    }
+
+    /* Stack elements vertically on small screens */
+    .stack-mobile {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .panel {
+        padding: 12px;
     }
 }

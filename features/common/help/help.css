@@ -36,6 +36,7 @@ body {
     align-items: center;
     justify-content: center;
 }
+
 .main-logo-icon {
     width: 44px;
     height: 44px;
@@ -85,6 +86,7 @@ body {
     color: #fff;
     background: rgba(255, 255, 255, 0.05);
 }
+
 :root.light-theme .tab-btn:hover {
     color: var(--md-primary);
     background: rgba(26, 115, 232, 0.08);
@@ -95,6 +97,7 @@ body {
     background: var(--md-primary-container);
     border: 1px solid rgba(168, 199, 250, 0.15);
 }
+
 .tab-btn.active svg {
     stroke: var(--md-primary);
 }
@@ -110,8 +113,15 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Cards */
@@ -124,6 +134,7 @@ body {
     box-shadow: var(--shadow-1);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
+
 .card:hover {
     border-color: var(--md-border-hover);
 }
@@ -150,6 +161,7 @@ body {
     border-color: rgba(168, 199, 250, 0.2);
     box-shadow: 0 8px 24px rgba(168, 199, 250, 0.08);
 }
+
 :root:not(.light-theme) .card-hero h2 {
     color: var(--md-primary);
 }
@@ -159,6 +171,7 @@ body {
     background: linear-gradient(135deg, var(--md-surface), #132b1e);
     border-color: rgba(129, 201, 149, 0.2);
 }
+
 :root:not(.light-theme) .card-accent h3 {
     color: var(--md-success);
 }
@@ -297,7 +310,7 @@ body {
 
 .rating-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
     gap: 12px;
 }
 
@@ -321,10 +334,22 @@ body {
     text-transform: uppercase;
 }
 
-.rating-again .rating-badge { background: linear-gradient(135deg, #f28b82, #d93025); }
-.rating-hard .rating-badge { background: linear-gradient(135deg, #fde293, #f9ab00); color: #201a00 !important; }
-.rating-good .rating-badge { background: linear-gradient(135deg, #81c995, #188038); }
-.rating-easy .rating-badge { background: linear-gradient(135deg, #aecbfa, #1a73e8); }
+.rating-again .rating-badge {
+    background: linear-gradient(135deg, #f28b82, #d93025);
+}
+
+.rating-hard .rating-badge {
+    background: linear-gradient(135deg, #fde293, #f9ab00);
+    color: #201a00 !important;
+}
+
+.rating-good .rating-badge {
+    background: linear-gradient(135deg, #81c995, #188038);
+}
+
+.rating-easy .rating-badge {
+    background: linear-gradient(135deg, #aecbfa, #1a73e8);
+}
 
 .rating-item p {
     font-size: 12px;
@@ -336,13 +361,13 @@ body {
 /* Grids */
 .grid-2 {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
     gap: 20px;
 }
 
 .grid-3 {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
     gap: 16px;
 }
 
@@ -387,13 +412,6 @@ code {
     font-size: 12px;
     color: var(--md-warning);
     border: 1px solid var(--md-border);
-}
-
-/* Responsiveness */
-@media (max-width: 768px) {
-    .grid-2, .grid-3, .rating-grid {
-        grid-template-columns: 1fr;
-    }
 }
 
 /* ==========================================
@@ -441,7 +459,8 @@ code {
 }
 
 :root.light-theme .card-accent h3 {
-    color: #188038; /* MD3 Compatible green */
+    color: #188038;
+    /* MD3 Compatible green */
 }
 
 :root.light-theme .card-code {
@@ -466,9 +485,30 @@ code {
     border-color: #f7d2bc;
 }
 
+/* Responsiveness */
+@media (max-width: 768px) {
+
+    .grid-2,
+    .grid-3,
+    .rating-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .flex-row,
+    .hero-content,
+    .nav {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+}
+
 /* R10.4 Reduced Motion Mode */
 @media (prefers-reduced-motion: reduce) {
-    *, ::before, ::after {
+
+    *,
+    ::before,
+    ::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;

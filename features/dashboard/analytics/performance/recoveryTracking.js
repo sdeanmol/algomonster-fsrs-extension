@@ -76,7 +76,7 @@ export class RecoveryTracking {
         }).join('');
         
         return `
-            <table class="recovery-table">
+            <div class="table-responsive"><table class="recovery-table">
                 <thead>
                     <tr>
                         <th>Card</th>
@@ -89,7 +89,7 @@ export class RecoveryTracking {
                 <tbody>
                     ${rows}
                 </tbody>
-            </table>
+            </table></div>
         `;
     }
 }

@@ -89,7 +89,8 @@
     position: fixed;
     bottom: 20px;
     right: 20px;
-    width: 320px;
+    width: min(320px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
     background: var(--w-bg);
     color: var(--w-text);
     border-radius: 14px;
@@ -534,7 +535,8 @@
     position: fixed;
     top: 24px;
     right: 24px;
-    width: 320px;
+    width: min(320px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
     background: var(--w-bg);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);

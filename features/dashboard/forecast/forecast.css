@@ -45,7 +45,7 @@ body {
 /* Summary Cards */
 .forecast-summary {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
     gap: 10px;
     margin-bottom: 24px;
 }
@@ -368,6 +368,25 @@ body {
     transform: translateX(-50%) translateY(0);
 }
 
+
+/* Responsive Layout for Forecast */
+@media (max-width: 600px) {
+    body {
+        padding: 12px;
+    }
+    .summary-value {
+        font-size: clamp(18px, 5vw, 24px);
+    }
+    .forecast-calendar {
+        gap: 2px;
+    }
+    .cal-day {
+        font-size: clamp(10px, 3.5vw, 13px);
+    }
+    .cal-count {
+        font-size: clamp(8px, 2.5vw, 10px);
+    }
+}
 
 /* R10.4 Reduced Motion Mode */
 @media (prefers-reduced-motion: reduce) {
