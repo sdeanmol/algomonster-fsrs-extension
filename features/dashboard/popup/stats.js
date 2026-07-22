@@ -1,4 +1,5 @@
 import { DashboardComponent } from './DashboardComponent.js';
+import { getLastReviewDate } from '../../common/utils/cardUtils.js';
 
 /**
  * @class StatsComponent
@@ -98,9 +99,7 @@ export class StatsComponent extends DashboardComponent {
             
             let completedToday = 0;
             cards.forEach(card => {
-                const lastReview = card.historyLog && card.historyLog.length > 0 
-                    ? card.historyLog[card.historyLog.length - 1] 
-                    : null;
+                const lastReview = getLastReviewDate(card);
                 
                 // Check if card has been reviewed today
                 const isReviewedToday = lastReview && new Date(lastReview).toDateString() === new Date().toDateString();

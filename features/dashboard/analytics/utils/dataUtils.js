@@ -3,9 +3,20 @@
  * @description Shared utilities for aggregating and calculating FSRS data.
  */
 
+import { getLastReviewDate } from '../../../common/utils/cardUtils.js';
+
 export class DataUtils {
     constructor(cards, activity, scheduler) {
         this.cards = cards || [];
+        
+        // Ensure consistent camelCase properties for analytics calculations
+        this.cards.forEach(card => {
+            card.lastReview = getLastReviewDate(card);
+            
+            if (card.elapsedDays === undefined) card.elapsedDays = card.elapsed_days || 0;
+            if (card.scheduledDays === undefined) card.scheduledDays = card.scheduled_days || 0;
+        });
+
         this.activity = activity || {};
         this.scheduler = scheduler;
         this.today = new Date();

@@ -1,3 +1,5 @@
+import { getLastReviewDate } from '../../common/utils/cardUtils.js';
+
 export class RecoveryTracking {
     constructor(dataUtils) {
         this.dataUtils = dataUtils;
@@ -55,12 +57,19 @@ export class RecoveryTracking {
             // Heuristic for days since last lapse (assume last review was a lapse if struggling)
             // Ideally derived from historyLog
             let daysSince = 0;
+            let lastLapseLog = null;
+            
             if (c.historyLog && c.historyLog.length > 0) {
-                const lastLapseLog = c.historyLog.find(l => l.rating === 1);
-                if (lastLapseLog) {
-                    daysSince = Math.floor((Date.now() - lastLapseLog.date) / (1000 * 60 * 60 * 24));
-                } else if (c.lastReview) {
-                    daysSince = Math.floor((Date.now() - c.lastReview) / (1000 * 60 * 60 * 24));
+                // Find the most recent lapse by searching backwards and ensuring it's an object
+                lastLapseLog = c.historyLog.slice().reverse().find(l => typeof l === 'object' && l.rating === 1);
+            }
+            
+            if (lastLapseLog && lastLapseLog.date) {
+                daysSince = Math.floor((Date.now() - lastLapseLog.date) / (1000 * 60 * 60 * 24));
+            } else {
+                const lr = getLastReviewDate(c);
+                if (lr) {
+                    daysSince = Math.floor((Date.now() - lr) / (1000 * 60 * 60 * 24));
                 }
             }
             

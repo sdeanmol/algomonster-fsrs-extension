@@ -5,6 +5,8 @@
  * prioritizing overdue and low-stability cards. Backs up original due dates
  * for restoration on deactivation.
  */
+import { getLastReviewDate } from '../../common/utils/cardUtils.js';
+
 class StudyPlanController {
     constructor() {
         this.allCards = [];
@@ -228,7 +230,7 @@ class StudyPlanController {
 
         // Stats
         const completedCards = this.allCards.filter(c => {
-            const lastReview = c.historyLog && c.historyLog.length > 0 ? c.historyLog[c.historyLog.length - 1] : 0;
+            const lastReview = getLastReviewDate(c);
             return lastReview > this.settings.activatedAt;
         }).length;
 

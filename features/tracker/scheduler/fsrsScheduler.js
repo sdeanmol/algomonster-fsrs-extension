@@ -6,6 +6,7 @@
  */
 
 import { fsrs, createEmptyCard, Rating, State } from 'ts-fsrs';
+import { getLastReviewDate } from '../../common/utils/cardUtils.js';
 
 // Priority to require() so Webpack bundles the local scheduler.js instead of picking up Chrome's native window.Scheduler API.
 const BaseScheduler = typeof require !== 'undefined' ? require('./scheduler.js') : AbstractScheduler;
@@ -75,11 +76,7 @@ class FsrsScheduler extends BaseScheduler {
         newCard.historyLog = newCard.historyLog || [];
         newCard.historyLog.push({ rating, date: now });
 
-        let lastReview = card.last_review;
-        if (!lastReview && card.historyLog && card.historyLog.length > 0) {
-            const lastLog = card.historyLog[card.historyLog.length - 1];
-            lastReview = typeof lastLog === 'object' ? lastLog.date : lastLog;
-        }
+        let lastReview = getLastReviewDate(card);
 
         const w = (customWeights && customWeights.length === 17) ? customWeights : this.w;
 
@@ -94,8 +91,8 @@ class FsrsScheduler extends BaseScheduler {
             due: new Date(newCard.due),
             stability: newCard.stability,
             difficulty: newCard.difficulty,
-            elapsed_days: newCard.elapsed_days,
-            scheduled_days: newCard.scheduled_days,
+            elapsed_days: newCard.elapsed_days !== undefined ? newCard.elapsed_days : (newCard.elapsedDays || 0),
+            scheduled_days: newCard.scheduled_days !== undefined ? newCard.scheduled_days : (newCard.scheduledDays || 0),
             reps: newCard.reps,
             lapses: newCard.lapses,
             state: newCard.state,
@@ -120,11 +117,7 @@ class FsrsScheduler extends BaseScheduler {
     }
 
     getRetrievability(card, now = Date.now()) {
-        let lastReview = card.last_review;
-        if (!lastReview && card.historyLog && card.historyLog.length > 0) {
-            const lastLog = card.historyLog[card.historyLog.length - 1];
-            lastReview = typeof lastLog === 'object' ? lastLog.date : lastLog;
-        }
+        let lastReview = getLastReviewDate(card);
 
         if (card.stability <= 0 || !lastReview) {
             return 0;
@@ -134,8 +127,8 @@ class FsrsScheduler extends BaseScheduler {
             due: new Date(card.due),
             stability: card.stability,
             difficulty: card.difficulty,
-            elapsed_days: card.elapsed_days,
-            scheduled_days: card.scheduled_days,
+            elapsed_days: card.elapsed_days !== undefined ? card.elapsed_days : (card.elapsedDays || 0),
+            scheduled_days: card.scheduled_days !== undefined ? card.scheduled_days : (card.scheduledDays || 0),
             reps: card.reps,
             lapses: card.lapses,
             state: card.state,
