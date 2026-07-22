@@ -24,14 +24,17 @@ export class MemoryTab {
                                 Multiple Retention Curves
                                 <span class="help-icon" data-tooltip="Shows how your memory of a card decays over time. A flatter curve means better long-term memory.">?</span>
                             </span>
-                            <div class="memory-controls">
-                                <select id="retention-group-by" class="modern-select">
+                            <div class="memory-controls" style="display:flex; align-items:center; gap:12px;">
+                                <div id="tag-filter-wrapper" style="display:flex; align-items:center;">
+                                    <input type="text" id="retention-tag-filter" class="modern-input" placeholder="Filter by tag..." style="width: 140px; padding: 6px 10px; font-size: 13px; height: 32px; border-radius: 6px; border: 1px solid var(--md-outline-variant);">
+                                </div>
+                                <select id="retention-group-by" class="modern-select" style="height: 32px; padding: 0 28px 0 10px; font-size: 13px; border-radius: 6px;">
                                     <option value="tag">By Tag</option>
                                     <option value="deck">By Deck</option>
                                     <option value="difficulty">By Difficulty</option>
                                 </select>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="toggle-confidence-bands">
+                                <label class="checkbox-label" style="display:flex; align-items:center; gap:6px; font-size: 13px; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" id="toggle-confidence-bands" style="margin:0; cursor: pointer;">
                                     Show confidence band
                                 </label>
                             </div>
@@ -54,9 +57,20 @@ export class MemoryTab {
             // Bind events for the dropdowns and toggles
             const groupBySelect = container.querySelector('#retention-group-by');
             const confidenceToggle = container.querySelector('#toggle-confidence-bands');
+            const tagFilterInput = container.querySelector('#retention-tag-filter');
+            const tagFilterWrapper = container.querySelector('#tag-filter-wrapper');
             
             groupBySelect.addEventListener('change', (e) => {
-                this.retentionChart.setGroupBy(e.target.value);
+                const groupBy = e.target.value;
+                this.retentionChart.setGroupBy(groupBy);
+                this.retentionChart.render('retention-curves-container');
+                
+                // Toggle visibility of the tag filter based on the group-by selection
+                tagFilterWrapper.style.display = (groupBy === 'tag') ? 'flex' : 'none';
+            });
+
+            tagFilterInput.addEventListener('input', (e) => {
+                this.retentionChart.setFilterTag(e.target.value);
                 this.retentionChart.render('retention-curves-container');
             });
             

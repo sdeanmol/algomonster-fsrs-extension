@@ -11,7 +11,7 @@ module.exports = {
     filename: 'dist/[name].bundle.js',
     chunkFilename: 'dist/[id].bundle.js',
     assetModuleFilename: 'dist/[hash][ext][query]',
-    publicPath: '/'
+    publicPath: 'auto'
   },
   devtool: 'inline-source-map',
   module: {

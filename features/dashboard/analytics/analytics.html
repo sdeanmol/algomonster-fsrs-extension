@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <title>AlgoRecall — Analytics Dashboard</title>
     <script src="../../common/theme-sync.js"></script>
-    <script src="../../tracker/scheduler/scheduler.js"></script>
-    <script src="../../tracker/scheduler/fsrsScheduler.js"></script>
+    <script src="../../../dist/fsrsScheduler.bundle.js"></script>
     <link rel="stylesheet" href="../../common/base.css">
     <link rel="stylesheet" href="analytics.css">
 </head>
+
 <body>
     <div class="dashboard-layout">
         <!-- Sidebar Navigation -->
@@ -26,29 +27,51 @@
             </div>
             <ul class="nav-links">
                 <li><button class="nav-btn active" data-tab="overview">
-                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                    Overview
-                </button></li>
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        Overview
+                    </button></li>
                 <li><button class="nav-btn" data-tab="memory">
-                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                    Memory
-                </button></li>
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                        Memory
+                    </button></li>
                 <li><button class="nav-btn" data-tab="tags">
-                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                    Tags
-                </button></li>
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z">
+                            </path>
+                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                        </svg>
+                        Tags
+                    </button></li>
                 <li><button class="nav-btn" data-tab="performance">
-                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    Performance
-                </button></li>
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        Performance
+                    </button></li>
                 <li><button class="nav-btn" data-tab="insights">
-                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg>
-                    Insights
-                </button></li>
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="2"></circle>
+                            <path
+                                d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14">
+                            </path>
+                        </svg>
+                        Insights
+                    </button></li>
             </ul>
             <div class="sidebar-footer">
                 <a href="../popup/popup.html" class="btn btn-secondary w-full" style="text-align: center;">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
                     Dashboard
                 </a>
             </div>
@@ -74,4 +97,5 @@
     <!-- Ensure module import works -->
     <script type="module" src="analytics.js"></script>
 </body>
+
 </html>

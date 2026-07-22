@@ -12,6 +12,11 @@ export class RetentionChart {
             '#c4a8fa', '#8ecae6', '#f4a261', '#e76f51',
             '#90be6d', '#f9c74f', '#43aa8b', '#577590'
         ];
+        this.filterTag = '';
+    }
+
+    setFilterTag(tag) {
+        this.filterTag = (tag || '').trim().toLowerCase();
     }
 
     setGroupBy(type) {
@@ -29,6 +34,11 @@ export class RetentionChart {
         // Group cards based on selection
         const groups = {};
         this.dataUtils.cards.forEach(card => {
+            if (this.filterTag) {
+                const hasTag = card.tags && card.tags.some(t => t.toLowerCase().includes(this.filterTag));
+                if (!hasTag) return;
+            }
+
             if (card.stability > 0) {
                 let keys = [];
                 if (this.groupBy === 'tag') {
@@ -93,7 +103,17 @@ export class RetentionChart {
         groupAvgs.forEach((gData, idx) => {
             const color = this.chartColors[idx % this.chartColors.length];
             const points = timePoints.map(t => {
-                const R = this.scheduler ? this.scheduler.getProjectedRetrievability(gData.avgStability, t) : 0;
+                let R = 0;
+                if (this.scheduler && typeof this.scheduler.getProjectedRetrievability === 'function') {
+                    R = this.scheduler.getProjectedRetrievability(gData.avgStability, t);
+                } else {
+                    // Fallback to pure math if scheduler is not loaded
+                    const stability = gData.avgStability;
+                    if (stability > 0) {
+                        R = Math.pow(1 + ((19 / 81) * t) / stability, -0.5);
+                    }
+                }
+                
                 return { t, R, x: xScale(t), y: yScale(R) };
             });
 

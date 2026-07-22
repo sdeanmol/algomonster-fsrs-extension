@@ -24,8 +24,8 @@ class FSRSHistoryDashboard {
             allCards.forEach(c => {
                 if (c.historyLog) {
                     const uniqueDatesForCard = new Set();
-                    c.historyLog.forEach(logEntry => {
-                        const timestamp = (typeof logEntry === 'object' && logEntry !== null) ? logEntry.date : logEntry;
+                    c.historyLog.forEach(log => {
+                        const timestamp = (typeof log === 'object' && log !== null) ? log.date : log;
                         const dateObj = new Date(timestamp);
                         const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
                         uniqueDatesForCard.add(localDateStr);

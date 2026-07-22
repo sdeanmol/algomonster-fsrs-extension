@@ -5,10 +5,10 @@
  * pluggable within the extension architecture.
  */
 
-class Scheduler {
+class AbstractScheduler {
     constructor() {
-        if (new.target === Scheduler) {
-            throw new TypeError("Cannot construct Scheduler instances directly.");
+        if (new.target === AbstractScheduler) {
+            throw new TypeError("Cannot construct AbstractScheduler instances directly.");
         }
     }
 
@@ -130,5 +130,5 @@ class Scheduler {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = Scheduler;
+    module.exports = AbstractScheduler;
 }

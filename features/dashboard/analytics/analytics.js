@@ -38,25 +38,43 @@ class AnalyticsDashboardSPA {
             const cards = result.fsrsCards || [];
             const activity = result.fsrsActivity || {};
             
-            const scheduler = typeof window !== 'undefined' && window.FsrsScheduler ? new window.FsrsScheduler() : null;
-            this.dataUtils = new DataUtils(cards, activity, scheduler);
-            
-            // Initialize tab controllers
-            this.tabs.overview = new OverviewTab(this.dataUtils);
-            this.tabs.memory = new MemoryTab(this.dataUtils);
-            this.tabs.tags = new TagsTab(this.dataUtils);
-            this.tabs.performance = new PerformanceTab(this.dataUtils);
-            this.tabs.insights = new InsightsTab(this.dataUtils);
+            const initializeDataUtils = () => {
+                const scheduler = typeof window !== 'undefined' && window.FsrsScheduler ? new window.FsrsScheduler() : null;
+                this.dataUtils = new DataUtils(cards, activity, scheduler);
+                
+                // Initialize tab controllers
+                this.tabs.overview = new OverviewTab(this.dataUtils);
+                this.tabs.memory = new MemoryTab(this.dataUtils);
+                this.tabs.tags = new TagsTab(this.dataUtils);
+                this.tabs.performance = new PerformanceTab(this.dataUtils);
+                this.tabs.insights = new InsightsTab(this.dataUtils);
 
-            // Set up subtitle
-            const stats = this.dataUtils.getSummaryStats();
-            document.getElementById('analytics-subtitle').textContent = 
-                `${stats.totalCards} patterns tracked · ${stats.totalActivityReviews} total reviews · ${stats.trueRetention}% retention rate`;
+                // Set up subtitle
+                const stats = this.dataUtils.getSummaryStats();
+                const subtitleElem = document.getElementById('analytics-subtitle');
+                if (subtitleElem) {
+                    subtitleElem.innerHTML = `${stats.totalCards} patterns tracked &middot; ${stats.totalActivityReviews} total reviews &middot; ${stats.trueRetention}% retention rate`;
+                }
 
-            this.bindNavigation();
-            
-            // Render initial tab
-            this.switchTab('overview');
+                this.bindNavigation();
+                
+                // Render initial tab
+                this.switchTab('overview');
+            };
+
+            // If FsrsScheduler is bundled with WASM and loaded asynchronously, we wait for it
+            if (typeof window !== 'undefined' && window.FsrsScheduler === undefined) {
+                let retries = 0;
+                const interval = setInterval(() => {
+                    if (window.FsrsScheduler !== undefined || retries > 50) { // 5 seconds max
+                        clearInterval(interval);
+                        initializeDataUtils();
+                    }
+                    retries++;
+                }, 100);
+            } else {
+                initializeDataUtils();
+            }
         });
     }
 
@@ -99,7 +117,13 @@ class AnalyticsDashboardSPA {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initSPA() {
     const spa = new AnalyticsDashboardSPA();
     spa.init();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSPA);
+} else {
+    initSPA();
+}

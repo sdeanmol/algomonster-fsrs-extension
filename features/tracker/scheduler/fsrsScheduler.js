@@ -7,8 +7,8 @@
 
 import { fsrs, createEmptyCard, Rating, State } from 'ts-fsrs';
 
-// Fallback logic if we are running outside Webpack bundling context (which we shouldn't be now)
-const BaseScheduler = typeof Scheduler !== 'undefined' ? Scheduler : (typeof require !== 'undefined' ? require('./scheduler.js') : class {});
+// Priority to require() so Webpack bundles the local scheduler.js instead of picking up Chrome's native window.Scheduler API.
+const BaseScheduler = typeof require !== 'undefined' ? require('./scheduler.js') : AbstractScheduler;
 
 class FsrsScheduler extends BaseScheduler {
     /**
@@ -152,6 +152,11 @@ class FsrsScheduler extends BaseScheduler {
         return scheduler.get_retrievability(tsCard, new Date(now), false) || 0;
     }
 
+    getProjectedRetrievability(stability, elapsedDays) {
+        if (stability <= 0) return 0;
+        return Math.pow(1 + (this.factor * elapsedDays) / stability, this.decay);
+    }
+
     getDefaultRequestRetention() {
         return this.requestRetention;
     }
@@ -197,6 +202,8 @@ class FsrsScheduler extends BaseScheduler {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = FsrsScheduler;
-} else if (typeof window !== 'undefined') {
+}
+if (typeof window !== 'undefined') {
     window.FsrsScheduler = FsrsScheduler;
+    console.log('[DEBUG] FsrsScheduler assigned to window:', window.FsrsScheduler);
 }
