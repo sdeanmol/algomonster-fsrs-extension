@@ -64,7 +64,7 @@ export class MemoryHealth {
                 </div>
                 <div class="health-metrics-grid">
                     <div class="health-metric">
-                        <div class="hm-val">${stats.retention}%</div>
+                        <div class="hm-val">${stats.trueRetention}%</div>
                         <div class="hm-lbl">Retention</div>
                     </div>
                     <div class="health-metric">

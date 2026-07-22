@@ -40,17 +40,37 @@ export class StatsComponent extends DashboardComponent {
             if (totalEl) totalEl.innerText = cards.length;
             if (dueEl) dueEl.innerText = dueToday;
             
-            // Calculate memory retention rate: (Total Reps - Lapses) / Total Reps
+            // Calculate memory retention rate: True FSRS Retrievability
+            let totalRetrievability = 0;
+            let retrievabilityCount = 0;
+            const scheduler = window.FsrsScheduler ? new window.FsrsScheduler() : null;
+            const currentTime = Date.now();
+            
+            let totalActivityReviews = 0; // Pre-calc for later
             let totalReps = 0;
             let totalLapses = 0;
+            
             cards.forEach(card => {
                 totalReps += card.reps || 0;
                 totalLapses += card.lapses || 0;
+                
+                if (card.stability > 0 && scheduler) {
+                    const lastReview = getLastReviewDate(card);
+                    if (lastReview) {
+                        const r = scheduler.getRetrievability(card, currentTime);
+                        totalRetrievability += r;
+                        retrievabilityCount++;
+                    }
+                }
             });
 
             if (retentionEl) {
                 let retentionStr = "0%";
-                if (totalReps > 0) {
+                if (retrievabilityCount > 0) {
+                    const trueRetention = (totalRetrievability / retrievabilityCount) * 100;
+                    retentionStr = Math.round(trueRetention) + "%";
+                } else if (totalReps > 0) {
+                    // Fallback to historic if no FSRS data
                     const rate = ((totalReps - totalLapses) / totalReps) * 100;
                     retentionStr = Math.round(rate) + "%";
                 }
@@ -59,7 +79,7 @@ export class StatsComponent extends DashboardComponent {
 
             // 1. Level & XP Progression Logic
             // Level is computed as: Floor(Total Reviews / 10) + 1
-            let totalActivityReviews = 0;
+            totalActivityReviews = 0;
             Object.values(activity).forEach(count => {
                 totalActivityReviews += count;
             });
