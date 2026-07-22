@@ -36,9 +36,13 @@ class ForecastDashboard {
         let pastDueCount = 0;
 
         cards.forEach(card => {
+            if (card.state === 0) return; // Ignore 'New' unstudied cards in spaced-repetition forecast
+
             const dueDate = new Date(card.due);
             const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-            const diffDays = Math.floor((dueDay - todayStart) / (1000 * 60 * 60 * 24));
+            
+            // Use Math.round to prevent off-by-one errors on Daylight Saving Time boundaries
+            const diffDays = Math.round((dueDay - todayStart) / (1000 * 60 * 60 * 24));
 
             if (diffDays < 0) {
                 pastDueCount++;
@@ -59,7 +63,9 @@ class ForecastDashboard {
         for (let i = 0; i <= daysToShow; i++) {
             const count = dueCounts[i] || 0;
             totalUpcoming += count;
-            if (count > peakCount) {
+            
+            // Peak day should represent the highest *scheduled* future workload (ignoring current backlog/today)
+            if (i > 0 && count > peakCount) {
                 peakCount = count;
                 peakDayIdx = i;
             }
