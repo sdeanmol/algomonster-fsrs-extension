@@ -1,4 +1,4 @@
-import { getLastReviewDate } from '../../common/utils/cardUtils.js';
+import { getLastReviewDate } from '../../../common/utils/cardUtils.js';
 
 export class RecoveryTracking {
     constructor(dataUtils) {

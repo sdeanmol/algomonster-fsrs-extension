@@ -42,10 +42,10 @@ class FsrsScheduler extends BaseScheduler {
     createCard(problemTitle, problemUrl, textRead, approach, tags = []) {
         if (typeof window !== 'undefined' && window.Logger) window.Logger.debug('FSRS', 'Creating new card', { problemTitle, problemUrl });
         const now = new Date();
-        
+
         // ts-fsrs provides createEmptyCard() which scaffolds the standard FSRS structure
         const emptyCard = createEmptyCard(now);
-        
+
         return {
             id: Date.now().toString(),
             problemTitle,
@@ -54,7 +54,7 @@ class FsrsScheduler extends BaseScheduler {
             approach,
             tags,
             historyLog: [{ rating: Rating.Manual, date: now.getTime() }], // Track exactly when this was created/reviewed
-            
+
             // FSRS standardized schema fields:
             due: emptyCard.due.getTime(),
             stability: emptyCard.stability,
@@ -71,7 +71,7 @@ class FsrsScheduler extends BaseScheduler {
     reviewCard(card, rating, customWeights = null, now = Date.now()) {
         if (typeof window !== 'undefined' && window.Logger) window.Logger.debug('FSRS', `Reviewing card: ${card.problemTitle} with rating ${rating}`);
         let newCard = { ...card };
-        
+
         newCard.previousDue = card.due;
         newCard.historyLog = newCard.historyLog || [];
         newCard.historyLog.push({ rating, date: now });
@@ -101,7 +101,7 @@ class FsrsScheduler extends BaseScheduler {
 
         // ts-fsrs ratings are: 1=Again, 2=Hard, 3=Good, 4=Easy
         const result = scheduler.next(tsCard, new Date(now), rating);
-        
+
         // Map back to JSON-serializable structure
         newCard.due = result.card.due.getTime();
         newCard.stability = result.card.stability;
@@ -198,5 +198,4 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 if (typeof window !== 'undefined') {
     window.FsrsScheduler = FsrsScheduler;
-    console.log('[DEBUG] FsrsScheduler assigned to window:', window.FsrsScheduler);
 }
