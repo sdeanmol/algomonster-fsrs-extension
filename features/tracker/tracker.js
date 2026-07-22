@@ -603,6 +603,7 @@ window.AlgoRecall.Tracker = class Tracker {
 
         this.reviewIndex++;
         const currentCard = remaining[0];
+        this.cardStartTime = Date.now();
         const reviewUi = document.getElementById('fsrs-review-ui');
         document.getElementById('fsrs-body').style.display = 'none';
         reviewUi.style.display = 'block';
@@ -695,7 +696,8 @@ window.AlgoRecall.Tracker = class Tracker {
         // Rating button click handlers
         reviewUi.querySelectorAll('.fsrs-rating-buttons button[data-rating]').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                this.handleRating(currentCard, parseInt(e.currentTarget.getAttribute('data-rating')));
+                const timeTaken = this.cardStartTime ? Date.now() - this.cardStartTime : 0;
+                this.handleRating(currentCard, parseInt(e.currentTarget.getAttribute('data-rating')), timeTaken);
                 this.showCard();
             });
         });
@@ -724,7 +726,8 @@ window.AlgoRecall.Tracker = class Tracker {
                 const rating = ratingMap[e.code];
                 if (rating) {
                     e.preventDefault();
-                    this.handleRating(currentCard, rating);
+                    const timeTaken = this.cardStartTime ? Date.now() - this.cardStartTime : 0;
+                    this.handleRating(currentCard, rating, timeTaken);
                     this.showCard();
                 }
             }
@@ -737,8 +740,9 @@ window.AlgoRecall.Tracker = class Tracker {
      * updates storage databases, and logs activity increments.
      * @param {Object} card - The card structure being rated.
      * @param {number} rating - The target study quality rating (1-4).
+     * @param {number} timeTaken - Milliseconds spent reviewing the card.
      */
-    handleRating(card, rating) {
+    handleRating(card, rating, timeTaken = 0) {
         const index = this.state.cards.findIndex(c => c.id === card.id);
         if (index === -1) return;
 
@@ -755,6 +759,14 @@ window.AlgoRecall.Tracker = class Tracker {
 
         this.state.cards[index] = this.state.scheduler.reviewCard(card, rating, customWeightsToApply);
         this.state.cards[index].lastRating = rating;
+        
+        if (!this.state.cards[index].reviewDurations) {
+            this.state.cards[index].reviewDurations = [];
+        }
+        if (timeTaken > 0) {
+            this.state.cards[index].reviewDurations.push(timeTaken);
+        }
+        
         this.saveCards();
         this.logReviewActivity();
     }

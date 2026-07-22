@@ -133,6 +133,27 @@ export class DataUtils {
         let reviewsLastWeek = 0;
         let reviewsPrevWeek = 0;
         
+        let dailyNew = [0, 0, 0, 0, 0, 0, 0];
+        let dailyGrad = [0, 0, 0, 0, 0, 0, 0];
+        let dailyRev = [0, 0, 0, 0, 0, 0, 0];
+
+        // We will need to map timestamp to the correct bin 0-6 (0 is 6 days ago, 6 is today)
+        this.cards.forEach(card => {
+            let firstReview = card.lastReview;
+            if (card.historyLog && card.historyLog.length > 0) {
+                firstReview = card.historyLog[0].date;
+            }
+            if (firstReview && firstReview > oneWeekAgo) {
+                const dayIndex = 6 - Math.floor((now - firstReview) / (1000 * 60 * 60 * 24));
+                if (dayIndex >= 0 && dayIndex < 7) dailyNew[dayIndex]++;
+            }
+            
+            if (card.stability > 7 && card.lastReview && card.lastReview > oneWeekAgo) {
+                const dayIndex = 6 - Math.floor((now - card.lastReview) / (1000 * 60 * 60 * 24));
+                if (dayIndex >= 0 && dayIndex < 7) dailyGrad[dayIndex]++;
+            }
+        });
+        
         for (let i = 0; i < 14; i++) {
             const d = new Date(this.today);
             d.setDate(d.getDate() - i);
@@ -140,6 +161,7 @@ export class DataUtils {
             const val = this.activity[key] || 0;
             if (i < 7) {
                 reviewsLastWeek += val;
+                dailyRev[6 - i] = val; // i=0 is today (index 6), i=6 is 6 days ago (index 0)
             } else {
                 reviewsPrevWeek += val;
             }
@@ -153,10 +175,13 @@ export class DataUtils {
         return {
             newCardsPerDay: (newCardsLastWeek / 7).toFixed(1),
             newCardsTrend: calcTrend(newCardsLastWeek, newCardsPrevWeek),
+            sparklineNew: dailyNew,
             graduatedPerWeek: graduatedLastWeek,
             graduatedTrend: calcTrend(graduatedLastWeek, graduatedPrevWeek),
+            sparklineGrad: dailyGrad,
             reviewsPerDay: (reviewsLastWeek / 7).toFixed(1),
-            reviewsTrend: calcTrend(reviewsLastWeek, reviewsPrevWeek)
+            reviewsTrend: calcTrend(reviewsLastWeek, reviewsPrevWeek),
+            sparklineRev: dailyRev
         };
     }
 
@@ -264,17 +289,17 @@ export class DataUtils {
     
     getReviewTimeInsights() {
         const times = {
-            morning: { reviews: 0, reps: 0, lapses: 0 },   // 5AM - 12PM
-            afternoon: { reviews: 0, reps: 0, lapses: 0 }, // 12PM - 5PM
-            evening: { reviews: 0, reps: 0, lapses: 0 },   // 5PM - 9PM
-            night: { reviews: 0, reps: 0, lapses: 0 }      // 9PM - 5AM
+            morning: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 },   // 5AM - 12PM
+            afternoon: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 }, // 12PM - 5PM
+            evening: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 },   // 5PM - 9PM
+            night: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 }      // 9PM - 5AM
         };
         
         let hasTimeData = false;
         
         this.cards.forEach(card => {
             if (card.historyLog && card.historyLog.length > 0) {
-                card.historyLog.forEach(log => {
+                card.historyLog.forEach((log, index) => {
                     if (log.date) {
                         hasTimeData = true;
                         const d = new Date(log.date);
@@ -289,6 +314,11 @@ export class DataUtils {
                         if (log.rating === 1) { 
                             times[bucket].lapses++;
                         }
+                        
+                        if (card.reviewDurations && card.reviewDurations[index] !== undefined) {
+                            times[bucket].duration += card.reviewDurations[index];
+                            times[bucket].durationCount++;
+                        }
                     }
                 });
             }
@@ -297,10 +327,12 @@ export class DataUtils {
         const result = [];
         for (const [bucket, data] of Object.entries(times)) {
             const retention = data.reps > 0 ? ((data.reps - data.lapses) / data.reps) * 100 : 0;
+            const avgDurationMs = data.durationCount > 0 ? (data.duration / data.durationCount) : null;
             result.push({
                 bucket,
                 reviews: data.reviews,
-                retention: Math.round(retention)
+                retention: Math.round(retention),
+                avgDurationMs
             });
         }
         

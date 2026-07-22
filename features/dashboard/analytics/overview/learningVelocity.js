@@ -8,11 +8,10 @@ export class LearningVelocity {
         if (!container) return;
 
         const velocity = this.dataUtils.getLearningVelocity();
-
-        // Dummy sparkline SVGs for visual flair
-        const sparkline1 = this.generateSparkline('#4a90e2');
-        const sparkline2 = this.generateSparkline('#50e3c2');
-        const sparkline3 = this.generateSparkline('#f5a623');
+        
+        const sparkline1 = this.generateSparkline('#a8c7fa', velocity.sparklineNew);
+        const sparkline2 = this.generateSparkline('#50e3c2', velocity.sparklineGrad);
+        const sparkline3 = this.generateSparkline('#f5a623', velocity.sparklineRev);
 
         const formatTrend = (val) => {
             if (val === 0) return `<span class="kpi-trend" style="color:var(--md-text-low);">0%</span>`;
@@ -67,17 +66,20 @@ export class LearningVelocity {
         `;
     }
 
-    generateSparkline(color) {
-        // Generates a simple random sparkline SVG
+    generateSparkline(color, dataArray = []) {
+        if (!dataArray || dataArray.length === 0) return '';
+        
+        const maxVal = Math.max(...dataArray, 1);
         const pts = [];
-        let y = 20;
-        for (let i = 0; i <= 10; i++) {
-            pts.push(`${i * 10},${y}`);
-            y += (Math.random() * 10 - 5);
-            y = Math.max(5, Math.min(35, y));
+        const xStep = 100 / Math.max(1, dataArray.length - 1);
+        
+        for (let i = 0; i < dataArray.length; i++) {
+            const y = 35 - ((dataArray[i] / maxVal) * 30);
+            pts.push(`${i * xStep},${y}`);
         }
+        
         return `
-            <svg viewBox="0 0 100 40" class="sparkline-svg">
+            <svg viewBox="0 0 100 40" class="sparkline-svg" preserveAspectRatio="none">
                 <polyline points="${pts.join(' ')}" stroke="${color}" fill="none" stroke-width="2" stroke-linecap="round"/>
             </svg>
         `;

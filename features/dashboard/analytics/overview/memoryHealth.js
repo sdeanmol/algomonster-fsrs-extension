@@ -19,11 +19,24 @@ export class MemoryHealth {
             healthScore = 0; // No data yet
         }
 
+        // Determine target retention baseline (usually 90%)
+        let targetRetention = 90;
+        if (this.dataUtils.scheduler && this.dataUtils.scheduler.requestRetention) {
+            targetRetention = this.dataUtils.scheduler.requestRetention * 100;
+        }
+
         let statusText = 'Excellent';
         let statusClass = 'health-excellent';
-        if (healthScore === 0) { statusText = 'Need Data'; statusClass = 'health-nodata'; }
-        else if (healthScore < 70) { statusText = 'Needs Attention'; statusClass = 'health-warning'; }
-        else if (healthScore < 85) { statusText = 'Good'; statusClass = 'health-good'; }
+        if (healthScore === 0) { 
+            statusText = 'Need Data'; 
+            statusClass = 'health-nodata'; 
+        } else if (healthScore < targetRetention - 7) { 
+            statusText = 'Needs Attention'; 
+            statusClass = 'health-warning'; 
+        } else if (healthScore < targetRetention - 2) { 
+            statusText = 'Good'; 
+            statusClass = 'health-good'; 
+        }
 
         // Determine trend based on current streak consistency
         const trend = stats.streak >= 3 ? '▲ Consistent' : (stats.streak > 0 ? '▶ Active' : '▼ Needs Review');

@@ -78,14 +78,16 @@ export class StatsComponent extends DashboardComponent {
             }
 
             // 1. Level & XP Progression Logic
-            // Level is computed as: Floor(Total Reviews / 10) + 1
-            totalActivityReviews = 0;
-            Object.values(activity).forEach(count => {
-                totalActivityReviews += count;
-            });
+            // RPG style level scaling: Level = floor(1 + 0.6 * sqrt(totalReviews))
+            const level = Math.floor(1 + 0.6 * Math.sqrt(totalActivityReviews));
             
-            const level = Math.floor(totalActivityReviews / 10) + 1;
-            const currentLevelProgress = (totalActivityReviews % 10) * 10; // Progress scale (0% to 90%)
+            // Calculate XP progress percentage based on boundaries
+            const currentLevelReviews = Math.pow((level - 1) / 0.6, 2);
+            const nextLevelReviews = Math.pow(level / 0.6, 2);
+            
+            const progressRange = nextLevelReviews - currentLevelReviews;
+            const progressMade = totalActivityReviews - currentLevelReviews;
+            const currentLevelProgress = progressRange > 0 ? Math.max(0, Math.min(100, (progressMade / progressRange) * 100)) : 0;
             
             const levelBadge = document.getElementById('user-level-badge');
             const xpBarFill = document.getElementById('xp-bar-fill');
@@ -93,11 +95,13 @@ export class StatsComponent extends DashboardComponent {
             if (levelBadge) {
                 levelBadge.innerText = `Lv. ${level}`;
                 let levelTitle = "Novice";
-                if (level >= 10) levelTitle = "Grandmaster";
-                else if (level >= 5) levelTitle = "Expert";
-                else if (level >= 3) levelTitle = "Specialist";
-                else if (level >= 2) levelTitle = "Apprentice";
-                levelBadge.title = `${levelTitle} (${totalActivityReviews} Total Reviews)`;
+                if (level >= 35) levelTitle = "Grandmaster";
+                else if (level >= 20) levelTitle = "Expert";
+                else if (level >= 10) levelTitle = "Specialist";
+                else if (level >= 5) levelTitle = "Apprentice";
+                
+                const reviewsToNext = Math.ceil(nextLevelReviews - totalActivityReviews);
+                levelBadge.title = `${levelTitle} (${totalActivityReviews} Total Reviews) - ${reviewsToNext} until Lv. ${level + 1}`;
             }
             if (xpBarFill) {
                 xpBarFill.style.width = `${currentLevelProgress}%`;

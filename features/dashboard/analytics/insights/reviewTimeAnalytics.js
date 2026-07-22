@@ -51,11 +51,13 @@ export class ReviewTimeAnalytics {
         
         data.forEach(d => {
             const hPct = (d.reviews / maxReviews) * 100;
+            const timeStr = d.avgDurationMs ? (d.avgDurationMs / 1000).toFixed(1) + 's' : 'N/A';
+            
             html += `
                 <div class="time-bucket-col">
                     <div class="time-bucket-stats">
                         <span>Recall: <strong>${d.retention}%</strong></span>
-                        <span>Avg Time: <strong>N/A</strong></span> <!-- Placeholder if response time not tracked -->
+                        <span>Avg Time: <strong>${timeStr}</strong></span>
                     </div>
                     <div class="time-bar-wrapper">
                         <div class="time-bar" style="height: ${Math.max(5, hPct)}%;">
