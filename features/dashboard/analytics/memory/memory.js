@@ -1,18 +1,20 @@
 import { RetentionChart } from './retentionChart.js';
 import { PredictionComparison } from './predictionComparison.js';
+import { FutureMemorySimulation } from './futureMemorySimulation.js';
 
 export class MemoryTab {
     constructor(dataUtils) {
         this.dataUtils = dataUtils;
         this.retentionChart = new RetentionChart(this.dataUtils);
         this.predictionComparison = new PredictionComparison(this.dataUtils);
+        this.futureMemorySimulation = new FutureMemorySimulation(this.dataUtils);
         this.rendered = false;
     }
 
     render(containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
-        
+
         if (!this.rendered) {
             container.innerHTML = `
                 <div class="memory-grid">
@@ -51,20 +53,21 @@ export class MemoryTab {
                         </div>
                         <div id="prediction-comparison-container" class="ana-chart-area"></div>
                     </div>
+                    <div id="future-memory-simulation-container"></div>
                 </div>
             `;
-            
+
             // Bind events for the dropdowns and toggles
             const groupBySelect = container.querySelector('#retention-group-by');
             const confidenceToggle = container.querySelector('#toggle-confidence-bands');
             const tagFilterInput = container.querySelector('#retention-tag-filter');
             const tagFilterWrapper = container.querySelector('#tag-filter-wrapper');
-            
+
             groupBySelect.addEventListener('change', (e) => {
                 const groupBy = e.target.value;
                 this.retentionChart.setGroupBy(groupBy);
                 this.retentionChart.render('retention-curves-container');
-                
+
                 // Toggle visibility of the tag filter based on the group-by selection
                 tagFilterWrapper.style.display = (groupBy === 'tag') ? 'flex' : 'none';
             });
@@ -73,7 +76,7 @@ export class MemoryTab {
                 this.retentionChart.setFilterTag(e.target.value);
                 this.retentionChart.render('retention-curves-container');
             });
-            
+
             confidenceToggle.addEventListener('change', (e) => {
                 this.retentionChart.setShowConfidence(e.target.checked);
                 this.retentionChart.render('retention-curves-container');
@@ -82,6 +85,7 @@ export class MemoryTab {
             this.rendered = true;
         }
 
+        this.futureMemorySimulation.render('future-memory-simulation-container');
         this.retentionChart.render('retention-curves-container');
         this.predictionComparison.render('prediction-comparison-container');
         this.renderNextAction('memory-next-action-container');
@@ -96,9 +100,9 @@ export class MemoryTab {
             const params = result.fsrsGlobalParams || {};
             const isPersonalized = params.version && params.version.includes('personalized');
             const timestamp = params.timestamp ? new Date(params.timestamp).toLocaleDateString() : 'Never';
-            
+
             const stats = this.dataUtils.getSummaryStats();
-            
+
             let statusBadge = '<span class="tag-badge" style="background:var(--md-surface-variant); color:var(--md-text-low);">Default Weights</span>';
             if (isPersonalized) {
                 statusBadge = '<span class="tag-badge" style="background:var(--md-primary-container); color:var(--md-primary);">Optimized</span>';
@@ -131,15 +135,15 @@ export class MemoryTab {
         if (!container) return;
 
         const stats = this.dataUtils.getSummaryStats();
-        
+
         // Fetch Requested Retention from active scheduler (default 90%)
-        const requestedRetention = this.dataUtils.scheduler 
-            ? Math.round(this.dataUtils.scheduler.getDefaultRequestRetention() * 100) 
-            : 90; 
+        const requestedRetention = this.dataUtils.scheduler
+            ? Math.round(this.dataUtils.scheduler.getDefaultRequestRetention() * 100)
+            : 90;
         const actualRetention = stats.retention || 0;
-        
+
         const retentionDrop = requestedRetention - actualRetention;
-        
+
         if (stats.due > 0) {
             container.innerHTML = `
                 <div class="actionable-insight-banner warning" style="margin-bottom:0;">
