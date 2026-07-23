@@ -340,6 +340,34 @@ td a:hover {
     font-weight: bold;
 }
 
+.badge-lapsed {
+    background: rgba(253, 226, 147, 0.15);
+    color: var(--md-warning);
+    border: 1px solid rgba(253, 226, 147, 0.3);
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    display: inline-block;
+}
+
+.badge-leech {
+    background: rgba(242, 139, 130, 0.18);
+    color: var(--md-danger);
+    border: 1px solid rgba(242, 139, 130, 0.4);
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    letter-spacing: 0.2px;
+    display: inline-block;
+    box-shadow: 0 2px 6px rgba(242, 139, 130, 0.2);
+}
+
+.row-leech {
+    background-color: rgba(242, 139, 130, 0.04) !important;
+}
+
 .empty-state {
     text-align: center;
     color: var(--md-text-low);

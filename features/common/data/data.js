@@ -295,7 +295,7 @@ class FSRSDataDashboard {
         else if (this.currentView === 'retention') {
             isRetention = true;
             baseCards = this.allCards.filter(c => c.lapses > 0).sort((a, b) => b.lapses - a.lapses);
-            if (titleEl) titleEl.innerText = 'Retention & Analytics';
+            if (titleEl) titleEl.innerText = 'Retention';
         }
         else if (this.currentView === 'history' && this.targetDate) {
             const filteredCards = this.allCards.filter(c => {
@@ -366,7 +366,12 @@ class FSRSDataDashboard {
             const matchesPlatform = this.selectedPlatform === 'all' || cardPlatform === this.selectedPlatform;
 
             // R2.6: FSRS State filter
-            const matchesState = this.selectedState === 'all' || String(card.state || 0) === this.selectedState;
+            let matchesState = true;
+            if (this.selectedState === 'leech') {
+                matchesState = (card.lapses || 0) >= 3;
+            } else if (this.selectedState !== 'all') {
+                matchesState = String(card.state || 0) === this.selectedState;
+            }
 
             return matchesSearch && matchesTag && matchesStatus && matchesPlatform && matchesState;
         });
@@ -382,7 +387,6 @@ class FSRSDataDashboard {
 
         // 4. Subtitle Stats
         if (subtitleEl) {
-            debugger;
             if (this.currentView === 'total') {
                 subtitleEl.innerText = isFilterActive
                     ? `Showing ${filtered.length} matching pattern(s) out of ${this.allCards.length} total.`
@@ -408,24 +412,93 @@ class FSRSDataDashboard {
         this.renderAnalyticsPanel(this.allCards);
 
         // 6. Render
-        if (!contentEl) return;
-        contentEl.innerHTML = '';
-
-        if (this.currentView === 'retention' && baseCards.length > 0) {
-            const titleHeader = document.createElement('h3');
-            titleHeader.textContent = "Most Forgotten Patterns";
-            contentEl.appendChild(titleHeader);
+        if (contentEl) {
+            contentEl.innerHTML = this.generateCardsTable(filtered, true);
         }
 
-        if (filtered.length === 0) {
-            contentEl.innerHTML += `<div class="empty-state">No matching patterns found. Try adjusting your filters.</div>`;
-            return;
-        }
-
-        contentEl.innerHTML += this.generateCardsTable(filtered, isRetention);
+        // 7. Bind interactive handlers
+        this.bindTableCheckboxListeners();
         this.bindDeleteButtons();
-        this.bindCheckboxes();
         this.bindEditButtons();
+    }
+
+    /**
+     * Renders a table of FSRS card items.
+     * Enhanced with R2.7 checkboxes, R2.6 state badges, R2.9 edit buttons, and Leech detection.
+     * @param {Object[]} cardsArray - List of FSRS cards.
+     * @param {boolean} [showLapses=true] - If true, appends columns indicating lapse occurrences.
+     * @returns {string} Rendered table markup.
+     */
+    generateCardsTable(cardsArray, showLapses = true) {
+        const now = new Date().getTime();
+        const allChecked = cardsArray.length > 0 && cardsArray.every(c => this.selectedCardIds.has(c.id));
+
+        let table = `<div class="table-responsive"><table><thead><tr>
+            <th class="th-checkbox"><input type="checkbox" id="select-all-checkbox" class="card-checkbox" ${allChecked ? 'checked' : ''}></th>
+            <th>Problem Title</th>
+            <th>Tags</th>
+            <th>Next Due</th>
+            <th>State</th>
+            <th>Reviews</th>
+            <th>Stability</th>
+            <th>Difficulty</th>
+            ${showLapses ? '<th>Lapses</th>' : ''}
+            <th>Actions</th>
+        </tr></thead><tbody>`;
+
+        cardsArray.forEach(card => {
+            const isPastDue = card.due <= now;
+            const statusBadge = isPastDue
+                ? '<span class="badge badge-due">Due Now</span>'
+                : `<span class="badge badge-safe">${new Date(card.due).toLocaleDateString()}</span>`;
+
+            const tagsHtml = (card.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+            const reps = card.reps || 0;
+            const lapses = card.lapses || 0;
+            const state = card.state || 0;
+
+            // Format FSRS stats
+            const stabilityFormatted = card.stability > 0 ? `${card.stability.toFixed(1)}d` : 'New';
+            const difficultyFormatted = card.difficulty > 0 ? `${card.difficulty.toFixed(1)}/10` : 'N/A';
+
+            // State badge with color coding
+            const stateLabel = this.getStateLabel(state);
+            const stateClass = `state-${state}`;
+
+            let lapsesBadge = `<span class="text-subtle">&mdash;</span>`;
+            if (lapses >= 3) {
+                lapsesBadge = `<span class="badge badge-leech" title="Leech Card: Forgotten 3+ times. Consider rewriting your solution approach note!">⚡ ${lapses} (Leech)</span>`;
+            } else if (lapses > 0) {
+                lapsesBadge = `<span class="badge badge-lapsed" title="${lapses} lapse(s) recorded">⚠️ ${lapses}</span>`;
+            }
+
+            const isChecked = this.selectedCardIds.has(card.id);
+            const isLeech = lapses >= 3;
+
+            table += `<tr class="${isChecked ? 'row-selected' : ''} ${isLeech ? 'row-leech' : ''}">
+                <td class="td-checkbox"><input type="checkbox" class="card-checkbox row-checkbox" data-id="${card.id}" ${isChecked ? 'checked' : ''}></td>
+                <td style="white-space: normal; word-wrap: break-word; max-width: 250px;"><a href="${card.problemUrl}" target="_blank">${card.problemTitle || 'Untitled'}</a></td>
+                <td style="white-space: normal; word-wrap: break-word; max-width: 200px;">${tagsHtml}</td>
+                <td>${statusBadge}</td>
+                <td><span class="badge badge-state ${stateClass}">${stateLabel}${isLeech ? ' (Leech)' : ''}</span></td>
+                <td>${reps}</td>
+                <td>${stabilityFormatted}</td>
+                <td>${difficultyFormatted}</td>
+                ${showLapses ? `<td>${lapsesBadge}</td>` : ''}
+                <td class="td-actions">
+                    <div class="actions-wrapper">
+                        <button class="edit-card-btn" data-id="${card.id}" title="Edit Card" aria-label="Edit Card">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
+                        <button class="delete-card-btn" data-id="${card.id}" title="Remove Card from Reviews" aria-label="Remove Card from Reviews">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+
+        return table + `</tbody></table></div>`;
     }
 
     /**
@@ -463,77 +536,6 @@ class FSRSDataDashboard {
             default:
                 return sorted;
         }
-    }
-
-    /**
-     * Builds table rows summarizing problem titles, tags, due statuses, and FSRS metrics.
-     * Enhanced with R2.7 checkboxes, R2.6 state badges, and R2.9 edit buttons.
-     * @param {Object[]} cardsArray - List of FSRS cards.
-     * @param {boolean} [showLapses=false] - If true, appends columns indicating lapse occurrences.
-     * @returns {string} Rendered table markup.
-     */
-    generateCardsTable(cardsArray, showLapses = false) {
-        const now = new Date().getTime();
-        const allChecked = cardsArray.length > 0 && cardsArray.every(c => this.selectedCardIds.has(c.id));
-
-        let table = `<div class="table-responsive"><table><thead><tr>
-            <th class="th-checkbox"><input type="checkbox" id="select-all-checkbox" class="card-checkbox" ${allChecked ? 'checked' : ''}></th>
-            <th>Problem Title</th>
-            <th>Tags</th>
-            <th>Next Due</th>
-            <th>State</th>
-            <th>Reviews</th>
-            <th>Stability</th>
-            <th>Difficulty</th>
-            ${showLapses ? '<th>Lapses</th>' : ''}
-            <th>Actions</th>
-        </tr></thead><tbody>`;
-
-        cardsArray.forEach(card => {
-            const isPastDue = card.due <= now;
-            const statusBadge = isPastDue
-                ? '<span class="badge badge-due">Due Now</span>'
-                : `<span class="badge badge-safe">${new Date(card.due).toLocaleDateString()}</span>`;
-
-            const tagsHtml = (card.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
-            const reps = card.reps || 0;
-            const lapses = card.lapses || 0;
-            const state = card.state || 0;
-
-            // Format FSRS stats
-            const stabilityFormatted = card.stability > 0 ? `${card.stability.toFixed(1)}d` : 'New';
-            const difficultyFormatted = card.difficulty > 0 ? `${card.difficulty.toFixed(1)}/10` : 'N/A';
-
-            // State badge with color coding
-            const stateLabel = this.getStateLabel(state);
-            const stateClass = `state-${state}`;
-
-            const isChecked = this.selectedCardIds.has(card.id);
-
-            table += `<tr class="${isChecked ? 'row-selected' : ''}">
-                <td class="td-checkbox"><input type="checkbox" class="card-checkbox row-checkbox" data-id="${card.id}" ${isChecked ? 'checked' : ''}></td>
-                <td style="white-space: normal; word-wrap: break-word; max-width: 250px;"><a href="${card.problemUrl}" target="_blank">${card.problemTitle || 'Untitled'}</a></td>
-                <td style="white-space: normal; word-wrap: break-word; max-width: 200px;">${tagsHtml}</td>
-                <td>${statusBadge}</td>
-                <td><span class="badge badge-state ${stateClass}">${stateLabel}</span></td>
-                <td>${reps}</td>
-                <td>${stabilityFormatted}</td>
-                <td>${difficultyFormatted}</td>
-                ${showLapses ? `<td class="warning">${lapses}</td>` : ''}
-                <td class="td-actions">
-                    <div class="actions-wrapper">
-                        <button class="edit-card-btn" data-id="${card.id}" title="Edit Card" aria-label="Edit Card">
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                        </button>
-                        <button class="delete-card-btn" data-id="${card.id}" title="Remove Card from Reviews" aria-label="Remove Card from Reviews">
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        </button>
-                    </div>
-                </td>
-            </tr>`;
-        });
-
-        return table + `</tbody></table></div>`;
     }
 
     /**
