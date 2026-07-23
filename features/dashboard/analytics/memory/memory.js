@@ -1,13 +1,11 @@
 import { RetentionChart } from './retentionChart.js';
 import { PredictionComparison } from './predictionComparison.js';
-import { FutureMemorySimulation } from './futureMemorySimulation.js';
 
 export class MemoryTab {
     constructor(dataUtils) {
         this.dataUtils = dataUtils;
         this.retentionChart = new RetentionChart(this.dataUtils);
         this.predictionComparison = new PredictionComparison(this.dataUtils);
-        this.futureMemorySimulation = new FutureMemorySimulation(this.dataUtils);
         this.rendered = false;
     }
 
@@ -53,7 +51,6 @@ export class MemoryTab {
                         </div>
                         <div id="prediction-comparison-container" class="ana-chart-area"></div>
                     </div>
-                    <div id="future-memory-simulation-container"></div>
                 </div>
             `;
 
@@ -85,7 +82,6 @@ export class MemoryTab {
             this.rendered = true;
         }
 
-        this.futureMemorySimulation.render('future-memory-simulation-container');
         this.retentionChart.render('retention-curves-container');
         this.predictionComparison.render('prediction-comparison-container');
         this.renderNextAction('memory-next-action-container');

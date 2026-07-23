@@ -10,6 +10,7 @@ import { TagsTab } from './tags/tags.js';
 import { PerformanceTab } from './performance/performance.js';
 import { InsightsTab } from './insights/insights.js';
 import { ReadinessTab } from './readiness/readiness.js';
+import { FutureMemorySimulation } from './memory/futureMemorySimulation.js';
 
 class AnalyticsDashboardSPA {
     constructor() {
@@ -19,20 +20,22 @@ class AnalyticsDashboardSPA {
         // Tab Controllers
         this.tabs = {
             overview: null,
+            readiness: null,
             memory: null,
+            simulation: null,
             tags: null,
             performance: null,
-            insights: null,
-            readiness: null
+            insights: null
         };
         
         this.tabTitles = {
             overview: 'Overview',
+            readiness: 'Exam Readiness Forecast',
             memory: 'Memory Retention',
+            simulation: 'Future Memory Simulation',
             tags: 'Tag Analytics',
             performance: 'Performance & Recovery',
-            insights: 'Behavioral Insights',
-            readiness: 'Exam Readiness Forecast'
+            insights: 'Behavioral Insights'
         };
     }
 
@@ -47,18 +50,21 @@ class AnalyticsDashboardSPA {
                 
                 // Initialize tab controllers
                 this.tabs.overview = new OverviewTab(this.dataUtils);
+                this.tabs.readiness = new ReadinessTab(this.dataUtils);
                 this.tabs.memory = new MemoryTab(this.dataUtils);
+                this.tabs.simulation = new FutureMemorySimulation(this.dataUtils);
                 this.tabs.tags = new TagsTab(this.dataUtils);
                 this.tabs.performance = new PerformanceTab(this.dataUtils);
                 this.tabs.insights = new InsightsTab(this.dataUtils);
-                this.tabs.readiness = new ReadinessTab(this.dataUtils);
 
-                // Set up subtitle
+                // Set up subtitle and global header KPIs
                 const stats = this.dataUtils.getSummaryStats();
                 const subtitleElem = document.getElementById('analytics-subtitle');
                 if (subtitleElem) {
                     subtitleElem.innerHTML = `${stats.totalCards} patterns tracked &middot; ${stats.totalActivityReviews} total reviews &middot; ${stats.trueRetention}% retention rate`;
                 }
+
+                this.updateGlobalKPIs(stats);
 
                 this.bindNavigation();
                 
@@ -95,6 +101,26 @@ class AnalyticsDashboardSPA {
                 this.switchTab(targetTab);
             });
         });
+    }
+
+    updateGlobalKPIs(stats) {
+        if (!stats || !this.dataUtils) return;
+
+        const cardsElem = document.getElementById('global-kpi-cards');
+        const retentionElem = document.getElementById('global-kpi-retention');
+        const dueElem = document.getElementById('global-kpi-due');
+        const readinessElem = document.getElementById('global-kpi-readiness');
+
+        const dueCount = stats.dueToday !== undefined ? stats.dueToday : (stats.due || 0);
+
+        if (cardsElem) cardsElem.textContent = stats.totalCards || 0;
+        if (retentionElem) retentionElem.textContent = `${stats.trueRetention || 0}%`;
+        if (dueElem) dueElem.textContent = dueCount;
+
+        if (readinessElem) {
+            const readinessData = this.dataUtils.getExamReadinessStats(12);
+            readinessElem.textContent = `${readinessData.overallRecall || 0}%`;
+        }
     }
 
     switchTab(tabId) {

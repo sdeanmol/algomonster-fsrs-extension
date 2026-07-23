@@ -25,6 +25,7 @@
                     Analytics
                 </h2>
             </div>
+            <div class="nav-section-title">MAIN DASHBOARD</div>
             <ul class="nav-links">
                 <li><button class="nav-btn active" data-tab="overview">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -42,11 +43,26 @@
                         </svg>
                         Exam Readiness
                     </button></li>
+            </ul>
+
+            <div class="nav-section-title">MEMORY & SCIENCE</div>
+            <ul class="nav-links">
                 <li><button class="nav-btn" data-tab="memory">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                            <path d="M12 4.5a2.5 2.5 0 0 0-4.96.44 2.5 2.5 0 0 0-2.96 3.08 3 3 0 0 0-.34 5.58 2.5 2.5 0 0 0 1.32 4.24 2.5 2.5 0 0 0 4.44 2.04"></path>
+                            <path d="M12 4.5a2.5 2.5 0 0 1 4.96.44 2.5 2.5 0 0 1 2.96 3.08 3 3 0 0 1 .34 5.58 2.5 2.5 0 0 1-1.32 4.24 2.5 2.5 0 0 1-4.44 2.04"></path>
+                            <path d="M12 3v18"></path>
                         </svg>
-                        Memory
+                        Memory Retention
+                    </button></li>
+                <li><button class="nav-btn" data-tab="simulation">
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M5 22h14"></path>
+                            <path d="M5 2h14"></path>
+                            <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"></path>
+                            <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"></path>
+                        </svg>
+                        Future Memory Simulation
                     </button></li>
                 <li><button class="nav-btn" data-tab="tags">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -54,8 +70,12 @@
                             </path>
                             <line x1="7" y1="7" x2="7.01" y2="7"></line>
                         </svg>
-                        Tags
+                        Tag Analytics
                     </button></li>
+            </ul>
+
+            <div class="nav-section-title">INSIGHTS & EFFICIENCY</div>
+            <ul class="nav-links">
                 <li><button class="nav-btn" data-tab="performance">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -87,17 +107,40 @@
         <!-- Main Content Area -->
         <main class="main-content">
             <header class="main-header">
-                <h1 id="current-tab-title">Overview</h1>
-                <p class="subtitle" id="analytics-subtitle">Loading analytics...</p>
+                <div class="main-header-info">
+                    <h1 id="current-tab-title">Overview</h1>
+                    <p class="subtitle" id="analytics-subtitle">Loading analytics...</p>
+                </div>
+                <div class="header-global-stats">
+                    <div class="global-kpi-bar">
+                        <div class="kpi-pill">
+                            <span class="kpi-val" id="global-kpi-cards">0</span>
+                            <span class="kpi-lbl">Cards</span>
+                        </div>
+                        <div class="kpi-pill">
+                            <span class="kpi-val" id="global-kpi-retention">0%</span>
+                            <span class="kpi-lbl">Retention</span>
+                        </div>
+                        <div class="kpi-pill warning">
+                            <span class="kpi-val" id="global-kpi-due">0</span>
+                            <span class="kpi-lbl">Due Today</span>
+                        </div>
+                        <div class="kpi-pill success">
+                            <span class="kpi-val" id="global-kpi-readiness">0%</span>
+                            <span class="kpi-lbl">Exam Recall</span>
+                        </div>
+                    </div>
+                </div>
             </header>
 
             <div class="tab-content-container">
                 <div id="tab-overview" class="tab-pane active"></div>
+                <div id="tab-readiness" class="tab-pane"></div>
                 <div id="tab-memory" class="tab-pane"></div>
+                <div id="tab-simulation" class="tab-pane"></div>
                 <div id="tab-tags" class="tab-pane"></div>
                 <div id="tab-performance" class="tab-pane"></div>
                 <div id="tab-insights" class="tab-pane"></div>
-                <div id="tab-readiness" class="tab-pane"></div>
             </div>
         </main>
     </div>
