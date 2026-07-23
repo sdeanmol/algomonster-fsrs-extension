@@ -1,166 +1,426 @@
 <!--
   * @file features/common/help/help.html
-  * @description Layout layout page presenting Markdown parsing documentation and shortcut reference manuals.
+  * @description Complete interactive Help Center, feature documentation manuals, and study strategy guides.
   * Downstream script: features/common/help/help.js
   -->
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
-    <title>AlgoRecall Help Center</title>
+    <title>AlgoRecall — Help Center & Feature Manuals</title>
     <script src="../theme-sync.js"></script>
     <link rel="stylesheet" href="../base.css">
     <link rel="stylesheet" href="help.css">
 </head>
+
 <body>
     <div class="container">
         <!-- Header -->
-        <div class="header">
+        <header class="header">
             <div class="header-title-container">
                 <span class="header-emoji">
-                    <svg class="svg-icon main-logo-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>
+                    <svg class="svg-icon main-logo-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 4.5a2.5 2.5 0 0 0-4.96.44 2.5 2.5 0 0 0-2.96 3.08 3 3 0 0 0-.34 5.58 2.5 2.5 0 0 0 1.32 4.24 2.5 2.5 0 0 0 4.44 2.04"></path>
+                        <path d="M12 4.5a2.5 2.5 0 0 1 4.96.44 2.5 2.5 0 0 1 2.96 3.08 3 3 0 0 1 .34 5.58 2.5 2.5 0 0 1-1.32 4.24 2.5 2.5 0 0 1-4.44 2.04"></path>
+                        <path d="M12 3v18"></path>
+                    </svg>
                 </span>
                 <div>
-                    <h1>AlgoRecall Pro</h1>
-                    <p class="subtitle">Ultimate guide to mastering coding patterns with spaced repetition</p>
+                    <h1>AlgoRecall Help Center</h1>
+                    <p class="subtitle">Complete interactive guide, feature manuals, and optimal study strategies</p>
                 </div>
             </div>
-            <button id="close-help-btn" class="btn btn-secondary">Close Guide</button>
-        </div>
+            <div class="header-actions">
+                <div class="search-box">
+                    <svg class="svg-icon search-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="help-search-input"
+                        placeholder="Search any feature (e.g. Anki, FSRS, Simulation)..."
+                        aria-label="Search help topics">
+                </div>
+                <button id="close-help-btn" class="btn btn-secondary">Close Guide</button>
+            </div>
+        </header>
 
         <!-- Navigation Tabs -->
-        <div class="tabs-container">
-            <button class="tab-btn active" data-tab="overview">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true"><path d="M4.5 16.5c-1.5 1.25-2.5 3.5-2.5 3.5s2.25-1 3.5-2.5M14 2s.072 2.535 1.636 4.1C17.2 7.665 21.5 8 21.5 8s-.335 4.3-1.9 5.864C18.035 15.428 15.5 15.5 15.5 15.5L8 23l-3-3 3-3-2.5-2.5-3-3 3-3 7.5-7.5z"></path></svg>
-                Overview
+        <nav class="tabs-container" role="tablist">
+            <button class="tab-btn active" data-tab="overview" role="tab" aria-selected="true">
+                <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+                🚀 Getting Started & Strategy
             </button>
-            <button class="tab-btn" data-tab="fsrs">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                Spaced Repetition
+            <button class="tab-btn" data-tab="fsrs" role="tab" aria-selected="false">
+                <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                🧠 FSRS & Review Engine
             </button>
-            <button class="tab-btn" data-tab="highlighter">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                Highlighter
+            <button class="tab-btn" data-tab="highlighter" role="tab" aria-selected="false">
+                <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                </svg>
+                🖍️ Highlighter & Notes
             </button>
-            <button class="tab-btn" data-tab="gamification">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true"><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg>
-                Levels & Progress
+            <button class="tab-btn" data-tab="analytics" role="tab" aria-selected="false">
+                <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+                📊 Analytics & Science
             </button>
-            <button class="tab-btn" data-tab="advanced">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                Advanced Options
+            <button class="tab-btn" data-tab="gamification" role="tab" aria-selected="false">
+                <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                    <path d="M6 12h4M8 10v4"></path>
+                    <circle cx="15" cy="12" r="1"></circle>
+                    <circle cx="18" cy="10" r="1"></circle>
+                </svg>
+                🎮 Gamification & Focus
             </button>
-        </div>
+            <button class="tab-btn" data-tab="advanced" role="tab" aria-selected="false">
+                <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                ⚙️ Advanced, Anki & Licensing
+            </button>
+        </nav>
 
         <!-- Tab Contents -->
-        <div class="tab-content-container">
-            <!-- Overview Tab -->
-            <div id="tab-overview" class="tab-pane active">
+        <main class="tab-content-container">
+            <!-- 1. Overview & Strategy Tab -->
+            <div id="tab-overview" class="tab-pane active" role="tabpanel">
                 <div class="card card-hero">
-                    <h2>Master Patterns, Not Just Problems</h2>
+                    <h2>🎯 Master Problem Patterns, Not Individual Solutions</h2>
                     <p>
-                        Coding platforms and interview prep guides are vast, and memorizing solutions is impossible. 
-                        <strong>AlgoRecall Pro</strong> uses the scientific <strong>Free Spaced Repetition Scheduler (FSRS)</strong> 
-                        to calculate exactly when you should re-solve patterns to maximize long-term retention. 
-                        Coupled with an in-page text highlighter, it is a complete workflow for technical interview prep.
+                        Coding platforms like LeetCode and AlgoMonster have thousands of problems. Memorizing code line-by-line fails in interviews. 
+                        <strong>AlgoRecall</strong> uses the scientific <strong>Free Spaced Repetition Scheduler (FSRS)</strong> 
+                        to model your personal memory retention decay curve. It calculates exactly when you should re-solve patterns to maximize long-term retention with minimal study time.
                     </p>
+                </div>
+
+                <div class="card card-accent" style="margin-bottom: 20px;">
+                    <h3>💡 How to Best Utilize This Extension for Maximum Results</h3>
+                    <div class="strategy-steps-grid">
+                        <div class="strategy-card">
+                            <span class="strategy-badge">Step 1</span>
+                            <h4>Focus on Patterns</h4>
+                            <p>When solving a problem (e.g. <em>Two Pointers, Sliding Window, DP</em>), don't just write code. Identify the core underlying pattern and write a 2-line summary note.</p>
+                        </div>
+                        <div class="strategy-card">
+                            <span class="strategy-badge">Step 2</span>
+                            <h4>Log Immediately</h4>
+                            <p>Click the floating brain widget on the bottom-right of the coding page. Add tags (e.g. <code>Arrays</code>, <code>Medium</code>), type your approach note, and submit your initial rating.</p>
+                        </div>
+                        <div class="strategy-card">
+                            <span class="strategy-badge">Step 3</span>
+                            <h4>15-Min Daily Habit</h4>
+                            <p>Open the extension popup daily to clear your <strong>"Due Today"</strong> review queue. Aim for <strong>Inbox Zero</strong> to maintain peak memory stability.</p>
+                        </div>
+                        <div class="strategy-card">
+                            <span class="strategy-badge">Step 4</span>
+                            <h4>Simulate & Forecast</h4>
+                            <p>Use <strong>Exam Readiness Forecast</strong> before interviews to check expected recall per topic, and <strong>Future Memory Simulation</strong> to inspect decay curves.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid-2">
                     <div class="card">
-                        <h3>🔑 Core Workflow</h3>
-                        <ol class="help-list">
-                            <li>
-                                <span class="step-num">1</span>
-                                <div>
-                                    <strong>Learn:</strong> Browse patterns on LeetCode, AlgoMonster, Codeforces, or any supported site. Highlight key insights.
-                                </div>
-                            </li>
-                            <li>
-                                <span class="step-num">2</span>
-                                <div>
-                                    <strong>Log:</strong> Click the floating brain icon in the bottom-right corner to save your approach, add tags, and record your initial review.
-                                </div>
-                            </li>
-                            <li>
-                                <span class="step-num">3</span>
-                                <div>
-                                    <strong>Retain:</strong> Receive beautiful notifications when cards are due, then solve them again in the interactive widget.
-                                </div>
-                            </li>
-                        </ol>
+                        <h3>🔑 Supported Platforms & Custom Whitelisting</h3>
+                        <p class="mb-2">AlgoRecall out-of-the-box auto-detects problem titles, tags, and page contexts across top coding sites:</p>
+                        <div class="platform-chips mb-2">
+                            <span class="platform-tag">LeetCode</span>
+                            <span class="platform-tag">AlgoMonster</span>
+                            <span class="platform-tag">Codeforces</span>
+                            <span class="platform-tag">NeetCode</span>
+                            <span class="platform-tag">GeeksforGeeks</span>
+                            <span class="platform-tag">HackerRank</span>
+                            <span class="platform-tag">LintCode</span>
+                        </div>
+                        <div class="card card-accent" style="margin-top: 10px; padding: 12px;">
+                            <strong style="color: var(--md-primary); font-size: 12.5px;">🌐 Custom Website Whitelisting:</strong>
+                            <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--md-text-med);">
+                                Want to track problems or notes on any custom coding platform, documentation, or blog? 
+                                Simply add the URL or domain under <strong>Website Whitelist Settings</strong> in the extension popup dashboard. 
+                                AlgoRecall will immediately start injecting the floating brain logger, text highlighter, and review widgets on your custom whitelisted pages!
+                            </p>
+                        </div>
                     </div>
 
                     <div class="card">
-                        <h3>💡 Quick Pro Tips</h3>
-                        <ul class="tips-list">
-                            <li>
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke:var(--md-primary);" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
-                                <div class="tip-content">
-                                    <strong class="tip-label tip-primary">Inbox Zero</strong>Clear your "Due Today" list daily in the popup dashboard to build a strong habit loop.
-                                </div>
-                            </li>
-                            <li>
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke:var(--md-success);" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                                <div class="tip-content">
-                                    <strong class="tip-label tip-success">Backup</strong>Regularly export your backup JSON file from the popup dashboard to keep your history safe.
-                                </div>
-                            </li>
-                            <li>
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke:var(--md-warning);" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                                <div class="tip-content">
-                                    <strong class="tip-label tip-warning">OS vs Tab</strong>If you are browsing a whitelisted coding site, notifications slide in elegantly on your page. If you are away, they pop up safely in the background.
-                                </div>
-                            </li>
+                        <h3>🤖 Floating Brain Widget How-To</h3>
+                        <ul class="help-bullet-list">
+                            <li><strong>Position:</strong> Appears in the bottom-right corner on supported coding pages.</li>
+                            <li><strong>Click to Log:</strong> Opens the quick logger panel without leaving your coding environment.</li>
+                            <li><strong>Auto-Fill:</strong> Title and platform tags are auto-detected instantly.</li>
+                            <li><strong>Save Notes:</strong> Save solution approaches, time/space complexities, and key intuition.</li>
                         </ul>
                     </div>
                 </div>
             </div>
 
-            <!-- FSRS Tab -->
-            <div id="tab-fsrs" class="tab-pane">
+            <!-- 2. FSRS & Review Engine Tab -->
+            <div id="tab-fsrs" class="tab-pane" role="tabpanel">
                 <div class="card">
-                    <h2>📅 How Spaced Repetition Works</h2>
+                    <h2>📅 FSRS Spaced Repetition Engine</h2>
                     <p class="section-intro">
-                        FSRS is a modern spacing algorithm superior to legacy SuperMemo (SM-2) systems. It models your memory decay and customizes intervals based on how you grade your performance.
+                        The <strong>Free Spaced Repetition Scheduler (FSRS)</strong> is a 17-parameter mathematical model that calculates retrievability <code class="math-formula"><i>R</i>(<i>t</i>, <i>S</i>) = (1 + <i>F</i> &middot; <i>t</i> / <i>S</i>)<sup><i>d</i></sup></code>. It models stability (<i>S</i>) and difficulty (<i>D</i>) independently, providing 20-30% higher retention efficiency than legacy SuperMemo (SM-2) systems.
                     </p>
 
-                    <div class="rating-guide">
-                        <h3>Grade Your Recall</h3>
+                    <div class="rating-guide mb-4">
+                        <h3>Grade Your Recall Performance</h3>
                         <div class="rating-grid">
                             <div class="rating-item rating-again">
-                                <span class="rating-badge">Again</span>
-                                <p>Complete blackout, or you couldn't identify the pattern. The card is scheduled for immediate re-learning.</p>
+                                <span class="rating-badge">Again (0%)</span>
+                                <p><strong>Complete Blackout:</strong> Couldn't recall the pattern or solution approach. The card is reset for immediate re-learning.</p>
                             </div>
                             <div class="rating-item rating-hard">
-                                <span class="rating-badge">Hard</span>
-                                <p>You remembered the pattern with extreme effort or made minor mistakes. Spacing interval increases slightly.</p>
+                                <span class="rating-badge">Hard (50%)</span>
+                                <p><strong>Struggled:</strong> Recalled the pattern with significant effort or minor errors. Spacing interval increases moderately.</p>
                             </div>
                             <div class="rating-item rating-good">
-                                <span class="rating-badge">Good</span>
-                                <p>Standard recall. You remembered the solution approach in reasonable time. Interval is expanded optimally.</p>
+                                <span class="rating-badge">Good (90%)</span>
+                                <p><strong>Optimal Recall:</strong> Remembered the solution approach in reasonable time. Interval is expanded optimally.</p>
                             </div>
                             <div class="rating-item rating-easy">
-                                <span class="rating-badge">Easy</span>
-                                <p>You knew the solution instantly. The pattern is too trivial. Spacing interval is set far in the future.</p>
+                                <span class="rating-badge">Easy (100%)</span>
+                                <p><strong>Trivial:</strong> Recalled instantly without hesitation. Spacing interval is set significantly further in the future.</p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="card card-accent" style="margin-top: 20px;">
-                        <h3>🧠 Interactive Reviews</h3>
-                        <p>
-                            When cards are due, you can click the notification or open the review session directly from the page widget. 
-                            The review loads the problem description. Click <strong>Show Approach</strong> to view your past notes, 
-                            re-solve/think through the pattern, and then select your rating to update the card's memory state.
-                        </p>
+                    <div class="grid-2">
+                        <div class="card card-accent">
+                            <h3>🔔 Review Notifications & Sticky Mode</h3>
+                            <ul class="help-bullet-list">
+                                <li><strong>Review Reminders:</strong> Receive desktop notifications when cards are due for review.</li>
+                                <li><strong>Interval Check:</strong> Set custom check frequencies (15m, 30m, 1h, 2h, Daily).</li>
+                                <li><strong>Sticky Notification:</strong> Keeps notifications on-screen until interacted with so you never miss a review.</li>
+                                <li><strong>Quiet Hours:</strong> Set do-not-disturb time windows (e.g. 23:00 to 07:00).</li>
+                            </ul>
+                        </div>
+
+                        <div class="card">
+                            <h3>⚡ Interactive In-Page Review Queue</h3>
+                            <p>When a notification triggers or you open the popup:</p>
+                            <ol class="help-list" style="margin-top: 8px;">
+                                <li>Click <strong>Start Review Session</strong>.</li>
+                                <li>The problem statement loads. Try to solve/recall the pattern mentally.</li>
+                                <li>Click <strong>Show Approach</strong> to reveal your past notes.</li>
+                                <li>Grade your recall (<code>Again</code>, <code>Hard</code>, <code>Good</code>, <code>Easy</code>) to update stability and schedule the next review date.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Highlighter & Notes Tab -->
+            <div id="tab-highlighter" class="tab-pane" role="tabpanel">
+                <div class="card">
+                    <h2>🖍️ In-Page Text Highlighter & Snippet Manager</h2>
+                    <p class="section-intro">
+                        Highlighting critical code blocks, edge cases, and pattern explanations directly on web pages anchors visual memory and builds your personal knowledge base.
+                    </p>
+
+                    <div class="grid-2">
+                        <div class="card">
+                            <h3>✨ How to Highlight Text</h3>
+                            <ol class="help-list">
+                                <li>Select any text on a whitelisted coding site or documentation page.</li>
+                                <li>The floating marker menu appears above your text selection.</li>
+                                <li>Click any color circle (e.g. Yellow, Green, Pink, Blue) to apply the highlight overlay.</li>
+                                <li>Click the color wheel icon for a custom color picker, or click the Trash icon to clear the highlight.</li>
+                                <li>All highlights are saved persistently and re-injected automatically whenever you revisit the URL!</li>
+                            </ol>
+                        </div>
+
+                        <div class="card card-accent">
+                            <h3>🎨 Palette Customizer & Snippet Search</h3>
+                            <ul class="help-bullet-list">
+                                <li><strong>Palette Presets:</strong> Switch between curated theme sets (Pastels, Sunset Glow, Neon, Dark Mode).</li>
+                                <li><strong>Customize Colors:</strong> Manage hex colors and opacity levels in <em>Highlighter Settings</em>.</li>
+                                <li><strong>View All Highlights:</strong> Open the global snippet manager to search, filter by domain/color, and delete snippets globally across all websites.</li>
+                                <li><strong>📝 Limited Markdown Notes Support:</strong> When typing solution approach notes in the logger or review sessions, basic Markdown formatting is supported (e.g., <code>**bold**</code>, <code>*italic*</code>, <code>`inline code`</code>, and bullet lists).</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Analytics & Memory Science Tab -->
+            <div id="tab-analytics" class="tab-pane" role="tabpanel">
+                <div class="card">
+                    <h2>📊 Comprehensive Analytics & Memory Science</h2>
+                    <p class="section-intro">
+                        The full-tab Analytics gives deep visibility into your learning health, memory retention curves, topic mastery, and performance velocity.
+                    </p>
+
+                    <div class="grid-2 mb-4">
+                        <div class="card">
+                            <h3>1️⃣ Overview Dashboard (<code>overview</code>)</h3>
+                            <p>High-level dashboard featuring total cards tracked, true retrievability %, daily goal ring, contribution activity heatmap, and review breakdown (New, Learning, Review, Relearning).</p>
+                        </div>
+
+                        <div class="card card-accent">
+                            <h3>2️⃣ Exam Readiness Forecast (<code>readiness</code>)</h3>
+                            <p>Input your target exam or interview date (<i>T</i> + <i>N</i> days). Algorithms calculate expected recall per subject/tag (e.g., <em>Physics 96%, DP 74%, Math 88%</em>) with status badges (<code>Ready</code>, <code>Moderate</code>, <code>At Risk</code>).</p>
+                        </div>
                     </div>
 
-                    <div class="card" style="margin-top: 20px; border-left: 4px solid var(--md-primary);">
-                        <h3>📜 Open Source Licenses & Acknowledgments</h3>
+                    <div class="grid-2 mb-4">
+                        <div class="card">
+                            <h3>3️⃣ Memory Retention (<code>memory</code>)</h3>
+                            <p>View interactive FSRS retention decay curves grouped by Tag, Deck, or Difficulty with confidence bands. Compare actual review performance against mathematical predictions.</p>
+                        </div>
+
+                        <div class="card card-accent">
+                            <h3>4️⃣ Future Memory Simulation (<code>simulation</code>)</h3>
+                            <p>Predict: <strong>&ldquo;What if I stop studying?&rdquo;</strong> View predicted retention decay at Today (<i>T</i> = 0), 30d, 90d, 180d, and use the interactive range slider to inspect lost pattern counts.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid-3">
+                        <div class="card">
+                            <h3>5️⃣ Tag Analytics (<code>tags</code>)</h3>
+                            <p>Drill down into topic mastery. View card count, average retention, stability, and difficulty for every topic tag (e.g., <em>Arrays, Graphs, Trees</em>).</p>
+                        </div>
+                        <div class="card">
+                            <h3>6️⃣ Performance & Speed (<code>performance</code>)</h3>
+                            <p>Analyze review velocity (seconds/card), lapse recovery rate, and hourly time-of-day peak productivity heatmaps.</p>
+                        </div>
+                        <div class="card">
+                            <h3>7️⃣ Behavioral Insights (<code>insights</code>)</h3>
+                            <p>Track cognitive load, study streak consistency index, and long-term retention efficiency trends over time.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Gamification & Focus Tools Tab -->
+            <div id="tab-gamification" class="tab-pane" role="tabpanel">
+                <div class="card">
+                    <h2>🎮 Gamification & Productivity Tools</h2>
+                    <p class="section-intro">
+                        Stay motivated and build an unbreakable daily study habit with XP level progression, contribution heatmaps, and focus tools.
+                    </p>
+
+                    <div class="grid-3 mb-4">
+                        <div class="gamify-card">
+                            <span class="gamify-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke:var(--md-primary); width:26px; height:26px;" aria-hidden="true">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                </svg>
+                            </span>
+                            <h4>Level & XP Ranks</h4>
+                            <p>Earn XP points for every review. Level up your rank from <strong>Apprentice</strong> &rarr; <strong>Specialist</strong> &rarr; <strong>Expert</strong> &rarr; <strong>Grandmaster</strong>.</p>
+                        </div>
+
+                        <div class="gamify-card">
+                            <span class="gamify-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke:var(--md-warning); width:26px; height:26px;" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <circle cx="12" cy="12" r="6"></circle>
+                                    <circle cx="12" cy="12" r="2"></circle>
+                                </svg>
+                            </span>
+                            <h4>Daily Target Review Goal</h4>
+                            <p>Set custom daily target goals (e.g. 10 reviews/day). Clear your due queue daily to hit your <strong>Inbox Zero</strong> streak award.</p>
+                        </div>
+
+                        <div class="gamify-card">
+                            <span class="gamify-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke:var(--md-success); width:26px; height:26px;" aria-hidden="true">
+                                    <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
+                                </svg>
+                            </span>
+                            <h4>Contribution Activity Heatmap</h4>
+                            <p>Audit your daily coding contributions. Active matrix blocks highlight your study streak and review volume.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="card card-accent">
+                            <h3>⏱️ Integrated Pomodoro Focus Timer</h3>
+                            <ul class="help-bullet-list">
+                                <li>Access Pomodoro timer directly under <strong>Study Tools</strong> in the popup dashboard.</li>
+                                <li>Standard 25-minute focus session followed by 5-minute break alerts.</li>
+                                <li>Helps maintain intense focus while solving complex algorithmic patterns.</li>
+                            </ul>
+                        </div>
+
+                        <div class="card">
+                            <h3>🎓 Exam Mode</h3>
+                            <ul class="help-bullet-list">
+                                <li>Quickly launch timed review sessions focusing on your weakest or most urgent patterns.</li>
+                                <li>Simulates real exam pressure to test instant recall before technical interviews.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. Advanced, Anki & Licensing Tab -->
+            <div id="tab-advanced" class="tab-pane" role="tabpanel">
+                <div class="card">
+                    <h2>⚙️ FSRS Customizer, Anki & Data Disclosures</h2>
+                    <p class="section-intro">
+                        Advanced configuration options, custom FSRS weight parameters, bi-directional Anki synchronization, and legal licensing disclosures.
+                    </p>
+
+                    <div class="card card-accent mb-4">
+                        <h3>🧠 Understanding FSRS Parameters (<i>w</i><sub>0</sub> &ndash; <i>w</i><sub>16</sub>)</h3>
+                        <p>FSRS uses 17 coefficients to compute memory stability updates upon grading:</p>
+                        <ul class="help-bullet-list" style="margin-top: 8px;">
+                            <li><strong>Target Retention Slider (0.75 - 0.95):</strong> Sets desired recall probability. Higher retention (95%) yields shorter intervals; lower retention (80%) spreads reviews further apart.</li>
+                            <li><strong>Initial Stability (<i>w</i><sub>0</sub> &ndash; <i>w</i><sub>3</sub>):</strong> Base interval days for <code>Again</code>, <code>Hard</code>, <code>Good</code>, <code>Easy</code> on first review.</li>
+                            <li><strong>Difficulty & Stability Boosts (<i>w</i><sub>4</sub> &ndash; <i>w</i><sub>10</sub>):</strong> Rate of stability increase for correct answers.</li>
+                            <li><strong>Lapses & Easy Bonuses (<i>w</i><sub>11</sub> &ndash; <i>w</i><sub>16</sub>):</strong> Recovery deceleration upon failure and easy bonuses.</li>
+                        </ul>
+                    </div>
+
+                    <div class="grid-2 mb-4">
+                        <div class="card">
+                            <h3>🏷️ Tag-Specific Profiles</h3>
+                            <p>Assign custom 17-coefficient weight sets to specific tags (e.g. <code>Dynamic Programming</code> or <code>Graphs</code>) to handle harder topics with customized memory parameters.</p>
+                        </div>
+
+                        <div class="card card-accent">
+                            <h3>📦 Anki Integration (.txt / .tsv)</h3>
+                            <ul class="help-bullet-list">
+                                <li><strong>Export to Anki:</strong> Export your cards into Anki-compatible format for offline study.</li>
+                                <li><strong>Import from Anki:</strong> Import Anki deck TSV/txt files directly into AlgoRecall.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="grid-2 mb-4">
+                        <div class="card">
+                            <h3>💾 Backup & Restore</h3>
+                            <p>Regularly export full JSON state backups from the popup dashboard under <em>Data & Options</em>. Import backups instantly to restore cards, highlights, and custom settings.</p>
+                        </div>
+
+                        <div class="card card-accent">
+                            <h3>🔒 Privacy & Local-First Guarantee</h3>
+                            <p>AlgoRecall is 100% local-first. All data, cards, and highlights remain strictly on your machine in local storage. Zero external server tracking.</p>
+                        </div>
+                    </div>
+
+                    <!-- Licenses & Acknowledgments -->
+                    <div class="card" style="border-left: 4px solid var(--md-primary);">
+                        <h3>📜 Licenses & Open-Source Acknowledgments</h3>
                         <p style="font-size: 13px; color: var(--md-text-med); margin-bottom: 8px;">
-                            AlgoRecall utilizes the <strong>Free Spaced Repetition Scheduler (FSRS)</strong> algorithm and open-source packages:
+                            AlgoRecall is proprietary software (&copy; 2026 Anmol Rastogi / AlgoRecall. All Rights Reserved) utilizing the open-source <strong>Free Spaced Repetition Scheduler (FSRS)</strong> algorithm:
                         </p>
                         <ul style="font-size: 12px; color: var(--md-text-low); line-height: 1.8; margin: 0; padding-left: 18px;">
                             <li><strong>ts-fsrs & FSRS Algorithm</strong> &mdash; Copyright &copy; Jarrett Ye &amp; Open Spaced Repetition (MIT License)</li>
@@ -170,147 +430,10 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Highlighter Tab -->
-            <div id="tab-highlighter" class="tab-pane">
-                <div class="card">
-                    <h2>🖍️ Text Highlighter & Notes</h2>
-                    <p class="section-intro">
-                        Highlighting critical concepts directly on documentation helps anchor visual memory. The highlighter preserves your selections persistently.
-                    </p>
-
-                    <div class="grid-2">
-                        <div>
-                            <h3>How to Use</h3>
-                            <ul class="help-bullet-list">
-                                <li>Simply select any text on matched pages to open the floating palette.</li>
-                                <li>Click any color circle to immediately apply the color overlay.</li>
-                                <li>Click the custom wheel icon to pick an exact color, or click the trash icon to remove a highlight.</li>
-                                <li>All selections are serialized to the DOM and re-injected automatically when you return!</li>
-                            </ul>
-                        </div>
-                        <div class="card card-code">
-                            <h3>Highlighter Customization</h3>
-                            <p>
-                                Visit the <strong>Highlighter Settings</strong> section of the dashboard to:
-                            </p>
-                            <ul class="help-bullet-list" style="margin-top: 8px;">
-                                <li>Enable or disable the floating selection menu.</li>
-                                <li>Click <strong>Customize Colors</strong> to manage palette sets (e.g. Pastels, Sunset Glow) or design your custom palettes.</li>
-                                <li>Click <strong>View All Highlights</strong> to browse, search, and delete snippets globally across all websites.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Gamification Tab -->
-            <div id="tab-gamification" class="tab-pane">
-                <div class="card">
-                    <h2>🎮 Level Up Your Algorithmic Mindset</h2>
-                    <p class="section-intro">
-                        To encourage consistency, the extension features gamification elements showing your progress.
-                    </p>
-
-                    <div class="grid-3">
-                        <div class="gamify-card">
-                            <span class="gamify-icon">
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke:var(--md-primary); width:26px; height:26px;" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                            </span>
-                            <h4>Level & XP Badge</h4>
-                            <p>Every review activity yields XP points. Rack up reviews to level up your badge (Apprentice, Specialist, Expert, Grandmaster) and track your growth.</p>
-                        </div>
-                        <div class="gamify-card">
-                            <span class="gamify-icon">
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke:var(--md-warning); width:26px; height:26px;" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
-                            </span>
-                            <h4>Daily Review Goal</h4>
-                            <p>Track your daily target reviews. Strive to clear all due patterns every day to hit your Inbox Zero consistency award.</p>
-                        </div>
-                        <div class="gamify-card">
-                            <span class="gamify-icon">
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke:var(--md-success); width:26px; height:26px;" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path></svg>
-                            </span>
-                            <h4>Activity Heatmap</h4>
-                            <p>Visually audit your daily coding contributions. Darker green blocks represent active practice days, similar to GitHub contributions.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Advanced Options Tab -->
-            <div id="tab-advanced" class="tab-pane">
-                <div class="card">
-                    <h2>⚙️ FSRS Customizer Guide & Data</h2>
-                    <p class="section-intro">
-                        Understand the math behind the scheduler and configure FSRS parameters to match your learning speed.
-                    </p>
-
-                    <div class="card card-accent" style="margin-bottom: 20px;">
-                        <h3>💡 Understanding FSRS Parameters</h3>
-                        <p>
-                            FSRS (Free Spaced Repetition Scheduler) uses target recall rate and stabilizing coefficients to scale review intervals dynamically:
-                        </p>
-                        <ul class="help-bullet-list" style="margin-top: 10px;">
-                            <li><strong>Target Memory Retention Rate:</strong> The target probability that you will successfully recall the coding pattern. Setting a higher rate (e.g., 95%) yields shorter, more frequent intervals. Setting a lower rate (e.g., 80%) yields longer spacing between reviews. Recommended range: 0.75 - 0.95.</li>
-                            <li><strong>Decay Constant (-0.5):</strong> Represents how quickly retrievability decays exponentially over elapsed time. Standard FSRS optimization anchors this at -0.5.</li>
-                            <li><strong>Factor Constant (19/81 ≈ 0.2346):</strong> Scales stability calculations.</li>
-                        </ul>
-                    </div>
-
-                    <div class="grid-2">
-                        <div class="card">
-                            <h3>📊 Coefficient Groups (w0 - w16)</h3>
-                            <p>
-                                FSRS coefficients scale stability and difficulty updates based on your recall rating:
-                            </p>
-                            <ul class="help-bullet-list" style="margin-top: 10px; font-size: 12.5px;">
-                                <li><strong>Initial Stability (w0 - w3):</strong> Spacing values in days for rating Again, Hard, Good, Easy on your first review.</li>
-                                <li><strong>Initial Difficulty (w4 - w5):</strong> Base difficulty level and rating multiplier.</li>
-                                <li><strong>Stability Boosts (w6 - w10):</strong> Rate of stability increase for correct answers.</li>
-                                <li><strong>Lapse Modifiers (w11 - w14):</strong> Deceleration coefficient when you fail a card.</li>
-                                <li><strong>Easy Bonus (w15 - w16):</strong> Additional scheduling bonus and stability bounds.</li>
-                            </ul>
-                        </div>
-
-                        <div class="card card-accent">
-                            <h3>🏷️ Tag-Specific Profiles</h3>
-                            <p>
-                                Have custom weights profiles for specific topics! You can assign dedicated sets of 17 coefficients to specific tags (e.g. <code>Graphs</code> or <code>Sliding Window</code>):
-                            </p>
-                            <ol class="help-list" style="margin-top: 10px;">
-                                <li>Open <strong>FSRS Customizer</strong> from the popup dashboard.</li>
-                                <li>Scroll to <strong>Tag-Specific Profiles</strong> at the bottom.</li>
-                                <li>Enter the tag name (e.g. <code>Dynamic Programming</code>) and paste the 17 coefficients.</li>
-                                <li>Click <strong>Add Profile</strong>. Coding cards matching this tag will dynamically use these coefficients.</li>
-                            </ol>
-                        </div>
-                    </div>
-
-                    <div class="grid-2" style="margin-top: 20px;">
-                        <div class="card">
-                            <h3>💾 Backup & Portability</h3>
-                            <p>
-                                Import and export backups to sync statistics across browsers:
-                            </p>
-                            <ul class="help-bullet-list" style="margin-top: 10px;">
-                                <li><strong>Export Backup:</strong> Downloads a full JSON file containing your active FSRS cards, highlight coordinates, custom weights, and levels.</li>
-                                <li><strong>Import Backup:</strong> Hydrates your statistics from a previously exported backup file instantly.</li>
-                            </ul>
-                        </div>
-
-                        <div class="card card-accent">
-                            <h3>🔒 Privacy & Data Protection Policy</h3>
-                            <p>
-                                All data is local-first. We do not use servers, databases, or tracking codes. Zero data leaves your computer.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </main>
     </div>
 
-    <script src="help.js"></script>
+    <script type="module" src="help.js"></script>
 </body>
+
 </html>
