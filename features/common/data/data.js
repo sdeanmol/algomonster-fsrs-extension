@@ -417,7 +417,7 @@ class FSRSDataDashboard {
         }
 
         // 7. Bind interactive handlers
-        this.bindTableCheckboxListeners();
+        this.bindCheckboxes();
         this.bindDeleteButtons();
         this.bindEditButtons();
     }

@@ -133,6 +133,26 @@ body {
     transform: scale(0.95);
 }
 
+/* Header Analytics Button Highlight */
+.analytics-header-btn {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: #818cf8;
+}
+
+:root.light-theme .analytics-header-btn {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.25);
+    color: #4f46e5;
+}
+
+.analytics-header-btn:hover {
+    background: linear-gradient(135deg, var(--md-primary), #6366f1) !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+}
+
 /* Theme Toggle */
 .theme-toggle-btn .sun-icon {
     stroke: var(--md-warning);

@@ -34,6 +34,7 @@ export class AlgoRecallDashboard {
             manageHighlightsBtn: document.getElementById('manage-highlights-btn'),
             openOptionsBtn: document.getElementById('open-options-btn'),
             analyticsBtn: document.getElementById('analytics-btn'),
+            headerAnalyticsBtn: document.getElementById('header-analytics-btn'),
             forecastBtn: document.getElementById('forecast-btn'),
             exportBtn: document.getElementById('export-btn'),
             importFile: document.getElementById('import-file'),
@@ -173,7 +174,7 @@ export class AlgoRecallDashboard {
                     Logger.error('Popup', "Error setting developerMode config", error);
                 }
             });
-            
+
             if (this.dom.exportDebugLogsBtn) {
                 this.dom.exportDebugLogsBtn.addEventListener('click', () => {
                     chrome.storage.local.get(['debugLogs'], (result) => {
@@ -182,11 +183,11 @@ export class AlgoRecallDashboard {
                             this.showStatus('No debug logs found.', true);
                             return;
                         }
-                        
+
                         const logLines = logs.map(l => JSON.stringify(l)).join('\n');
                         const blob = new Blob([logLines], { type: 'application/json' });
                         const url = URL.createObjectURL(blob);
-                        
+
                         chrome.downloads.download({
                             url: url,
                             filename: `algorecall_debug_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
@@ -219,7 +220,11 @@ export class AlgoRecallDashboard {
         this.dom.boxRetention?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=retention') }));
         this.dom.manageHighlightsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/manager/highlights.html') }));
         this.dom.openOptionsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/options/highlightOptions.html') }));
-        this.dom.analyticsBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/analytics/analytics.html') }));
+
+        const openAnalyticsTab = () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/analytics/analytics.html') });
+        this.dom.analyticsBtn?.addEventListener('click', openAnalyticsTab);
+        this.dom.headerAnalyticsBtn?.addEventListener('click', openAnalyticsTab);
+
         this.dom.forecastBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/forecast/forecast.html') }));
         this.dom.studyplanBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/studyplan/studyplan.html') }));
         this.dom.pomodoroBtn?.addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/pomodoro/pomodoro.html') }));
@@ -298,7 +303,7 @@ export class AlgoRecallDashboard {
                 if (!file) return;
 
                 const reader = new FileReader();
-                reader.onload = function(event) {
+                reader.onload = function (event) {
                     try {
                         const text = event.target.result;
                         const newCards = this.importFromAnkiText(text);
@@ -339,18 +344,18 @@ export class AlgoRecallDashboard {
     showStatus(msg, isError = false) {
         const el = this.dom.statusMsg;
         if (!el) return;
-        
+
         if (this.statusTimeout) {
             clearTimeout(this.statusTimeout);
         }
-        
+
         const iconHtml = isError
             ? `<svg class="svg-icon" style="stroke: var(--md-danger); width: 14px; height: 14px;" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`
             : `<svg class="svg-icon" style="stroke: var(--md-success); width: 14px; height: 14px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-        
+
         el.innerHTML = iconHtml + `<span>${msg}</span>`;
         el.className = 'toast show ' + (isError ? 'error' : 'success'); // styled to match base toast
-        
+
         this.statusTimeout = setTimeout(() => {
             el.classList.remove('show');
         }, 2500);
@@ -365,7 +370,7 @@ export class AlgoRecallDashboard {
      */
     exportToAnkiText(cards) {
         const lines = [];
-        
+
         // Anki header directives
         lines.push('#separator:tab');
         lines.push('#html:false');
@@ -378,9 +383,9 @@ export class AlgoRecallDashboard {
             const front = (card.problemTitle || 'Untitled').replace(/\t/g, ' ').replace(/\n/g, ' ');
             const back = (card.approach || '').replace(/\t/g, '    '); // Keep newlines for Anki markdown
             const tags = (card.tags || []).map(t => `algorecall::${t.replace(/\s+/g, '_')}`).join(' ');
-            
+
             // Add URL as part of front if available
-            const frontWithUrl = card.problemUrl 
+            const frontWithUrl = card.problemUrl
                 ? `${front}\n[URL: ${card.problemUrl}]`
                 : front;
 
