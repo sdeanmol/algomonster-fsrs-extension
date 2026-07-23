@@ -137,182 +137,190 @@
             <div id="popup-search-results" class="search-results-container"></div>
         </div>
 
-        <!-- Gamification & Heatmap -->
-        <div class="card group-card">
-            <div class="card-header">
-                <h3 class="card-title">
-                    <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
-                        style="stroke: var(--md-primary); margin-right: 6px; width: 16px; height: 16px;" aria-hidden="true">
-                        <line x1="18" y1="20" x2="18" y2="10"></line>
-                        <line x1="12" y1="20" x2="12" y2="4"></line>
-                        <line x1="6" y1="20" x2="6" y2="14"></line>
-                    </svg>
-                    Activity & Progress
-                </h3>
-            </div>
-            <div id="gamification-panel" class="gamification-wrapper">
-                <!-- Progress bar and motivational texts will be injected dynamically -->
-            </div>
+        <!-- Middle Cards Grid Container -->
+        <div class="popup-cards-layout">
+            <div class="popup-column">
+                <!-- Gamification & Heatmap -->
+                <div class="card group-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
+                                style="stroke: var(--md-primary); margin-right: 6px; width: 16px; height: 16px;" aria-hidden="true">
+                                <line x1="18" y1="20" x2="18" y2="10"></line>
+                                <line x1="12" y1="20" x2="12" y2="4"></line>
+                                <line x1="6" y1="20" x2="6" y2="14"></line>
+                            </svg>
+                            Activity & Progress
+                        </h3>
+                    </div>
+                    <div id="gamification-panel" class="gamification-wrapper">
+                        <!-- Progress bar and motivational texts will be injected dynamically -->
+                    </div>
 
-            <div class="heatmap-section">
-                <div class="heatmap-header">
-                    <span class="heatmap-label">Contributions</span>
-                    <button id="open-heatmap-tab-btn" class="btn-icon-text" title="Open full screen heatmap" aria-label="Open full screen heatmap">
-                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                            <polyline points="15 3 21 3 21 9"></polyline>
-                            <line x1="10" y1="14" x2="21" y2="3"></line>
-                        </svg>
-                        Full Screen
-                    </button>
+                    <div class="heatmap-section">
+                        <div class="heatmap-header">
+                            <span class="heatmap-label">Contributions</span>
+                            <button id="open-heatmap-tab-btn" class="btn-icon-text" title="Open full screen heatmap" aria-label="Open full screen heatmap">
+                                <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                                Full Screen
+                            </button>
+                        </div>
+                        <div class="heatmap-container">
+                            <div id="heatmap-grid" class="heatmap"></div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Action Grid -->
+                    <div class="action-chips">
+                        <button id="toggle-lifetime-btn" class="chip">Lifetime</button>
+                        <button id="analytics-btn" class="chip">Analytics</button>
+                        <button id="forecast-btn" class="chip">Forecast</button>
+                        <button id="history-btn" class="chip">History</button>
+                    </div>
                 </div>
-                <div class="heatmap-container">
-                    <div id="heatmap-grid" class="heatmap"></div>
-                </div>
-            </div>
 
-            <!-- Quick Action Grid -->
-            <div class="action-chips">
-                <button id="toggle-lifetime-btn" class="chip">Lifetime</button>
-                <button id="analytics-btn" class="chip">Analytics</button>
-                <button id="forecast-btn" class="chip">Forecast</button>
-                <button id="history-btn" class="chip">History</button>
-            </div>
-        </div>
-
-        <!-- Study Tools -->
-        <div class="card group-card">
-            <div class="card-header">
-                <h3 class="card-title" style="color: var(--md-secondary);">
-                    <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
-                        style="stroke: var(--md-secondary); margin-right: 6px; width: 16px; height: 16px;" aria-hidden="true">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                    </svg>
-                    Study Tools
-                </h3>
-            </div>
-            <div class="action-chips">
-                <button id="studyplan-btn" class="chip">Exam Mode</button>
-                <button id="pomodoro-btn" class="chip">Pomodoro</button>
-            </div>
-        </div>
-
-        <!-- Highlighter Settings -->
-        <div class="card highlighter-card">
-            <div class="card-header">
-                <h3 class="card-title" style="color: var(--md-warning);">
-                    <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
-                        style="stroke: var(--md-warning); margin-right: 6px; width: 16px; height: 16px;" aria-hidden="true">
-                        <path d="M12 20h9"></path>
-                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                    </svg>
-                    Highlighter Settings
-                </h3>
-            </div>
-            <div class="setting-row">
-                <label for="toggle-marker-popup" class="setting-label">Floating Marker Menu</label>
-                <label class="switch" role="switch" tabindex="0">
-                    <input type="checkbox" id="toggle-marker-popup" checked>
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="button-row">
-                <button id="open-options-btn" class="btn btn-secondary flex-1" title="Manage highlighter colors" aria-label="Manage highlighter colors">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;" aria-hidden="true">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                    </svg>
-                    Customize Colors
-                </button>
-                <button id="manage-highlights-btn" class="btn btn-primary flex-1" title="View all snippets" aria-label="View all snippets">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;" aria-hidden="true">
-                        <line x1="8" y1="6" x2="21" y2="6"></line>
-                        <line x1="8" y1="12" x2="21" y2="12"></line>
-                        <line x1="8" y1="18" x2="21" y2="18"></line>
-                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                    </svg>
-                    View All Highlights
-                </button>
-            </div>
-        </div>
-
-        <!-- Notification Settings -->
-        <div class="card notification-card">
-            <div class="card-header">
-                <h3 class="card-title" style="color: var(--md-danger);">
-                    <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
-                        style="stroke: var(--md-danger); margin-right: 6px; width: 16px; height: 16px;" aria-hidden="true">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                    </svg>
-                    Notification Settings
-                </h3>
-            </div>
-            <div class="setting-row">
-                <label for="toggle-notifications" class="setting-label">Review Reminders</label>
-                <label class="switch" role="switch" tabindex="0">
-                    <input type="checkbox" id="toggle-notifications" checked>
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="setting-row">
-                <span class="setting-label">Check Interval</span>
-                <select id="notification-interval" class="modern-select">
-                    <option value="1">1 min (Dev)</option>
-                    <option value="15">15 mins</option>
-                    <option value="30">30 mins</option>
-                    <option value="60" selected>1 hour</option>
-                    <option value="120">2 hours</option>
-                    <option value="360">6 hours</option>
-                    <option value="720">12 hours</option>
-                    <option value="1440">Daily</option>
-                    <option value="custom">Custom...</option>
-                </select>
-            </div>
-            <div id="custom-interval-container" class="setting-row hide-panel">
-                <span class="setting-label subtle">Custom (mins)</span>
-                <input type="number" id="custom-interval-input" class="modern-input short-input" min="1" max="1440"
-                    placeholder="60">
-            </div>
-            <div class="setting-row">
-                <label for="toggle-sticky-notification" class="setting-label">Sticky Notification</label>
-                <label class="switch" role="switch" tabindex="0">
-                    <input type="checkbox" id="toggle-sticky-notification" checked>
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div class="setting-row">
-                <label for="toggle-quiet-hours" class="setting-label">Quiet Hours</label>
-                <label class="switch" role="switch" tabindex="0">
-                    <input type="checkbox" id="toggle-quiet-hours">
-                    <span class="slider"></span>
-                </label>
-            </div>
-            <div id="quiet-hours-container" class="setting-row hide-panel">
-                <span class="setting-label subtle">From - To</span>
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <input type="time" id="quiet-hours-start" class="modern-input" style="padding: 2px 4px; width: auto;" value="23:00">
-                    <span style="color: var(--md-text-low);">-</span>
-                    <input type="time" id="quiet-hours-end" class="modern-input" style="padding: 2px 4px; width: auto;" value="07:00">
+                <!-- Study Tools -->
+                <div class="card group-card">
+                    <div class="card-header">
+                        <h3 class="card-title" style="color: var(--md-secondary);">
+                            <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
+                                style="stroke: var(--md-secondary); margin-right: 6px; width: 16px; height: 16px;" aria-hidden="true">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                            </svg>
+                            Study Tools
+                        </h3>
+                    </div>
+                    <div class="action-chips">
+                        <button id="studyplan-btn" class="chip">Exam Mode</button>
+                        <button id="pomodoro-btn" class="chip">Pomodoro</button>
+                    </div>
                 </div>
             </div>
-            <div class="setting-row">
-                <label for="toggle-weekly-digest" class="setting-label">Weekly Digest</label>
-                <label class="switch" role="switch" tabindex="0">
-                    <input type="checkbox" id="toggle-weekly-digest" checked>
-                    <span class="slider"></span>
-                </label>
+
+            <div class="popup-column">
+                <!-- Highlighter Settings -->
+                <div class="card highlighter-card">
+                    <div class="card-header">
+                        <h3 class="card-title" style="color: var(--md-warning);">
+                            <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
+                                style="stroke: var(--md-warning); margin-right: 6px; width: 16px; height: 16px;" aria-hidden="true">
+                                <path d="M12 20h9"></path>
+                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                            </svg>
+                            Highlighter Settings
+                        </h3>
+                    </div>
+                    <div class="setting-row">
+                        <label for="toggle-marker-popup" class="setting-label">Floating Marker Menu</label>
+                        <label class="switch" role="switch" tabindex="0">
+                            <input type="checkbox" id="toggle-marker-popup" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="button-row">
+                        <button id="open-options-btn" class="btn btn-secondary flex-1" title="Manage highlighter colors" aria-label="Manage highlighter colors">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                            </svg>
+                            Customize Colors
+                        </button>
+                        <button id="manage-highlights-btn" class="btn btn-primary flex-1" title="View all snippets" aria-label="View all snippets">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;" aria-hidden="true">
+                                <line x1="8" y1="6" x2="21" y2="6"></line>
+                                <line x1="8" y1="12" x2="21" y2="12"></line>
+                                <line x1="8" y1="18" x2="21" y2="18"></line>
+                                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                            </svg>
+                            View All Highlights
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Notification Settings -->
+                <div class="card notification-card">
+                    <div class="card-header">
+                        <h3 class="card-title" style="color: var(--md-danger);">
+                            <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
+                                style="stroke: var(--md-danger); margin-right: 6px; width: 16px; height: 16px;" aria-hidden="true">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                            Notification Settings
+                        </h3>
+                    </div>
+                    <div class="setting-row">
+                        <label for="toggle-notifications" class="setting-label">Review Reminders</label>
+                        <label class="switch" role="switch" tabindex="0">
+                            <input type="checkbox" id="toggle-notifications" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Check Interval</span>
+                        <select id="notification-interval" class="modern-select">
+                            <option value="1">1 min (Dev)</option>
+                            <option value="15">15 mins</option>
+                            <option value="30">30 mins</option>
+                            <option value="60" selected>1 hour</option>
+                            <option value="120">2 hours</option>
+                            <option value="360">6 hours</option>
+                            <option value="720">12 hours</option>
+                            <option value="1440">Daily</option>
+                            <option value="custom">Custom...</option>
+                        </select>
+                    </div>
+                    <div id="custom-interval-container" class="setting-row hide-panel">
+                        <span class="setting-label subtle">Custom (mins)</span>
+                        <input type="number" id="custom-interval-input" class="modern-input short-input" min="1" max="1440"
+                            placeholder="60">
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Sticky Notification</span>
+                        <label class="switch" role="switch" tabindex="0">
+                            <input type="checkbox" id="toggle-require-interaction" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Quiet Hours</span>
+                        <label class="switch" role="switch" tabindex="0">
+                            <input type="checkbox" id="toggle-quiet-hours">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div id="quiet-hours-inputs" class="setting-row hide-panel">
+                        <div class="time-range-group">
+                            <input type="time" id="quiet-start" class="modern-input time-input" value="23:00">
+                            <span class="time-separator">to</span>
+                            <input type="time" id="quiet-end" class="modern-input time-input" value="07:00">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Weekly Digest</span>
+                        <label class="switch" role="switch" tabindex="0">
+                            <input type="checkbox" id="toggle-weekly-digest" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="button-row">
+                        <button id="test-notification-btn" class="btn btn-secondary flex-1">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;" aria-hidden="true">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                            Send Test Notification
+                        </button>
+                    </div>
+                </div>
             </div>
-            <button id="test-notification-btn" class="btn btn-secondary w-full mt-2">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; margin-right: 4px;" aria-hidden="true">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-                Send Test Notification
-            </button>
         </div>
 
         <!-- Advanced Options (Collapsible) -->
@@ -429,6 +437,19 @@
                 </div>
             </div>
         </details>
+
+        <!-- Static Review Banner -->
+        <div class="static-review-banner">
+            <a href="https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews" target="_blank" class="static-review-link">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 16px; height: 16px;" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                Love AlgoRecall? Rate us 5 stars!
+            </a>
+        </div>
+
+        <footer class="footer-modern">
+            <p>AlgoRecall: 100% Private, Local-First.</p>
+            <a href="../../common/help/help.html" target="_blank">Privacy Policy</a>
+        </footer>
     </div>
 
     <!-- Status Toasts -->
@@ -436,19 +457,6 @@
     <div id="milestone-toast" class="toast milestone-toast">
         <span id="milestone-toast-text"></span>
     </div>
-
-    <!-- Static Review Banner -->
-    <div class="static-review-banner">
-        <a href="https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews" target="_blank" class="static-review-link">
-            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 16px; height: 16px;" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-            Love AlgoRecall? Rate us 5 stars!
-        </a>
-    </div>
-
-    <footer class="footer-modern">
-        <p>AlgoRecall: 100% Private, Local-First.</p>
-        <a href="../../common/help/help.html" target="_blank">Privacy Policy</a>
-    </footer>
 
     <script src="../../../dist/fsrsScheduler.bundle.js"></script>
     <script type="module" src="popup.js"></script>

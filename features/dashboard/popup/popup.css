@@ -908,7 +908,9 @@ details[open] .details-summary .chevron {
 
 /* Static Review Banner */
 .static-review-banner {
-    margin: 0 16px;
+    margin: 0;
+    width: 100%;
+    box-sizing: border-box;
     padding: 12px;
     background: linear-gradient(135deg, rgba(249, 171, 0, 0.1), rgba(249, 171, 0, 0.02));
     border: 1px solid rgba(249, 171, 0, 0.2);
@@ -1018,38 +1020,52 @@ details[open] .details-summary .chevron {
         border-right: 1px solid var(--md-border);
     }
     
+/* Popup Cards Column Layout */
+.popup-cards-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.popup-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
     .main-content {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    
+    .popup-cards-layout {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 16px;
         align-items: start;
+        width: 100%;
+        grid-column: 1 / -1;
     }
     
     /* Elements that should span full width */
     #permission-warning-banner,
     #rating-prompt-card,
     .details-card,
-    .static-review-banner {
-        grid-column: 1 / -1;
-    }
-    
-    /* Reorder if necessary, or let CSS grid auto-flow */
-    .stats-hero {
-        grid-column: 1 / -1;
-    }
-    
-    .group-card {
-        grid-column: 1 / 2;
-    }
-    
-    /* Wrap highlighter and notification settings in a flex column if we want them grouped in the right column,
-       but since they are separate cards, we can just assign them to column 2 */
-    .highlighter-card {
-        grid-column: 2 / 3;
-    }
-    
-    .notification-card {
-        grid-column: 2 / 3;
+    .static-review-banner,
+    .stats-hero,
+    .future-sim-panel,
+    .readiness-control-card,
+    .readiness-section,
+    .ana-panel-wide {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
     }
 }
 
