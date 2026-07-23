@@ -111,4 +111,17 @@ describe('DataUtils', () => {
         expect(dpTag.count).toBe(1);
         expect(dpTag.expectedRecall).toBe(85);
     });
+
+    it('calculates future memory simulation data correctly', () => {
+        const utils = new DataUtils(mockCards, mockActivity, mockScheduler);
+        const sim = utils.getFutureMemorySimulation(45);
+
+        expect(sim.today).toBe(85); // mockScheduler returns 0.85 -> 85%
+        expect(sim.d30).toBe(85);
+        expect(sim.d90).toBe(85);
+        expect(sim.d180).toBe(85);
+        expect(sim.custom.days).toBe(45);
+        expect(sim.custom.retention).toBe(85);
+        expect(sim.curvePoints.length).toBeGreaterThan(0);
+    });
 });

@@ -443,4 +443,83 @@ export class DataUtils {
             tags: tagResults
         };
     }
+
+    /**
+     * Calculates Future Memory Simulation data predicting decay if user stops studying.
+     * Evaluates FSRS retrievability at Today (0d), 30d, 90d, 180d and custom days.
+     * @param {number} customDays Number of days for the interactive slider (e.g. 45)
+     * @returns {Object} Memory simulation retention percentages and decay curve points
+     */
+    getFutureMemorySimulation(customDays = 45) {
+        const sliderDays = Math.max(0, parseInt(customDays, 10) || 0);
+        const now = Date.now();
+        
+        const intervals = [0, 30, 90, 180];
+        const retentionByInterval = { 0: 0, 30: 0, 90: 0, 180: 0 };
+        let customRetention = 0;
+        let forgottenCount = 0;
+        let reviewedCardsCount = 0;
+
+        const curveDays = [0, 15, 30, 45, 60, 90, 120, 150, 180];
+        const curveSum = {};
+        curveDays.forEach(d => curveSum[d] = 0);
+
+        this.cards.forEach(card => {
+            const hasReviewHistory = card.stability > 0 && (card.lastReview || card.last_review);
+            if (hasReviewHistory && this.scheduler) {
+                reviewedCardsCount++;
+
+                // Compute retrievability for key milestone intervals
+                intervals.forEach(day => {
+                    const targetTime = now + (day * 24 * 60 * 60 * 1000);
+                    const r = this.scheduler.getRetrievability(card, targetTime);
+                    retentionByInterval[day] += r;
+                });
+
+                // Compute retrievability for custom slider days
+                const customTime = now + (sliderDays * 24 * 60 * 60 * 1000);
+                const rCustom = this.scheduler.getRetrievability(card, customTime);
+                customRetention += rCustom;
+
+                if (rCustom < 0.70) {
+                    forgottenCount++;
+                }
+
+                // Compute points for curve graph
+                curveDays.forEach(day => {
+                    const targetTime = now + (day * 24 * 60 * 60 * 1000);
+                    curveSum[day] += this.scheduler.getRetrievability(card, targetTime);
+                });
+            }
+        });
+
+        const calcAvgPercent = (sum) => reviewedCardsCount > 0 ? Math.round((sum / reviewedCardsCount) * 100) : 0;
+
+        const todayRetention = calcAvgPercent(retentionByInterval[0]);
+        const d30Retention = calcAvgPercent(retentionByInterval[30]);
+        const d90Retention = calcAvgPercent(retentionByInterval[90]);
+        const d180Retention = calcAvgPercent(retentionByInterval[180]);
+        const customRetentionPercent = calcAvgPercent(customRetention);
+
+        const curvePoints = curveDays.map(day => ({
+            day,
+            retention: calcAvgPercent(curveSum[day])
+        }));
+
+        return {
+            today: todayRetention,
+            d30: d30Retention,
+            d90: d90Retention,
+            d180: d180Retention,
+            custom: {
+                days: sliderDays,
+                retention: customRetentionPercent,
+                forgottenCount,
+                totalCards: this.cards.length
+            },
+            curvePoints,
+            totalCards: this.cards.length,
+            reviewedCards: reviewedCardsCount
+        };
+    }
 }
