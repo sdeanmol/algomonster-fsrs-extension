@@ -1208,3 +1208,302 @@ html.light-theme .tag-badge.tag-color-6 {
         grid-template-columns: 1fr !important;
     }
 }
+
+/* ==========================================================================
+   Exam Readiness Tab Styling
+   ========================================================================== */
+.readiness-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.readiness-control-card {
+    background-color: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--shadow-1);
+}
+
+.control-header h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0 0 6px 0;
+    color: var(--md-text-high);
+}
+
+.simulation-input-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 20px;
+    background-color: var(--md-surface-variant);
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 1px solid var(--md-border);
+}
+
+.sim-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--md-text-high);
+}
+
+.days-input-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--md-surface);
+    border: 2px solid var(--md-primary);
+    border-radius: 10px;
+    padding: 4px 12px;
+}
+
+.days-number-input {
+    width: 65px;
+    border: none;
+    background: transparent;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--md-primary);
+    text-align: center;
+    outline: none;
+}
+
+.days-suffix {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--md-text-med);
+}
+
+.preset-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.preset-chip {
+    background-color: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--md-text-high);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.preset-chip:hover {
+    background-color: var(--md-surface-variant);
+    border-color: var(--md-primary);
+}
+
+.preset-chip.active {
+    background-color: var(--md-primary);
+    color: var(--md-on-primary, #062e6f);
+    border-color: var(--md-primary);
+    box-shadow: 0 2px 8px rgba(168, 199, 250, 0.25);
+}
+
+.target-date-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    font-size: 0.95rem;
+    color: var(--md-text-med);
+}
+
+.target-date-display .svg-icon {
+    width: 18px;
+    height: 18px;
+    stroke: var(--md-primary);
+}
+
+.readiness-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.readiness-metric-card {
+    background-color: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.readiness-metric-card .metric-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--md-text-med);
+}
+
+.readiness-metric-card .metric-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.readiness-metric-card .metric-sub {
+    font-size: 0.85rem;
+    color: var(--md-text-low);
+}
+
+.text-success { color: var(--md-success) !important; }
+.text-warning { color: var(--md-warning) !important; }
+.text-danger { color: var(--md-danger) !important; }
+.text-accent { color: var(--md-primary) !important; }
+
+.readiness-section {
+    background-color: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 16px;
+    padding: 24px;
+}
+
+.readiness-section .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.readiness-section .section-header h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--md-text-high);
+}
+
+.topics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.readiness-topic-card {
+    background-color: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.readiness-topic-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-2);
+}
+
+.topic-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.topic-name-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.topic-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--md-text-high);
+}
+
+.topic-meta {
+    font-size: 0.8rem;
+    color: var(--md-text-med);
+}
+
+.topic-score-badge {
+    font-size: 1.25rem;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+
+.ready-high {
+    background: rgba(129, 201, 149, 0.15);
+    color: var(--md-success);
+}
+
+.ready-medium {
+    background: rgba(253, 226, 147, 0.15);
+    color: var(--md-warning);
+}
+
+.ready-critical {
+    background: rgba(242, 139, 130, 0.15);
+    color: var(--md-danger);
+}
+
+.topic-progress-bg {
+    height: 10px;
+    background-color: var(--md-border);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.topic-progress-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.4s ease;
+}
+
+.topic-progress-fill.ready-high { background-color: var(--md-success); }
+.topic-progress-fill.ready-medium { background-color: var(--md-warning); }
+.topic-progress-fill.ready-critical { background-color: var(--md-danger); }
+
+.topic-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.status-pill {
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.target-recall-hint {
+    color: var(--md-text-low);
+}
+
+.readiness-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--md-text-med);
+}
+
+.readiness-empty-state .empty-icon {
+    width: 48px;
+    height: 48px;
+    stroke: var(--md-text-low);
+    margin-bottom: 12px;
+}
+
+.readiness-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}

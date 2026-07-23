@@ -343,4 +343,104 @@ export class DataUtils {
             data: result
         };
     }
+
+    /**
+     * Calculates projected Exam Readiness recall rates per tag and overall deck
+     * based on FSRS memory decay for a target exam date N days ahead.
+     * @param {number} daysAhead Number of days until the exam (e.g. 12)
+     * @returns {Object} Exam readiness projections and subject breakdown
+     */
+    getExamReadinessStats(daysAhead = 12) {
+        const numDays = Math.max(0, parseInt(daysAhead, 10) || 0);
+        const now = Date.now();
+        const targetTime = now + (numDays * 24 * 60 * 60 * 1000);
+        
+        const tags = {};
+        let totalProjectedRetrievability = 0;
+        let totalReviewedCards = 0;
+
+        this.cards.forEach(card => {
+            const cardTags = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
+            
+            let projectedR = 0;
+            const hasReviewHistory = card.stability > 0 && (card.lastReview || card.last_review);
+            
+            if (hasReviewHistory && this.scheduler) {
+                // Determine projected retrievability using FSRS scheduler for targetTime
+                projectedR = this.scheduler.getRetrievability(card, targetTime);
+                totalProjectedRetrievability += projectedR;
+                totalReviewedCards++;
+            }
+
+            cardTags.forEach(tag => {
+                if (!tags[tag]) {
+                    tags[tag] = {
+                        count: 0,
+                        reviewedCount: 0,
+                        totalStability: 0,
+                        totalProjectedR: 0
+                    };
+                }
+
+                tags[tag].count++;
+                if (hasReviewHistory) {
+                    tags[tag].reviewedCount++;
+                    tags[tag].totalStability += card.stability;
+                    tags[tag].totalProjectedR += projectedR;
+                }
+            });
+        });
+
+        const overallRecall = totalReviewedCards > 0 
+            ? Math.round((totalProjectedRetrievability / totalReviewedCards) * 100) 
+            : 0;
+
+        let atRiskCount = 0;
+        const tagResults = [];
+
+        for (const [tag, data] of Object.entries(tags)) {
+            const expectedRecall = data.reviewedCount > 0 
+                ? Math.round((data.totalProjectedR / data.reviewedCount) * 100) 
+                : 0;
+            
+            const avgStability = data.reviewedCount > 0 
+                ? Math.round((data.totalStability / data.reviewedCount) * 10) / 10 
+                : 0;
+
+            let status = 'Ready';
+            let statusClass = 'ready-high';
+            
+            if (expectedRecall < 75) {
+                status = 'At Risk';
+                statusClass = 'ready-critical';
+                atRiskCount++;
+            } else if (expectedRecall < 90) {
+                status = 'Moderate';
+                statusClass = 'ready-medium';
+            }
+
+            tagResults.push({
+                tag,
+                count: data.count,
+                reviewedCount: data.reviewedCount,
+                expectedRecall,
+                avgStability,
+                status,
+                statusClass
+            });
+        }
+
+        // Sort tags by lowest expected recall first (prioritize subjects needing attention)
+        tagResults.sort((a, b) => a.expectedRecall - b.expectedRecall);
+
+        return {
+            daysAhead: numDays,
+            targetDate: new Date(targetTime),
+            overallRecall,
+            totalCards: this.cards.length,
+            reviewedCards: totalReviewedCards,
+            atRiskCount,
+            tags: tagResults
+        };
+    }
 }

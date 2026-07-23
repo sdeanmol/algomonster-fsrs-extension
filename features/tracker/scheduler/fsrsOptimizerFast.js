@@ -42,9 +42,6 @@ class FsrsOptimizer {
     async trainWeights(history, currentWeights, targetRetention = 0.90, onProgress = null) {
         let w = [...currentWeights];
 
-        // Ensure we don't block UI if processing thousands of items
-        await new Promise(r => setTimeout(r, 6000));
-
         let totalReps = 0;
         let totalLapses = 0;
 
@@ -80,13 +77,13 @@ class FsrsOptimizer {
             if (onProgress) {
                 onProgress(i + 1, this.epochs);
                 // Yield to event loop to allow UI to paint the progress update
-                await new Promise(r => setTimeout(r, 10));
+                await new Promise(r => setTimeout(r, 0));
             }
         }
-        optimizedWeights = w.map(weight => Math.round(weight * 10000) / 10000);
+        const optimizedWeights = w.map(weight => Math.round(weight * 10000) / 10000);
         console.log(`[FSRS Optimizer Fast] Success. New weights:`, optimizedWeights);
         // Return a rounded version of weights
-        return optimizedWeights
+        return optimizedWeights;
     }
 }
 

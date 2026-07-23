@@ -9,6 +9,7 @@ import { MemoryTab } from './memory/memory.js';
 import { TagsTab } from './tags/tags.js';
 import { PerformanceTab } from './performance/performance.js';
 import { InsightsTab } from './insights/insights.js';
+import { ReadinessTab } from './readiness/readiness.js';
 
 class AnalyticsDashboardSPA {
     constructor() {
@@ -21,7 +22,8 @@ class AnalyticsDashboardSPA {
             memory: null,
             tags: null,
             performance: null,
-            insights: null
+            insights: null,
+            readiness: null
         };
         
         this.tabTitles = {
@@ -29,7 +31,8 @@ class AnalyticsDashboardSPA {
             memory: 'Memory Retention',
             tags: 'Tag Analytics',
             performance: 'Performance & Recovery',
-            insights: 'Behavioral Insights'
+            insights: 'Behavioral Insights',
+            readiness: 'Exam Readiness Forecast'
         };
     }
 
@@ -48,6 +51,7 @@ class AnalyticsDashboardSPA {
                 this.tabs.tags = new TagsTab(this.dataUtils);
                 this.tabs.performance = new PerformanceTab(this.dataUtils);
                 this.tabs.insights = new InsightsTab(this.dataUtils);
+                this.tabs.readiness = new ReadinessTab(this.dataUtils);
 
                 // Set up subtitle
                 const stats = this.dataUtils.getSummaryStats();

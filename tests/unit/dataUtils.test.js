@@ -94,4 +94,21 @@ describe('DataUtils', () => {
         const morningData = insights.data.find(d => d.bucket === 'morning');
         expect(morningData.reviews).toBe(1);
     });
+
+    it('calculates exam readiness predictions for future days correctly', () => {
+        const utils = new DataUtils(mockCards, mockActivity, mockScheduler);
+        const readiness = utils.getExamReadinessStats(12);
+
+        expect(readiness.daysAhead).toBe(12);
+        expect(readiness.totalCards).toBe(2);
+        expect(readiness.tags.length).toBe(2);
+
+        const arrayTag = readiness.tags.find(t => t.tag === 'Array');
+        expect(arrayTag.count).toBe(2);
+        expect(arrayTag.expectedRecall).toBe(85); // mockScheduler returns 0.85 -> 85%
+
+        const dpTag = readiness.tags.find(t => t.tag === 'Dynamic Programming');
+        expect(dpTag.count).toBe(1);
+        expect(dpTag.expectedRecall).toBe(85);
+    });
 });

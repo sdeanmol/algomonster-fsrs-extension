@@ -166,7 +166,7 @@ describe('Tracker Integration', () => {
             // Hit 3 (Good)
             document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit3' }));
             
-            expect(tracker.handleRating).toHaveBeenCalledWith(window.AlgoRecall.state.cards[0], 3);
+            expect(tracker.handleRating).toHaveBeenCalledWith(expect.objectContaining({ id: 'uuid-1' }), 3, expect.any(Number));
         });
 
         it('ignores keyboard shortcuts when typing in input', () => {

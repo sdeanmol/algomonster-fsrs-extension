@@ -1,18 +1,3 @@
-const fs = require('fs');
-const path = require('path');
-const optimizerCode = fs.readFileSync(path.resolve(__dirname, '../../features/tracker/scheduler/fsrsOptimizer.js'), 'utf8');
-const safeCode = optimizerCode
-    .replace(/import\.meta\.url/g, "'http://localhost'")
-    .replace(/import \{ initOptimizer \} from '@open-spaced-repetition\/binding\/dynamic-wasi';/g, "const { initOptimizer } = require('@open-spaced-repetition/binding/dynamic-wasi');")
-    .replace(/export default FsrsOptimizer;/g, "module.exports = FsrsOptimizer;");
-
-const mockModule = { exports: {} };
-(function(module, exports, require) {
-    eval(safeCode);
-})(mockModule, mockModule.exports, require);
-
-const FsrsOptimizer = mockModule.exports.default || mockModule.exports;
-
 jest.mock('@open-spaced-repetition/binding/dynamic-wasi', () => {
     const mockBinding = {
         computeParameters: jest.fn(),
@@ -34,7 +19,21 @@ jest.mock('@open-spaced-repetition/binding/dynamic-wasi', () => {
     };
 });
 
-const { initOptimizer } = require('@open-spaced-repetition/binding/dynamic-wasi');
+const fs = require('fs');
+const path = require('path');
+const optimizerCode = fs.readFileSync(path.resolve(__dirname, '../../features/tracker/scheduler/fsrsOptimizer.js'), 'utf8');
+const safeCode = optimizerCode
+    .replace(/import\.meta\.url/g, "'http://localhost'")
+    .replace(/import \{ initOptimizer \} from '@open-spaced-repetition\/binding\/dynamic-wasi';/g, "const { initOptimizer } = require('@open-spaced-repetition/binding/dynamic-wasi');")
+    .replace(/import \{ Rating \} from 'ts-fsrs';/g, "const { Rating } = require('ts-fsrs');")
+    .replace(/export default FsrsOptimizer;/g, "module.exports = FsrsOptimizer;");
+
+const mockModule = { exports: {} };
+(function(module, exports, require) {
+    eval(safeCode);
+})(mockModule, mockModule.exports, require);
+
+const FsrsOptimizer = mockModule.exports.default || mockModule.exports;
 
 describe('FsrsOptimizer (WASM)', () => {
     let optimizer;
@@ -95,7 +94,7 @@ describe('FsrsOptimizer (WASM)', () => {
             expect(trainSet[0].reviews[1].delta_t).toBe(4); // 4 days delta
             expect(trainSet[0].reviews[1].rating).toBe(3);
             
-            expect(options.timeout).toBe(900000);
+            expect(options.timeout).toBe(60000);
             expect(newWeights).toEqual([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7]);
         });
 
@@ -119,7 +118,7 @@ describe('FsrsOptimizer (WASM)', () => {
             expect(trainSet).toHaveLength(2500); // Should be capped
         });
 
-        it('should catch errors from WASM computeParameters and return original weights', async () => {
+        it('should bubble up errors from WASM computeParameters when training fails', async () => {
             global.__mockBinding.computeParameters.mockRejectedValueOnce(new Error('WASM Panic: Invalid Dataset'));
             
             const history = [
@@ -132,10 +131,7 @@ describe('FsrsOptimizer (WASM)', () => {
                 }
             ];
 
-            const newWeights = await optimizer.trainWeights(history, defaultWeights, 0.90);
-            
-            // If it catches gracefully, it returns the current weights rather than throwing unhandled rejection
-            expect(newWeights).toEqual(defaultWeights);
+            await expect(optimizer.trainWeights(history, defaultWeights, 0.90)).rejects.toThrow('WASM Panic: Invalid Dataset');
         });
     });
 });
