@@ -164,11 +164,140 @@ label {
     text-transform: uppercase;
 }
 
+.weight-info-trigger-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: help;
+    border-radius: 50%;
+    outline: none;
+}
+
 .weight-info-trigger {
     width: 14px;
     height: 14px;
     stroke: var(--md-text-low);
-    cursor: help;
+    transition: stroke 0.2s ease, transform 0.2s ease;
+}
+
+.weight-info-trigger-wrapper:hover .weight-info-trigger,
+.weight-info-trigger-wrapper:focus .weight-info-trigger {
+    stroke: var(--md-primary);
+    transform: scale(1.15);
+}
+
+.weight-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    width: 250px;
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: var(--shadow-3);
+    z-index: 999;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.2s;
+}
+
+/* Tooltip Arrow */
+.weight-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: var(--md-border) transparent transparent transparent;
+}
+
+.weight-info-trigger-wrapper:hover .weight-tooltip,
+.weight-info-trigger-wrapper:focus .weight-tooltip,
+.weight-info-trigger-wrapper:focus-within .weight-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Edge alignment for grid items */
+.weight-input-container:first-child .weight-tooltip,
+.weight-input-container:nth-child(5n+1) .weight-tooltip {
+    left: -8px;
+    transform: translateY(4px);
+}
+
+.weight-input-container:first-child .weight-tooltip::after,
+.weight-input-container:nth-child(5n+1) .weight-tooltip::after {
+    left: 18px;
+}
+
+.weight-input-container:first-child .weight-info-trigger-wrapper:hover .weight-tooltip,
+.weight-input-container:first-child .weight-info-trigger-wrapper:focus .weight-tooltip,
+.weight-input-container:nth-child(5n+1) .weight-info-trigger-wrapper:hover .weight-tooltip,
+.weight-input-container:nth-child(5n+1) .weight-info-trigger-wrapper:focus .weight-tooltip {
+    transform: translateY(0);
+}
+
+.weight-tooltip-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--md-border);
+}
+
+.weight-tooltip-badge {
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.weight-tooltip-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--md-text-high);
+    line-height: 1.3;
+}
+
+.weight-tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.weight-tooltip-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.weight-tooltip-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--md-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.weight-tooltip-text {
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--md-text-med);
+    margin: 0;
 }
 
 .weight-num-input {

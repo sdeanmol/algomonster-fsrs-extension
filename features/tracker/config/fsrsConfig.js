@@ -15,25 +15,95 @@ class FSRSConfigManager {
         this.defaultFactor = 0.234567;
         this.defaultRetention = 0.90;
 
-        this.weightsHelp = [
-            "w0: Initial stability for Again rating",
-            "w1: Initial stability for Hard rating",
-            "w2: Initial stability for Good rating",
-            "w3: Initial stability for Easy rating",
-            "w4: Initial difficulty on first review",
-            "w5: Difficulty scale step based on rating",
-            "w6: Difficulty decrease multiplier",
-            "w7: Difficulty fuzz stability modifier",
-            "w8: Stability modifier for correct reviews",
-            "w9: Stability modifier coefficient 2",
-            "w10: Stability modifier coefficient 3",
-            "w11: Stability modifier coefficient 4",
-            "w12: Lapse (forgotten review) modifier 1",
-            "w13: Lapse stability modifier 2",
-            "w14: Lapse stability modifier 3",
-            "w15: Easy bonus multiplier",
-            "w16: Stability upper bound limit"
+        this.weightsHelpDetails = [
+            {
+                title: "Initial Stability (Again)",
+                purpose: "Sets the initial memory stability (in days) when a brand-new card is rated 'Again' (1).",
+                significance: "Determines how soon a new card must be re-tested after a failed first attempt. Smaller values schedule near-immediate reviews."
+            },
+            {
+                title: "Initial Stability (Hard)",
+                purpose: "Sets the initial memory stability (in days) when a brand-new card is rated 'Hard' (2).",
+                significance: "Establishes the starting interval for new material that was difficult to recall. Higher values increase initial spacing."
+            },
+            {
+                title: "Initial Stability (Good)",
+                purpose: "Sets the initial memory stability (in days) when a brand-new card is rated 'Good' (3).",
+                significance: "Defines the standard baseline interval for successful first-time reviews of average difficulty material."
+            },
+            {
+                title: "Initial Stability (Easy)",
+                purpose: "Sets the initial memory stability (in days) when a brand-new card is rated 'Easy' (4).",
+                significance: "Gives effortless new cards a larger initial review gap, preventing unnecessary early over-testing."
+            },
+            {
+                title: "Initial Difficulty (Baseline)",
+                purpose: "Sets the baseline difficulty score (on a 1-10 scale) assigned to new cards upon first review.",
+                significance: "Serves as the difficulty anchor; higher baseline difficulty slows down future stability gains across subsequent reviews."
+            },
+            {
+                title: "Difficulty Rating Step",
+                purpose: "Scales how much card difficulty increases or decreases based on user performance ratings.",
+                significance: "Controls sensitivity to review ratings. Higher values cause difficulty to react more aggressively to 'Again' or 'Hard' ratings."
+            },
+            {
+                title: "Difficulty Mean Reversion",
+                purpose: "Applies mean reversion to gradually pull card difficulty back toward average over time.",
+                significance: "Prevents card difficulty from getting permanently stuck at extreme values (1 or 10) after temporary performance spikes or lapses."
+            },
+            {
+                title: "Difficulty Fuzz / Modifier",
+                purpose: "Modifies the interaction between card difficulty and stability growth during successful recalls.",
+                significance: "Fine-tunes interval growth rates specifically for moderately hard versus moderately easy cards."
+            },
+            {
+                title: "Recall Stability Base Multiplier",
+                purpose: "Controls the base exponential growth factor of memory stability upon successful recall.",
+                significance: "Main engine for interval expansion. Higher values cause review intervals to lengthen much faster after successful reviews."
+            },
+            {
+                title: "Recall Stability Retrievability Sensitivity",
+                purpose: "Adjusts stability increase based on retrievability (recall probability) at the moment of review.",
+                significance: "Rewards 'desirable difficulty': reviewing a card just before forgetting yields a substantially higher stability boost."
+            },
+            {
+                title: "Recall Stability Difficulty Dampening",
+                purpose: "Dampens stability expansion for high-difficulty cards during successful recalls.",
+                significance: "Ensures inherently difficult material maintains shorter intervals than easy material even when successfully recalled."
+            },
+            {
+                title: "Recall Stability Delay Bonus",
+                purpose: "Modifies stability gains when a card is successfully recalled past its scheduled due date.",
+                significance: "Grants extra stability credit for overdue reviews, recognizing successful long-term retention under delay."
+            },
+            {
+                title: "Lapse Stability Base Penalty",
+                purpose: "Controls the initial post-lapse stability reduction multiplier when a card is forgotten ('Again').",
+                significance: "Determines how sharply interval lengths collapse after a lapse. Lower values cause larger drops in stability."
+            },
+            {
+                title: "Lapse Stability Difficulty Scaling",
+                purpose: "Scales post-lapse stability reduction based on the card's current difficulty rating.",
+                significance: "Harder cards suffer a harsher stability penalty when forgotten, requiring more frequent reviews to rebuild stability."
+            },
+            {
+                title: "Lapse Stability Memory Trace",
+                purpose: "Accounts for prior stability strength when recalculating stability after a lapse.",
+                significance: "Cards forgotten after achieving high historical stability recover faster than cards forgotten early in their lifecycle."
+            },
+            {
+                title: "Easy Rating Stability Bonus",
+                purpose: "Applies an additional multiplicative stability boost when rating a review card 'Easy' (4).",
+                significance: "Directly expands the next interval length when material is rated effortless, reducing workload for mastered concepts."
+            },
+            {
+                title: "Hard Rating Stability Damping",
+                purpose: "Applies a stability damping factor when rating a review card 'Hard' (2).",
+                significance: "Restricts interval growth on difficult reviews, ensuring struggling cards reappear sooner for reinforcement."
+            }
         ];
+
+        this.weightsHelp = this.weightsHelpDetails.map((detail, i) => `w${i}: ${detail.title} - ${detail.purpose}`);
     }
 
     /**
@@ -267,17 +337,39 @@ class FSRSConfigManager {
 
         for (let i = 0; i < 17; i++) {
             const val = weightsArray[i] !== undefined ? weightsArray[i] : this.defaultWeights[i];
-            const helpText = this.weightsHelp[i];
+            const detail = this.weightsHelpDetails[i] || {
+                title: `Weight w${i}`,
+                purpose: this.weightsHelp[i] || `Coefficient w${i}`,
+                significance: "Scales memory stability update."
+            };
             const div = document.createElement('div');
             div.className = 'weight-input-container';
             div.innerHTML = `
                 <div class="weight-label-wrapper">
                     <span class="weight-index">w${i}</span>
-                    <svg class="svg-icon" viewBox="0 0 24 24" title="${helpText}" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                    </svg>
+                    <div class="weight-info-trigger-wrapper" tabindex="0" aria-label="Information for w${i}">
+                        <svg class="svg-icon weight-info-trigger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <div class="weight-tooltip" role="tooltip">
+                            <div class="weight-tooltip-header">
+                                <span class="weight-tooltip-badge">w${i}</span>
+                                <span class="weight-tooltip-title">${detail.title}</span>
+                            </div>
+                            <div class="weight-tooltip-body">
+                                <div class="weight-tooltip-section">
+                                    <span class="weight-tooltip-label">🎯 Purpose</span>
+                                    <p class="weight-tooltip-text">${detail.purpose}</p>
+                                </div>
+                                <div class="weight-tooltip-section">
+                                    <span class="weight-tooltip-label">💡 Significance</span>
+                                    <p class="weight-tooltip-text">${detail.significance}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <input type="number" step="0.01" class="weight-num-input" id="weight-input-${i}" value="${val}">
             `;
