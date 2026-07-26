@@ -13,7 +13,7 @@ window.AlgoRecall.Tracker = class Tracker {
         this.totalToReview = 0;
         this._reviewKeyHandler = null;
         this.isListenersBound = false;
-        
+
         // Bind functions to avoid lexical context issues
         this.saveDraft = this.saveDraft.bind(this);
     }
@@ -68,12 +68,15 @@ window.AlgoRecall.Tracker = class Tracker {
      */
     refreshWidgetState() {
         if (!chrome.runtime?.id) {
-            if (window.Logger) window.Logger.warn('Tracker', 'Extension context invalidated. Ignoring refresh.');
+            if (window.Logger) {
+                window.Logger.warn('Tracker', 'Extension context invalidated. Ignoring refresh.');
+                alert("Please refresh the page")
+            }
             return;
         }
         const container = document.getElementById('algo-fsrs-container');
         if (!container) return;
-        
+
         if (window.Logger) window.Logger.debug('Tracker', 'Refreshing widget state...');
 
         // Reset to default view on SPA navigation
@@ -86,7 +89,7 @@ window.AlgoRecall.Tracker = class Tracker {
 
         const cleanUrl = window.location.href.split('?')[0].split('#')[0];
         const existingCard = this.state.cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
-        
+
         const approachArea = document.getElementById('fsrs-approach');
         const tagsInput = document.getElementById('fsrs-tags-input');
         const actionLabel = document.getElementById('fsrs-action-label');
@@ -107,7 +110,7 @@ window.AlgoRecall.Tracker = class Tracker {
             updateTextBtn.style.display = "block";
             if (deleteCardBtn) deleteCardBtn.style.display = "block";
             saveRatingsContainer.setAttribute('data-existing-id', existingCard.id);
-            
+
             // Highlight the previous rating
             ratingBtns.forEach(btn => {
                 const btnRating = parseInt(btn.getAttribute('data-rating'));
@@ -124,7 +127,7 @@ window.AlgoRecall.Tracker = class Tracker {
             chrome.storage.local.get(['approachDrafts'], (res) => {
                 const drafts = res.approachDrafts || {};
                 const draft = drafts[cleanUrl];
-                
+
                 if (document.activeElement !== approachArea) {
                     if (typeof draft === 'object' && draft !== null) {
                         approachArea.value = draft.approach || "";
@@ -144,7 +147,7 @@ window.AlgoRecall.Tracker = class Tracker {
             updateTextBtn.style.display = "none";
             if (deleteCardBtn) deleteCardBtn.style.display = "none";
             saveRatingsContainer.removeAttribute('data-existing-id');
-            
+
             ratingBtns.forEach(btn => {
                 btn.style.opacity = "1";
                 btn.style.boxShadow = "none";
@@ -165,7 +168,7 @@ window.AlgoRecall.Tracker = class Tracker {
         launcher.setAttribute('role', 'button');
         launcher.setAttribute('aria-label', 'Open FSRS Tracker');
         launcher.setAttribute('tabindex', '0');
-        launcher.innerHTML = `<svg class="launcher-svg" viewBox="0 0 24 24" style="width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2;"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>`; 
+        launcher.innerHTML = `<svg class="launcher-svg" viewBox="0 0 24 24" style="width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2;"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>`;
         launcher.title = "FSRS Tracker (Drag to move, Right-click to reset position)";
         document.body.appendChild(launcher);
 
@@ -240,11 +243,11 @@ window.AlgoRecall.Tracker = class Tracker {
         const onMouseMove = (e) => {
             const dx = e.clientX - dragStart.x;
             const dy = e.clientY - dragStart.y;
-            
+
             if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
                 isDragging = true;
             }
-            
+
             if (isDragging) {
                 launcher.style.left = `${initialPos.x + dx}px`;
                 launcher.style.top = `${initialPos.y + dy}px`;
@@ -266,11 +269,11 @@ window.AlgoRecall.Tracker = class Tracker {
             isDragging = false;
             dragStart.x = e.clientX;
             dragStart.y = e.clientY;
-            
+
             const rect = launcher.getBoundingClientRect();
             initialPos.x = rect.left;
             initialPos.y = rect.top;
-            
+
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
         });
@@ -410,12 +413,12 @@ window.AlgoRecall.Tracker = class Tracker {
                         this.state.cards[index].approach = approach;
                         this.state.cards[index].tags = parsedTags;
                         this.state.cards[index] = this.state.scheduler.reviewCard(this.state.cards[index], rating, customWeights);
-                        this.state.cards[index].lastRating = rating; 
+                        this.state.cards[index].lastRating = rating;
                     }
                 } else {
                     let newCard = this.state.scheduler.createCard(problemTitle, cleanUrl, "", approach, parsedTags);
                     newCard = this.state.scheduler.reviewCard(newCard, rating, customWeights);
-                    newCard.lastRating = rating; 
+                    newCard.lastRating = rating;
                     this.state.cards.push(newCard);
                 }
 
@@ -451,7 +454,7 @@ window.AlgoRecall.Tracker = class Tracker {
     saveDraft() {
         const cleanUrl = window.location.href.split('?')[0].split('#')[0];
         const existingCard = this.state.cards.find(c => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
-        
+
         const approachTextEl = document.getElementById('fsrs-approach');
         const tagsInputEl = document.getElementById('fsrs-tags-input');
         if (!approachTextEl || !tagsInputEl) return;
@@ -613,18 +616,18 @@ window.AlgoRecall.Tracker = class Tracker {
             <span>${currentCard.tags.join(', ')}</span>
         </div>` : '';
 
-        const filterBadge = this.activeReviewFilter 
+        const filterBadge = this.activeReviewFilter
             ? `<div class="fsrs-filter-badge">
                 <svg class="svg-icon" viewBox="0 0 24 24" style="width: 11px; height: 11px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
                 ${this.activeReviewFilter}
-               </div>` 
+               </div>`
             : '';
 
         const progressPct = Math.round((this.reviewIndex / this.totalToReview) * 100);
 
         // Render approach with Markdown
-        const approachHtml = typeof renderMarkdown === 'function' 
-            ? renderMarkdown(currentCard.approach) 
+        const approachHtml = typeof renderMarkdown === 'function'
+            ? renderMarkdown(currentCard.approach)
             : currentCard.approach.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 
         reviewUi.innerHTML = `
@@ -759,7 +762,7 @@ window.AlgoRecall.Tracker = class Tracker {
 
         this.state.cards[index] = this.state.scheduler.reviewCard(card, rating, customWeightsToApply, Date.now(), timeTaken);
         this.state.cards[index].lastRating = rating;
-        
+
         this.saveCards();
         this.logReviewActivity();
     }
