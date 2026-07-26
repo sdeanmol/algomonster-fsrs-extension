@@ -1026,6 +1026,25 @@ input:checked+.slider:before {
     text-align: center;
 }
 
+.time-range-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.time-input {
+    color-scheme: dark;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+}
+
+.time-separator {
+    font-size: 11px;
+    color: var(--md-text-med);
+    font-weight: 500;
+}
+
 /* Collapsible Details Card */
 .details-card {
     padding: 0;

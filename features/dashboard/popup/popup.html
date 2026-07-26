@@ -303,7 +303,7 @@
                     <div class="setting-row">
                         <span class="setting-label">Sticky Notification</span>
                         <label class="switch" role="switch" tabindex="0">
-                            <input type="checkbox" id="toggle-require-interaction" checked>
+                            <input type="checkbox" id="toggle-sticky-notification" checked>
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -314,11 +314,12 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <div id="quiet-hours-inputs" class="setting-row hide-panel">
+                    <div id="quiet-hours-container" class="setting-row hide-panel">
+                        <span class="setting-label subtle">Time Window</span>
                         <div class="time-range-group">
-                            <input type="time" id="quiet-start" class="modern-input time-input" value="23:00">
+                            <input type="time" id="quiet-hours-start" class="modern-input time-input" value="23:00">
                             <span class="time-separator">to</span>
-                            <input type="time" id="quiet-end" class="modern-input time-input" value="07:00">
+                            <input type="time" id="quiet-hours-end" class="modern-input time-input" value="07:00">
                         </div>
                     </div>
                     <div class="setting-row">

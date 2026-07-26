@@ -48,11 +48,11 @@ export class NotificationsComponent extends DashboardComponent {
         const notifInterval = document.getElementById('notification-interval');
         const customIntervalContainer = document.getElementById('custom-interval-container');
         const customIntervalInput = document.getElementById('custom-interval-input');
-        const notifStickyToggle = document.getElementById('toggle-sticky-notification');
+        const notifStickyToggle = document.getElementById('toggle-sticky-notification') || document.getElementById('toggle-require-interaction');
         const quietToggle = document.getElementById('toggle-quiet-hours');
-        const quietContainer = document.getElementById('quiet-hours-container');
-        const quietStart = document.getElementById('quiet-hours-start');
-        const quietEnd = document.getElementById('quiet-hours-end');
+        const quietContainer = document.getElementById('quiet-hours-container') || document.getElementById('quiet-hours-inputs');
+        const quietStart = document.getElementById('quiet-hours-start') || document.getElementById('quiet-start');
+        const quietEnd = document.getElementById('quiet-hours-end') || document.getElementById('quiet-end');
 
         const updateNotificationUI = (settings) => {
             if (!notifToggle) return;
@@ -104,11 +104,11 @@ export class NotificationsComponent extends DashboardComponent {
         const notifInterval = document.getElementById('notification-interval');
         const customIntervalContainer = document.getElementById('custom-interval-container');
         const customIntervalInput = document.getElementById('custom-interval-input');
-        const notifStickyToggle = document.getElementById('toggle-sticky-notification');
+        const notifStickyToggle = document.getElementById('toggle-sticky-notification') || document.getElementById('toggle-require-interaction');
         const quietToggle = document.getElementById('toggle-quiet-hours');
-        const quietContainer = document.getElementById('quiet-hours-container');
-        const quietStart = document.getElementById('quiet-hours-start');
-        const quietEnd = document.getElementById('quiet-hours-end');
+        const quietContainer = document.getElementById('quiet-hours-container') || document.getElementById('quiet-hours-inputs');
+        const quietStart = document.getElementById('quiet-hours-start') || document.getElementById('quiet-start');
+        const quietEnd = document.getElementById('quiet-hours-end') || document.getElementById('quiet-end');
         const testNotifBtn = document.getElementById('test-notification-btn');
 
         if (enableBtn) {
@@ -130,17 +130,17 @@ export class NotificationsComponent extends DashboardComponent {
             try {
                 const result = await chrome.storage.local.get(['notificationSettings']);
                 const oldSettings = result.notificationSettings || { priority: '2' };
-                let frequency = notifInterval.value;
-                if (frequency === 'custom') {
+                let frequency = notifInterval ? notifInterval.value : '60';
+                if (frequency === 'custom' && customIntervalInput) {
                     const customVal = parseInt(customIntervalInput.value, 10);
                     frequency = (!isNaN(customVal) && customVal > 0) ? String(customVal) : '60';
                 }
 
                 const updatedSettings = {
-                    enabled: notifToggle.checked,
+                    enabled: notifToggle ? notifToggle.checked : true,
                     frequency: frequency,
                     priority: oldSettings.priority || '2',
-                    requireInteraction: notifStickyToggle.checked,
+                    requireInteraction: notifStickyToggle ? notifStickyToggle.checked : true,
                     quietHoursEnabled: quietToggle ? quietToggle.checked : false,
                     quietHoursStart: quietStart ? quietStart.value : '23:00',
                     quietHoursEnd: quietEnd ? quietEnd.value : '07:00'
@@ -180,8 +180,14 @@ export class NotificationsComponent extends DashboardComponent {
                 saveNotificationSettings();
             });
         }
-        if (quietStart) quietStart.addEventListener('change', saveNotificationSettings);
-        if (quietEnd) quietEnd.addEventListener('change', saveNotificationSettings);
+        if (quietStart) {
+            quietStart.addEventListener('change', saveNotificationSettings);
+            quietStart.addEventListener('input', saveNotificationSettings);
+        }
+        if (quietEnd) {
+            quietEnd.addEventListener('change', saveNotificationSettings);
+            quietEnd.addEventListener('input', saveNotificationSettings);
+        }
 
         if (customIntervalInput) {
             customIntervalInput.addEventListener('input', saveNotificationSettings);
