@@ -1,4 +1,4 @@
-import { FutureMemorySimulation } from '../../features/dashboard/analytics/memory/futureMemorySimulation.js';
+import { FutureMemorySimulation } from '../../features/dashboard/analytics/memory/futureMemorySimulation';
 
 describe('FutureMemorySimulation', () => {
     let mockDataUtils;

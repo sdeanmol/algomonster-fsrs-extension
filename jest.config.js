@@ -13,6 +13,9 @@ module.exports = {
     '^.+\\.js$': 'babel-jest'
   },
   moduleNameMapper: {
+    '^@common/(.*)$': '<rootDir>/features/common/$1',
+    '^@tracker/(.*)$': '<rootDir>/features/tracker/$1',
+    '^@dashboard/(.*)$': '<rootDir>/features/dashboard/$1',
     '\\.(css|less|scss)$': '<rootDir>/tests/mocks/styleMock.js',
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },

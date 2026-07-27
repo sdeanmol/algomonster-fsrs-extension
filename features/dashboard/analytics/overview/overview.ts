@@ -1,7 +1,7 @@
-import { MemoryHealth } from './memoryHealth.js';
-import { LearningVelocity } from './learningVelocity.js';
-import { MiniForecast } from './miniForecast.js';
-import { DataUtils } from '../utils/dataUtils.js';
+import { MemoryHealth } from './memoryHealth';
+import { LearningVelocity } from './learningVelocity';
+import { MiniForecast } from './miniForecast';
+import { DataUtils } from '../utils/dataUtils';
 
 export class OverviewTab {
     dataUtils: DataUtils;

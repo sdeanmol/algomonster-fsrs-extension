@@ -5,7 +5,7 @@
  * prioritizing overdue and low-stability cards. Backs up original due dates
  * for restoration on deactivation.
  */
-import { getLastReviewDate } from '../../common/utils/cardUtils.js';
+import { getLastReviewDate } from '@common/utils/cardUtils';
 
 class StudyPlanController {
     allCards: any[];

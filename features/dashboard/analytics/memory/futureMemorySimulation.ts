@@ -4,7 +4,7 @@
  * if a user stops studying (Today, 30d, 90d, 180d, and interactive day slider).
  */
 
-import { DataUtils } from '../utils/dataUtils.js';
+import { DataUtils } from '../utils/dataUtils';
 
 export class FutureMemorySimulation {
     dataUtils: DataUtils;

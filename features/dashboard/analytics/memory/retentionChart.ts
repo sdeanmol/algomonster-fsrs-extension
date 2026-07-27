@@ -1,5 +1,5 @@
-import { ConfidenceBand } from './confidenceBand.js';
-import { DataUtils } from '../utils/dataUtils.js';
+import { ConfidenceBand } from './confidenceBand';
+import { DataUtils } from '../utils/dataUtils';
 
 export class RetentionChart {
     dataUtils: DataUtils;

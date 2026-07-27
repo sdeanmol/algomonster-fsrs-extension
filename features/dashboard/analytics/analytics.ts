@@ -1,11 +1,11 @@
-import { DataUtils } from './utils/dataUtils.js';
-import { OverviewTab } from './overview/overview.js';
-import { MemoryTab } from './memory/memory.js';
-import { TagsTab } from './tags/tags.js';
-import { PerformanceTab } from './performance/performance.js';
-import { InsightsTab } from './insights/insights.js';
-import { ReadinessTab } from './readiness/readiness.js';
-import { FutureMemorySimulation } from './memory/futureMemorySimulation.js';
+import { DataUtils } from './utils/dataUtils';
+import { OverviewTab } from './overview/overview';
+import { MemoryTab } from './memory/memory';
+import { TagsTab } from './tags/tags';
+import { PerformanceTab } from './performance/performance';
+import { InsightsTab } from './insights/insights';
+import { ReadinessTab } from './readiness/readiness';
+import { FutureMemorySimulation } from './memory/futureMemorySimulation';
 
 export type TabKey = 'overview' | 'readiness' | 'memory' | 'simulation' | 'tags' | 'performance' | 'insights';
 

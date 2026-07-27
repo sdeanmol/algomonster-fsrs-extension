@@ -1,4 +1,4 @@
-import { ReadinessTab } from '../../features/dashboard/analytics/readiness/readiness.js';
+import { ReadinessTab } from '../../features/dashboard/analytics/readiness/readiness';
 
 describe('ReadinessTab', () => {
     let mockDataUtils;

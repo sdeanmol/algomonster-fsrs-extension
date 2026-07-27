@@ -1,6 +1,6 @@
-import { RecoveryTracking } from './recoveryTracking.js';
-import { ReviewStats } from './reviewStats.js';
-import { DataUtils } from '../utils/dataUtils.js';
+import { RecoveryTracking } from './recoveryTracking';
+import { ReviewStats } from './reviewStats';
+import { DataUtils } from '../utils/dataUtils';
 
 export class PerformanceTab {
     dataUtils: DataUtils;

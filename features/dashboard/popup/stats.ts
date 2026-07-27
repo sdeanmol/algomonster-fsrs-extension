@@ -1,5 +1,5 @@
-import { DashboardComponent } from './DashboardComponent.js';
-import { getLastReviewDate } from '../../common/utils/cardUtils.js';
+import { DashboardComponent } from './DashboardComponent';
+import { getLastReviewDate } from '@common/utils/cardUtils';
 
 export interface StreakResult {
     current: number;

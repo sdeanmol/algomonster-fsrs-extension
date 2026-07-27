@@ -1,6 +1,6 @@
-import { RetentionChart } from './retentionChart.js';
-import { PredictionComparison } from './predictionComparison.js';
-import { DataUtils } from '../utils/dataUtils.js';
+import { RetentionChart } from './retentionChart';
+import { PredictionComparison } from './predictionComparison';
+import { DataUtils } from '../utils/dataUtils';
 
 export class MemoryTab {
     dataUtils: DataUtils;

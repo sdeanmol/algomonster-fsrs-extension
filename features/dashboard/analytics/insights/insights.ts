@@ -1,5 +1,5 @@
-import { ReviewTimeAnalytics } from './reviewTimeAnalytics.js';
-import { DataUtils } from '../utils/dataUtils.js';
+import { ReviewTimeAnalytics } from './reviewTimeAnalytics';
+import { DataUtils } from '../utils/dataUtils';
 
 export class InsightsTab {
     dataUtils: DataUtils;

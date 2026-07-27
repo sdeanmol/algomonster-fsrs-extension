@@ -1,4 +1,4 @@
-import { DataUtils } from '../utils/dataUtils.js';
+import { DataUtils } from '../utils/dataUtils';
 
 export class ReviewStats {
     dataUtils: DataUtils;

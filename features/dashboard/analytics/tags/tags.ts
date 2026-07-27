@@ -1,6 +1,6 @@
-import { CoverageTable } from './coverageTable.js';
-import { RetentionBarChart } from './retentionBarChart.js';
-import { DataUtils, TagStats } from '../utils/dataUtils.js';
+import { CoverageTable } from './coverageTable';
+import { RetentionBarChart } from './retentionBarChart';
+import { DataUtils, TagStats } from '../utils/dataUtils';
 
 export class TagsTab {
     dataUtils: DataUtils;

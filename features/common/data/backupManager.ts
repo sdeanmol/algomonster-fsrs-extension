@@ -3,7 +3,7 @@
  * @description Highly optimized backup and restoration manager for AlgoRecall.
  * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
  */
-import '../logger.js';
+import '../logger';
 
 const Logger = (globalThis as any).Logger;
 
@@ -369,7 +369,7 @@ export class BackupManager {
                 dailyGoalTarget: settings.dailyGoalTarget || null,
                 longestStreak: settings.longestStreak || 0
             };
-            
+
             if (settings.whitelistedWebsites && settings.whitelistedWebsites.length > 0) {
                 storageUpdate.whitelistedWebsites = settings.whitelistedWebsites;
             } else {
@@ -463,7 +463,7 @@ export class BackupManager {
                 try {
                     const text = event.target?.result as string;
                     const imported = JSON.parse(text);
-                    
+
                     const storageUpdate: any = {
                         fsrsCards: Array.isArray(imported) ? imported : (imported.cards || []),
                         fsrsActivity: Array.isArray(imported) ? {} : (imported.activity || {}),

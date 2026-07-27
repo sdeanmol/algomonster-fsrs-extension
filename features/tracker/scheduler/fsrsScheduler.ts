@@ -10,7 +10,7 @@ import { getLastReviewDate } from '../../common/utils/cardUtils';
 
 declare const AbstractScheduler: any;
 
-const BaseScheduler: any = typeof require !== 'undefined' ? require('./scheduler.js') : (typeof AbstractScheduler !== 'undefined' ? AbstractScheduler : class {});
+const BaseScheduler: any = typeof require !== 'undefined' ? require('./scheduler') : (typeof AbstractScheduler !== 'undefined' ? AbstractScheduler : class {});
 
 export class FsrsScheduler extends BaseScheduler {
     public w: number[];

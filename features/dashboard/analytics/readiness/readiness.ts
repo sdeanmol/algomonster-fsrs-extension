@@ -4,7 +4,7 @@
  * based on the FSRS exponential memory decay formula for an upcoming exam date.
  */
 
-import { DataUtils } from '../utils/dataUtils.js';
+import { DataUtils } from '../utils/dataUtils';
 
 export class ReadinessTab {
     dataUtils: DataUtils;

@@ -1,10 +1,10 @@
-import { StatsComponent } from './stats.js';
-import { HeatmapComponent } from './heatmap.js';
-import { NotificationsComponent } from './notifications.js';
-import { RatingComponent } from './rating.js';
-import { QuickSearchComponent } from './search.js';
-import { BackupManager } from '../../common/data/backupManager.js';
-import '../../common/logger.js';
+import { StatsComponent } from './stats';
+import { HeatmapComponent } from './heatmap';
+import { NotificationsComponent } from './notifications';
+import { RatingComponent } from './rating';
+import { QuickSearchComponent } from './search';
+import { BackupManager } from '@common/data/backupManager';
+import '@common/logger';
 
 const Logger = (globalThis as any).Logger;
 

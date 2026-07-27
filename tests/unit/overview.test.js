@@ -1,13 +1,13 @@
-import { OverviewTab } from '../../features/dashboard/analytics/overview/overview.js';
+import { OverviewTab } from '../../features/dashboard/analytics/overview/overview';
 
 // Mock dependencies
-jest.mock('../../features/dashboard/analytics/overview/memoryHealth.js', () => {
+jest.mock('../../features/dashboard/analytics/overview/memoryHealth', () => {
     return { MemoryHealth: jest.fn().mockImplementation(() => ({ render: jest.fn() })) };
 });
-jest.mock('../../features/dashboard/analytics/overview/learningVelocity.js', () => {
+jest.mock('../../features/dashboard/analytics/overview/learningVelocity', () => {
     return { LearningVelocity: jest.fn().mockImplementation(() => ({ render: jest.fn() })) };
 });
-jest.mock('../../features/dashboard/analytics/overview/miniForecast.js', () => {
+jest.mock('../../features/dashboard/analytics/overview/miniForecast', () => {
     return { MiniForecast: jest.fn().mockImplementation(() => ({ render: jest.fn() })) };
 });
 

@@ -1,5 +1,5 @@
-import { getLastReviewDate } from '../../../common/utils/cardUtils.js';
-import { DataUtils } from '../utils/dataUtils.js';
+import { getLastReviewDate } from '@common/utils/cardUtils';
+import { DataUtils } from '../utils/dataUtils';
 
 export class RecoveryTracking {
     dataUtils: DataUtils;

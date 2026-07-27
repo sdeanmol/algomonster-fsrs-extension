@@ -3,7 +3,7 @@
  * @description Shared utilities for aggregating and calculating FSRS data.
  */
 
-import { getLastReviewDate } from '../../../common/utils/cardUtils.js';
+import { getLastReviewDate } from '@common/utils/cardUtils';
 
 export interface SummaryStats {
     totalCards: number;

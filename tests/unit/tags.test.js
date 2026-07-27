@@ -1,7 +1,7 @@
-import { TagsTab } from '../../features/dashboard/analytics/tags/tags.js';
+import { TagsTab } from '../../features/dashboard/analytics/tags/tags';
 
 // Mock dependencies
-jest.mock('../../features/dashboard/analytics/tags/coverageTable.js', () => {
+jest.mock('../../features/dashboard/analytics/tags/coverageTable', () => {
     return {
         CoverageTable: jest.fn().mockImplementation(() => {
             return { render: jest.fn() };
@@ -9,7 +9,7 @@ jest.mock('../../features/dashboard/analytics/tags/coverageTable.js', () => {
     };
 });
 
-jest.mock('../../features/dashboard/analytics/tags/retentionBarChart.js', () => {
+jest.mock('../../features/dashboard/analytics/tags/retentionBarChart', () => {
     return {
         RetentionBarChart: jest.fn().mockImplementation(() => {
             return { render: jest.fn(), setSortBy: jest.fn() };

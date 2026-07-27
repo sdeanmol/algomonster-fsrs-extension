@@ -5,8 +5,8 @@
  * and custom per-topic profiles mapped directly to tags.
  */
 
-import FsrsOptimizer from '../scheduler/fsrsOptimizer.js';
-import FsrsOptimizerFast from '../scheduler/fsrsOptimizerFast.js';
+import FsrsOptimizer from '../scheduler/fsrsOptimizer';
+import FsrsOptimizerFast from '../scheduler/fsrsOptimizerFast';
 
 export interface WeightHelpDetail {
     title: string;

@@ -1,4 +1,4 @@
-import { DashboardComponent } from './DashboardComponent.js';
+import { DashboardComponent } from './DashboardComponent';
 
 /**
  * @class RatingComponent
