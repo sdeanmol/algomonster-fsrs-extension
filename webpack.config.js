@@ -39,7 +39,10 @@ module.exports = {
     'features/dashboard/history/history': './features/dashboard/history/history.ts',
     'features/dashboard/pomodoro/pomodoro': './features/dashboard/pomodoro/pomodoro.ts',
     'features/dashboard/heatmap/heatmap': './features/dashboard/heatmap/heatmap.ts',
-    'features/dashboard/heatmap/heatmap-stats': './features/dashboard/heatmap/heatmap-stats.ts'
+    'features/dashboard/heatmap/heatmap-stats': './features/dashboard/heatmap/heatmap-stats.ts',
+    'features/highlighter/highlighter': './features/highlighter/highlighter.ts',
+    'features/highlighter/manager/highlights': './features/highlighter/manager/highlights.ts',
+    'features/highlighter/manager/highlights-helpers': './features/highlighter/manager/highlights-helpers.ts'
   },
   output: {
     path: path.resolve(__dirname, 'build'),

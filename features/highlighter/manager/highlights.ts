@@ -1,12 +1,13 @@
 window.AlgoRecall = window.AlgoRecall || {};
 
-/**
- * @class HighlightsManager
- * @description Main controller for the saved page highlights manager screen.
- * Handles loading selections, text searches, dropdown category grouping,
- * color bubble selection, and list sorting mechanisms.
- */
-window.AlgoRecall.HighlightsManager = class HighlightsManager {
+export class HighlightsManager {
+    loadedMarks: any[];
+    loadedBookmarks: any[];
+    searchQuery: string;
+    activeColorFilter: string | null;
+    activePageFilter: string;
+    sortOption: string;
+
     constructor() {
         this.loadedMarks = [];
         this.loadedBookmarks = [];
@@ -17,31 +18,23 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
         this.sortOption = 'newest';
     }
 
-    /**
-     * Helper to retrieve highlights helper class.
-     */
-    get helpers() {
+    get helpers(): any {
         return window.AlgoRecall.HighlightsHelpers;
     }
 
-    /**
-     * Initializes filters and loads initial lists.
-     */
-    init() {
+    init(): void {
         this.loadHighlights();
         this.bindEvents();
     }
 
-    /**
-     * Binds control change and button click listeners.
-     */
-    bindEvents() {
-        // Refresh Button Handler
-        document.getElementById('refresh-btn').addEventListener('click', () => {
-            this.loadHighlights();
-        });
+    bindEvents(): void {
+        const refreshBtn = document.getElementById('refresh-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.loadHighlights();
+            });
+        }
 
-        // Export Button Handler
         const exportBtn = document.getElementById('export-highlights-btn');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
@@ -49,54 +42,56 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
             });
         }
 
-        // Search Input Listener
-        const searchInput = document.getElementById('search-input');
-        searchInput.addEventListener('input', (e) => {
-            this.searchQuery = e.target.value.trim();
-            this.filterAndRender();
-        });
+        const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+        if (searchInput) {
+            searchInput.addEventListener('input', (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                this.searchQuery = target.value.trim();
+                this.filterAndRender();
+            });
+        }
 
-        // Webpage Select Listener
-        const webpageSelect = document.getElementById('webpage-select');
-        webpageSelect.addEventListener('change', (e) => {
-            this.activePageFilter = e.target.value;
-            this.filterAndRender();
-        });
+        const webpageSelect = document.getElementById('webpage-select') as HTMLSelectElement | null;
+        if (webpageSelect) {
+            webpageSelect.addEventListener('change', (e: Event) => {
+                const target = e.target as HTMLSelectElement;
+                this.activePageFilter = target.value;
+                this.filterAndRender();
+            });
+        }
 
-        // Sort Select Listener
-        const sortSelect = document.getElementById('sort-select');
-        sortSelect.addEventListener('change', (e) => {
-            this.sortOption = e.target.value;
-            this.filterAndRender();
-        });
+        const sortSelect = document.getElementById('sort-select') as HTMLSelectElement | null;
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e: Event) => {
+                const target = e.target as HTMLSelectElement;
+                this.sortOption = target.value;
+                this.filterAndRender();
+            });
+        }
 
-        // Clear Filters Listener
         const clearFiltersBtn = document.getElementById('clear-filters-btn');
-        clearFiltersBtn.addEventListener('click', () => {
-            this.searchQuery = '';
-            this.activeColorFilter = null;
-            this.activePageFilter = 'all';
-            this.sortOption = 'newest';
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                this.searchQuery = '';
+                this.activeColorFilter = null;
+                this.activePageFilter = 'all';
+                this.sortOption = 'newest';
 
-            searchInput.value = '';
-            webpageSelect.value = 'all';
-            sortSelect.value = 'newest';
+                if (searchInput) searchInput.value = '';
+                if (webpageSelect) webpageSelect.value = 'all';
+                if (sortSelect) sortSelect.value = 'newest';
 
-            // Re-render color bubbles to clear active styling
-            this.renderColorFilters();
-            this.filterAndRender();
-        });
+                this.renderColorFilters();
+                this.filterAndRender();
+            });
+        }
     }
 
-    /**
-     * Loads highlights and bookmark records from storage, populating filters and lists.
-     */
-    loadHighlights() {
-        chrome.storage.local.get(['marks', 'bookmarks'], (result) => {
+    loadHighlights(): void {
+        chrome.storage.local.get(['marks', 'bookmarks'], (result: { [key: string]: any }) => {
             this.loadedMarks = result.marks || [];
             this.loadedBookmarks = result.bookmarks || [];
             
-            // Populate filter elements dynamically on initial load
             this.populateWebpageSelect();
             this.renderColorFilters();
             
@@ -104,25 +99,19 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
         });
     }
 
-    /**
-     * Parses marks list, collecting unique source URLs to populate the webpage select dropdown.
-     */
-    populateWebpageSelect() {
-        const select = document.getElementById('webpage-select');
+    populateWebpageSelect(): void {
+        const select = document.getElementById('webpage-select') as HTMLSelectElement | null;
         if (!select) return;
         
-        // Clear dynamic options
         select.innerHTML = '<option value="all">All Pages</option>';
 
-        // Extract unique pages
-        const uniquePagesMap = new Map(); // url -> title
+        const uniquePagesMap = new Map<string, string>();
         this.loadedMarks.forEach(mark => {
             const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
             const title = bookmark && bookmark.title ? bookmark.title : this.helpers.getCleanDisplayUrl(mark.url);
             uniquePagesMap.set(mark.url, title);
         });
 
-        // Add options
         for (const [url, title] of uniquePagesMap.entries()) {
             const option = document.createElement('option');
             option.value = url;
@@ -133,15 +122,11 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
         select.value = this.activePageFilter;
     }
 
-    /**
-     * Dynamic rendering of round color buttons reflecting used highlight colors.
-     */
-    renderColorFilters() {
+    renderColorFilters(): void {
         const container = document.getElementById('color-filters-container');
         if (!container) return;
         container.innerHTML = '';
 
-        // Get unique colors present in loaded highlights
         const uniqueColors = [...new Set(this.loadedMarks.map(m => m.color).filter(Boolean))];
 
         if (uniqueColors.length === 0) {
@@ -160,9 +145,9 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
 
             bubble.addEventListener('click', () => {
                 if (this.activeColorFilter === color) {
-                    this.activeColorFilter = null; // Toggle off
+                    this.activeColorFilter = null;
                 } else {
-                    this.activeColorFilter = color; // Toggle on
+                    this.activeColorFilter = color;
                 }
                 this.renderColorFilters();
                 this.filterAndRender();
@@ -172,18 +157,13 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
         });
     }
 
-    /**
-     * Filter and sort results before generating card preview elements.
-     */
-    filterAndRender() {
+    filterAndRender(): void {
         const container = document.getElementById('highlights-container');
         const subtitle = document.getElementById('highlight-subtitle');
         const clearFiltersBtn = document.getElementById('clear-filters-btn');
         if (!container) return;
 
-        // 1. Filter list
         let filtered = this.loadedMarks.filter(mark => {
-            // Search query check (text or title or URL)
             const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
             const pageTitle = bookmark && bookmark.title ? bookmark.title.toLowerCase() : '';
             const markText = mark.text.toLowerCase();
@@ -199,16 +179,12 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
                                  markNote.includes(q) ||
                                  markCategory.includes(q);
 
-            // Color check
             const matchesColor = !this.activeColorFilter || mark.color === this.activeColorFilter;
-
-            // Page check
             const matchesPage = this.activePageFilter === 'all' || mark.url === this.activePageFilter;
 
             return matchesQuery && matchesColor && matchesPage;
         });
 
-        // 2. Sort list
         filtered.sort((a, b) => {
             if (this.sortOption === 'newest') {
                 return b.createdAt - a.createdAt;
@@ -228,13 +204,11 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
             return 0;
         });
 
-        // Toggle Clear Filters Button
         const isFilteredActive = this.searchQuery !== '' || this.activeColorFilter !== null || this.activePageFilter !== 'all';
         if (clearFiltersBtn) {
             clearFiltersBtn.style.display = isFilteredActive ? 'inline-block' : 'none';
         }
 
-        // Render Subtitle stats
         if (subtitle) {
             if (isFilteredActive) {
                 subtitle.innerText = `Found ${filtered.length} matching highlight(s) out of ${this.loadedMarks.length} total.`;
@@ -243,7 +217,6 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
             }
         }
 
-        // Render Cards
         container.innerHTML = '';
         if (filtered.length === 0) {
             container.innerHTML = `<div class="empty-state">No matching highlights found. Try adjusting your search or filters.</div>`;
@@ -263,7 +236,6 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
                 year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
             });
 
-            // Safe search text highlighting
             const formattedSnippet = this.helpers.highlightSearchMatch(mark.text, this.searchQuery);
             
             const markType = mark.type || 'highlight';
@@ -305,31 +277,30 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
             container.appendChild(card);
         });
 
-        // Attach button event listeners
         container.querySelectorAll('.action-btn-copy').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const text = e.currentTarget.getAttribute('data-text');
+            btn.addEventListener('click', (e: Event) => {
+                const target = e.currentTarget as HTMLElement;
+                const text = target.getAttribute('data-text') || '';
                 this.helpers.copyToClipboard(text);
             });
         });
 
         container.querySelectorAll('.action-btn-delete').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const targetId = e.currentTarget.getAttribute('data-id');
-                this.deleteHighlight(targetId);
+            btn.addEventListener('click', (e: Event) => {
+                const target = e.currentTarget as HTMLElement;
+                const targetId = target.getAttribute('data-id');
+                if (targetId) {
+                    this.deleteHighlight(targetId);
+                }
             });
         });
     }
 
-    /**
-     * Removes highlight object indices from storage and triggers dashboard reload.
-     * @param {string} markId - Identifier of targeted highlight.
-     */
-    deleteHighlight(markId) {
+    deleteHighlight(markId: string): void {
         if (confirm("Are you sure you want to delete this highlight?")) {
-            chrome.storage.local.get(['marks'], (result) => {
+            chrome.storage.local.get(['marks'], (result: { [key: string]: any }) => {
                 let marks = result.marks || [];
-                marks = marks.filter(m => (m.id || m.createdAt.toString()) !== markId);
+                marks = marks.filter((m: any) => (m.id || m.createdAt.toString()) !== markId);
                 chrome.storage.local.set({ marks }, () => {
                     this.loadHighlights();
                 });
@@ -337,11 +308,7 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
         }
     }
 
-    /**
-     * Exports the currently displayed (filtered) highlights as a Markdown file.
-     */
-    exportHighlightsToMarkdown() {
-        // Get the filtered list (re-evaluating logic or we could store the currently rendered array)
+    exportHighlightsToMarkdown(): void {
         let filtered = this.loadedMarks.filter(mark => {
             const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
             const pageTitle = bookmark && bookmark.title ? bookmark.title.toLowerCase() : '';
@@ -393,9 +360,11 @@ window.AlgoRecall.HighlightsManager = class HighlightsManager {
             saveAs: true
         });
     }
-};
+}
+
+window.AlgoRecall.HighlightsManager = HighlightsManager;
 
 document.addEventListener('DOMContentLoaded', () => {
-    const manager = new window.AlgoRecall.HighlightsManager();
+    const manager = new HighlightsManager();
     manager.init();
 });

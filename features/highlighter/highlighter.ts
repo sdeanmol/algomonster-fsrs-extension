@@ -1,34 +1,33 @@
+declare global {
+    interface Window {
+        AlgoRecall: any;
+    }
+}
+
 window.AlgoRecall = window.AlgoRecall || {};
 
 /**
- * @class PageHighlighter
+ * @class Highlighter
  * @description Controller for the webpage text highlighting system.
  * Captures user text selection ranges, displays color-picker annotation popups,
  * and renders highlighting decorations using the CSS Custom Highlights API.
  */
-window.AlgoRecall.Highlighter = class Highlighter {
+export class Highlighter {
+    isHighlighterListenersBound: boolean;
+
     constructor() {
         this.isHighlighterListenersBound = false;
     }
 
-    /**
-     * Helper to retrieve state.
-     */
-    get state() {
+    get state(): any {
         return window.AlgoRecall.state;
     }
 
-    /**
-     * Helper to retrieve utils.
-     */
-    get utils() {
+    get utils(): any {
         return window.AlgoRecall.Utils;
     }
 
-    /**
-     * Initializes the highlight tooltip node and registers page-level event listeners.
-     */
-    createHighlighterUI() {
+    createHighlighterUI(): void {
         if (!document.getElementById('algo-highlight-tooltip')) {
             const tooltip = document.createElement('div');
             tooltip.id = 'algo-highlight-tooltip';
@@ -44,10 +43,10 @@ window.AlgoRecall.Highlighter = class Highlighter {
             return;
         }
 
-        // 1. Text Selection Logic (For NEW highlights)
-        document.addEventListener('pointerup', (e) => {
+        document.addEventListener('pointerup', (e: MouseEvent) => {
             if (!this.state.chromeSettings.showMarkerPopup) return;
-            if (e.target.closest('#algo-highlight-tooltip') || e.target.closest('#algo-fsrs-container')) return;
+            const target = e.target as HTMLElement | null;
+            if (target && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) return;
 
             const selection = window.getSelection();
             const tooltip = document.getElementById('algo-highlight-tooltip');
@@ -64,7 +63,6 @@ window.AlgoRecall.Highlighter = class Highlighter {
 
             const range = selection.getRangeAt(0);
 
-            // Positioning: Get the exact last line of the multi-line selection
             const rects = range.getClientRects();
             let lastRect = rects.length > 0 ? rects[rects.length - 1] : null;
 
@@ -80,16 +78,15 @@ window.AlgoRecall.Highlighter = class Highlighter {
             this.renderTooltipColors(null, null);
             tooltip.style.display = 'flex';
 
-            // Anchor to the bottom-right corner where the highlight ends
             tooltip.style.left = `${lastRect.right + window.scrollX}px`;
             tooltip.style.top = `${lastRect.bottom + window.scrollY}px`;
         }, true);
 
-        // 2. Hover Detection Logic (For EXISTING highlights)
-        document.addEventListener('mousemove', (e) => {
+        document.addEventListener('mousemove', (e: MouseEvent) => {
             if (!this.state.chromeSettings.showMarkerPopup) return;
+            const target = e.target as HTMLElement | null;
 
-            if (e.target.closest('#algo-highlight-tooltip') || e.target.closest('#algo-fsrs-container')) {
+            if (target && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) {
                 clearTimeout(this.state.hideTooltipTimer);
                 this.state.hideTooltipTimer = null;
                 return;
@@ -98,7 +95,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
             const selection = window.getSelection();
             if (selection && !selection.isCollapsed && selection.toString().trim() !== '') return;
 
-            let foundMark = null;
+            let foundMark: any = null;
             for (const item of this.state.activeMarkRanges) {
                 const rects = item.range.getClientRects();
                 for (let i = 0; i < rects.length; i++) {
@@ -123,7 +120,6 @@ window.AlgoRecall.Highlighter = class Highlighter {
                     this.renderTooltipColors(this.state.hoveredMarkId, foundMark.color);
                     tooltip.style.display = 'flex';
 
-                    // Positioning: Snap just below the cursor
                     tooltip.style.left = `${e.clientX + window.scrollX + 15}px`;
                     tooltip.style.top = `${e.clientY + window.scrollY}px`;
                 }
@@ -144,21 +140,13 @@ window.AlgoRecall.Highlighter = class Highlighter {
         }
     }
 
-    /**
-     * Renders the color palette bubble swatches, custom input color-picker, delete button,
-     * and text-note inputs for annotations in the highlighting tooltip.
-     * 
-     * @param {string|null} existingMarkId - The targeted highlight ID if editing, or null if creating new.
-     * @param {string|null} currentColor - Active hex color code of selection.
-     */
-    renderTooltipColors(existingMarkId = null, currentColor = null) {
+    renderTooltipColors(existingMarkId: string | null = null, currentColor: string | null = null): void {
         const tooltip = document.getElementById('algo-highlight-tooltip');
         if (!tooltip) return;
         tooltip.innerHTML = '';
 
         let activeType = 'highlight';
 
-        // Add Type Selector for New Annotations
         if (!existingMarkId) {
             const typeContainer = document.createElement('div');
             typeContainer.className = 'algo-type-selector';
@@ -172,7 +160,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
             typeContainer.setAttribute('aria-label', 'Highlight Type');
 
             const types = ['highlight', 'underline'];
-            const typeBtns = {};
+            const typeBtns: Record<string, HTMLButtonElement> = {};
             
             types.forEach((t) => {
                 const btn = document.createElement('button');
@@ -194,7 +182,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
                 btn.setAttribute('aria-checked', isActive.toString());
                 btn.setAttribute('tabindex', isActive ? '0' : '-1');
 
-                const setActiveType = (typeVal) => {
+                const setActiveType = (typeVal: string) => {
                     activeType = typeVal;
                     types.forEach(type => {
                         const isBtnActive = type === typeVal;
@@ -223,7 +211,6 @@ window.AlgoRecall.Highlighter = class Highlighter {
             tooltip.appendChild(typeContainer);
         }
 
-        // Create a flex container for the swatches and actions
         const actionsContainer = document.createElement('div');
         actionsContainer.style.display = 'flex';
         actionsContainer.style.alignItems = 'center';
@@ -231,15 +218,13 @@ window.AlgoRecall.Highlighter = class Highlighter {
         actionsContainer.style.width = '100%';
         actionsContainer.style.flexWrap = 'wrap';
 
-        // Fetch active palette colors
         const activePalette = this.state.chromeSettings.palettes && this.state.chromeSettings.palettes[this.state.chromeSettings.activePaletteIndex]
             ? this.state.chromeSettings.palettes[this.state.chromeSettings.activePaletteIndex]
             : { colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] };
 
         const paletteColors = activePalette.colors || [];
 
-        // Color Swatches
-        paletteColors.forEach(color => {
+        paletteColors.forEach((color: string) => {
             const swatch = document.createElement('div');
             swatch.className = 'algo-color-swatch';
             swatch.style.background = color;
@@ -248,7 +233,6 @@ window.AlgoRecall.Highlighter = class Highlighter {
             swatch.setAttribute('aria-label', `Highlight with color ${color}`);
             swatch.setAttribute('tabindex', '0');
 
-            // Mark as active if this swatch matches the highlight color
             if (color === currentColor) {
                 swatch.classList.add('active');
             }
@@ -272,21 +256,20 @@ window.AlgoRecall.Highlighter = class Highlighter {
             actionsContainer.appendChild(swatch);
         });
 
-        // Custom Color Picker
         const picker = document.createElement('input');
         picker.type = 'color';
         picker.id = 'algo-color-picker';
         picker.setAttribute('aria-label', 'Custom highlight color');
         picker.value = currentColor || this.state.chromeSettings.defaultHighlightColor;
-        picker.addEventListener('input', (e) => {
-            const newColor = e.target.value;
+        picker.addEventListener('input', (e: Event) => {
+            const target = e.target as HTMLInputElement;
+            const newColor = target.value;
             if (existingMarkId) this.updateHighlightColor(existingMarkId, newColor);
             else this.saveHighlight(newColor, activeType);
             this.updateRecentColors(newColor);
         });
         actionsContainer.appendChild(picker);
 
-        // Delete Button (Only shows if hovering existing highlight)
         if (existingMarkId) {
             const divider = document.createElement('div');
             divider.className = 'algo-tooltip-divider';
@@ -320,10 +303,8 @@ window.AlgoRecall.Highlighter = class Highlighter {
 
         tooltip.appendChild(actionsContainer);
 
-        // Render Notes Section (if hover on existing mark)
         if (existingMarkId) {
-            // Annotation note input
-            const existingMark = this.state.marks.find(m => (m.id || m.createdAt.toString()) === existingMarkId);
+            const existingMark = this.state.marks.find((m: any) => (m.id || m.createdAt.toString()) === existingMarkId);
             const noteSection = document.createElement('div');
             noteSection.className = 'algo-note-section';
 
@@ -337,8 +318,9 @@ window.AlgoRecall.Highlighter = class Highlighter {
                 categorySelect.appendChild(opt);
             });
             categorySelect.value = existingMark?.category || '';
-            categorySelect.addEventListener('change', (e) => {
-                this.saveMarkCategory(existingMarkId, e.target.value);
+            categorySelect.addEventListener('change', (e: Event) => {
+                const target = e.target as HTMLSelectElement;
+                this.saveMarkCategory(existingMarkId, target.value);
             });
             noteSection.appendChild(categorySelect);
 
@@ -356,7 +338,7 @@ window.AlgoRecall.Highlighter = class Highlighter {
                 this.saveMarkNote(existingMarkId, noteInput.value);
             };
             noteInput.addEventListener('blur', saveNote);
-            noteInput.addEventListener('keydown', (e) => {
+            noteInput.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     saveNote();
@@ -388,34 +370,25 @@ window.AlgoRecall.Highlighter = class Highlighter {
         }
     }
 
-    /**
-     * Updates the category of a highlight mark.
-     * @param {string} markId - The ID of the targeted mark.
-     * @param {string} category - Category string.
-     */
-    saveMarkCategory(markId, category) {
-        const markIndex = this.state.marks.findIndex(m => (m.id || m.createdAt.toString()) === markId);
+    saveMarkCategory(markId: string, category: string): void {
+        const markIndex = this.state.marks.findIndex((m: any) => (m.id || m.createdAt.toString()) === markId);
         if (markIndex > -1) {
             this.state.marks[markIndex].category = category;
             chrome.storage.local.set({ marks: this.state.marks });
         }
     }
 
-    /**
-     * Appends highlight text and notes to the FSRS card for the current page URL.
-     * @param {string} markId - The ID of the targeted mark.
-     */
-    linkHighlightToCard(markId) {
-        const mark = this.state.marks.find(m => (m.id || m.createdAt.toString()) === markId);
+    linkHighlightToCard(markId: string): void {
+        const mark = this.state.marks.find((m: any) => (m.id || m.createdAt.toString()) === markId);
         if (!mark) return;
         
         const cleanUrl = window.location.href.split('?')[0].split('#')[0];
         const prefix = mark.category ? `**${mark.category}:** ` : '';
         const appendText = `\n\n> ${prefix}${mark.text}` + (mark.note ? `\n> *Note: ${mark.note}*` : '');
 
-        chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result) => {
+        chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: { [key: string]: any }) => {
             const cards = result.fsrsCards || [];
-            const cardIndex = cards.findIndex(c => c.problemUrl === cleanUrl);
+            const cardIndex = cards.findIndex((c: any) => c.problemUrl === cleanUrl);
             if (cardIndex > -1) {
                 const card = cards[cardIndex];
                 let approach = card.approach || '';
@@ -427,7 +400,6 @@ window.AlgoRecall.Highlighter = class Highlighter {
                     }
                 });
             } else {
-                // No card exists yet, append to draft
                 const drafts = result.approachDrafts || {};
                 let draft = drafts[cleanUrl];
                 
@@ -450,24 +422,13 @@ window.AlgoRecall.Highlighter = class Highlighter {
         });
     }
 
-    /**
-     * Updates the default highlighted color parameter and recent colors array.
-     * Saves the settings list back to chrome local storage.
-     * @param {string} newColor - Hex color code.
-     */
-    updateRecentColors(newColor) {
+    updateRecentColors(newColor: string): void {
         this.state.chromeSettings.defaultHighlightColor = newColor;
-        this.state.chromeSettings.recentColors = [newColor, ...this.state.chromeSettings.recentColors.filter(c => c !== newColor)].slice(0, 4);
+        this.state.chromeSettings.recentColors = [newColor, ...this.state.chromeSettings.recentColors.filter((c: string) => c !== newColor)].slice(0, 4);
         chrome.storage.local.set({ chromeSettings: this.state.chromeSettings });
     }
 
-    /**
-     * Captures user text selection, serializes coordinates, saves the mark info to local storage,
-     * and triggers CSS Custom Highlights rendering on page content.
-     * 
-     * @param {string} color - Hex color code.
-     */
-    saveHighlight(color, type = 'highlight') {
+    saveHighlight(color: string, type: string = 'highlight'): void {
         const selection = window.getSelection();
         if (!selection || selection.isCollapsed) return;
 
@@ -491,27 +452,22 @@ window.AlgoRecall.Highlighter = class Highlighter {
 
         this.state.marks.push(newMark);
 
-        if (!this.state.bookmarks.find(b => b.url === cleanUrl)) {
+        if (!this.state.bookmarks.find((b: any) => b.url === cleanUrl)) {
             this.state.bookmarks.push({ url: cleanUrl, title: this.utils.getExtractedProblemTitle(), meta: { favIconUrl: 'https://algo.monster/favicon.ico' } });
         }
-        this.state.pagecontents = this.state.pagecontents.filter(p => p.url !== cleanUrl);
+        this.state.pagecontents = this.state.pagecontents.filter((p: any) => p.url !== cleanUrl);
         this.state.pagecontents.push({ url: cleanUrl, description: document.body.innerText.substring(0, 100), length: document.body.innerText.length });
 
         chrome.storage.local.set({ marks: this.state.marks, bookmarks: this.state.bookmarks, pagecontents: this.state.pagecontents });
 
-        document.getElementById('algo-highlight-tooltip').style.display = 'none';
+        const tooltip = document.getElementById('algo-highlight-tooltip');
+        if (tooltip) tooltip.style.display = 'none';
         selection.removeAllRanges();
         this.applyHighlightsForCurrentPage();
     }
 
-    /**
-     * Updates the highlight color of an existing mark in memory and storage,
-     * and triggers a full page highlights refresh.
-     * @param {string} markId - The ID of the targeted mark.
-     * @param {string} newColor - The new hex color value.
-     */
-    updateHighlightColor(markId, newColor) {
-        const markIndex = this.state.marks.findIndex(m => (m.id || m.createdAt.toString()) === markId);
+    updateHighlightColor(markId: string, newColor: string): void {
+        const markIndex = this.state.marks.findIndex((m: any) => (m.id || m.createdAt.toString()) === markId);
         if (markIndex > -1) {
             this.state.marks[markIndex].color = newColor;
             chrome.storage.local.set({ marks: this.state.marks });
@@ -520,41 +476,26 @@ window.AlgoRecall.Highlighter = class Highlighter {
         }
     }
 
-    /**
-     * Removes a highlight mark from list arrays, sets storage, and clears highlight ranges.
-     * 
-     * @param {string} markId - The ID of the targeted mark.
-     */
-    deleteHighlight(markId) {
+    deleteHighlight(markId: string): void {
         if (window.Logger) window.Logger.debug('Highlighter', `Deleting highlight ID: ${markId}`);
-        this.state.marks = this.state.marks.filter(m => (m.id || m.createdAt.toString()) !== markId);
+        this.state.marks = this.state.marks.filter((m: any) => (m.id || m.createdAt.toString()) !== markId);
         chrome.storage.local.set({ marks: this.state.marks });
 
-        document.getElementById('algo-highlight-tooltip').style.display = 'none';
+        const tooltip = document.getElementById('algo-highlight-tooltip');
+        if (tooltip) tooltip.style.display = 'none';
         this.state.hoveredMarkId = null;
         this.applyHighlightsForCurrentPage();
     }
 
-    /**
-     * Saves and updates the text annotation note attached to a highlight mark.
-     * 
-     * @param {string} markId - The ID of the targeted mark.
-     * @param {string} noteText - Annotated note string.
-     */
-    saveMarkNote(markId, noteText) {
-        const markIndex = this.state.marks.findIndex(m => (m.id || m.createdAt.toString()) === markId);
+    saveMarkNote(markId: string, noteText: string): void {
+        const markIndex = this.state.marks.findIndex((m: any) => (m.id || m.createdAt.toString()) === markId);
         if (markIndex > -1) {
             this.state.marks[markIndex].note = noteText.trim();
             chrome.storage.local.set({ marks: this.state.marks });
         }
     }
 
-    /**
-     * Restores all highlight meta coordinates for the active page URL from storage,
-     * registers custom styles using ensureHighlightStyle, and applies highlights
-     * via the standard CSS Custom Highlights API.
-     */
-    applyHighlightsForCurrentPage() {
+    applyHighlightsForCurrentPage(): void {
         if (!('highlights' in CSS)) {
             if (window.Logger) window.Logger.warn('Highlighter', 'CSS Custom Highlights API not supported in this browser.');
             return;
@@ -563,17 +504,16 @@ window.AlgoRecall.Highlighter = class Highlighter {
         if (window.Logger) window.Logger.time('Highlighter', 'applyHighlightsForCurrentPage');
 
         const cleanUrl = window.location.href.split('?')[0].split('#')[0];
-        const pageMarks = this.state.marks.filter(m => m.url === cleanUrl);
+        const pageMarks = this.state.marks.filter((m: any) => m.url === cleanUrl);
 
-        CSS.highlights.clear();
+        (CSS as any).highlights.clear();
         
-        // Remove existing floating symbols
         document.querySelectorAll('.algo-floating-symbol').forEach(el => el.remove());
 
-        const highlightsByColor = {};
+        const highlightsByColor: Record<string, Range[]> = {};
         this.state.activeMarkRanges = [];
 
-        pageMarks.forEach(mark => {
+        pageMarks.forEach((mark: any) => {
             const range = this.utils.restoreRangeFromMeta(mark.highlightSource, mark.text);
             if (range) {
                 const targetId = mark.id || mark.createdAt.toString();
@@ -588,9 +528,11 @@ window.AlgoRecall.Highlighter = class Highlighter {
         });
 
         for (const [colorName, ranges] of Object.entries(highlightsByColor)) {
-            CSS.highlights.set(colorName, new Highlight(...ranges));
+            (CSS as any).highlights.set(colorName, new (window as any).Highlight(...ranges));
         }
 
         if (window.Logger) window.Logger.timeEnd('Highlighter', 'applyHighlightsForCurrentPage');
     }
-};
+}
+
+window.AlgoRecall.Highlighter = Highlighter;
