@@ -151,4 +151,27 @@ declare namespace chrome {
     }
     export function download(options: DownloadOptions, callback?: (downloadId: number) => void): Promise<number>;
   }
+
+  export namespace permissions {
+    export interface Permissions {
+      permissions?: string[];
+      origins?: string[];
+    }
+    export function request(permissions: Permissions, callback?: (granted: boolean) => void): Promise<boolean>;
+    export function remove(permissions: Permissions, callback?: (removed: boolean) => void): Promise<boolean>;
+    export function contains(permissions: Permissions, callback?: (result: boolean) => void): Promise<boolean>;
+  }
+
+  export namespace scripting {
+    export interface RegisteredContentScript {
+      id: string;
+      matches?: string[];
+      js?: string[];
+      css?: string[];
+      runAt?: string;
+      allFrames?: boolean;
+    }
+    export function registerContentScripts(scripts: RegisteredContentScript[], callback?: () => void): Promise<void>;
+    export function unregisterContentScripts(filter?: { ids?: string[] }, callback?: () => void): Promise<void>;
+  }
 }

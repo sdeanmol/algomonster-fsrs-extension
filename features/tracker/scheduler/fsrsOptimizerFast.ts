@@ -1,9 +1,19 @@
 /**
- * @file features/tracker/scheduler/fsrsOptimizer.js
+ * @file features/tracker/scheduler/fsrsOptimizerFast.ts
  * @description Lightweight JavaScript optimizer for personalized FSRS weights.
  */
 
-class FsrsOptimizer {
+export interface EligibilityResult {
+    eligible: boolean;
+    count: number;
+    threshold: number;
+    uniqueCards?: number;
+}
+
+export class FsrsOptimizerFast {
+    learningRate: number;
+    epochs: number;
+
     constructor() {
         this.learningRate = 0.01;
         this.epochs = 50;
@@ -12,13 +22,13 @@ class FsrsOptimizer {
     /**
      * Checks if there's enough history to optimize.
      */
-    computeEligibility(history, threshold = 1000) {
+    computeEligibility(history: any[], threshold: number = 1000): EligibilityResult {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
 
         let reviewCount = 0;
-        let uniqueCards = new Set();
+        let uniqueCards = new Set<string>();
 
-        history.forEach(card => {
+        history.forEach((card: any) => {
             if (card.historyLog && card.historyLog.length > 1) {
                 // Count actual reviews, excluding the creation event
                 reviewCount += (card.historyLog.length - 1);
@@ -38,19 +48,19 @@ class FsrsOptimizer {
      * Highly simplified heuristic stochastic gradient descent for FSRS weights.
      * Tunes initial stability weights (w[0]-w[3]) based on empirical retention vs target retention.
      * Used as a fallback because WASM binding for exact log-loss gradient descent can fail on certain MV3 environments.
-     * @param {any[]} history
-     * @param {number[]} currentWeights
-     * @param {number} [targetRetention=0.90]
-     * @param {((current: number, total: number) => void) | null} [onProgress=null]
-     * @returns {Promise<number[]>}
      */
-    async trainWeights(history, currentWeights, targetRetention = 0.90, onProgress = null) {
+    async trainWeights(
+        history: any[],
+        currentWeights: number[],
+        targetRetention: number = 0.90,
+        onProgress: ((current: number, total: number) => void) | null = null
+    ): Promise<number[]> {
         let w = [...currentWeights];
 
         let totalReps = 0;
         let totalLapses = 0;
 
-        history.forEach(card => {
+        history.forEach((card: any) => {
             if (card.reps > 0) {
                 totalReps += card.reps;
                 totalLapses += (card.lapses || 0);
@@ -92,8 +102,8 @@ class FsrsOptimizer {
     }
 }
 
-// Export for webpack and tests
-export default FsrsOptimizer;
+export default FsrsOptimizerFast;
 if (typeof window !== 'undefined') {
-    window.FsrsOptimizer = FsrsOptimizer;
+    (window as any).FsrsOptimizer = FsrsOptimizerFast;
+    (window as any).FsrsOptimizerFast = FsrsOptimizerFast;
 }

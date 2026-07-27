@@ -1,4 +1,6 @@
-window.AlgoRecall = window.AlgoRecall || {};
+(window as any).AlgoRecall = (window as any).AlgoRecall || {};
+
+declare const marked: any;
 
 /**
  * @class Markdown
@@ -6,11 +8,11 @@ window.AlgoRecall = window.AlgoRecall || {};
  * Implements fallback rendering when marked is unavailable and performs structural regex-based sanitization
  * of potential XSS vectors (unsafe tags, inline attributes, javascript: URIs).
  */
-window.AlgoRecall.Markdown = class Markdown {
+(window as any).AlgoRecall.Markdown = class Markdown {
     /**
      * Configures the marked options if loaded.
      */
-    static init() {
+    static init(): void {
         if (typeof marked !== 'undefined') {
             marked.setOptions({
                 breaks: true,       // Convert \n to <br>
@@ -27,7 +29,7 @@ window.AlgoRecall.Markdown = class Markdown {
      * @param {string} text - Raw Markdown text.
      * @returns {string} Rendered and sanitized HTML string.
      */
-    static render(text) {
+    static render(text: string): string {
         if (!text || typeof text !== 'string') return '';
         
         if (typeof marked === 'undefined') {
@@ -41,7 +43,7 @@ window.AlgoRecall.Markdown = class Markdown {
 
         try {
             // Parse with marked
-            let html = marked.parse(text);
+            let html: string = marked.parse(text);
             
             // Sanitization: strip dangerous tags (script, iframe, object, embed, form)
             html = html.replace(/<(script|iframe|object|embed|form|style|link|meta)[\s\S]*?(?:<\/\1>|\/>)/gi, '');
@@ -64,7 +66,7 @@ window.AlgoRecall.Markdown = class Markdown {
 };
 
 // Initialize configurations
-window.AlgoRecall.Markdown.init();
+(window as any).AlgoRecall.Markdown.init();
 
 // Maintain legacy global binding for safety/backwards compatibility
-window.renderMarkdown = window.AlgoRecall.Markdown.render;
+(window as any).renderMarkdown = (window as any).AlgoRecall.Markdown.render;

@@ -1,9 +1,12 @@
 /**
- * @file features/common/welcome/welcome.js
+ * @file features/common/welcome/welcome.ts
  * @description Controls the step-by-step interactive welcome onboarding workflow.
  * Manages steps pagination, initial theme configuration, and notification permission requests.
  */
 class OnboardingWelcome {
+    currentStep: number;
+    totalSteps: number;
+
     constructor() {
         this.currentStep = 1;
         this.totalSteps = 3;
@@ -12,7 +15,7 @@ class OnboardingWelcome {
     /**
      * Initializes components and runs default state checks.
      */
-    init() {
+    init(): void {
         this.bindEvents();
         this.syncThemePreference();
         this.checkNotificationState();
@@ -21,17 +24,17 @@ class OnboardingWelcome {
     /**
      * Registers control listeners for pagination, theme preferences, and permission prompts.
      */
-    bindEvents() {
+    bindEvents(): void {
         const prevBtn = document.getElementById('welcome-prev-btn');
         const nextBtn = document.getElementById('welcome-next-btn');
 
-        prevBtn.addEventListener('click', () => {
+        prevBtn?.addEventListener('click', () => {
             if (this.currentStep > 1) {
                 this.goToStep(this.currentStep - 1);
             }
         });
 
-        nextBtn.addEventListener('click', () => {
+        nextBtn?.addEventListener('click', () => {
             if (this.currentStep < this.totalSteps) {
                 this.goToStep(this.currentStep + 1);
             } else {
@@ -43,16 +46,16 @@ class OnboardingWelcome {
         const darkBtn = document.getElementById('set-dark-btn');
         const lightBtn = document.getElementById('set-light-btn');
 
-        darkBtn.addEventListener('click', () => {
+        darkBtn?.addEventListener('click', () => {
             this.setThemePreference('dark');
         });
 
-        lightBtn.addEventListener('click', () => {
+        lightBtn?.addEventListener('click', () => {
             this.setThemePreference('light');
         });
 
         const enableBtn = document.getElementById('welcome-enable-btn');
-        enableBtn.addEventListener('click', () => {
+        enableBtn?.addEventListener('click', () => {
             if (typeof Notification !== 'undefined') {
                 Notification.requestPermission().then((permission) => {
                     this.checkNotificationState();
@@ -69,8 +72,8 @@ class OnboardingWelcome {
     /**
      * Fetches current theme selection and syncs button state.
      */
-    syncThemePreference() {
-        chrome.storage.local.get(['theme'], (result) => {
+    syncThemePreference(): void {
+        chrome.storage.local.get(['theme'], (result: { [key: string]: any }) => {
             const theme = result.theme || 'dark';
             this.setActiveThemeButton(theme);
         });
@@ -78,16 +81,15 @@ class OnboardingWelcome {
 
     /**
      * Navigates visual onboarding cards to target step number.
-     * @param {number} step - Target card index (1-indexed).
      */
-    goToStep(step) {
+    goToStep(step: number): void {
         // Toggle active card
-        document.getElementById(`step-${this.currentStep}`).classList.remove('active');
-        document.getElementById(`step-${step}`).classList.add('active');
+        document.getElementById(`step-${this.currentStep}`)?.classList.remove('active');
+        document.getElementById(`step-${step}`)?.classList.add('active');
 
         // Toggle indicator dot
-        document.getElementById(`dot-${this.currentStep}`).classList.remove('active');
-        document.getElementById(`dot-${step}`).classList.add('active');
+        document.getElementById(`dot-${this.currentStep}`)?.classList.remove('active');
+        document.getElementById(`dot-${step}`)?.classList.add('active');
 
         this.currentStep = step;
 
@@ -95,41 +97,43 @@ class OnboardingWelcome {
         const prevBtn = document.getElementById('welcome-prev-btn');
         const nextBtn = document.getElementById('welcome-next-btn');
 
-        if (this.currentStep === 1) {
-            prevBtn.classList.add('invisible');
-        } else {
-            prevBtn.classList.remove('invisible');
+        if (prevBtn) {
+            if (this.currentStep === 1) {
+                prevBtn.classList.add('invisible');
+            } else {
+                prevBtn.classList.remove('invisible');
+            }
         }
 
-        if (this.currentStep === this.totalSteps) {
-            nextBtn.textContent = 'Explore Guide';
-        } else {
-            nextBtn.textContent = 'Next';
+        if (nextBtn) {
+            if (this.currentStep === this.totalSteps) {
+                nextBtn.textContent = 'Explore Guide';
+            } else {
+                nextBtn.textContent = 'Next';
+            }
         }
     }
 
     /**
      * Renders UI toggle buttons as active/selected matching requested theme.
-     * @param {string} theme - 'dark' or 'light'.
      */
-    setActiveThemeButton(theme) {
+    setActiveThemeButton(theme: string): void {
         const darkBtn = document.getElementById('set-dark-btn');
         const lightBtn = document.getElementById('set-light-btn');
 
         if (theme === 'light') {
-            lightBtn.classList.add('active');
-            darkBtn.classList.remove('active');
+            lightBtn?.classList.add('active');
+            darkBtn?.classList.remove('active');
         } else {
-            darkBtn.classList.add('active');
-            lightBtn.classList.remove('active');
+            darkBtn?.classList.add('active');
+            lightBtn?.classList.remove('active');
         }
     }
 
     /**
      * Persists theme configuration changes and updates UI buttons.
-     * @param {string} theme - Theme selection: 'dark' or 'light'.
      */
-    setThemePreference(theme) {
+    setThemePreference(theme: string): void {
         chrome.storage.local.set({ theme: theme }, () => {
             this.setActiveThemeButton(theme);
             this.showToast(`Switched to ${theme === 'dark' ? 'Dark' : 'Light'} Mode!`);
@@ -139,7 +143,7 @@ class OnboardingWelcome {
     /**
      * Checks system notification permissions and toggles onboarding badge indicators.
      */
-    checkNotificationState() {
+    checkNotificationState(): void {
         const badge = document.getElementById('welcome-notif-status');
         const btn = document.getElementById('welcome-enable-btn');
         if (!badge || !btn) return;
@@ -159,9 +163,8 @@ class OnboardingWelcome {
 
     /**
      * Displays status feedback messages in onboarding page container.
-     * @param {string} msg - Message payload.
      */
-    showToast(msg) {
+    showToast(msg: string): void {
         const toast = document.getElementById('status-toast');
         if (!toast) return;
         toast.textContent = msg;

@@ -14,7 +14,20 @@ module.exports = {
     'features/common/utils/cardUtils': './features/common/utils/cardUtils.ts',
     'features/dashboard/popup/popup': './features/dashboard/popup/popup.ts',
     'features/highlighter/options/highlightOptions': './features/highlighter/options/highlightOptions.ts',
-    'features/dashboard/analytics/analytics': './features/dashboard/analytics/analytics.ts'
+    'features/dashboard/analytics/analytics': './features/dashboard/analytics/analytics.ts',
+    'features/tracker/scheduler/fsrsOptimizerFast': './features/tracker/scheduler/fsrsOptimizerFast.ts',
+    'features/tracker/scheduler/scheduler': './features/tracker/scheduler/scheduler.ts',
+    'features/tracker/scheduler/fsrsOptimizer': './features/tracker/scheduler/fsrsOptimizer.ts',
+    'features/tracker/tracker': './features/tracker/tracker.ts',
+    'features/tracker/editor/editor': './features/tracker/editor/editor.ts',
+    'features/common/welcome/welcome': './features/common/welcome/welcome.ts',
+    'features/common/theme-sync': './features/common/theme-sync.ts',
+    'features/common/data/backupManager': './features/common/data/backupManager.ts',
+    'features/common/data/data': './features/common/data/data.ts',
+    'features/common/firebase': './features/common/firebase.ts',
+    'features/common/websites/websites': './features/common/websites/websites.ts',
+    'features/common/help/help': './features/common/help/help.ts',
+    'features/common/markdown': './features/common/markdown.ts'
   },
   output: {
     path: path.resolve(__dirname, 'build'),

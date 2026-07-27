@@ -1,10 +1,18 @@
 /**
- * @file features/common/websites/websites.js
+ * @file features/common/websites/websites.ts
  * @description Manages whitelist configurations for sites where the extension content scripts are active.
  * Integrates dynamic permissions requests for custom domains, and registers content scripts
  * programmatically using the Chrome Extension Scripting API.
  */
-class WhitelistedWebsitesManager {
+
+export interface WhitelistedSite {
+    domain: string;
+    isDefault: boolean;
+}
+
+export class WhitelistedWebsitesManager {
+    defaultSitesList: WhitelistedSite[];
+
     constructor() {
         this.defaultSitesList = [
             { domain: "algo.monster", isDefault: true },
@@ -23,7 +31,7 @@ class WhitelistedWebsitesManager {
     /**
      * Initializes whitelist displays and registers default clicks.
      */
-    init() {
+    init(): void {
         // Initial Render
         this.loadAndRenderSites();
 
@@ -34,33 +42,33 @@ class WhitelistedWebsitesManager {
     /**
      * Registers control listeners for inputs and configuration triggers.
      */
-    bindEvents() {
+    bindEvents(): void {
         // Close button
-        document.getElementById('back-to-popup-btn').addEventListener('click', () => {
+        document.getElementById('back-to-popup-btn')?.addEventListener('click', () => {
             window.close();
         });
 
         // Add website domain
-        document.getElementById('add-domain-btn').addEventListener('click', () => this.handleAddWebsite());
+        document.getElementById('add-domain-btn')?.addEventListener('click', () => this.handleAddWebsite());
         
         // Allow pressing Enter key in text input
-        document.getElementById('domain-input').addEventListener('keypress', (e) => {
+        document.getElementById('domain-input')?.addEventListener('keypress', (e: KeyboardEvent) => {
             if (e.key === 'Enter') this.handleAddWebsite();
         });
 
         // Restore Defaults button
-        document.getElementById('restore-defaults-btn').addEventListener('click', () => this.restoreDefaults());
+        document.getElementById('restore-defaults-btn')?.addEventListener('click', () => this.restoreDefaults());
     }
 
     /**
      * Loads authorized website structures from storage and builds whitelist list rows.
      */
-    loadAndRenderSites() {
+    loadAndRenderSites(): void {
         const list = document.getElementById('whitelisted-sites-list');
         if (!list) return;
 
-        chrome.storage.local.get(['whitelistedWebsites'], (result) => {
-            let sites = result.whitelistedWebsites;
+        chrome.storage.local.get(['whitelistedWebsites'], (result: { [key: string]: any }) => {
+            let sites: WhitelistedSite[] = result.whitelistedWebsites;
             if (!sites) {
                 // First time: initialize storage with default list
                 sites = [...this.defaultSitesList.map(s => ({ ...s }))];
@@ -96,10 +104,12 @@ class WhitelistedWebsitesManager {
 
             // Link delete buttons
             document.querySelectorAll('.delete-site-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const button = e.currentTarget;
+                btn.addEventListener('click', (e: Event) => {
+                    const button = e.currentTarget as HTMLElement;
                     const siteDomain = button.getAttribute('data-site');
-                    this.handleDeleteWebsite(siteDomain);
+                    if (siteDomain) {
+                        this.handleDeleteWebsite(siteDomain);
+                    }
                 });
             });
         });
@@ -109,8 +119,9 @@ class WhitelistedWebsitesManager {
      * Validates domain input strings, requests host permission rules,
      * and dynamically registers associated content script matches.
      */
-    handleAddWebsite() {
-        const input = document.getElementById('domain-input');
+    handleAddWebsite(): void {
+        const input = document.getElementById('domain-input') as HTMLInputElement | null;
+        if (!input) return;
         let value = input.value.trim().toLowerCase();
         if (!value) return;
 
@@ -129,8 +140,8 @@ class WhitelistedWebsitesManager {
                 return;
             }
 
-            chrome.storage.local.get(['whitelistedWebsites'], (result) => {
-                const sites = result.whitelistedWebsites || [...this.defaultSitesList.map(s => ({ ...s }))];
+            chrome.storage.local.get(['whitelistedWebsites'], (result: { [key: string]: any }) => {
+                const sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map(s => ({ ...s }))];
                 if (sites.some(s => s.domain === hostname)) {
                     this.showToast("Website is already whitelisted.");
                     return;
@@ -141,7 +152,7 @@ class WhitelistedWebsitesManager {
 
                 chrome.permissions.request({
                     origins: [originPattern]
-                }, (granted) => {
+                }, (granted: boolean) => {
                     if (chrome.runtime.lastError) {
                         console.error(chrome.runtime.lastError.message);
                         this.showToast("Error requesting domain permission.");
@@ -184,11 +195,10 @@ class WhitelistedWebsitesManager {
 
     /**
      * Revokes host origin permissions and dynamic scripts, then updates storage list.
-     * @param {string} siteDomain - Normalized domain name.
      */
-    handleDeleteWebsite(siteDomain) {
-        chrome.storage.local.get(['whitelistedWebsites'], (result) => {
-            let sites = result.whitelistedWebsites || [...this.defaultSitesList.map(s => ({ ...s }))];
+    handleDeleteWebsite(siteDomain: string): void {
+        chrome.storage.local.get(['whitelistedWebsites'], (result: { [key: string]: any }) => {
+            let sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map(s => ({ ...s }))];
             const site = sites.find(s => s.domain === siteDomain);
             if (!site) return;
 
@@ -201,11 +211,8 @@ class WhitelistedWebsitesManager {
             };
 
             if (site.isDefault) {
-                // For default sites, we don't need to unregister script/permissions
-                // Just delete from whitelistedWebsites storage!
                 performStorageDelete();
             } else {
-                // For custom sites, revoke dynamic permission and unregister script
                 const originPattern = `*://*.${siteDomain}/*`;
                 const scriptId = `site-${siteDomain.replace(/[^a-z0-9]/g, '-')}`;
 
@@ -218,7 +225,7 @@ class WhitelistedWebsitesManager {
 
                     chrome.permissions.remove({
                         origins: [originPattern]
-                    }, (removed) => {
+                    }, (removed: boolean) => {
                         if (chrome.runtime.lastError) {
                             console.warn("Permission remove warning:", chrome.runtime.lastError.message);
                         }
@@ -232,14 +239,11 @@ class WhitelistedWebsitesManager {
     /**
      * Restores initial hardcoded whitelisted platforms.
      */
-    restoreDefaults() {
-        chrome.storage.local.get(['whitelistedWebsites'], (result) => {
-            let currentSites = result.whitelistedWebsites || [];
+    restoreDefaults(): void {
+        chrome.storage.local.get(['whitelistedWebsites'], (result: { [key: string]: any }) => {
+            let currentSites: WhitelistedSite[] = result.whitelistedWebsites || [];
             
-            // Find custom sites that we want to keep
             const customSites = currentSites.filter(s => !s.isDefault);
-            
-            // Merge default list and user's custom sites
             const restoredList = [...this.defaultSitesList.map(s => ({ ...s })), ...customSites];
             
             chrome.storage.local.set({ whitelistedWebsites: restoredList }, () => {
@@ -251,9 +255,8 @@ class WhitelistedWebsitesManager {
 
     /**
      * Shows temporary toast alerts.
-     * @param {string} msg - Message payload.
      */
-    showToast(msg) {
+    showToast(msg: string): void {
         const toast = document.getElementById('status-toast');
         if (!toast) return;
         toast.textContent = msg;
@@ -269,9 +272,10 @@ document.addEventListener('DOMContentLoaded', () => {
     manager.init();
 });
 
+export default WhitelistedWebsitesManager;
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = WhitelistedWebsitesManager;
 } else if (typeof window !== 'undefined') {
-    window.WhitelistedWebsitesManager = WhitelistedWebsitesManager;
+    (window as any).WhitelistedWebsitesManager = WhitelistedWebsitesManager;
 }
-

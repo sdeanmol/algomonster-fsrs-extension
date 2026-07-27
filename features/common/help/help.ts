@@ -1,13 +1,15 @@
 /**
- * @file features/common/help/help.js
+ * @file features/common/help/help.ts
  * @description Controller for AlgoRecall interactive Help Center, tab navigation, and live search.
  */
 class HelpCenterSPA {
+    currentTab: string;
+
     constructor() {
         this.currentTab = 'overview';
     }
 
-    init() {
+    init(): void {
         this.bindTabNavigation();
         this.bindSearchFilter();
         this.bindCloseButton();
@@ -16,19 +18,20 @@ class HelpCenterSPA {
     /**
      * Tab switching logic
      */
-    bindTabNavigation() {
+    bindTabNavigation(): void {
         const tabButtons = document.querySelectorAll('.tab-btn');
-        const tabPanes = document.querySelectorAll('.tab-pane');
 
         tabButtons.forEach(button => {
             button.addEventListener('click', () => {
                 const targetTab = button.getAttribute('data-tab');
-                this.switchTab(targetTab);
+                if (targetTab) {
+                    this.switchTab(targetTab);
+                }
             });
         });
     }
 
-    switchTab(tabId) {
+    switchTab(tabId: string): void {
         this.currentTab = tabId;
         const tabButtons = document.querySelectorAll('.tab-btn');
         const tabPanes = document.querySelectorAll('.tab-pane');
@@ -44,7 +47,7 @@ class HelpCenterSPA {
         });
 
         // Reset search field if switching manually
-        const searchInput = document.getElementById('help-search-input');
+        const searchInput = document.getElementById('help-search-input') as HTMLInputElement | null;
         if (searchInput && searchInput.value.trim() !== '') {
             searchInput.value = '';
             this.filterContent('');
@@ -54,24 +57,24 @@ class HelpCenterSPA {
     /**
      * Live search filter across all cards and how-to guides
      */
-    bindSearchFilter() {
-        const searchInput = document.getElementById('help-search-input');
+    bindSearchFilter(): void {
+        const searchInput = document.getElementById('help-search-input') as HTMLInputElement | null;
         if (!searchInput) return;
 
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
+        searchInput.addEventListener('input', (e: Event) => {
+            const query = (e.target as HTMLInputElement).value.toLowerCase().trim();
             this.filterContent(query);
         });
     }
 
-    filterContent(query) {
+    filterContent(query: string): void {
         const allCards = document.querySelectorAll('.card, .gamify-card, .strategy-card');
         const tabPanes = document.querySelectorAll('.tab-pane');
         const tabButtons = document.querySelectorAll('.tab-btn');
 
         if (!query) {
             // Restore normal tab mode
-            allCards.forEach(card => card.style.display = '');
+            allCards.forEach((card: Element) => (card as HTMLElement).style.display = '');
             tabPanes.forEach(pane => pane.classList.toggle('active', pane.id === `tab-${this.currentTab}`));
             return;
         }
@@ -83,10 +86,10 @@ class HelpCenterSPA {
             let paneHasMatch = false;
             const cardsInPane = pane.querySelectorAll('.card, .gamify-card, .strategy-card');
 
-            cardsInPane.forEach(card => {
-                const text = card.textContent.toLowerCase();
+            cardsInPane.forEach((card: Element) => {
+                const text = card.textContent?.toLowerCase() || '';
                 const isMatch = text.includes(query);
-                card.style.display = isMatch ? '' : 'none';
+                (card as HTMLElement).style.display = isMatch ? '' : 'none';
                 if (isMatch) paneHasMatch = true;
             });
 
@@ -99,14 +102,14 @@ class HelpCenterSPA {
             const tabId = btn.getAttribute('data-tab');
             const targetPane = document.getElementById(`tab-${tabId}`);
             const hasMatch = targetPane && targetPane.querySelectorAll('.card:not([style*="display: none"]), .gamify-card:not([style*="display: none"]), .strategy-card:not([style*="display: none"])').length > 0;
-            btn.classList.toggle('active', hasMatch);
+            btn.classList.toggle('active', !!hasMatch);
         });
     }
 
     /**
      * Close guide button
      */
-    bindCloseButton() {
+    bindCloseButton(): void {
         const closeBtn = document.getElementById('close-help-btn');
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {

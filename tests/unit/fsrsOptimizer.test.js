@@ -21,19 +21,22 @@ jest.mock('@open-spaced-repetition/binding/dynamic-wasi', () => {
 
 const fs = require('fs');
 const path = require('path');
-const optimizerCode = fs.readFileSync(path.resolve(__dirname, '../../features/tracker/scheduler/fsrsOptimizer.js'), 'utf8');
-const safeCode = optimizerCode
-    .replace(/import\.meta\.url/g, "'http://localhost'")
-    .replace(/import \{ initOptimizer \} from '@open-spaced-repetition\/binding\/dynamic-wasi';/g, "const { initOptimizer } = require('@open-spaced-repetition/binding/dynamic-wasi');")
-    .replace(/import \{ Rating \} from 'ts-fsrs';/g, "const { Rating } = require('ts-fsrs');")
-    .replace(/export default FsrsOptimizer;/g, "module.exports = FsrsOptimizer;");
+const ts = require('typescript');
+
+const optimizerCode = fs.readFileSync(path.resolve(__dirname, '../../features/tracker/scheduler/fsrsOptimizer.ts'), 'utf8');
+const jsCode = ts.transpileModule(optimizerCode, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
+}).outputText;
+
+const safeCode = jsCode
+    .replace(/import\.meta\.url/g, "'http://localhost'");
 
 const mockModule = { exports: {} };
 (function(module, exports, require) {
     eval(safeCode);
 })(mockModule, mockModule.exports, require);
 
-const FsrsOptimizer = mockModule.exports.default || mockModule.exports;
+const FsrsOptimizer = mockModule.exports.FsrsOptimizer || mockModule.exports.default || mockModule.exports;
 
 describe('FsrsOptimizer (WASM)', () => {
     let optimizer;

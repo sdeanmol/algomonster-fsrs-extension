@@ -1,11 +1,25 @@
 /**
- * @file features/common/data/data.js
+ * @file features/common/data/data.ts
  * @description Manages database tables listing saved patterns.
  * Supports keyword search, filter dropdown updates (status, tag, platform, FSRS state),
  * sorting, bulk actions (R2.7), inline card editing (R2.9),
  * overall memory retention rates calculations, stacked distribution bars, and card deletion events.
  */
 class FSRSDataDashboard {
+    allCards: any[];
+    currentView: string;
+    targetDate: string | null;
+
+    searchQuery: string;
+    selectedTag: string;
+    selectedStatus: string;
+    selectedPlatform: string;
+    selectedState: string;
+    sortBy: string;
+    chromeSettings: any;
+
+    selectedCardIds: Set<string>;
+
     constructor() {
         this.allCards = [];
         this.currentView = 'total';
@@ -19,25 +33,24 @@ class FSRSDataDashboard {
         this.sortBy = 'due-asc';
         this.chromeSettings = {};
 
-        // R2.7: Bulk selection tracking
+        // Bulk selection tracking
         this.selectedCardIds = new Set();
     }
 
     /**
      * Bootstraps dashboard parameters and sets up storage variables.
      */
-    init() {
+    init(): void {
         const urlParams = new URLSearchParams(window.location.search);
         this.currentView = urlParams.get('view') || 'total';
         this.targetDate = urlParams.get('date');
 
-        // R2.6: Pre-select tag from URL if provided (linked from analytics donut chart)
         const urlTag = urlParams.get('tag');
         if (urlTag) {
             this.selectedTag = urlTag;
         }
 
-        chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result) => {
+        chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: { [key: string]: any }) => {
             this.allCards = result.fsrsCards || [];
             this.chromeSettings = result.chromeSettings || {};
 
@@ -47,7 +60,7 @@ class FSRSDataDashboard {
 
             // Pre-select tag filter from URL
             if (urlTag) {
-                const tagSelect = document.getElementById('tag-select');
+                const tagSelect = document.getElementById('tag-select') as HTMLSelectElement | null;
                 if (tagSelect) tagSelect.value = urlTag;
             }
 
@@ -62,54 +75,51 @@ class FSRSDataDashboard {
     /**
      * Registers control elements click and input listener bindings.
      */
-    bindEvents() {
-        const searchInput = document.getElementById('search-input');
+    bindEvents(): void {
+        const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
         if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.searchQuery = e.target.value.trim();
+            searchInput.addEventListener('input', (e: Event) => {
+                this.searchQuery = (e.target as HTMLInputElement).value.trim();
                 this.filterAndRender();
             });
         }
 
-        const tagSelect = document.getElementById('tag-select');
+        const tagSelect = document.getElementById('tag-select') as HTMLSelectElement | null;
         if (tagSelect) {
-            tagSelect.addEventListener('change', (e) => {
-                this.selectedTag = e.target.value;
+            tagSelect.addEventListener('change', (e: Event) => {
+                this.selectedTag = (e.target as HTMLSelectElement).value;
                 this.filterAndRender();
             });
         }
 
-        const statusSelect = document.getElementById('status-select');
+        const statusSelect = document.getElementById('status-select') as HTMLSelectElement | null;
         if (statusSelect) {
-            statusSelect.addEventListener('change', (e) => {
-                this.selectedStatus = e.target.value;
+            statusSelect.addEventListener('change', (e: Event) => {
+                this.selectedStatus = (e.target as HTMLSelectElement).value;
                 this.filterAndRender();
             });
         }
 
-        // R2.6: Platform filter
-        const platformSelect = document.getElementById('platform-select');
+        const platformSelect = document.getElementById('platform-select') as HTMLSelectElement | null;
         if (platformSelect) {
-            platformSelect.addEventListener('change', (e) => {
-                this.selectedPlatform = e.target.value;
+            platformSelect.addEventListener('change', (e: Event) => {
+                this.selectedPlatform = (e.target as HTMLSelectElement).value;
                 this.filterAndRender();
             });
         }
 
-        // R2.6: FSRS State filter
-        const stateSelect = document.getElementById('state-select');
+        const stateSelect = document.getElementById('state-select') as HTMLSelectElement | null;
         if (stateSelect) {
-            stateSelect.addEventListener('change', (e) => {
-                this.selectedState = e.target.value;
+            stateSelect.addEventListener('change', (e: Event) => {
+                this.selectedState = (e.target as HTMLSelectElement).value;
                 this.filterAndRender();
             });
         }
 
-        // R2.8: Sort dropdown
-        const sortSelect = document.getElementById('sort-select');
+        const sortSelect = document.getElementById('sort-select') as HTMLSelectElement | null;
         if (sortSelect) {
-            sortSelect.addEventListener('change', (e) => {
-                this.sortBy = e.target.value;
+            sortSelect.addEventListener('change', (e: Event) => {
+                this.sortBy = (e.target as HTMLSelectElement).value;
                 this.filterAndRender();
             });
         }
@@ -135,7 +145,6 @@ class FSRSDataDashboard {
             });
         }
 
-        // R2.7: Bulk action buttons
         const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
         if (bulkDeleteBtn) {
             bulkDeleteBtn.addEventListener('click', () => this.bulkDelete());
@@ -160,7 +169,6 @@ class FSRSDataDashboard {
             });
         }
 
-        // R2.9: Inline edit modal bindings
         const editCloseBtn = document.getElementById('edit-close-btn');
         const editCancelBtn = document.getElementById('edit-cancel-btn');
         const editSaveBtn = document.getElementById('edit-save-btn');
@@ -170,7 +178,7 @@ class FSRSDataDashboard {
         if (editCancelBtn) editCancelBtn.addEventListener('click', () => this.closeEditModal());
         if (editSaveBtn) editSaveBtn.addEventListener('click', () => this.saveCardEdit());
         if (editOverlay) {
-            editOverlay.addEventListener('click', (e) => {
+            editOverlay.addEventListener('click', (e: Event) => {
                 if (e.target === editOverlay) this.closeEditModal();
             });
         }
@@ -179,22 +187,19 @@ class FSRSDataDashboard {
     /**
      * Searches the collection of card objects and populates tag select options dynamically.
      */
-    populateTagsFilter() {
+    populateTagsFilter(): void {
         const tagSelect = document.getElementById('tag-select');
         if (!tagSelect) return;
 
-        // Reset but keep first option (all)
         tagSelect.innerHTML = '<option value="all">All Tags</option>';
 
-        // Collect all unique tags
-        const tagsSet = new Set();
-        this.allCards.forEach(card => {
+        const tagsSet = new Set<string>();
+        this.allCards.forEach((card: any) => {
             if (card.tags && Array.isArray(card.tags)) {
-                card.tags.forEach(t => tagsSet.add(t));
+                card.tags.forEach((t: string) => tagsSet.add(t));
             }
         });
 
-        // Populate select
         [...tagsSet].sort().forEach(tag => {
             const option = document.createElement('option');
             option.value = tag;
@@ -204,15 +209,15 @@ class FSRSDataDashboard {
     }
 
     /**
-     * R2.6: Populates platform filter dropdown by extracting hostnames from card URLs.
+     * Populates platform filter dropdown by extracting hostnames from card URLs.
      */
-    populatePlatformFilter() {
+    populatePlatformFilter(): void {
         const platformSelect = document.getElementById('platform-select');
         if (!platformSelect) return;
 
         platformSelect.innerHTML = '<option value="all">All Platforms</option>';
 
-        const platformNames = {
+        const platformNames: Record<string, string> = {
             'leetcode.com': 'LeetCode',
             'codeforces.com': 'Codeforces',
             'codechef.com': 'CodeChef',
@@ -225,8 +230,8 @@ class FSRSDataDashboard {
             'systemdesignschool.io': 'System Design School'
         };
 
-        const platforms = new Set();
-        this.allCards.forEach(card => {
+        const platforms = new Set<string>();
+        this.allCards.forEach((card: any) => {
             const platform = this.extractPlatform(card.problemUrl);
             if (platform) platforms.add(platform);
         });
@@ -241,14 +246,11 @@ class FSRSDataDashboard {
 
     /**
      * Extracts platform hostname from a URL.
-     * @param {string} url - Card's problem URL.
-     * @returns {string|null} Domain hostname or null.
      */
-    extractPlatform(url) {
+    extractPlatform(url: string): string | null {
         if (!url || url.startsWith('#')) return null;
         try {
             const hostname = new URL(url).hostname.replace(/^www\./, '');
-            // Normalize subdomains
             const parts = hostname.split('.');
             if (parts.length > 2) {
                 return parts.slice(-2).join('.');
@@ -261,11 +263,9 @@ class FSRSDataDashboard {
 
     /**
      * FSRS state to human label.
-     * @param {number} state - FSRS state integer (0-3).
-     * @returns {string} Human-readable state label.
      */
-    getStateLabel(state) {
-        const labels = { 0: 'New', 1: 'Learning', 2: 'Review', 3: 'Relearning' };
+    getStateLabel(state: number): string {
+        const labels: Record<number, string> = { 0: 'New', 1: 'Learning', 2: 'Review', 3: 'Relearning' };
         return labels[state] || 'Unknown';
     }
 
@@ -273,15 +273,14 @@ class FSRSDataDashboard {
      * Filters the cards collection by search keywords, active tags, due statuses,
      * platform, FSRS state, sorts them, and calls the rendering templates.
      */
-    filterAndRender() {
+    filterAndRender(): void {
         const titleEl = document.getElementById('page-title');
         const subtitleEl = document.getElementById('page-subtitle');
         const contentEl = document.getElementById('data-content');
         const clearFiltersBtn = document.getElementById('clear-filters-btn');
         const now = new Date().getTime();
 
-        // 1. Build Base Dataset according to view
-        let baseCards = [];
+        let baseCards: any[] = [];
         let isRetention = false;
 
         if (this.currentView === 'total') {
@@ -289,45 +288,43 @@ class FSRSDataDashboard {
             baseCards = [...this.allCards];
         }
         else if (this.currentView === 'due') {
-            baseCards = this.allCards.filter(c => c.due <= now).sort((a, b) => a.due - b.due);
+            baseCards = this.allCards.filter((c: any) => c.due <= now).sort((a: any, b: any) => a.due - b.due);
             if (titleEl) titleEl.innerText = 'Patterns Due Today';
         }
         else if (this.currentView === 'retention') {
             isRetention = true;
-            baseCards = this.allCards.filter(c => c.lapses > 0).sort((a, b) => b.lapses - a.lapses);
+            baseCards = this.allCards.filter((c: any) => c.lapses > 0).sort((a: any, b: any) => b.lapses - a.lapses);
             if (titleEl) titleEl.innerText = 'Retention';
         }
         else if (this.currentView === 'history' && this.targetDate) {
-            const filteredCards = this.allCards.filter(c => {
+            const filteredCards = this.allCards.filter((c: any) => {
                 if (!c.historyLog) return false;
-                return c.historyLog.some(logEntry => {
+                return c.historyLog.some((logEntry: any) => {
                     const timestamp = (typeof logEntry === 'object' && logEntry !== null) ? logEntry.date : logEntry;
                     const dateObj = new Date(timestamp);
                     const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-                    return localDateStr.startsWith(this.targetDate);
+                    return localDateStr.startsWith(this.targetDate!);
                 });
             });
-            baseCards = [...new Set(filteredCards)]; // Deduplicate
-
+            baseCards = [...new Set(filteredCards)];
             let dateDisplay = this.targetDate;
             if (this.targetDate.length === 7) {
                 const [y, m] = this.targetDate.split('-');
                 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                dateDisplay = `${monthNames[parseInt(m) - 1]} ${y}`;
+                dateDisplay = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
             } else if (this.targetDate.length === 10) {
                 const [y, m, d] = this.targetDate.split('-');
-                const localDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+                const localDate = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
                 dateDisplay = localDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             }
             if (titleEl) titleEl.innerText = `Activity for ${dateDisplay}`;
         }
         else if (this.currentView === 'forecast' && this.targetDate) {
             const urlParams = new URLSearchParams(window.location.search);
-            const dayOffset = parseInt(urlParams.get('offset') || '0');
+            const dayOffset = parseInt(urlParams.get('offset') || '0', 10);
 
-            // Build day boundaries for the target date
             const targetParts = this.targetDate.split('-');
-            const targetDayStart = new Date(parseInt(targetParts[0]), parseInt(targetParts[1]) - 1, parseInt(targetParts[2]));
+            const targetDayStart = new Date(parseInt(targetParts[0], 10), parseInt(targetParts[1], 10) - 1, parseInt(targetParts[2], 10));
             const targetDayEnd = new Date(targetDayStart);
             targetDayEnd.setDate(targetDayEnd.getDate() + 1);
 
@@ -335,24 +332,21 @@ class FSRSDataDashboard {
             const targetEndTime = targetDayEnd.getTime();
 
             if (dayOffset === 0) {
-                // Today: cards due now (due <= end of today) — includes past-due
-                baseCards = this.allCards.filter(c => c.due < targetEndTime);
+                baseCards = this.allCards.filter((c: any) => c.due < targetEndTime);
             } else {
-                // Future day: cards due within [dayStart, dayEnd)
-                baseCards = this.allCards.filter(c => c.due >= targetStartTime && c.due < targetEndTime);
+                baseCards = this.allCards.filter((c: any) => c.due >= targetStartTime && c.due < targetEndTime);
             }
 
-            baseCards.sort((a, b) => a.due - b.due);
+            baseCards.sort((a: any, b: any) => a.due - b.due);
 
             const dateDisplay = new Date(this.targetDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             if (titleEl) titleEl.innerText = `Cards Due — ${dateDisplay}`;
         }
 
-        // 2. Filter base dataset
-        let filtered = baseCards.filter(card => {
+        let filtered = baseCards.filter((card: any) => {
             const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(this.searchQuery.toLowerCase());
             const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(this.searchQuery.toLowerCase());
-            const tagMatch = card.tags && card.tags.some(t => t.toLowerCase().includes(this.searchQuery.toLowerCase()));
+            const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(this.searchQuery.toLowerCase()));
 
             const matchesSearch = !this.searchQuery || titleMatch || urlMatch || tagMatch;
             const matchesTag = this.selectedTag === 'all' || (card.tags && card.tags.includes(this.selectedTag));
@@ -361,11 +355,9 @@ class FSRSDataDashboard {
                 (this.selectedStatus === 'due' && isCardDue) ||
                 (this.selectedStatus === 'safe' && !isCardDue);
 
-            // R2.6: Platform filter
             const cardPlatform = this.extractPlatform(card.problemUrl);
             const matchesPlatform = this.selectedPlatform === 'all' || cardPlatform === this.selectedPlatform;
 
-            // R2.6: FSRS State filter
             let matchesState = true;
             if (this.selectedState === 'leech') {
                 matchesState = (card.lapses || 0) >= 3;
@@ -376,16 +368,13 @@ class FSRSDataDashboard {
             return matchesSearch && matchesTag && matchesStatus && matchesPlatform && matchesState;
         });
 
-        // R2.8: Sort the filtered results
         filtered = this.sortCards(filtered);
 
-        // 3. Toggle reset button
         const isFilterActive = this.searchQuery !== '' || this.selectedTag !== 'all' || this.selectedStatus !== 'all' || this.selectedPlatform !== 'all' || this.selectedState !== 'all' || this.sortBy !== 'due-asc';
         if (clearFiltersBtn) {
             clearFiltersBtn.style.display = isFilterActive ? 'inline-flex' : 'none';
         }
 
-        // 4. Subtitle Stats
         if (subtitleEl) {
             if (this.currentView === 'total') {
                 subtitleEl.innerText = isFilterActive
@@ -408,15 +397,12 @@ class FSRSDataDashboard {
             }
         }
 
-        // 5. Render Analytics Panel
         this.renderAnalyticsPanel(this.allCards);
 
-        // 6. Render
         if (contentEl) {
             contentEl.innerHTML = this.generateCardsTable(filtered, true);
         }
 
-        // 7. Bind interactive handlers
         this.bindCheckboxes();
         this.bindDeleteButtons();
         this.bindEditButtons();
@@ -424,14 +410,10 @@ class FSRSDataDashboard {
 
     /**
      * Renders a table of FSRS card items.
-     * Enhanced with R2.7 checkboxes, R2.6 state badges, R2.9 edit buttons, and Leech detection.
-     * @param {Object[]} cardsArray - List of FSRS cards.
-     * @param {boolean} [showLapses=true] - If true, appends columns indicating lapse occurrences.
-     * @returns {string} Rendered table markup.
      */
-    generateCardsTable(cardsArray, showLapses = true) {
+    generateCardsTable(cardsArray: any[], showLapses: boolean = true): string {
         const now = new Date().getTime();
-        const allChecked = cardsArray.length > 0 && cardsArray.every(c => this.selectedCardIds.has(c.id));
+        const allChecked = cardsArray.length > 0 && cardsArray.every((c: any) => this.selectedCardIds.has(c.id));
 
         let table = `<div class="table-responsive"><table><thead><tr>
             <th class="th-checkbox"><input type="checkbox" id="select-all-checkbox" class="card-checkbox" ${allChecked ? 'checked' : ''}></th>
@@ -446,22 +428,20 @@ class FSRSDataDashboard {
             <th>Actions</th>
         </tr></thead><tbody>`;
 
-        cardsArray.forEach(card => {
+        cardsArray.forEach((card: any) => {
             const isPastDue = card.due <= now;
             const statusBadge = isPastDue
                 ? '<span class="badge badge-due">Due Now</span>'
                 : `<span class="badge badge-safe">${new Date(card.due).toLocaleDateString()}</span>`;
 
-            const tagsHtml = (card.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+            const tagsHtml = (card.tags || []).map((t: string) => `<span class="tag">${t}</span>`).join('');
             const reps = card.reps || 0;
             const lapses = card.lapses || 0;
             const state = card.state || 0;
 
-            // Format FSRS stats
             const stabilityFormatted = card.stability > 0 ? `${card.stability.toFixed(1)}d` : 'New';
             const difficultyFormatted = card.difficulty > 0 ? `${card.difficulty.toFixed(1)}/10` : 'N/A';
 
-            // State badge with color coding
             const stateLabel = this.getStateLabel(state);
             const stateClass = `state-${state}`;
 
@@ -502,11 +482,9 @@ class FSRSDataDashboard {
     }
 
     /**
-     * R2.8: Sorts the filtered cards array based on current sort selection.
-     * @param {Object[]} cards - Array of FSRS card objects.
-     * @returns {Object[]} Sorted array.
+     * Sorts the filtered cards array based on current sort selection.
      */
-    sortCards(cards) {
+    sortCards(cards: any[]): any[] {
         const sorted = [...cards];
         switch (this.sortBy) {
             case 'due-asc':
@@ -541,12 +519,12 @@ class FSRSDataDashboard {
     /**
      * Binds click listener events to table delete buttons to remove cards.
      */
-    bindDeleteButtons() {
+    bindDeleteButtons(): void {
         document.querySelectorAll('.delete-card-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', (e: Event) => {
                 e.stopPropagation();
-                const cardId = e.currentTarget.getAttribute('data-id');
-                if (confirm("Are you sure you want to remove this card from future FSRS reviews? This will delete the repetition history for this pattern.")) {
+                const cardId = (e.currentTarget as HTMLElement).getAttribute('data-id');
+                if (cardId && confirm("Are you sure you want to remove this card from future FSRS reviews? This will delete the repetition history for this pattern.")) {
                     this.allCards = this.allCards.filter(c => c.id !== cardId);
                     this.selectedCardIds.delete(cardId);
                     chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
@@ -560,48 +538,48 @@ class FSRSDataDashboard {
         });
     }
 
-    // ========================================================================
-    // R2.7: Bulk Actions
-    // ========================================================================
-
     /**
      * Binds checkbox change events for bulk selection.
      */
-    bindCheckboxes() {
-        // Select-all checkbox
-        const selectAll = document.getElementById('select-all-checkbox');
+    bindCheckboxes(): void {
+        const selectAll = document.getElementById('select-all-checkbox') as HTMLInputElement | null;
         if (selectAll) {
-            selectAll.addEventListener('change', (e) => {
+            selectAll.addEventListener('change', (e: Event) => {
+                const target = e.target as HTMLInputElement;
                 const allCheckboxes = document.querySelectorAll('.row-checkbox');
-                allCheckboxes.forEach(cb => {
-                    cb.checked = e.target.checked;
-                    const cardId = cb.dataset.id;
-                    if (e.target.checked) {
-                        this.selectedCardIds.add(cardId);
-                    } else {
-                        this.selectedCardIds.delete(cardId);
+                allCheckboxes.forEach((cb: Element) => {
+                    const checkbox = cb as HTMLInputElement;
+                    checkbox.checked = target.checked;
+                    const cardId = checkbox.dataset.id;
+                    if (cardId) {
+                        if (target.checked) {
+                            this.selectedCardIds.add(cardId);
+                        } else {
+                            this.selectedCardIds.delete(cardId);
+                        }
                     }
-                    cb.closest('tr').classList.toggle('row-selected', e.target.checked);
+                    checkbox.closest('tr')?.classList.toggle('row-selected', target.checked);
                 });
                 this.updateBulkActionsBar();
             });
         }
 
-        // Individual row checkboxes
-        document.querySelectorAll('.row-checkbox').forEach(cb => {
-            cb.addEventListener('change', (e) => {
-                const cardId = e.target.dataset.id;
-                if (e.target.checked) {
-                    this.selectedCardIds.add(cardId);
-                } else {
-                    this.selectedCardIds.delete(cardId);
+        document.querySelectorAll('.row-checkbox').forEach((cb: Element) => {
+            cb.addEventListener('change', (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const cardId = target.dataset.id;
+                if (cardId) {
+                    if (target.checked) {
+                        this.selectedCardIds.add(cardId);
+                    } else {
+                        this.selectedCardIds.delete(cardId);
+                    }
                 }
-                e.target.closest('tr').classList.toggle('row-selected', e.target.checked);
+                target.closest('tr')?.classList.toggle('row-selected', target.checked);
                 this.updateBulkActionsBar();
 
-                // Update select-all checkbox state
                 const allCheckboxes = document.querySelectorAll('.row-checkbox');
-                const allChecked = [...allCheckboxes].every(c => c.checked);
+                const allChecked = [...allCheckboxes].every((c: Element) => (c as HTMLInputElement).checked);
                 if (selectAll) selectAll.checked = allChecked;
             });
         });
@@ -610,7 +588,7 @@ class FSRSDataDashboard {
     /**
      * Updates the bulk actions bar visibility and selected count display.
      */
-    updateBulkActionsBar() {
+    updateBulkActionsBar(): void {
         const bar = document.getElementById('bulk-actions-bar');
         const countEl = document.getElementById('bulk-count');
         if (!bar) return;
@@ -618,16 +596,16 @@ class FSRSDataDashboard {
         const count = this.selectedCardIds.size;
         if (count > 0) {
             bar.style.display = 'flex';
-            if (countEl) countEl.textContent = count;
+            if (countEl) countEl.textContent = String(count);
         } else {
             bar.style.display = 'none';
         }
     }
 
     /**
-     * R2.7: Bulk delete selected cards.
+     * Bulk delete selected cards.
      */
-    bulkDelete() {
+    bulkDelete(): void {
         const count = this.selectedCardIds.size;
         if (count === 0) return;
 
@@ -644,14 +622,14 @@ class FSRSDataDashboard {
     }
 
     /**
-     * R2.7: Bulk re-tag selected cards.
+     * Bulk re-tag selected cards.
      */
-    bulkRetag() {
+    bulkRetag(): void {
         const count = this.selectedCardIds.size;
         if (count === 0) return;
 
         const newTagsStr = prompt(`Enter new tags for ${count} selected card(s) (comma-separated).\nThis will REPLACE existing tags:`, '');
-        if (newTagsStr === null) return; // Cancelled
+        if (newTagsStr === null) return;
 
         const newTags = newTagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
 
@@ -670,9 +648,9 @@ class FSRSDataDashboard {
     }
 
     /**
-     * R2.7: Bulk reschedule selected cards (reset due date to now).
+     * Bulk reschedule selected cards (reset due date to now).
      */
-    bulkReschedule() {
+    bulkReschedule(): void {
         const count = this.selectedCardIds.size;
         if (count === 0) return;
 
@@ -692,37 +670,32 @@ class FSRSDataDashboard {
         }
     }
 
-    // ========================================================================
-    // R2.9: Inline Card Editing
-    // ========================================================================
-
     /**
      * Binds click events for edit buttons on each card row.
      */
-    bindEditButtons() {
+    bindEditButtons(): void {
         document.querySelectorAll('.edit-card-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', (e: Event) => {
                 e.stopPropagation();
-                const cardId = e.currentTarget.getAttribute('data-id');
-                this.openEditModal(cardId);
+                const cardId = (e.currentTarget as HTMLElement).getAttribute('data-id');
+                if (cardId) this.openEditModal(cardId);
             });
         });
     }
 
     /**
      * Opens the inline edit modal for a specific card.
-     * @param {string} cardId - ID of the card to edit.
      */
-    openEditModal(cardId) {
+    openEditModal(cardId: string): void {
         const card = this.allCards.find(c => c.id === cardId);
         if (!card) return;
 
-        document.getElementById('edit-card-id').value = cardId;
-        document.getElementById('edit-title').value = card.problemTitle || '';
-        document.getElementById('edit-tags').value = (card.tags || []).join(', ');
-        document.getElementById('edit-approach').value = card.approach || '';
-        document.getElementById('edit-time-complexity').value = card.timeComplexity || '';
-        document.getElementById('edit-space-complexity').value = card.spaceComplexity || '';
+        (document.getElementById('edit-card-id') as HTMLInputElement).value = cardId;
+        (document.getElementById('edit-title') as HTMLInputElement).value = card.problemTitle || '';
+        (document.getElementById('edit-tags') as HTMLInputElement).value = (card.tags || []).join(', ');
+        (document.getElementById('edit-approach') as HTMLTextAreaElement).value = card.approach || '';
+        (document.getElementById('edit-time-complexity') as HTMLInputElement).value = card.timeComplexity || '';
+        (document.getElementById('edit-space-complexity') as HTMLInputElement).value = card.spaceComplexity || '';
 
         const overlay = document.getElementById('inline-edit-overlay');
         if (overlay) overlay.style.display = 'flex';
@@ -731,7 +704,7 @@ class FSRSDataDashboard {
     /**
      * Closes the inline edit modal.
      */
-    closeEditModal() {
+    closeEditModal(): void {
         const overlay = document.getElementById('inline-edit-overlay');
         if (overlay) overlay.style.display = 'none';
     }
@@ -739,16 +712,16 @@ class FSRSDataDashboard {
     /**
      * Saves edits from the inline edit modal to storage.
      */
-    saveCardEdit() {
-        const cardId = document.getElementById('edit-card-id').value;
+    saveCardEdit(): void {
+        const cardId = (document.getElementById('edit-card-id') as HTMLInputElement).value;
         const card = this.allCards.find(c => c.id === cardId);
         if (!card) return;
 
-        card.problemTitle = document.getElementById('edit-title').value.trim() || card.problemTitle;
-        card.tags = document.getElementById('edit-tags').value.split(',').map(t => t.trim()).filter(t => t.length > 0);
-        card.approach = document.getElementById('edit-approach').value;
-        card.timeComplexity = document.getElementById('edit-time-complexity').value.trim();
-        card.spaceComplexity = document.getElementById('edit-space-complexity').value.trim();
+        card.problemTitle = (document.getElementById('edit-title') as HTMLInputElement).value.trim() || card.problemTitle;
+        card.tags = (document.getElementById('edit-tags') as HTMLInputElement).value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        card.approach = (document.getElementById('edit-approach') as HTMLTextAreaElement).value;
+        card.timeComplexity = (document.getElementById('edit-time-complexity') as HTMLInputElement).value.trim();
+        card.spaceComplexity = (document.getElementById('edit-space-complexity') as HTMLInputElement).value.trim();
 
         chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
             this.closeEditModal();
@@ -757,15 +730,10 @@ class FSRSDataDashboard {
         });
     }
 
-    // ========================================================================
-    // Analytics Panel (unchanged from original)
-    // ========================================================================
-
     /**
      * Renders statistical cards and distributions of card states.
-     * @param {Object[]} cards - Saved cards database array.
      */
-    renderAnalyticsPanel(cards) {
+    renderAnalyticsPanel(cards: any[]): void {
         const panel = document.getElementById('analytics-panel');
         if (!panel) return;
 
@@ -781,13 +749,12 @@ class FSRSDataDashboard {
         panel.style.display = 'grid';
         panel.innerHTML = '';
 
-        // Calculate card states
-        let newCount = 0;      // reps === 0
-        let learningCount = 0; // reps > 0 && stability < 3
-        let reviewCount = 0;   // reps > 0 && stability >= 3
-        let lapsedCount = 0;   // lapses > 0
+        let newCount = 0;
+        let learningCount = 0;
+        let reviewCount = 0;
+        let lapsedCount = 0;
 
-        cards.forEach(c => {
+        cards.forEach((c: any) => {
             const reps = c.reps || 0;
             const stability = c.stability || 0;
             const lapses = c.lapses || 0;
@@ -804,11 +771,10 @@ class FSRSDataDashboard {
         const reviewPct = Math.round((reviewCount / total) * 100) || 0;
         const lapsedPct = Math.round((lapsedCount / total) * 100) || 0;
 
-        // Calculate top tags
-        const tagCounts = {};
-        cards.forEach(c => {
+        const tagCounts: Record<string, number> = {};
+        cards.forEach((c: any) => {
             if (c.tags && Array.isArray(c.tags)) {
-                c.tags.forEach(t => {
+                c.tags.forEach((t: string) => {
                     tagCounts[t] = (tagCounts[t] || 0) + 1;
                 });
             }
@@ -816,11 +782,10 @@ class FSRSDataDashboard {
 
         const sortedTags = Object.entries(tagCounts)
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 4); // top 4 tags
+            .slice(0, 4);
 
         const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
 
-        // Left Card: Card States Distribution
         const stateCard = document.createElement('div');
         stateCard.className = 'analytics-card';
         stateCard.innerHTML = `
@@ -839,7 +804,6 @@ class FSRSDataDashboard {
             </div>
         `;
 
-        // Right Card: Top Tags Breakdown
         const tagsCard = document.createElement('div');
         tagsCard.className = 'analytics-card';
 

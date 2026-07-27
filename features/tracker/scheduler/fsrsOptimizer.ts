@@ -1,36 +1,45 @@
 /**
- * @file features/tracker/scheduler/fsrsOptimizer.js
- * @description Lightweight JavaScript optimizer for personalized FSRS weights.
+ * @file features/tracker/scheduler/fsrsOptimizer.ts
+ * @description Lightweight JavaScript optimizer for personalized FSRS weights using WASM binding.
  */
 
 import { initOptimizer } from '@open-spaced-repetition/binding/dynamic-wasi';
 import { Rating } from 'ts-fsrs';
 
-let _bindingInstance = null;
+let _bindingInstance: any = null;
 const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-binding.wasm32-wasi.wasm', import.meta.url);
 
-async function getBinding() {
+async function getBinding(): Promise<any> {
     if (!_bindingInstance) {
         _bindingInstance = await initOptimizer({
-            wasm: wasmUrl,
+            wasm: wasmUrl as any,
             worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', import.meta.url))
         });
     }
     return _bindingInstance;
 }
 
-class FsrsOptimizer {
+export interface EligibilityResult {
+    eligible: boolean;
+    count: number;
+    threshold: number;
+    uniqueCards?: number;
+}
+
+export class FsrsOptimizer {
+    epochs: number;
+
     constructor() {
         this.epochs = 50;
     }
 
-    computeEligibility(history, threshold = 1000) {
+    computeEligibility(history: any[], threshold: number = 1000): EligibilityResult {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
 
         let reviewCount = 0;
-        let uniqueCards = new Set();
+        let uniqueCards = new Set<string>();
 
-        history.forEach(card => {
+        history.forEach((card: any) => {
             if (card.historyLog && card.historyLog.length > 1) {
                 reviewCount += (card.historyLog.length - 1);
                 uniqueCards.add(card.id);
@@ -45,30 +54,28 @@ class FsrsOptimizer {
         };
     }
 
-    /**
-     * @param {any[]} history
-     * @param {number[]} currentWeights
-     * @param {number} [targetRetention=0.90]
-     * @param {((current: number, total: number) => void) | null} [onProgress=null]
-     * @returns {Promise<number[]>}
-     */
-    async trainWeights(history, currentWeights, targetRetention = 0.90, onProgress = null) {
+    async trainWeights(
+        history: any[],
+        currentWeights: number[],
+        targetRetention: number = 0.90,
+        onProgress: ((current: number, total: number) => void) | null = null
+    ): Promise<number[]> {
         if (!history || history.length === 0) return currentWeights;
 
         try {
             const binding = await getBinding();
-            let trainSet = [];
+            let trainSet: any[] = [];
 
-            history.forEach(card => {
+            history.forEach((card: any) => {
                 if (card.historyLog && card.historyLog.length > 0) {
-                    const reviews = [];
+                    const reviews: any[] = [];
                     let firstLog = card.historyLog[0];
                     let firstDate = typeof firstLog === 'object' ? firstLog.date : firstLog;
 
                     let hasValidDeltaT = false;
-                    card.historyLog.forEach((log, index) => {
-                        let ratingNum = Rating.Good;
-                        let logDate;
+                    card.historyLog.forEach((log: any, index: number) => {
+                        let ratingNum: number = Rating.Good;
+                        let logDate: number;
 
                         if (typeof log === 'object' && log !== null) {
                             if (log.rating === 'again') ratingNum = Rating.Again;
@@ -127,7 +134,7 @@ class FsrsOptimizer {
             const optimizedWeights = await binding.computeParameters(trainSet, {
                 enableShortTerm: false,
                 timeout: 60000,
-                progress: (current, total) => {
+                progress: (current: number, total: number) => {
                     if (onProgress) onProgress(current, total);
                 }
             });
@@ -141,8 +148,7 @@ class FsrsOptimizer {
     }
 }
 
-// Export for webpack and tests
 export default FsrsOptimizer;
 if (typeof window !== 'undefined') {
-    window.FsrsOptimizer = FsrsOptimizer;
+    (window as any).FsrsOptimizer = FsrsOptimizer;
 }
