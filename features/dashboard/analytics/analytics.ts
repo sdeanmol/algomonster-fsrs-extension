@@ -1,8 +1,3 @@
-/**
- * @file features/dashboard/analytics/analytics.js
- * @description Main controller for the full-tab Analytics SPA.
- */
-
 import { DataUtils } from './utils/dataUtils.js';
 import { OverviewTab } from './overview/overview.js';
 import { MemoryTab } from './memory/memory.js';
@@ -12,7 +7,14 @@ import { InsightsTab } from './insights/insights.js';
 import { ReadinessTab } from './readiness/readiness.js';
 import { FutureMemorySimulation } from './memory/futureMemorySimulation.js';
 
+export type TabKey = 'overview' | 'readiness' | 'memory' | 'simulation' | 'tags' | 'performance' | 'insights';
+
 class AnalyticsDashboardSPA {
+    dataUtils: DataUtils | null;
+    currentTab: TabKey;
+    tabs: Record<TabKey, any>;
+    tabTitles: Record<TabKey, string>;
+
     constructor() {
         this.dataUtils = null;
         this.currentTab = 'overview';
@@ -39,13 +41,13 @@ class AnalyticsDashboardSPA {
         };
     }
 
-    init() {
-        chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result) => {
+    init(): void {
+        chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result: { [key: string]: any }) => {
             const cards = result.fsrsCards || [];
             const activity = result.fsrsActivity || {};
             
             const initializeDataUtils = () => {
-                const scheduler = typeof window !== 'undefined' && window.FsrsScheduler ? new window.FsrsScheduler() : null;
+                const scheduler = typeof window !== 'undefined' && (window as any).FsrsScheduler ? new (window as any).FsrsScheduler() : null;
                 this.dataUtils = new DataUtils(cards, activity, scheduler);
                 
                 // Initialize tab controllers
@@ -73,10 +75,10 @@ class AnalyticsDashboardSPA {
             };
 
             // If FsrsScheduler is bundled with WASM and loaded asynchronously, we wait for it
-            if (typeof window !== 'undefined' && window.FsrsScheduler === undefined) {
+            if (typeof window !== 'undefined' && (window as any).FsrsScheduler === undefined) {
                 let retries = 0;
                 const interval = setInterval(() => {
-                    if (window.FsrsScheduler !== undefined || retries > 50) { // 5 seconds max
+                    if ((window as any).FsrsScheduler !== undefined || retries > 50) { // 5 seconds max
                         clearInterval(interval);
                         initializeDataUtils();
                     }
@@ -88,22 +90,25 @@ class AnalyticsDashboardSPA {
         });
     }
 
-    bindNavigation() {
+    bindNavigation(): void {
         const navBtns = document.querySelectorAll('.nav-btn');
         navBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const targetTab = e.currentTarget.dataset.tab;
+            btn.addEventListener('click', (e: Event) => {
+                const currentTarget = e.currentTarget as HTMLElement;
+                const targetTab = currentTarget.dataset.tab as TabKey;
                 
                 // Update UI state
                 navBtns.forEach(b => b.classList.remove('active'));
-                e.currentTarget.classList.add('active');
+                currentTarget.classList.add('active');
                 
-                this.switchTab(targetTab);
+                if (targetTab) {
+                    this.switchTab(targetTab);
+                }
             });
         });
     }
 
-    updateGlobalKPIs(stats) {
+    updateGlobalKPIs(stats: any): void {
         if (!stats || !this.dataUtils) return;
 
         const cardsElem = document.getElementById('global-kpi-cards');
@@ -113,21 +118,24 @@ class AnalyticsDashboardSPA {
 
         const dueCount = stats.dueToday !== undefined ? stats.dueToday : (stats.due || 0);
 
-        if (cardsElem) cardsElem.textContent = stats.totalCards || 0;
+        if (cardsElem) cardsElem.textContent = String(stats.totalCards || 0);
         if (retentionElem) retentionElem.textContent = `${stats.trueRetention || 0}%`;
-        if (dueElem) dueElem.textContent = dueCount;
+        if (dueElem) dueElem.textContent = String(dueCount);
 
         if (readinessElem) {
-            const readinessData = this.dataUtils.getExamReadinessStats(12);
+            const readinessData = this.dataUtils.getExamReadinessStats(12) as any;
             readinessElem.textContent = `${readinessData.overallRecall || 0}%`;
         }
     }
 
-    switchTab(tabId) {
+    switchTab(tabId: TabKey): void {
         this.currentTab = tabId;
         
         // Update Title
-        document.getElementById('current-tab-title').textContent = this.tabTitles[tabId];
+        const titleEl = document.getElementById('current-tab-title');
+        if (titleEl) {
+            titleEl.textContent = this.tabTitles[tabId] || '';
+        }
         
         // Hide all panes
         document.querySelectorAll('.tab-pane').forEach(pane => {
@@ -147,7 +155,7 @@ class AnalyticsDashboardSPA {
     }
 }
 
-function initSPA() {
+function initSPA(): void {
     const spa = new AnalyticsDashboardSPA();
     spa.init();
 }

@@ -141,4 +141,14 @@ declare namespace chrome {
       hasListener(callback: Function): boolean;
     };
   }
+
+  export namespace downloads {
+    export interface DownloadOptions {
+      url: string;
+      filename?: string;
+      saveAs?: boolean;
+      conflictAction?: string;
+    }
+    export function download(options: DownloadOptions, callback?: (downloadId: number) => void): Promise<number>;
+  }
 }

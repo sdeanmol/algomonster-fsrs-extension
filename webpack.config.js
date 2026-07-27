@@ -11,7 +11,10 @@ module.exports = {
     'dist/config.bundle': './features/tracker/config/fsrsConfig.ts',
     'dist/fsrsScheduler.bundle': './features/tracker/scheduler/fsrsScheduler.ts',
     'features/common/logger': './features/common/logger.ts',
-    'features/common/utils/cardUtils': './features/common/utils/cardUtils.ts'
+    'features/common/utils/cardUtils': './features/common/utils/cardUtils.ts',
+    'features/dashboard/popup/popup': './features/dashboard/popup/popup.ts',
+    'features/highlighter/options/highlightOptions': './features/highlighter/options/highlightOptions.ts',
+    'features/dashboard/analytics/analytics': './features/dashboard/analytics/analytics.ts'
   },
   output: {
     path: path.resolve(__dirname, 'build'),
@@ -31,7 +34,10 @@ module.exports = {
     ]
   },
   resolve: {
-    extensions: ['.ts', '.js']
+    extensions: ['.ts', '.js'],
+    extensionAlias: {
+      '.js': ['.ts', '.js']
+    }
   },
   plugins: [
     new CopyPlugin({

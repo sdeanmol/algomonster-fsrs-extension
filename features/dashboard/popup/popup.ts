@@ -5,7 +5,38 @@ import { RatingComponent } from './rating.js';
 import { QuickSearchComponent } from './search.js';
 import { BackupManager } from '../../common/data/backupManager.js';
 import '../../common/logger.js';
-const Logger = globalThis.Logger;
+
+const Logger = (globalThis as any).Logger;
+
+export interface PopupDOM {
+    themeToggleBtn: HTMLElement | null;
+    markerToggle: HTMLInputElement | null;
+    chartsToggle: HTMLInputElement | null;
+    devModeToggle: HTMLInputElement | null;
+    managePlatformsBtn: HTMLElement | null;
+    configureFsrsBtn: HTMLElement | null;
+    helpBtn: HTMLElement | null;
+    historyBtn: HTMLElement | null;
+    openHeatmapTabBtn: HTMLElement | null;
+    boxTotal: HTMLElement | null;
+    boxDue: HTMLElement | null;
+    boxRetention: HTMLElement | null;
+    manageHighlightsBtn: HTMLElement | null;
+    openOptionsBtn: HTMLElement | null;
+    analyticsBtn: HTMLElement | null;
+    headerAnalyticsBtn: HTMLElement | null;
+    forecastBtn: HTMLElement | null;
+    exportBtn: HTMLElement | null;
+    importFile: HTMLInputElement | null;
+    ankiExportBtn: HTMLElement | null;
+    ankiImportFile: HTMLInputElement | null;
+    studyplanBtn: HTMLElement | null;
+    pomodoroBtn: HTMLElement | null;
+    weeklyDigestToggle: HTMLInputElement | null;
+    statusMsg: HTMLElement | null;
+    devModeActions: HTMLElement | null;
+    exportDebugLogsBtn: HTMLElement | null;
+}
 
 /**
  * @class AlgoRecallDashboard
@@ -14,15 +45,21 @@ const Logger = globalThis.Logger;
  * Anki deck exchange utilities, and instantiates visual dashboard components.
  */
 export class AlgoRecallDashboard {
-    constructor() {
-        this.statusTimeout = null;
+    statusTimeout: ReturnType<typeof setTimeout> | null = null;
+    dom: PopupDOM;
+    stats: StatsComponent;
+    heatmap: HeatmapComponent;
+    notifications: NotificationsComponent;
+    rating: RatingComponent;
+    search: QuickSearchComponent;
 
+    constructor() {
         // Cache global/page-level elements
         this.dom = {
             themeToggleBtn: document.getElementById('theme-toggle-btn'),
-            markerToggle: document.getElementById('toggle-marker-popup'),
-            chartsToggle: document.getElementById('toggle-show-charts'),
-            devModeToggle: document.getElementById('toggle-dev-mode'),
+            markerToggle: document.getElementById('toggle-marker-popup') as HTMLInputElement | null,
+            chartsToggle: document.getElementById('toggle-show-charts') as HTMLInputElement | null,
+            devModeToggle: document.getElementById('toggle-dev-mode') as HTMLInputElement | null,
             managePlatformsBtn: document.getElementById('manage-platforms-btn'),
             configureFsrsBtn: document.getElementById('configure-fsrs-btn'),
             helpBtn: document.getElementById('help-btn'),
@@ -37,31 +74,33 @@ export class AlgoRecallDashboard {
             headerAnalyticsBtn: document.getElementById('header-analytics-btn'),
             forecastBtn: document.getElementById('forecast-btn'),
             exportBtn: document.getElementById('export-btn'),
-            importFile: document.getElementById('import-file'),
+            importFile: document.getElementById('import-file') as HTMLInputElement | null,
             ankiExportBtn: document.getElementById('anki-export-btn'),
-            ankiImportFile: document.getElementById('anki-import-file'),
+            ankiImportFile: document.getElementById('anki-import-file') as HTMLInputElement | null,
             studyplanBtn: document.getElementById('studyplan-btn'),
             pomodoroBtn: document.getElementById('pomodoro-btn'),
-            weeklyDigestToggle: document.getElementById('toggle-weekly-digest'),
+            weeklyDigestToggle: document.getElementById('toggle-weekly-digest') as HTMLInputElement | null,
             statusMsg: document.getElementById('status-msg'),
             devModeActions: document.getElementById('dev-mode-actions'),
             exportDebugLogsBtn: document.getElementById('export-debug-logs-btn'),
         };
 
         // Subclass Components instantiation
-        this.stats = new StatsComponent(this);
-        this.heatmap = new HeatmapComponent(this);
-        this.notifications = new NotificationsComponent(this);
-        this.rating = new RatingComponent(this);
-        this.search = new QuickSearchComponent(this);
+        this.stats = new StatsComponent(this as any);
+        this.heatmap = new HeatmapComponent(this as any);
+        this.notifications = new NotificationsComponent(this as any);
+        this.rating = new RatingComponent(this as any);
+        this.search = new QuickSearchComponent(this as any);
     }
 
     /**
      * Initializes the dashboard, binds page event listeners, and boots sub-components.
      */
-    async init() {
-        Logger.info('Popup', 'Popup initialized.');
-        Logger.time('Popup', 'init');
+    async init(): Promise<void> {
+        if (Logger) {
+            Logger.info('Popup', 'Popup initialized.');
+            Logger.time('Popup', 'init');
+        }
         this.bindEvents();
 
         // Boot component lifecycle steps
@@ -73,13 +112,13 @@ export class AlgoRecallDashboard {
 
         // Perform initial loading from storage databases
         await this.loadAll();
-        Logger.timeEnd('Popup', 'init');
+        if (Logger) Logger.timeEnd('Popup', 'init');
     }
 
     /**
      * Triggers asynchronous state loads across all child panel classes.
      */
-    async loadAll() {
+    async loadAll(): Promise<void> {
         await Promise.all([
             this.stats.load(),
             this.heatmap.load(),
@@ -93,7 +132,7 @@ export class AlgoRecallDashboard {
     /**
      * Binds click and state change event listeners for settings panels, exports, and page routers.
      */
-    bindEvents() {
+    bindEvents(): void {
         // Theme Switcher Initialization
         if (this.dom.themeToggleBtn) {
             this.dom.themeToggleBtn.addEventListener('click', async () => {
@@ -104,87 +143,94 @@ export class AlgoRecallDashboard {
                     await chrome.storage.local.set({ theme: newTheme });
                     this.showStatus(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode!`);
                 } catch (error) {
-                    Logger.error('Popup', "Error toggling theme settings", error);
+                    if (Logger) Logger.error('Popup', "Error toggling theme settings", error);
                 }
             });
         }
 
         // Floating Highlighter switch setup
         if (this.dom.markerToggle) {
-            chrome.storage.local.get(['chromeSettings'], (result) => {
-                if (result.chromeSettings && result.chromeSettings.showMarkerPopup !== undefined) {
+            chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
+                if (result.chromeSettings && result.chromeSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
                     this.dom.markerToggle.checked = result.chromeSettings.showMarkerPopup;
                 }
             });
-            this.dom.markerToggle.addEventListener('change', async (e) => {
+            this.dom.markerToggle.addEventListener('change', async (e: Event) => {
                 try {
+                    const target = e.target as HTMLInputElement;
                     const result = await chrome.storage.local.get(['chromeSettings']);
                     let settings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
-                    settings.showMarkerPopup = e.target.checked;
+                    settings.showMarkerPopup = target.checked;
                     await chrome.storage.local.set({ chromeSettings: settings });
                 } catch (error) {
-                    Logger.error('Popup', "Error setting showMarkerPopup config", error);
+                    if (Logger) Logger.error('Popup', "Error setting showMarkerPopup config", error);
                 }
             });
         }
 
         // Visual charts display switch setup
         if (this.dom.chartsToggle) {
-            chrome.storage.local.get(['chromeSettings'], (result) => {
+            chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
                 const showCharts = result.chromeSettings && result.chromeSettings.showCharts !== undefined
                     ? result.chromeSettings.showCharts
                     : true;
-                this.dom.chartsToggle.checked = showCharts;
+                if (this.dom.chartsToggle) {
+                    this.dom.chartsToggle.checked = showCharts;
+                }
             });
-            this.dom.chartsToggle.addEventListener('change', async (e) => {
+            this.dom.chartsToggle.addEventListener('change', async (e: Event) => {
                 try {
+                    const target = e.target as HTMLInputElement;
                     const result = await chrome.storage.local.get(['chromeSettings']);
                     let settings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
-                    settings.showCharts = e.target.checked;
+                    settings.showCharts = target.checked;
                     await chrome.storage.local.set({ chromeSettings: settings });
-                    this.showStatus(`Visual charts ${e.target.checked ? 'enabled' : 'disabled'}!`);
+                    this.showStatus(`Visual charts ${target.checked ? 'enabled' : 'disabled'}!`);
                 } catch (error) {
-                    Logger.error('Popup', "Error setting showCharts config", error);
+                    if (Logger) Logger.error('Popup', "Error setting showCharts config", error);
                 }
             });
         }
 
         // Developer mode display switch setup
         if (this.dom.devModeToggle) {
-            chrome.storage.local.get(['chromeSettings'], (result) => {
+            chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
                 const devMode = result.chromeSettings && result.chromeSettings.developerMode !== undefined
                     ? result.chromeSettings.developerMode
                     : false;
-                this.dom.devModeToggle.checked = devMode;
+                if (this.dom.devModeToggle) {
+                    this.dom.devModeToggle.checked = devMode;
+                }
                 if (this.dom.devModeActions) {
                     this.dom.devModeActions.style.display = devMode ? 'block' : 'none';
                 }
             });
-            this.dom.devModeToggle.addEventListener('change', async (e) => {
+            this.dom.devModeToggle.addEventListener('change', async (e: Event) => {
                 try {
+                    const target = e.target as HTMLInputElement;
                     const result = await chrome.storage.local.get(['chromeSettings']);
                     let settings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
-                    settings.developerMode = e.target.checked;
+                    settings.developerMode = target.checked;
                     await chrome.storage.local.set({ chromeSettings: settings });
                     if (this.dom.devModeActions) {
-                        this.dom.devModeActions.style.display = e.target.checked ? 'block' : 'none';
+                        this.dom.devModeActions.style.display = target.checked ? 'block' : 'none';
                     }
-                    this.showStatus(`Developer mode ${e.target.checked ? 'enabled' : 'disabled'}!`);
+                    this.showStatus(`Developer mode ${target.checked ? 'enabled' : 'disabled'}!`);
                 } catch (error) {
-                    Logger.error('Popup', "Error setting developerMode config", error);
+                    if (Logger) Logger.error('Popup', "Error setting developerMode config", error);
                 }
             });
 
             if (this.dom.exportDebugLogsBtn) {
                 this.dom.exportDebugLogsBtn.addEventListener('click', () => {
-                    chrome.storage.local.get(['debugLogs'], (result) => {
+                    chrome.storage.local.get(['debugLogs'], (result: { [key: string]: any }) => {
                         const logs = result.debugLogs || [];
                         if (logs.length === 0) {
                             this.showStatus('No debug logs found.', true);
                             return;
                         }
 
-                        const logLines = logs.map(l => JSON.stringify(l)).join('\n');
+                        const logLines = logs.map((l: any) => JSON.stringify(l)).join('\n');
                         const blob = new Blob([logLines], { type: 'application/json' });
                         const url = URL.createObjectURL(blob);
 
@@ -236,8 +282,8 @@ export class AlgoRecallDashboard {
                 try {
                     await BackupManager.exportBackup();
                     this.showStatus("Backup exported successfully!");
-                } catch (err) {
-                    Logger.error('Popup', "Backup export failed", err);
+                } catch (err: any) {
+                    if (Logger) Logger.error('Popup', "Backup export failed", err);
                     this.showStatus("Export failed: " + err.message, true);
                 }
             });
@@ -245,17 +291,18 @@ export class AlgoRecallDashboard {
 
         // Standard JSON backup import setup
         if (this.dom.importFile) {
-            this.dom.importFile.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
+            this.dom.importFile.addEventListener('change', async (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const file = target.files?.[0];
                 if (!file) return;
 
                 this.showStatus("Restoring backup...");
-                await BackupManager.importBackup(file, async (msg, isError) => {
+                await BackupManager.importBackup(file, async (msg: string, isError?: boolean) => {
                     this.showStatus(msg, isError);
                     if (!isError && msg.includes("successfully")) {
                         await this.loadAll();
                         // Update UI settings toggles in case they changed
-                        chrome.storage.local.get(['chromeSettings'], (result) => {
+                        chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
                             if (result.chromeSettings) {
                                 if (result.chromeSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
                                     this.dom.markerToggle.checked = result.chromeSettings.showMarkerPopup;
@@ -270,14 +317,14 @@ export class AlgoRecallDashboard {
                         });
                     }
                 });
-                e.target.value = ''; // Reset file input
+                target.value = ''; // Reset file input
             });
         }
 
         // R9.1: Anki backup export setup
         if (this.dom.ankiExportBtn) {
             this.dom.ankiExportBtn.addEventListener('click', () => {
-                chrome.storage.local.get(['fsrsCards'], (result) => {
+                chrome.storage.local.get(['fsrsCards'], (result: { [key: string]: any }) => {
                     const cards = result.fsrsCards || [];
                     if (cards.length === 0) {
                         this.showStatus('No cards to export.', true);
@@ -298,14 +345,15 @@ export class AlgoRecallDashboard {
 
         // R9.1: Anki deck import setup
         if (this.dom.ankiImportFile) {
-            this.dom.ankiImportFile.addEventListener('change', (e) => {
-                const file = e.target.files[0];
+            this.dom.ankiImportFile.addEventListener('change', (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const file = target.files?.[0];
                 if (!file) return;
 
                 const reader = new FileReader();
-                reader.onload = function (event) {
+                reader.onload = (event: ProgressEvent<FileReader>) => {
                     try {
-                        const text = event.target.result;
+                        const text = event.target?.result as string;
                         const newCards = this.importFromAnkiText(text);
 
                         if (newCards.length === 0) {
@@ -313,9 +361,9 @@ export class AlgoRecallDashboard {
                             return;
                         }
 
-                        chrome.storage.local.get(['fsrsCards'], (result) => {
+                        chrome.storage.local.get(['fsrsCards'], (result: { [key: string]: any }) => {
                             const existing = result.fsrsCards || [];
-                            const existingTitles = new Set(existing.map(c => c.problemTitle?.toLowerCase()));
+                            const existingTitles = new Set(existing.map((c: any) => c.problemTitle?.toLowerCase()));
 
                             // Skip duplicates by title
                             const unique = newCards.filter(c => !existingTitles.has(c.problemTitle?.toLowerCase()));
@@ -329,9 +377,9 @@ export class AlgoRecallDashboard {
                     } catch (err) {
                         this.showStatus('Error reading Anki file.', true);
                     }
-                }.bind(this);
+                };
                 reader.readAsText(file);
-                e.target.value = ''; // Reset file input
+                target.value = ''; // Reset file input
             });
         }
     }
@@ -341,7 +389,7 @@ export class AlgoRecallDashboard {
      * @param {string} msg - Descriptive message string.
      * @param {boolean} [isError=false] - Signals if the status indicates an error.
      */
-    showStatus(msg, isError = false) {
+    showStatus(msg: string, isError: boolean = false): void {
         const el = this.dom.statusMsg;
         if (!el) return;
 
@@ -368,8 +416,8 @@ export class AlgoRecallDashboard {
      * @param {Object[]} cards - Array of FSRS cards.
      * @returns {string} Anki-compatible text data.
      */
-    exportToAnkiText(cards) {
-        const lines = [];
+    exportToAnkiText(cards: any[]): string {
+        const lines: string[] = [];
 
         // Anki header directives
         lines.push('#separator:tab');
@@ -379,10 +427,10 @@ export class AlgoRecallDashboard {
         lines.push('#notetype:Basic');
         lines.push('');
 
-        cards.forEach(card => {
+        cards.forEach((card: any) => {
             const front = (card.problemTitle || 'Untitled').replace(/\t/g, ' ').replace(/\n/g, ' ');
             const back = (card.approach || '').replace(/\t/g, '    '); // Keep newlines for Anki markdown
-            const tags = (card.tags || []).map(t => `algorecall::${t.replace(/\s+/g, '_')}`).join(' ');
+            const tags = (card.tags || []).map((t: string) => `algorecall::${t.replace(/\s+/g, '_')}`).join(' ');
 
             // Add URL as part of front if available
             const frontWithUrl = card.problemUrl
@@ -401,9 +449,9 @@ export class AlgoRecallDashboard {
      * @param {string} text - The raw Anki-formatted text content.
      * @returns {Object[]} Created stub FSRS card objects.
      */
-    importFromAnkiText(text) {
+    importFromAnkiText(text: string): any[] {
         const lines = text.split('\n');
-        const cards = [];
+        const cards: any[] = [];
         const now = Date.now();
 
         for (const line of lines) {

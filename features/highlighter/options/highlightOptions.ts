@@ -1,10 +1,22 @@
-/**
- * @file features/highlighter/options/highlightOptions.js
- * @description Manages highlighter style options.
- * Allows users to set default highlight colors, create custom color palettes,
- * activate specific palette sets, and edit color hex values.
- */
+export interface Palette {
+    name: string;
+    colors: string[];
+}
+
+export interface ChromeSettings {
+    defaultHighlightColor?: string;
+    recentColors?: string[];
+    showMarkerPopup?: boolean;
+    activePaletteIndex?: number;
+    palettes?: Palette[];
+}
+
 class HighlightOptionsManager {
+    DEFAULT_PALETTES: Palette[];
+    chromeSettings: ChromeSettings;
+    editorColors: string[];
+    editingIndex: number | null;
+
     constructor() {
         this.DEFAULT_PALETTES = [
             { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
@@ -29,8 +41,8 @@ class HighlightOptionsManager {
     /**
      * Initializes components and settings properties from Chrome storage.
      */
-    init() {
-        chrome.storage.local.get(['chromeSettings'], (result) => {
+    init(): void {
+        chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
             if (result.chromeSettings) {
                 this.chromeSettings = { ...this.chromeSettings, ...result.chromeSettings };
             }
@@ -39,13 +51,16 @@ class HighlightOptionsManager {
             if (!this.chromeSettings.palettes || this.chromeSettings.palettes.length === 0) {
                 this.chromeSettings.palettes = JSON.parse(JSON.stringify(this.DEFAULT_PALETTES));
                 this.chromeSettings.activePaletteIndex = 0;
-                this.chromeSettings.recentColors = [...this.chromeSettings.palettes[0].colors];
+                this.chromeSettings.recentColors = [...this.chromeSettings.palettes![0].colors];
             }
 
             // Set up General Options UI
             const defaultColor = this.chromeSettings.defaultHighlightColor || '#f1c40f';
-            document.getElementById('default-color').value = defaultColor;
-            document.getElementById('default-hex').textContent = defaultColor.toUpperCase();
+            const defaultColorInput = document.getElementById('default-color') as HTMLInputElement | null;
+            const defaultHexSpan = document.getElementById('default-hex') as HTMLElement | null;
+
+            if (defaultColorInput) defaultColorInput.value = defaultColor;
+            if (defaultHexSpan) defaultHexSpan.textContent = defaultColor.toUpperCase();
 
             // Bind Event Listeners
             this.bindEvents();
@@ -59,99 +74,119 @@ class HighlightOptionsManager {
     /**
      * Registers control element action listeners.
      */
-    bindEvents() {
+    bindEvents(): void {
         // Default Highlight Color Event Listeners
-        document.getElementById('default-color').addEventListener('input', (e) => {
-            document.getElementById('default-hex').textContent = e.target.value.toUpperCase();
-        });
+        const defaultColorEl = document.getElementById('default-color') as HTMLInputElement | null;
+        if (defaultColorEl) {
+            defaultColorEl.addEventListener('input', (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const hexSpan = document.getElementById('default-hex');
+                if (hexSpan) hexSpan.textContent = target.value.toUpperCase();
+            });
 
-        document.getElementById('default-color').addEventListener('change', (e) => {
-            this.chromeSettings.defaultHighlightColor = e.target.value;
-            this.saveSettings("Default highlight color updated!");
-        });
+            defaultColorEl.addEventListener('change', (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                this.chromeSettings.defaultHighlightColor = target.value;
+                this.saveSettings("Default highlight color updated!");
+            });
+        }
 
         // Add Slot Action inside Editor
-        document.getElementById('add-slot-btn').addEventListener('click', () => {
-            if (this.editorColors.length >= 5) {
-                this.showToast("A palette can have a maximum of 5 colors.");
-                return;
-            }
-            // Add default color as new slot color
-            this.editorColors.push('#3498db');
-            this.renderEditorSlots();
-        });
-
-        // Save/Update Palette Action
-        document.getElementById('save-palette-btn').addEventListener('click', () => {
-            const nameInput = document.getElementById('palette-name-input');
-            const name = nameInput.value.trim();
-            if (!name) {
-                this.showToast("Please enter a palette name.");
-                return;
-            }
-
-            if (this.editorColors.length === 0) {
-                this.showToast("Palette must contain at least 1 color.");
-                return;
-            }
-
-            const palettes = this.chromeSettings.palettes || [];
-
-            if (this.editingIndex === null) {
-                // Creation validation
-                if (palettes.length >= 50) {
-                    this.showToast("Maximum limit of 50 palettes reached.");
+        const addSlotBtn = document.getElementById('add-slot-btn');
+        if (addSlotBtn) {
+            addSlotBtn.addEventListener('click', () => {
+                if (this.editorColors.length >= 5) {
+                    this.showToast("A palette can have a maximum of 5 colors.");
                     return;
                 }
-                palettes.push({ name, colors: [...this.editorColors] });
-                this.showToast("Palette created successfully!");
-            } else {
-                // Update
-                palettes[this.editingIndex] = { name, colors: [...this.editorColors] };
-                this.showToast("Palette updated successfully!");
+                // Add default color as new slot color
+                this.editorColors.push('#3498db');
+                this.renderEditorSlots();
+            });
+        }
 
-                // Update active cached state if editing active palette
-                if (this.editingIndex === this.chromeSettings.activePaletteIndex) {
-                    this.chromeSettings.recentColors = [...this.editorColors];
+        // Save/Update Palette Action
+        const savePaletteBtn = document.getElementById('save-palette-btn');
+        if (savePaletteBtn) {
+            savePaletteBtn.addEventListener('click', () => {
+                const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
+                const name = nameInput?.value.trim() || '';
+                if (!name) {
+                    this.showToast("Please enter a palette name.");
+                    return;
                 }
-            }
 
-            // Reset editor form states
-            nameInput.value = '';
-            this.editingIndex = null;
-            document.getElementById('save-palette-btn').textContent = '💾 Save Palette';
-            this.editorColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'];
+                if (this.editorColors.length === 0) {
+                    this.showToast("Palette must contain at least 1 color.");
+                    return;
+                }
 
-            this.chromeSettings.palettes = palettes;
-            this.saveSettings();
-            this.renderEditorSlots();
-        });
+                const palettes = this.chromeSettings.palettes || [];
+
+                if (this.editingIndex === null) {
+                    // Creation validation
+                    if (palettes.length >= 50) {
+                        this.showToast("Maximum limit of 50 palettes reached.");
+                        return;
+                    }
+                    palettes.push({ name, colors: [...this.editorColors] });
+                    this.showToast("Palette created successfully!");
+                } else {
+                    // Update
+                    palettes[this.editingIndex] = { name, colors: [...this.editorColors] };
+                    this.showToast("Palette updated successfully!");
+
+                    // Update active cached state if editing active palette
+                    if (this.editingIndex === this.chromeSettings.activePaletteIndex) {
+                        this.chromeSettings.recentColors = [...this.editorColors];
+                    }
+                }
+
+                // Reset editor form states
+                if (nameInput) nameInput.value = '';
+                this.editingIndex = null;
+                if (savePaletteBtn) savePaletteBtn.textContent = '💾 Save Palette';
+                this.editorColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'];
+
+                this.chromeSettings.palettes = palettes;
+                this.saveSettings();
+                this.renderEditorSlots();
+            });
+        }
 
         // Reset to Defaults button handler
-        document.getElementById('reset-palettes-btn').addEventListener('click', () => {
-            this.chromeSettings.palettes = JSON.parse(JSON.stringify(this.DEFAULT_PALETTES));
-            this.chromeSettings.activePaletteIndex = 0;
-            this.chromeSettings.recentColors = [...this.chromeSettings.palettes[0].colors];
-            this.chromeSettings.defaultHighlightColor = '#f1c40f';
+        const resetBtn = document.getElementById('reset-palettes-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                this.chromeSettings.palettes = JSON.parse(JSON.stringify(this.DEFAULT_PALETTES));
+                this.chromeSettings.activePaletteIndex = 0;
+                this.chromeSettings.recentColors = [...this.chromeSettings.palettes![0].colors];
+                this.chromeSettings.defaultHighlightColor = '#f1c40f';
 
-            document.getElementById('default-color').value = '#f1c40f';
-            document.getElementById('default-hex').textContent = '#F1C40F';
-            
-            // Reset Editor UI
-            document.getElementById('palette-name-input').value = '';
-            this.editingIndex = null;
-            document.getElementById('save-palette-btn').textContent = '💾 Save Palette';
-            this.editorColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'];
+                const defaultColorEl = document.getElementById('default-color') as HTMLInputElement | null;
+                const defaultHexEl = document.getElementById('default-hex');
+                const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
+                const saveBtn = document.getElementById('save-palette-btn');
 
-            this.saveSettings("Reset to defaults successfully!");
-            this.renderEditorSlots();
-        });
+                if (defaultColorEl) defaultColorEl.value = '#f1c40f';
+                if (defaultHexEl) defaultHexEl.textContent = '#F1C40F';
+                
+                // Reset Editor UI
+                if (nameInput) nameInput.value = '';
+                this.editingIndex = null;
+                if (saveBtn) saveBtn.textContent = '💾 Save Palette';
+                this.editorColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'];
+
+                this.saveSettings("Reset to defaults successfully!");
+                this.renderEditorSlots();
+            });
+        }
     }
 
     /**
      * Helper: Renders input slots for color picker selection dynamically.
      */
-    renderEditorSlots() {
+    renderEditorSlots(): void {
         const container = document.getElementById('palette-slots-container');
         if (!container) return;
         container.innerHTML = '';
@@ -164,9 +199,11 @@ class HighlightOptionsManager {
             picker.type = 'color';
             picker.className = 'color-picker';
             picker.value = color;
-            picker.addEventListener('input', (e) => {
-                this.editorColors[idx] = e.target.value;
-                row.querySelector('.color-hex').textContent = e.target.value.toUpperCase();
+            picker.addEventListener('input', (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                this.editorColors[idx] = target.value;
+                const hexSpan = row.querySelector('.color-hex');
+                if (hexSpan) hexSpan.textContent = target.value.toUpperCase();
             });
 
             const hexSpan = document.createElement('span');
@@ -202,7 +239,7 @@ class HighlightOptionsManager {
     /**
      * Helper: Renders list of available/saved custom palettes.
      */
-    renderPalettesList() {
+    renderPalettesList(): void {
         const container = document.getElementById('palettes-list-container');
         if (!container) return;
         container.innerHTML = '';
@@ -272,7 +309,8 @@ class HighlightOptionsManager {
             editBtn.textContent = 'Edit';
             editBtn.addEventListener('click', () => {
                 this.editingIndex = idx;
-                document.getElementById('palette-name-input').value = palette.name;
+                const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
+                if (nameInput) nameInput.value = palette.name;
                 this.editorColors = [...palette.colors];
                 this.renderEditorSlots();
                 const saveBtn = document.getElementById('save-palette-btn');
@@ -288,11 +326,11 @@ class HighlightOptionsManager {
                     this.showToast("Cannot delete the only remaining palette.");
                     return;
                 }
-                this.chromeSettings.palettes.splice(idx, 1);
+                this.chromeSettings.palettes!.splice(idx, 1);
                 if (isActive) {
                     this.chromeSettings.activePaletteIndex = 0;
-                    this.chromeSettings.recentColors = [...this.chromeSettings.palettes[0].colors];
-                } else if (this.chromeSettings.activePaletteIndex > idx) {
+                    this.chromeSettings.recentColors = [...this.chromeSettings.palettes![0].colors];
+                } else if (this.chromeSettings.activePaletteIndex !== undefined && this.chromeSettings.activePaletteIndex > idx) {
                     this.chromeSettings.activePaletteIndex--;
                 }
                 this.saveSettings("Palette deleted.");
@@ -308,7 +346,7 @@ class HighlightOptionsManager {
      * Commits current settings back to Chrome storage and re-renders lists.
      * @param {string} [message=null] - Text message shown inside toast alerts.
      */
-    saveSettings(message = null) {
+    saveSettings(message: string | null = null): void {
         chrome.storage.local.set({ chromeSettings: this.chromeSettings }, () => {
             this.renderPalettesList();
             if (message) this.showToast(message);
@@ -319,7 +357,7 @@ class HighlightOptionsManager {
      * Renders status toast feedback indicators.
      * @param {string} message - Feedback message.
      */
-    showToast(message) {
+    showToast(message: string): void {
         const toast = document.getElementById('status-toast');
         if (!toast) return;
         toast.textContent = message;
