@@ -1,19 +1,10 @@
-const fs = require('fs');
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
 
-const getEntryPoint = (relativePathWithoutExt) => {
-  const tsPath = `${relativePathWithoutExt}.ts`;
-  if (fs.existsSync(path.resolve(__dirname, tsPath))) {
-    return `./${tsPath}`;
-  }
-  return `./${relativePathWithoutExt}.js`;
-};
-
 module.exports = {
   entry: {
-    config: getEntryPoint('features/tracker/config/fsrsConfig'),
-    fsrsScheduler: getEntryPoint('features/tracker/scheduler/fsrsScheduler')
+    config: './features/tracker/config/fsrsConfig.ts',
+    fsrsScheduler: './features/tracker/scheduler/fsrsScheduler.ts'
   },
   output: {
     path: path.resolve(__dirname, 'build'),
@@ -58,8 +49,8 @@ module.exports = {
               '**/__tests__/**', 
               '**/*.md', 
               '**/*.ts',
-              '**/tracker/config/fsrsConfig.js',
-              '**/tracker/scheduler/fsrsScheduler.js',
+              '**/tracker/config/fsrsConfig.*',
+              '**/tracker/scheduler/fsrsScheduler.*',
               '**/tracker/scheduler/fsrsOptimizer.js',
               '**/tracker/scheduler/fsrsOptimizerFast.js'
             ] 

@@ -13,8 +13,10 @@ module.exports = {
     '^.+\\.js$': 'babel-jest'
   },
   moduleNameMapper: {
-    '\\.(css|less|scss)$': '<rootDir>/tests/mocks/styleMock.js'
+    '\\.(css|less|scss)$': '<rootDir>/tests/mocks/styleMock.js',
+    '^(\\.{1,2}/.*)\\.js$': '$1'
   },
+  moduleFileExtensions: ['ts', 'js', 'json', 'node'],
   reporters: [
     "default",
     ["jest-html-reporter", {

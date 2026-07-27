@@ -38,6 +38,11 @@ class FsrsOptimizer {
      * Highly simplified heuristic stochastic gradient descent for FSRS weights.
      * Tunes initial stability weights (w[0]-w[3]) based on empirical retention vs target retention.
      * Used as a fallback because WASM binding for exact log-loss gradient descent can fail on certain MV3 environments.
+     * @param {any[]} history
+     * @param {number[]} currentWeights
+     * @param {number} [targetRetention=0.90]
+     * @param {((current: number, total: number) => void) | null} [onProgress=null]
+     * @returns {Promise<number[]>}
      */
     async trainWeights(history, currentWeights, targetRetention = 0.90, onProgress = null) {
         let w = [...currentWeights];

@@ -45,6 +45,13 @@ class FsrsOptimizer {
         };
     }
 
+    /**
+     * @param {any[]} history
+     * @param {number[]} currentWeights
+     * @param {number} [targetRetention=0.90]
+     * @param {((current: number, total: number) => void) | null} [onProgress=null]
+     * @returns {Promise<number[]>}
+     */
     async trainWeights(history, currentWeights, targetRetention = 0.90, onProgress = null) {
         if (!history || history.length === 0) return currentWeights;
 
