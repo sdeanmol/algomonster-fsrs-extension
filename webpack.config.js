@@ -1,10 +1,19 @@
+const fs = require('fs');
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
 
+const getEntryPoint = (relativePathWithoutExt) => {
+  const tsPath = `${relativePathWithoutExt}.ts`;
+  if (fs.existsSync(path.resolve(__dirname, tsPath))) {
+    return `./${tsPath}`;
+  }
+  return `./${relativePathWithoutExt}.js`;
+};
+
 module.exports = {
   entry: {
-    config: './features/tracker/config/fsrsConfig.js',
-    fsrsScheduler: './features/tracker/scheduler/fsrsScheduler.js'
+    config: getEntryPoint('features/tracker/config/fsrsConfig'),
+    fsrsScheduler: getEntryPoint('features/tracker/scheduler/fsrsScheduler')
   },
   output: {
     path: path.resolve(__dirname, 'build'),
@@ -16,11 +25,15 @@ module.exports = {
   devtool: 'inline-source-map',
   module: {
     rules: [
-      // No loaders needed, native Chrome V8 handles modern JS
+      {
+        test: /\.ts$/,
+        use: 'ts-loader',
+        exclude: /node_modules/
+      }
     ]
   },
   resolve: {
-    extensions: ['.js']
+    extensions: ['.ts', '.js']
   },
   plugins: [
     new CopyPlugin({

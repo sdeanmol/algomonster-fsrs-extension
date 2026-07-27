@@ -1,4 +1,5 @@
 module.exports = {
+  preset: 'ts-jest',
   testEnvironment: 'jsdom',
   clearMocks: true,
   collectCoverage: true,
@@ -7,6 +8,10 @@ module.exports = {
   roots: ['<rootDir>/tests/unit', '<rootDir>/tests/integration'],
   setupFilesAfterEnv: ['<rootDir>/tests/mocks/chromeMock.js'],
   testMatch: ['**/?(*.)+(spec|test).[tj]s?(x)'],
+  transform: {
+    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.js$': 'babel-jest'
+  },
   moduleNameMapper: {
     '\\.(css|less|scss)$': '<rootDir>/tests/mocks/styleMock.js'
   },
