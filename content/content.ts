@@ -164,7 +164,10 @@ import '../features/tracker/tracker';
      * @param {string} areaName - Storage classification bucket name.
      */
     handleStorageChanged(changes: { [key: string]: chrome.storage.StorageChange }, areaName: string): void {
-        if (window.Logger) window.Logger.debug('ContentScript', `Storage changed in ${areaName}`, Object.keys(changes));
+        const changedKeys = Object.keys(changes).filter(key => key !== 'debugLogs');
+        if (changedKeys.length > 0 && window.Logger) {
+            window.Logger.debug('ContentScript', `Storage changed in ${areaName}`, changedKeys);
+        }
         if (areaName === 'local') {
             if (changes.chromeSettings) {
                 this.state.chromeSettings = { ...this.state.chromeSettings, ...changes.chromeSettings.newValue };
