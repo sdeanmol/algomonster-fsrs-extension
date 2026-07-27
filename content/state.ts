@@ -1,16 +1,54 @@
 /**
- * @file content/state.js
+ * @file content/state.ts
  * @description Global state manager declarations shared across the content script scope.
  * Injected sequentially by manifest.json before other script files (utils, highlighter, tracker, content)
  * to act as a shared memory layer on targeted domains.
  */
 
-window.AlgoRecall = window.AlgoRecall || {};
+export interface Palette {
+    name: string;
+    colors: string[];
+}
+
+export interface ChromeSettings {
+    defaultHighlightColor?: string;
+    recentColors?: string[];
+    showMarkerPopup?: boolean;
+    activePaletteIndex?: number;
+    palettes?: Palette[];
+}
+
+export interface AlgoRecallState {
+    scheduler: any;
+    cards: any[];
+    lastCheckedUrl: string;
+    topicWeights: Record<string, number>;
+    currentTheme: string;
+    marks: any[];
+    bookmarks: any[];
+    pagecontents: any[];
+    chromeSettings: ChromeSettings;
+    activeHighlightStyles: Set<string>;
+    highlightDebounceTimer: any;
+    activeMarkRanges: any[];
+    hoveredMarkId: string | number | null;
+    hideTooltipTimer: any;
+}
+
+declare global {
+    interface Window {
+        AlgoRecall: any;
+        FsrsScheduler: any;
+        Logger: any;
+    }
+}
+
+(window as any).AlgoRecall = (window as any).AlgoRecall || {};
 
 // Instantiated state container
-window.AlgoRecall.state = {
+(window as any).AlgoRecall.state = {
     // Instantiated scheduling algorithm controller (FSRS as default)
-    scheduler: new FsrsScheduler(),
+    scheduler: typeof (window as any).FsrsScheduler === 'function' ? new (window as any).FsrsScheduler() : null,
 
     // Active collection of study cards/patterns loaded from storage
     cards: [],
@@ -50,7 +88,7 @@ window.AlgoRecall.state = {
     },
 
     // Set tracking registered custom CSS Highlights to avoid double DOM element styling
-    activeHighlightStyles: new Set(),
+    activeHighlightStyles: new Set<string>(),
 
     // Debounce timer ID for dynamic layout observer highlights updates
     highlightDebounceTimer: null,

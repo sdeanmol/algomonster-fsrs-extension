@@ -1,4 +1,4 @@
-window.AlgoRecall = window.AlgoRecall || {};
+(window as any).AlgoRecall = (window as any).AlgoRecall || {};
 
 /**
  * @class AlgoRecallOrchestrator
@@ -6,18 +6,25 @@ window.AlgoRecall = window.AlgoRecall || {};
  * Initializes settings, cards, and styling configurations from storage, boots the highlighter and tracker UI overlays,
  * registers click triggers for SPA client-side navigations, and monitors DOM updates via MutationObserver.
  */
-window.AlgoRecall.Orchestrator = class Orchestrator {
+(window as any).AlgoRecall.Orchestrator = class Orchestrator {
+    state: any;
+    utils: any;
+    notifier: any;
+    highlighter: any;
+    tracker: any;
+    domObserver: MutationObserver | null;
+
     constructor() {
         if (window.Logger) {
             window.Logger.info('ContentScript', 'Orchestrator initializing...');
         }
-        this.state = window.AlgoRecall.state;
-        this.utils = window.AlgoRecall.Utils;
-        this.notifier = window.AlgoRecall.Notifier;
+        this.state = (window as any).AlgoRecall.state;
+        this.utils = (window as any).AlgoRecall.Utils;
+        this.notifier = (window as any).AlgoRecall.Notifier;
         
         // Instantiate component controllers
-        this.highlighter = new window.AlgoRecall.Highlighter();
-        this.tracker = new window.AlgoRecall.Tracker();
+        this.highlighter = new (window as any).AlgoRecall.Highlighter();
+        this.tracker = new (window as any).AlgoRecall.Tracker();
         
         this.domObserver = null;
     }
@@ -25,12 +32,12 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
     /**
      * Initializes the orchestrator and components.
      */
-    async init() {
+    async init(): Promise<void> {
         if (window.Logger) window.Logger.time('ContentScript', 'Init Storage Load');
-        chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result) => {
+        chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result: { [key: string]: any }) => {
             if (window.Logger) window.Logger.timeEnd('ContentScript', 'Init Storage Load');
             // Verify whitelisting
-            const whitelistedWebsites = result.whitelistedWebsites || [
+            const whitelistedWebsites: Array<{ domain: string }> = result.whitelistedWebsites || [
                 { domain: "algo.monster" },
                 { domain: "systemdesignschool.io" },
                 { domain: "codeforces.com" },
@@ -95,10 +102,11 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
     /**
      * Binds general orchestrator events, click/messaging/storage listeners.
      */
-    bindEvents() {
+    bindEvents(): void {
         // 1. Hyper-Responsive Click Listener
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('a, button, [role="button"]')) {
+        document.addEventListener('click', (e: MouseEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (target && target.closest('a, button, [role="button"]')) {
                 setTimeout(this.triggerAggressiveUIUpdate.bind(this), 50);
                 setTimeout(this.triggerAggressiveUIUpdate.bind(this), 400);
             }
@@ -114,7 +122,7 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
     /**
      * Sets up the DOM observer to watch for React component re-rendering/navigations.
      */
-    setupMutationObserver() {
+    setupMutationObserver(): void {
         this.domObserver = new MutationObserver(() => {
             clearTimeout(this.state.highlightDebounceTimer);
             this.state.highlightDebounceTimer = setTimeout(() => {
@@ -136,7 +144,9 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
                 }
             }, 100);
         });
-        this.domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+        if (document.body) {
+            this.domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+        }
     }
 
     /**
@@ -144,12 +154,12 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
      * @param {Object} changes - Object describing key storage differences.
      * @param {string} areaName - Storage classification bucket name.
      */
-    handleStorageChanged(changes, areaName) {
+    handleStorageChanged(changes: { [key: string]: chrome.storage.StorageChange }, areaName: string): void {
         if (window.Logger) window.Logger.debug('ContentScript', `Storage changed in ${areaName}`, Object.keys(changes));
         if (areaName === 'local') {
             if (changes.chromeSettings) {
                 this.state.chromeSettings = { ...this.state.chromeSettings, ...changes.chromeSettings.newValue };
-                const tooltip = document.getElementById('algo-highlight-tooltip');
+                const tooltip = document.getElementById('algo-highlight-tooltip') as HTMLElement | null;
                 if (!this.state.chromeSettings.showMarkerPopup) {
                     if (tooltip) tooltip.style.display = 'none';
                 } else {
@@ -191,7 +201,7 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
             }
             if (changes.whitelistedWebsites) {
                 const currentDomain = window.location.hostname;
-                const whitelistedWebsites = changes.whitelistedWebsites.newValue || [
+                const whitelistedWebsites: Array<{ domain: string }> = changes.whitelistedWebsites.newValue || [
                     { domain: "algo.monster" },
                     { domain: "systemdesignschool.io" },
                     { domain: "codeforces.com" },
@@ -234,10 +244,10 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
     /**
      * Handles runtime messages sent from the background worker.
      * @param {Object} request - Messaging payload dictionary.
-     * @param {Object} sender - Sender source details metadata.
+     * @param {chrome.runtime.MessageSender} sender - Sender source details metadata.
      * @param {Function} sendResponse - Callback function routing replies.
      */
-    handleMessage(request, sender, sendResponse) {
+    handleMessage(request: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void): boolean | void {
         if (window.Logger) window.Logger.debug('ContentScript', `Received message: ${request.action}`);
         if (request.action === "spa_url_changed") {
             setTimeout(this.triggerAggressiveUIUpdate.bind(this), 50);
@@ -246,7 +256,7 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
             try {
                 this.notifier.showPageNotification(request.title, request.message, request.type, request.count);
                 if (sendResponse) sendResponse({ success: true });
-            } catch (e) {
+            } catch (e: any) {
                 if (window.Logger) window.Logger.error('ContentScript', 'Failed to show page notification', e);
                 if (sendResponse) sendResponse({ success: false, error: e.message });
             }
@@ -257,21 +267,21 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
      * Centrally updates the floating widgets' layout values when URL adjustments or navigations occur.
      * Restores launcher buttons and re-reads tag configurations.
      */
-    triggerAggressiveUIUpdate() {
+    triggerAggressiveUIUpdate(): void {
         this.state.lastCheckedUrl = window.location.href;
 
         if (!document.getElementById('algo-fsrs-container') && document.body) {
             this.tracker.createUI(); // Inject if the SPA accidentally destroyed it
         } else {
             // Restore launcher display on page transition so it's not permanently lost
-            const launcher = document.getElementById('algo-fsrs-launcher');
-            const container = document.getElementById('algo-fsrs-container');
+            const launcher = document.getElementById('algo-fsrs-launcher') as HTMLElement | null;
+            const container = document.getElementById('algo-fsrs-container') as HTMLElement | null;
             if (launcher && container && container.style.display !== 'block') {
                 launcher.style.display = 'flex';
             }
 
             // Instantly update the contents of the existing widget
-            const tagsEl = document.getElementById('fsrs-current-tags');
+            const tagsEl = document.getElementById('fsrs-current-tags') as HTMLElement | null;
             if (tagsEl) {
                 tagsEl.innerText = this.utils.getAutoTags().join(', ');
             }
@@ -284,10 +294,10 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
      * Updates visual class names (light-theme toggle) on active extension container elements
      * to match the user's color scheme settings.
      */
-    applyThemeClass() {
-        const launcher = document.getElementById('algo-fsrs-launcher');
-        const container = document.getElementById('algo-fsrs-container');
-        const tooltip = document.getElementById('algo-highlight-tooltip');
+    applyThemeClass(): void {
+        const launcher = document.getElementById('algo-fsrs-launcher') as HTMLElement | null;
+        const container = document.getElementById('algo-fsrs-container') as HTMLElement | null;
+        const tooltip = document.getElementById('algo-highlight-tooltip') as HTMLElement | null;
         
         const isLight = this.state.currentTheme === 'light';
         
@@ -295,7 +305,7 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
         if (container) container.classList.toggle('light-theme', isLight);
         if (tooltip) tooltip.classList.toggle('light-theme', isLight);
         
-        document.querySelectorAll('.algo-custom-notification').forEach(n => {
+        document.querySelectorAll('.algo-custom-notification').forEach((n: Element) => {
             n.classList.toggle('light-theme', isLight);
         });
     }
@@ -303,26 +313,26 @@ window.AlgoRecall.Orchestrator = class Orchestrator {
 
 // Auto-run coordinates bootstrapping inside content scope
 document.addEventListener('DOMContentLoaded', () => {
-    window.AlgoRecall.orchestrator = new window.AlgoRecall.Orchestrator();
-    window.AlgoRecall.orchestrator.init();
+    (window as any).AlgoRecall.orchestrator = new (window as any).AlgoRecall.Orchestrator();
+    (window as any).AlgoRecall.orchestrator.init();
 });
 
 // Fallback if DOMContentLoaded fired early
 if (document.readyState === 'interactive' || document.readyState === 'complete') {
-    if (!window.AlgoRecall.orchestrator) {
-        window.AlgoRecall.orchestrator = new window.AlgoRecall.Orchestrator();
-        window.AlgoRecall.orchestrator.init();
+    if (!(window as any).AlgoRecall.orchestrator) {
+        (window as any).AlgoRecall.orchestrator = new (window as any).AlgoRecall.Orchestrator();
+        (window as any).AlgoRecall.orchestrator.init();
     }
 }
 
 // Global Error Handlers for Content Script Isolation
-window.addEventListener('error', function(event) {
+window.addEventListener('error', function(event: ErrorEvent) {
     if (window.Logger && event.filename && event.filename.includes(chrome.runtime.id)) {
         window.Logger.error('ContentScript', 'Unhandled runtime error', { message: event.message, filename: event.filename, lineno: event.lineno, colno: event.colno, error: event.error });
     }
 });
 
-window.addEventListener('unhandledrejection', function(event) {
+window.addEventListener('unhandledrejection', function(event: PromiseRejectionEvent) {
     if (window.Logger) {
         window.Logger.error('ContentScript', 'Unhandled promise rejection', event.reason);
     }

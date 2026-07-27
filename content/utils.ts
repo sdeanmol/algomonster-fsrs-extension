@@ -1,4 +1,16 @@
-window.AlgoRecall = window.AlgoRecall || {};
+(window as any).AlgoRecall = (window as any).AlgoRecall || {};
+
+export interface DOMMeta {
+    parentTagName: string;
+    parentIndex: number;
+    textOffset: number;
+    parentDomPath: number[];
+}
+
+export interface HighlightMetaSource {
+    startMeta: DOMMeta;
+    endMeta: DOMMeta;
+}
 
 /**
  * @class ContentUtils
@@ -7,7 +19,7 @@ window.AlgoRecall = window.AlgoRecall || {};
  * dynamic theme styling injections (CSS Custom Highlights API), and heuristic parsing
  * of problem tags and titles across coding environments (LeetCode, AlgoMonster, AtCoder).
  */
-window.AlgoRecall.Utils = class Utils {
+(window as any).AlgoRecall.Utils = class Utils {
     /**
      * Serializes the DOM path coordinates of a given text node.
      * Loops parent elements up to the body/document root to produce a unique node path index list,
@@ -15,21 +27,23 @@ window.AlgoRecall.Utils = class Utils {
      * 
      * @param {Node} node - The targeted DOM text node.
      * @param {number} offset - The cursor text range index offset within the text node.
-     * @returns {Object} JSON meta coordinates schema.
+     * @returns {DOMMeta} JSON meta coordinates schema.
      */
-    static getDOMMeta(node, offset) {
-        const parent = node.parentNode;
-        let path = [];
-        let current = parent;
+    static getDOMMeta(node: Node, offset: number): DOMMeta {
+        const parent = node.parentNode as HTMLElement;
+        let path: number[] = [];
+        let current: Node | null = parent;
         while (current && current !== document.body && current !== document.documentElement) {
-            let index = Array.from(current.parentNode.childNodes).indexOf(current);
-            path.unshift(index);
+            if (current.parentNode) {
+                let index = Array.from(current.parentNode.childNodes).indexOf(current as ChildNode);
+                path.unshift(index);
+            }
             current = current.parentNode;
         }
 
         return {
-            parentTagName: parent.tagName.toLowerCase(),
-            parentIndex: Array.from(parent.childNodes).indexOf(node),
+            parentTagName: parent ? parent.tagName.toLowerCase() : '',
+            parentIndex: parent ? Array.from(parent.childNodes).indexOf(node as ChildNode) : -1,
             textOffset: offset,
             parentDomPath: path
         };
@@ -40,23 +54,23 @@ window.AlgoRecall.Utils = class Utils {
      * Attempts precise tree path traversal first, with a fallback text tree walker
      * search based on tag names and indices if page elements changed.
      * 
-     * @param {Object} highlightSource - Serialized start/end coordinates object.
+     * @param {HighlightMetaSource} highlightSource - Serialized start/end coordinates object.
      * @param {string} markText - The original highlighted text snippet to verify correctness.
      * @returns {Range|null} Restored DOM Range object, or null if restoration failed.
      */
-    static restoreRangeFromMeta(highlightSource, markText) {
+    static restoreRangeFromMeta(highlightSource: HighlightMetaSource, markText?: string): Range | null {
         try {
-            let startNode = null;
-            let endNode = null;
+            let startNode: Node | null = null;
+            let endNode: Node | null = null;
      
             if (highlightSource.startMeta.parentDomPath && highlightSource.endMeta.parentDomPath) {
-                const resolvePath = (path, childIndex) => {
-                    let current = document.body;
+                const resolvePath = (path: number[], childIndex: number): Node | null => {
+                    let current: Node | null = document.body;
                     for (let i = 0; i < path.length; i++) {
                         if (!current || !current.childNodes) return null;
-                        current = current.childNodes[path[i]];
+                        current = current.childNodes[path[i]] || null;
                     }
-                    return current ? current.childNodes[childIndex] : null;
+                    return current ? (current.childNodes[childIndex] || null) : null;
                 };
 
                 startNode = resolvePath(highlightSource.startMeta.parentDomPath, highlightSource.startMeta.parentIndex);
@@ -64,12 +78,13 @@ window.AlgoRecall.Utils = class Utils {
             }
 
             if (!startNode || !endNode) {
-                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-                let node;
+                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+                let node: Node | null;
                 while ((node = walker.nextNode())) {
-                    const parent = node.parentNode;
+                    const parent = node.parentNode as HTMLElement;
+                    if (!parent) continue;
                     const parentTagName = parent.tagName.toLowerCase();
-                    const parentIndex = Array.from(parent.childNodes).indexOf(node);
+                    const parentIndex = Array.from(parent.childNodes).indexOf(node as ChildNode);
 
                     if (!startNode && parentTagName === highlightSource.startMeta.parentTagName && parentIndex === highlightSource.startMeta.parentIndex) startNode = node;
                     if (startNode && parentTagName === highlightSource.endMeta.parentTagName && parentIndex === highlightSource.endMeta.parentIndex) {
@@ -81,8 +96,8 @@ window.AlgoRecall.Utils = class Utils {
 
             if (startNode && endNode) {
                 const range = document.createRange();
-                const startOffset = Math.min(highlightSource.startMeta.textOffset, startNode.length || 0);
-                const endOffset = Math.min(highlightSource.endMeta.textOffset, endNode.length || 0);
+                const startOffset = Math.min(highlightSource.startMeta.textOffset, startNode.textContent?.length || 0);
+                const endOffset = Math.min(highlightSource.endMeta.textOffset, endNode.textContent?.length || 0);
 
                 range.setStart(startNode, startOffset);
                 range.setEnd(endNode, endOffset);
@@ -110,8 +125,8 @@ window.AlgoRecall.Utils = class Utils {
      * @param {string} type - Annotation type ('highlight', 'underline', 'symbol').
      * @returns {string} The registered highlight class name.
      */
-    static ensureHighlightStyle(color, type = 'highlight') {
-        const state = window.AlgoRecall.state;
+    static ensureHighlightStyle(color: string, type: string = 'highlight'): string {
+        const state = (window as any).AlgoRecall.state;
         const colorHash = color.replace('#', '');
         let prefix = 'algo-hl';
         let cssRule = `background-color: ${color}; color: inherit;`;
@@ -138,7 +153,7 @@ window.AlgoRecall.Utils = class Utils {
      * returns it formatted as title case words ("Dynamic Programming").
      * @returns {string[]} Array of extracted topic tags.
      */
-    static getAutoTags() {
+    static getAutoTags(): string[] {
         try {
             const path = window.location.pathname;
             const segments = path.split('/').filter(p => p.length > 0);
@@ -156,7 +171,7 @@ window.AlgoRecall.Utils = class Utils {
      * Supports specialized selector matching for LeetCode Explore card layouts.
      * @returns {string} Cleansed coding problem title.
      */
-    static getExtractedProblemTitle() {
+    static getExtractedProblemTitle(): string {
         const url = window.location.href;
         
         // LeetCode Explore Cards
@@ -170,7 +185,7 @@ window.AlgoRecall.Utils = class Utils {
                 '.title__3y75'
             ];
             for (const selector of selectors) {
-                const el = document.querySelector(selector);
+                const el = document.querySelector(selector) as HTMLElement | null;
                 if (el && el.innerText && el.innerText.trim().length > 0 && el.innerText.trim().length < 100) {
                     const text = el.innerText.trim();
                     if (!text.toLowerCase().includes('leetcode') || text.toLowerCase().includes('course') || text.toLowerCase().includes('crash')) {

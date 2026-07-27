@@ -1,4 +1,4 @@
-window.AlgoRecall = window.AlgoRecall || {};
+(window as any).AlgoRecall = (window as any).AlgoRecall || {};
 
 /**
  * @class PageNotifier
@@ -6,7 +6,7 @@ window.AlgoRecall = window.AlgoRecall || {};
  * Handles user actions such as dismissing, snoozing reviews for 15 minutes, or instantly expanding
  * the review widget panel on active tabs.
  */
-window.AlgoRecall.Notifier = class Notifier {
+(window as any).AlgoRecall.Notifier = class Notifier {
     /**
      * Creates and appends an interactive custom floating notification popup card inside the current tab body.
      * Auto-dismisses standard alert flags after 6 seconds; review reminder flags remain sticky.
@@ -15,7 +15,7 @@ window.AlgoRecall.Notifier = class Notifier {
      * @param {string} type - Notification type: 'review' (displays review options) or 'test'/other (simple alert).
      * @param {number} [count] - Optional counter indicating total due review items.
      */
-    static showPageNotification(title, message, type, count) {
+    static showPageNotification(title: string, message: string, type: string, count?: number): void {
         // Prevent double notifications by removing the old one first
         const existing = document.getElementById('algo-custom-notification-el');
         if (existing) {
@@ -28,7 +28,7 @@ window.AlgoRecall.Notifier = class Notifier {
         notification.setAttribute('role', 'alert');
         notification.setAttribute('aria-live', 'assertive');
         
-        const state = window.AlgoRecall.state;
+        const state = (window as any).AlgoRecall.state;
         if (state && state.currentTheme === 'light') {
             notification.classList.add('light-theme');
         }
@@ -82,7 +82,7 @@ window.AlgoRecall.Notifier = class Notifier {
         };
 
         // Auto-dismiss after 6 seconds for test notifications, or keep review sticky if required
-        let autoDismissTimer = null;
+        let autoDismissTimer: ReturnType<typeof setTimeout> | null = null;
         if (type !== 'review') {
             autoDismissTimer = setTimeout(dismissNotification, 6000);
         }
@@ -109,7 +109,7 @@ window.AlgoRecall.Notifier = class Notifier {
             snoozeBtn.addEventListener('click', () => {
                 if (autoDismissTimer) clearTimeout(autoDismissTimer);
                 dismissNotification();
-                chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: 15 }, (response) => {
+                chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: 15 }, (response?: any) => {
                     // Background handles scheduling snoozeFsrsReviews
                 });
             });
@@ -128,7 +128,7 @@ window.AlgoRecall.Notifier = class Notifier {
                 if (launcher) launcher.style.display = 'none';
                 if (container) {
                     container.style.display = 'block';
-                    const orchestrator = window.AlgoRecall.orchestrator;
+                    const orchestrator = (window as any).AlgoRecall.orchestrator;
                     if (orchestrator && orchestrator.tracker) {
                         orchestrator.tracker.refreshWidgetState();
                         orchestrator.tracker.startReview();

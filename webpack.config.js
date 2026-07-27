@@ -4,6 +4,10 @@ const CopyPlugin = require('copy-webpack-plugin');
 module.exports = {
   entry: {
     'background/background': './background/background.ts',
+    'content/state': './content/state.ts',
+    'content/utils': './content/utils.ts',
+    'content/notifications': './content/notifications.ts',
+    'content/content': './content/content.ts',
     'dist/config.bundle': './features/tracker/config/fsrsConfig.ts',
     'dist/fsrsScheduler.bundle': './features/tracker/scheduler/fsrsScheduler.ts',
     'features/common/logger': './features/common/logger.ts',
@@ -42,6 +46,7 @@ module.exports = {
         {
           from: 'content',
           to: 'content',
+          noErrorOnMissing: true,
           globOptions: { ignore: ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'] }
         },
         {
