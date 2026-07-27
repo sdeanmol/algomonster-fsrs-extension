@@ -1,3 +1,5 @@
+import { ensureCardIds } from '../utils/cardUtils';
+
 /**
  * @file features/common/data/data.ts
  * @description Manages database tables listing saved patterns.
@@ -45,20 +47,29 @@ class FSRSDataDashboard {
         this.currentView = urlParams.get('view') || 'total';
         this.targetDate = urlParams.get('date');
 
+        const urlSearch = urlParams.get('search') || urlParams.get('q') || urlParams.get('query');
+        if (urlSearch) {
+            this.searchQuery = urlSearch;
+        }
+
         const urlTag = urlParams.get('tag');
         if (urlTag) {
             this.selectedTag = urlTag;
         }
 
         chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: { [key: string]: any }) => {
-            this.allCards = result.fsrsCards || [];
+            this.allCards = ensureCardIds(result.fsrsCards || []);
             this.chromeSettings = result.chromeSettings || {};
 
             // Dynamic Filter Populators
             this.populateTagsFilter();
             this.populatePlatformFilter();
 
-            // Pre-select tag filter from URL
+            // Pre-select search input & tag filter from URL
+            if (urlSearch) {
+                const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+                if (searchInput) searchInput.value = urlSearch;
+            }
             if (urlTag) {
                 const tagSelect = document.getElementById('tag-select') as HTMLSelectElement | null;
                 if (tagSelect) tagSelect.value = urlTag;
@@ -347,8 +358,9 @@ class FSRSDataDashboard {
             const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(this.searchQuery.toLowerCase());
             const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(this.searchQuery.toLowerCase());
             const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(this.searchQuery.toLowerCase()));
+            const approachMatch = card.approach && card.approach.toLowerCase().includes(this.searchQuery.toLowerCase());
 
-            const matchesSearch = !this.searchQuery || titleMatch || urlMatch || tagMatch;
+            const matchesSearch = !this.searchQuery || titleMatch || urlMatch || tagMatch || approachMatch;
             const matchesTag = this.selectedTag === 'all' || (card.tags && card.tags.includes(this.selectedTag));
             const isCardDue = card.due <= now;
             const matchesStatus = this.selectedStatus === 'all' ||

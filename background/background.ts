@@ -303,7 +303,11 @@ export class AlgoRecallBackground {
             return true; // Keep message channel open for async response
         }
         if (message.action === 'open_fullscreen_editor') {
-            chrome.tabs.create({ url: chrome.runtime.getURL('features/tracker/editor/editor.html?url=' + encodeURIComponent(message.url)) });
+            let targetUrl = 'features/tracker/editor/editor.html?url=' + encodeURIComponent(message.url);
+            if (message.cardId) {
+                targetUrl += '&cardId=' + encodeURIComponent(message.cardId);
+            }
+            chrome.tabs.create({ url: chrome.runtime.getURL(targetUrl) });
             sendResponse({ success: true });
             return true;
         }

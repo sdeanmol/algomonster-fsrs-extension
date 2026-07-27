@@ -1,3 +1,5 @@
+import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
+
 (window as any).AlgoRecall = (window as any).AlgoRecall || {};
 
 declare const renderMarkdown: any;
@@ -15,6 +17,7 @@ declare const renderMarkdown: any;
     _reviewKeyHandler: ((e: KeyboardEvent) => void) | null;
     isListenersBound: boolean;
     cardStartTime?: number;
+    activeCardId: string | null;
 
     constructor() {
         this.activeReviewFilter = null;
@@ -22,6 +25,7 @@ declare const renderMarkdown: any;
         this.totalToReview = 0;
         this._reviewKeyHandler = null;
         this.isListenersBound = false;
+        this.activeCardId = null;
 
         // Bind functions to avoid lexical context issues
         this.saveDraft = this.saveDraft.bind(this);
@@ -97,8 +101,55 @@ declare const renderMarkdown: any;
         const fsrsBody = document.getElementById('fsrs-body');
         if (fsrsBody) fsrsBody.style.display = 'block';
 
-        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
-        const existingCard = this.state.cards.find((c: any) => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
+        // Ensure every card has a unique ID
+        ensureCardIds(this.state.cards);
+
+        const targetCleanUrl = cleanUrl(window.location.href);
+        const urlCards = getCardsForUrl(this.state.cards, targetCleanUrl);
+
+        // Determine active card
+        if (this.activeCardId === '__new__') {
+            // Explicitly on "+ New Card" tab
+        } else if (this.activeCardId) {
+            const exists = urlCards.find(c => c.id === this.activeCardId);
+            if (!exists) {
+                this.activeCardId = urlCards.length > 0 ? urlCards[0].id : null;
+            }
+        } else {
+            this.activeCardId = urlCards.length > 0 ? urlCards[0].id : null;
+        }
+
+        // Render Navigation Links Bar inside container
+        const navBar = document.getElementById('fsrs-nav-bar');
+        if (navBar) {
+            let navHtml = '';
+            urlCards.forEach((c, idx) => {
+                const isActive = (c.id === this.activeCardId);
+                const tagLabel = (c.tags && c.tags.length > 0) ? ` (${c.tags[0]})` : '';
+                const cardTitleText = `Card ${idx + 1}${tagLabel}`;
+                const btnStyle = isActive
+                    ? 'background: #4CAF50; color: #fff; font-weight: bold; border: none; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; max-height: 4.5em; word-break: break-word; white-space: normal; max-width: 120px; flex-shrink: 0; line-height: 1.3;'
+                    : 'background: rgba(255,255,255,0.1); color: #ccc; border: none; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; max-height: 4.5em; word-break: break-word; white-space: normal; max-width: 120px; flex-shrink: 0; line-height: 1.3;';
+                navHtml += `<button class="fsrs-card-tab-btn" data-card-id="${c.id}" title="${cardTitleText.replace(/"/g, '&quot;')}" style="${btnStyle}">${cardTitleText}</button>`;
+            });
+
+            const isNewActive = (this.activeCardId === '__new__');
+            const newBtnStyle = isNewActive
+                ? 'background: #2196F3; color: #fff; font-weight: bold; border: none; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; flex-shrink: 0;'
+                : 'background: rgba(33,150,243,0.2); color: #64b5f6; border: 1px dashed #2196F3; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; flex-shrink: 0;';
+            navHtml += `<button class="fsrs-card-tab-btn" data-card-id="__new__" title="+ Add Card" style="${newBtnStyle}">+ Add Card</button>`;
+
+            navBar.innerHTML = navHtml;
+
+            // Bind tab click handlers
+            navBar.querySelectorAll('.fsrs-card-tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e: Event) => {
+                    const cid = (e.currentTarget as HTMLElement).getAttribute('data-card-id');
+                    this.activeCardId = cid;
+                    this.refreshWidgetState();
+                });
+            });
+        }
 
         const approachArea = document.getElementById('fsrs-approach') as HTMLTextAreaElement | null;
         const tagsInput = document.getElementById('fsrs-tags-input') as HTMLInputElement | null;
@@ -108,25 +159,29 @@ declare const renderMarkdown: any;
         const updateTextBtn = document.getElementById('fsrs-update-text-btn');
         const deleteCardBtn = document.getElementById('fsrs-delete-card-btn');
 
-        if (existingCard) {
-            // Card exists: Load data
+        const activeCard = (this.activeCardId && this.activeCardId !== '__new__')
+            ? urlCards.find(c => c.id === this.activeCardId)
+            : null;
+
+        if (activeCard) {
+            // Selected card exists: Load data
             if (approachArea && document.activeElement !== approachArea) {
-                approachArea.value = existingCard.approach || "";
+                approachArea.value = activeCard.approach || "";
             }
             if (tagsInput && document.activeElement !== tagsInput) {
-                tagsInput.value = (existingCard.tags || []).join(', ');
+                tagsInput.value = (activeCard.tags || []).join(', ');
             }
-            if (actionLabel) actionLabel.innerText = "Card Exists. Review Early or Update Notes:";
+            if (actionLabel) actionLabel.innerText = `Card ${urlCards.indexOf(activeCard) + 1} Exists. Review Early or Update Notes:`;
             if (updateTextBtn) updateTextBtn.style.display = "block";
             if (deleteCardBtn) deleteCardBtn.style.display = "block";
-            if (saveRatingsContainer) saveRatingsContainer.setAttribute('data-existing-id', existingCard.id);
+            if (saveRatingsContainer) saveRatingsContainer.setAttribute('data-existing-id', activeCard.id);
 
             // Highlight the previous rating
             ratingBtns.forEach(btn => {
                 const btnRating = parseInt(btn.getAttribute('data-rating') || '0', 10);
-                if (existingCard.lastRating === btnRating) {
+                if (activeCard.lastRating === btnRating) {
                     btn.style.opacity = "1";
-                    btn.style.boxShadow = "0 0 0 2px #fff inset"; // Inner white border for emphasis
+                    btn.style.boxShadow = "0 0 0 2px #fff inset";
                 } else {
                     btn.style.opacity = "0.4";
                     btn.style.boxShadow = "none";
@@ -136,7 +191,7 @@ declare const renderMarkdown: any;
             // New Card: Reset UI (check draft in storage)
             chrome.storage.local.get(['approachDrafts'], (res: { [key: string]: any }) => {
                 const drafts = res.approachDrafts || {};
-                const draft = drafts[cleanUrl];
+                const draft = drafts[targetCleanUrl];
 
                 if (approachArea && document.activeElement !== approachArea) {
                     if (typeof draft === 'object' && draft !== null) {
@@ -153,7 +208,7 @@ declare const renderMarkdown: any;
                     }
                 }
             });
-            if (actionLabel) actionLabel.innerText = "Save & Rate Initial Difficulty:";
+            if (actionLabel) actionLabel.innerText = "Save & Rate Initial Difficulty for New Card:";
             if (updateTextBtn) updateTextBtn.style.display = "none";
             if (deleteCardBtn) deleteCardBtn.style.display = "none";
             if (saveRatingsContainer) saveRatingsContainer.removeAttribute('data-existing-id');
@@ -204,7 +259,8 @@ declare const renderMarkdown: any;
                     </button>
                 </div>
             </div>
-            
+            <div id="fsrs-nav-bar" style="display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: rgba(0,0,0,0.25); border-bottom: 1px solid rgba(255,255,255,0.08); overflow-x: auto;"></div>
+
             <div id="fsrs-body">
                 <div class="fsrs-tags-container">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
@@ -328,44 +384,46 @@ declare const renderMarkdown: any;
 
         // 4. FSRS APP LOGIC LISTENERS
         document.getElementById('fsrs-fullscreen-btn')?.addEventListener('click', () => {
-            const cleanUrl = window.location.href.split('?')[0].split('#')[0];
+            const targetCleanUrl = cleanUrl(window.location.href);
             const currentText = (document.getElementById('fsrs-approach') as HTMLTextAreaElement)?.value || '';
             const currentTagsText = (document.getElementById('fsrs-tags-input') as HTMLInputElement)?.value || '';
-            const existingCard = this.state.cards.find((c: any) => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
+            const existingId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
 
-            if (existingCard) {
-                existingCard.approach = currentText;
-                existingCard.tags = currentTagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
-                this.saveCards();
+            if (existingId) {
+                const index = this.state.cards.findIndex((c: any) => c.id === existingId);
+                if (index > -1) {
+                    this.state.cards[index].approach = currentText;
+                    this.state.cards[index].tags = currentTagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                    this.saveCards();
+                }
+                chrome.runtime.sendMessage({
+                    action: "open_fullscreen_editor",
+                    url: targetCleanUrl,
+                    cardId: existingId
+                });
             } else {
                 chrome.storage.local.get(['approachDrafts'], (res: { [key: string]: any }) => {
                     const drafts = res.approachDrafts || {};
-                    drafts[cleanUrl] = { approach: currentText, tags: currentTagsText };
+                    drafts[targetCleanUrl] = { approach: currentText, tags: currentTagsText };
                     chrome.storage.local.set({ approachDrafts: drafts }, () => {
                         chrome.runtime.sendMessage({
                             action: "open_fullscreen_editor",
-                            url: cleanUrl
+                            url: targetCleanUrl
                         });
                     });
                 });
-                return;
             }
-
-            chrome.runtime.sendMessage({
-                action: "open_fullscreen_editor",
-                url: cleanUrl
-            });
         });
 
         document.getElementById('fsrs-approach')?.addEventListener('input', this.saveDraft);
         document.getElementById('fsrs-tags-input')?.addEventListener('input', this.saveDraft);
 
         document.getElementById('fsrs-delete-card-btn')?.addEventListener('click', () => {
-            const cleanUrl = window.location.href.split('?')[0].split('#')[0];
-            const existingCard = this.state.cards.find((c: any) => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
-            if (existingCard) {
+            const existingId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
+            if (existingId) {
                 if (confirm("Remove this card from future reviews? This will delete the card and its repetition history.")) {
-                    this.state.cards = this.state.cards.filter((c: any) => c.id !== existingCard.id);
+                    this.state.cards = this.state.cards.filter((c: any) => c.id !== existingId);
+                    this.activeCardId = null;
                     this.saveCards();
                     this.refreshWidgetState();
                 }
@@ -405,7 +463,7 @@ declare const renderMarkdown: any;
                 const target = e.target as HTMLElement;
                 const rating = parseInt(target.getAttribute('data-rating') || '1', 10);
                 const existingId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
-                const cleanUrl = window.location.href.split('?')[0].split('#')[0];
+                const targetCleanUrl = cleanUrl(window.location.href);
                 const problemTitle = this.utils.getExtractedProblemTitle();
 
                 // Dynamic Topic Weights mapping
@@ -426,12 +484,15 @@ declare const renderMarkdown: any;
                         this.state.cards[index].tags = parsedTags;
                         this.state.cards[index] = this.state.scheduler.reviewCard(this.state.cards[index], rating, customWeights);
                         this.state.cards[index].lastRating = rating;
+                        this.activeCardId = existingId;
                     }
                 } else {
-                    let newCard = this.state.scheduler.createCard(problemTitle, cleanUrl, "", approach, parsedTags);
+                    let newCard = this.state.scheduler.createCard(problemTitle, targetCleanUrl, "", approach, parsedTags);
+                    newCard.id = generateCardId();
                     newCard = this.state.scheduler.reviewCard(newCard, rating, customWeights);
                     newCard.lastRating = rating;
                     this.state.cards.push(newCard);
+                    this.activeCardId = newCard.id;
                 }
 
                 this.saveCards();
@@ -439,8 +500,8 @@ declare const renderMarkdown: any;
                 // Clear draft if it exists
                 chrome.storage.local.get(['approachDrafts'], (res: { [key: string]: any }) => {
                     const drafts = res.approachDrafts || {};
-                    if (drafts[cleanUrl]) {
-                        delete drafts[cleanUrl];
+                    if (drafts[targetCleanUrl]) {
+                        delete drafts[targetCleanUrl];
                         chrome.storage.local.set({ approachDrafts: drafts });
                     }
                 });
@@ -464,8 +525,8 @@ declare const renderMarkdown: any;
      * to local storage, ensuring content is retained during inadvertent navigation.
      */
     saveDraft(): void {
-        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
-        const existingCard = this.state.cards.find((c: any) => c.problemUrl.split('?')[0].split('#')[0] === cleanUrl);
+        const targetCleanUrl = cleanUrl(window.location.href);
+        const existingId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
 
         const approachTextEl = document.getElementById('fsrs-approach') as HTMLTextAreaElement | null;
         const tagsInputEl = document.getElementById('fsrs-tags-input') as HTMLInputElement | null;
@@ -474,14 +535,17 @@ declare const renderMarkdown: any;
         const text = approachTextEl.value;
         const tagsText = tagsInputEl.value;
 
-        if (existingCard) {
-            existingCard.approach = text;
-            existingCard.tags = tagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
-            this.saveCards();
+        if (existingId) {
+            const card = this.state.cards.find((c: any) => c.id === existingId);
+            if (card) {
+                card.approach = text;
+                card.tags = tagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                this.saveCards();
+            }
         } else {
             chrome.storage.local.get(['approachDrafts'], (res: { [key: string]: any }) => {
                 const drafts = res.approachDrafts || {};
-                drafts[cleanUrl] = { approach: text, tags: tagsText };
+                drafts[targetCleanUrl] = { approach: text, tags: tagsText };
                 chrome.storage.local.set({ approachDrafts: drafts });
             });
         }

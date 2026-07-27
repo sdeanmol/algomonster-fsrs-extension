@@ -4,6 +4,7 @@
  * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
  */
 import '../logger';
+import { ensureCardIds } from '../utils/cardUtils';
 
 const Logger = (globalThis as any).Logger;
 
@@ -323,6 +324,7 @@ export class BackupManager {
                 delete rc.u;
                 return rc;
             });
+            ensureCardIds(reconstructedCards);
 
             const reconstructedBookmarks = bookmarks.map(b => {
                 const page = pages[b.u];
@@ -464,8 +466,11 @@ export class BackupManager {
                     const text = event.target?.result as string;
                     const imported = JSON.parse(text);
 
+                    const rawImportedCards = Array.isArray(imported) ? imported : (imported.cards || []);
+                    ensureCardIds(rawImportedCards);
+
                     const storageUpdate: any = {
-                        fsrsCards: Array.isArray(imported) ? imported : (imported.cards || []),
+                        fsrsCards: rawImportedCards,
                         fsrsActivity: Array.isArray(imported) ? {} : (imported.activity || {}),
                         fsrsTopicWeights: Array.isArray(imported) ? {} : (imported.weights || {})
                     };

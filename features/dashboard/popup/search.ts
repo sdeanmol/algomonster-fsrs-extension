@@ -101,7 +101,8 @@ export class QuickSearchComponent extends DashboardComponent {
                 const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(query);
                 const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(query);
                 const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(query));
-                if (!titleMatch && !urlMatch && !tagMatch) return false;
+                const approachMatch = card.approach && card.approach.toLowerCase().includes(query);
+                if (!titleMatch && !urlMatch && !tagMatch && !approachMatch) return false;
             }
 
             return true;
@@ -135,7 +136,11 @@ export class QuickSearchComponent extends DashboardComponent {
         }).join('');
 
         if (totalMatches > maxDisplay) {
-            const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=total`);
+            const urlParams = new URLSearchParams();
+            urlParams.append('view', 'total');
+            if (query) urlParams.append('search', query);
+            if (selectedTag && selectedTag !== 'all') urlParams.append('tag', selectedTag);
+            const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?${urlParams.toString()}`);
             html += `<a href="${dataUrl}" target="_blank" class="popup-search-view-all">View all ${totalMatches} results →</a>`;
         }
 

@@ -9,6 +9,7 @@ import { Markdown } from '@common/markdown';
 class EditorManager {
     problemUrl: string;
     cleanUrl: string;
+    cardId: string;
     isCardExisting: boolean;
     autoSaveTimer: ReturnType<typeof setTimeout> | null;
     isPreviewMode: boolean;
@@ -16,6 +17,7 @@ class EditorManager {
     constructor() {
         this.problemUrl = '';
         this.cleanUrl = '';
+        this.cardId = '';
         this.isCardExisting = false;
         this.autoSaveTimer = null;
         this.isPreviewMode = false;
@@ -28,6 +30,7 @@ class EditorManager {
         // 1. Parse URL Parameter
         const params = new URLSearchParams(window.location.search);
         this.problemUrl = params.get('url') || '';
+        this.cardId = params.get('cardId') || '';
         this.cleanUrl = this.problemUrl.split('?')[0].split('#')[0];
 
         const titleEl = document.getElementById('problem-title');
@@ -55,7 +58,14 @@ class EditorManager {
             const bookmarks = result.bookmarks || [];
             const drafts = result.approachDrafts || {};
 
-            const card = cards.find((c: any) => c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
+            let card = null;
+            if (this.cardId) {
+                card = cards.find((c: any) => c.id === this.cardId);
+            }
+            if (!card && this.cleanUrl) {
+                card = cards.find((c: any) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
+            }
+
             const urlEl = document.getElementById('problem-url');
             const titleEl = document.getElementById('problem-title');
             const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
@@ -67,7 +77,8 @@ class EditorManager {
 
             if (card) {
                 this.isCardExisting = true;
-                if (titleEl) titleEl.textContent = card.title || "FSRS Insights";
+                if (!this.cardId && card.id) this.cardId = card.id;
+                if (titleEl) titleEl.textContent = card.problemTitle || card.title || "FSRS Insights";
                 if (textarea) textarea.value = card.approach || "";
                 if (tcInput) tcInput.value = card.timeComplexity || "";
                 if (scInput) scInput.value = card.spaceComplexity || "";
@@ -160,7 +171,7 @@ class EditorManager {
                     const textarea = document.getElementById('editor-textarea');
                     if (textarea) textarea.style.display = 'none';
                     editorPreview.style.display = 'block';
-                    previewToggleBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit`;
+                    previewToggleBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 2 2 2h14a2 2 0 0 2 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit`;
                 } else {
                     // Back to edit mode
                     const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
@@ -192,7 +203,13 @@ class EditorManager {
         chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: { [key: string]: any }) => {
             if (this.isCardExisting) {
                 const cards = result.fsrsCards || [];
-                const index = cards.findIndex((c: any) => c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
+                let index = -1;
+                if (this.cardId) {
+                    index = cards.findIndex((c: any) => c.id === this.cardId);
+                }
+                if (index === -1 && this.cleanUrl) {
+                    index = cards.findIndex((c: any) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
+                }
                 if (index > -1) {
                     cards[index].approach = text;
                     cards[index].timeComplexity = tc;

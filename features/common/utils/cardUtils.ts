@@ -38,3 +38,55 @@ export function getLastReviewDate(card?: CardLike | null): number | null {
 
     return lr;
 }
+
+/**
+ * Generates a unique string ID for a card.
+ */
+export function generateCardId(): string {
+    return Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+}
+
+/**
+ * Normalizes a URL by removing query strings and hash anchors.
+ */
+export function cleanUrl(url?: string | null): string {
+    if (!url) return '';
+    return url.split('?')[0].split('#')[0];
+}
+
+/**
+ * Filters all cards matching the specified URL.
+ */
+export function getCardsForUrl(cards: any[], url: string): any[] {
+    if (!Array.isArray(cards) || !url) return [];
+    const targetClean = cleanUrl(url);
+    return cards.filter(c => c && c.problemUrl && cleanUrl(c.problemUrl) === targetClean);
+}
+
+/**
+ * Ensures that every card in the array has a valid unique `id` property.
+ * Modifies missing IDs in-place and returns the array.
+ */
+export function ensureCardIds(cards: any[]): any[] {
+    if (!Array.isArray(cards)) return [];
+    const existingIds = new Set<string>();
+    cards.forEach(c => {
+        if (c && c.id) {
+            existingIds.add(String(c.id));
+        }
+    });
+
+    cards.forEach(c => {
+        if (c && !c.id) {
+            let newId = generateCardId();
+            while (existingIds.has(newId)) {
+                newId = generateCardId();
+            }
+            c.id = newId;
+            existingIds.add(newId);
+        }
+    });
+
+    return cards;
+}
+
