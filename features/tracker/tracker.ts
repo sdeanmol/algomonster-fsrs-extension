@@ -175,7 +175,7 @@ class Tracker {
             let navHtml = '';
             urlCards.forEach((c, idx) => {
                 const isActive = (c.id === this.activeCardId);
-                const tagLabel = (c.tags && c.tags.length > 0) ? ` (${c.tags[0]})` : '';
+                const tagLabel = (c.tags && c.tags.length > 0) ? ` (${c.tags.join(', ')})` : '';
                 const cardTitleText = `Card ${idx + 1}${tagLabel}`;
                 const btnStyle = isActive
                     ? 'background: #4CAF50; color: #fff; font-weight: bold; border: none; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; max-height: 4.5em; word-break: break-word; white-space: normal; max-width: 120px; flex-shrink: 0; line-height: 1.3;'
