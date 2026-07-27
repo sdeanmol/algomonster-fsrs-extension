@@ -8,6 +8,14 @@
 import '../features/common/logger';
 import { Card, StorageData, ExtensionMessage, MessageResponse } from '../types/domain';
 import { LoggerClass } from '../features/common/logger';
+import {
+    MS_PER_MINUTE,
+    MS_PER_WEEK,
+    ALARM_DEFAULT_CHECK_INTERVAL_MIN,
+    ALARM_DAILY_PERIOD_MIN,
+    ALARM_WEEKLY_PERIOD_MIN,
+    SNOOZE_DEFAULT_MINUTES
+} from '../features/common/constants';
 
 function getLogger(): LoggerClass | undefined {
     return (globalThis as unknown as { Logger?: LoggerClass }).Logger;
@@ -197,14 +205,14 @@ export class AlgoRecallBackground {
         await chrome.alarms.clear('smartReviewSchedule');
 
         if (settings.enabled) {
-            const interval = parseInt(settings.frequency || '60', 10);
+            const interval = parseInt(settings.frequency || String(ALARM_DEFAULT_CHECK_INTERVAL_MIN), 10);
             if (!isNaN(interval) && interval > 0) {
                 chrome.alarms.create('checkFsrsReviews', { periodInMinutes: interval });
                 if (logger) logger.info('Background', `Scheduled checkFsrsReviews alarm every ${interval} minutes.`);
             } else {
-                // If frequency is invalid (or set to 'smart' if we had one), fall back to 1 hour
-                chrome.alarms.create('checkFsrsReviews', { periodInMinutes: 60 });
-                if (logger) logger.info('Background', `Scheduled checkFsrsReviews alarm every 60 minutes (fallback).`);
+                // If frequency is invalid, fall back to default interval
+                chrome.alarms.create('checkFsrsReviews', { periodInMinutes: ALARM_DEFAULT_CHECK_INTERVAL_MIN });
+                if (logger) logger.info('Background', `Scheduled checkFsrsReviews alarm every ${ALARM_DEFAULT_CHECK_INTERVAL_MIN} minutes (fallback).`);
             }
             
             // R8.1 Smart Scheduling: Also schedule a daily check at their most active study hour
@@ -213,8 +221,8 @@ export class AlgoRecallBackground {
             smartTarget.setHours(17, 0, 0, 0);
             if (smartTarget <= now) smartTarget.setDate(smartTarget.getDate() + 1);
             
-            const delayInMinutes = Math.max(1, Math.ceil((smartTarget.getTime() - now.getTime()) / 60000));
-            chrome.alarms.create('smartReviewSchedule', { delayInMinutes, periodInMinutes: 1440 });
+            const delayInMinutes = Math.max(1, Math.ceil((smartTarget.getTime() - now.getTime()) / MS_PER_MINUTE));
+            chrome.alarms.create('smartReviewSchedule', { delayInMinutes, periodInMinutes: ALARM_DAILY_PERIOD_MIN });
             if (logger) logger.info('Background', `Scheduled smartReviewSchedule alarm daily at 17:00.`);
             
         } else {
@@ -251,12 +259,11 @@ export class AlgoRecallBackground {
             target.setHours(9, 0, 0, 0);
 
             const delayMs = target.getTime() - now.getTime();
-            const delayMinutes = Math.max(1, Math.ceil(delayMs / (1000 * 60)));
+            const delayMinutes = Math.max(1, Math.ceil(delayMs / MS_PER_MINUTE));
 
-            // Period: 7 days = 10080 minutes
             chrome.alarms.create('weeklySummary', {
                 delayInMinutes: delayMinutes,
-                periodInMinutes: 10080
+                periodInMinutes: ALARM_WEEKLY_PERIOD_MIN
             });
         }
     }
@@ -274,8 +281,8 @@ export class AlgoRecallBackground {
         if (target <= now) {
             target.setDate(target.getDate() + 1);
         }
-        const delayInMinutes = Math.max(1, Math.ceil((target.getTime() - now.getTime()) / 60000));
-        chrome.alarms.create('dailyNudge', { delayInMinutes, periodInMinutes: 1440 });
+        const delayInMinutes = Math.max(1, Math.ceil((target.getTime() - now.getTime()) / MS_PER_MINUTE));
+        chrome.alarms.create('dailyNudge', { delayInMinutes, periodInMinutes: ALARM_DAILY_PERIOD_MIN });
         if (logger) logger.info('Background', `Scheduled dailyNudge alarm at 20:00.`);
     }
 
@@ -325,7 +332,7 @@ export class AlgoRecallBackground {
             return true;
         }
         if (message.action === 'snooze_notification') {
-            const minutes = message.minutes || 15;
+            const minutes = message.minutes || SNOOZE_DEFAULT_MINUTES;
             chrome.alarms.create('snoozeFsrsReviews', { delayInMinutes: minutes });
             sendResponse({ success: true });
             return true;
@@ -603,7 +610,7 @@ export class AlgoRecallBackground {
             }
 
             // Upcoming load (cards due in next 7 days)
-            const nextWeekEnd = now + (7 * 24 * 60 * 60 * 1000);
+            const nextWeekEnd = now + MS_PER_WEEK;
             const upcomingDue = cards.filter((c: Card) => c.due > now && c.due <= nextWeekEnd).length;
             const currentlyDue = cards.filter((c: Card) => c.due <= now).length;
 

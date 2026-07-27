@@ -1,5 +1,6 @@
 import { AlgoRecallState } from './state';
 import { MessageResponse } from '../types/domain';
+import { SNOOZE_DEFAULT_MINUTES } from '../features/common/constants';
 
 interface AlgoRecallGlobal {
     state?: AlgoRecallState;
@@ -127,7 +128,7 @@ export class Notifier {
             snoozeBtn.addEventListener('click', () => {
                 if (autoDismissTimer) clearTimeout(autoDismissTimer);
                 dismissNotification();
-                chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: 15 }, (_response?: MessageResponse) => {
+                chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: SNOOZE_DEFAULT_MINUTES }, (_response?: MessageResponse) => {
                     // Background handles scheduling snoozeFsrsReviews
                 });
             });

@@ -4,6 +4,12 @@
  */
 
 import { Card } from '../../../types/domain';
+import {
+    OPTIMIZER_DEFAULT_THRESHOLD,
+    OPTIMIZER_DEFAULT_EPOCHS,
+    OPTIMIZER_DEFAULT_LEARNING_RATE,
+    DEFAULT_FSRS_REQUEST_RETENTION
+} from '../../common/constants';
 
 declare global {
     interface Window {
@@ -24,14 +30,14 @@ export class FsrsOptimizerFast {
     epochs: number;
 
     constructor() {
-        this.learningRate = 0.01;
-        this.epochs = 50;
+        this.learningRate = OPTIMIZER_DEFAULT_LEARNING_RATE;
+        this.epochs = OPTIMIZER_DEFAULT_EPOCHS;
     }
 
     /**
      * Checks if there's enough history to optimize.
      */
-    computeEligibility(history: Card[], threshold: number = 1000): EligibilityResult {
+    computeEligibility(history: Card[], threshold: number = OPTIMIZER_DEFAULT_THRESHOLD): EligibilityResult {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
 
         let reviewCount = 0;
@@ -61,7 +67,7 @@ export class FsrsOptimizerFast {
     async trainWeights(
         history: Card[],
         currentWeights: number[],
-        targetRetention: number = 0.90,
+        targetRetention: number = DEFAULT_FSRS_REQUEST_RETENTION,
         onProgress: ((current: number, total: number) => void) | null = null
     ): Promise<number[]> {
         const w = [...currentWeights];

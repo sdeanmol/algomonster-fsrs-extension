@@ -29,7 +29,8 @@ const jsCode = ts.transpileModule(optimizerCode, {
 }).outputText;
 
 const safeCode = jsCode
-    .replace(/import\.meta\.url/g, "'http://localhost'");
+    .replace(/import\.meta\.url/g, "'http://localhost'")
+    .replace(/require\((['"])\.\.\/\.\.\/common\/constants\1\)/g, 'require("../../features/common/constants")');
 
 const mockModule = { exports: {} };
 (function(module, exports, require) {

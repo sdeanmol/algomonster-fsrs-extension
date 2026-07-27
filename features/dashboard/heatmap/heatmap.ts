@@ -1,5 +1,6 @@
 import { HeatmapStats } from './heatmap-stats';
 import { StorageData } from '../../../types/domain';
+import { MS_PER_DAY, DAYS_PER_YEAR, HEATMAP_LEVEL_THRESHOLDS } from '../../common/constants';
 
 /**
  * @class HeatmapDashboard
@@ -156,10 +157,10 @@ export class HeatmapDashboard {
                 oldestDate.setDate(oldestDate.getDate() - oldestDate.getDay()); 
                 
                 const diffTime = today.getTime() - oldestDate.getTime();
-                totalDays = Math.max(364, Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1); 
+                totalDays = Math.max(DAYS_PER_YEAR - 1, Math.floor(diffTime / MS_PER_DAY) + 1); 
                 startDate = oldestDate;
             } else {
-                totalDays = 364; 
+                totalDays = DAYS_PER_YEAR - 1; 
                 startDate = new Date(today);
                 startDate.setDate(today.getDate() - totalDays + 1);
                 startDate.setDate(startDate.getDate() - startDate.getDay()); 
@@ -172,7 +173,7 @@ export class HeatmapDashboard {
             
             const endOfYear = new Date(y, 11, 31);
             const diffTime = endOfYear.getTime() - startDate.getTime();
-            totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            totalDays = Math.floor(diffTime / MS_PER_DAY) + 1;
             if (summaryText) summaryText.innerText = `Showing: Full Year ${y}`;
         } 
         else if (mode === 'month-wise') {
@@ -181,7 +182,7 @@ export class HeatmapDashboard {
             
             const lastDayOfMonth = new Date(y, m + 1, 0);
             const diffTime = lastDayOfMonth.getTime() - startDate.getTime();
-            totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            totalDays = Math.floor(diffTime / MS_PER_DAY) + 1;
             if (summaryText) summaryText.innerText = `Showing: ${this.monthNames[m]} ${y}`;
         } 
         else {
@@ -223,10 +224,10 @@ export class HeatmapDashboard {
                 cell.classList.add('level-0');
             } else {
                 totalReviewsCalculated += count;
-                if (count === 0) cell.classList.add('level-0');
-                else if (count <= 2) cell.classList.add('level-1');
-                else if (count <= 5) cell.classList.add('level-2');
-                else if (count <= 8) cell.classList.add('level-3');
+                if (count === HEATMAP_LEVEL_THRESHOLDS[0]) cell.classList.add('level-0');
+                else if (count <= HEATMAP_LEVEL_THRESHOLDS[1]) cell.classList.add('level-1');
+                else if (count <= HEATMAP_LEVEL_THRESHOLDS[2]) cell.classList.add('level-2');
+                else if (count <= HEATMAP_LEVEL_THRESHOLDS[3]) cell.classList.add('level-3');
                 else cell.classList.add('level-4');
 
                 const handleCellClick = () => {

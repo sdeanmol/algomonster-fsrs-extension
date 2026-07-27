@@ -1,3 +1,5 @@
+import { MS_PER_DAY } from '../../common/constants';
+
 export interface StreakStatsResult {
     currentStreak: number;
     longestStreak: number;
@@ -91,7 +93,7 @@ export class HeatmapStats {
             if (lastTime === null) {
                 tempStreak = 1;
             } else {
-                const diffDays = Math.round((t - lastTime) / (1000 * 60 * 60 * 24));
+                const diffDays = Math.round((t - lastTime) / MS_PER_DAY);
                 if (diffDays === 1) {
                     tempStreak++;
                 } else if (diffDays > 1) {
@@ -103,27 +105,26 @@ export class HeatmapStats {
         });
         if (tempStreak > longestStreak) longestStreak = tempStreak;
         
-        const oneDay = 1000 * 60 * 60 * 24;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayTime = today.getTime();
         
         let checkTime = todayTime;
         const todayStr = new Date(checkTime - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        const yesterdayStr = new Date(checkTime - oneDay - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const yesterdayStr = new Date(checkTime - MS_PER_DAY - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
         
         if (activityData[todayStr] > 0 || activityData[yesterdayStr] > 0) {
             if (activityData[todayStr] > 0) {
                 checkTime = todayTime;
             } else {
-                checkTime = todayTime - oneDay;
+                checkTime = todayTime - MS_PER_DAY;
             }
             
             while (true) {
                 const checkStr = new Date(checkTime - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
                 if (activityData[checkStr] > 0) {
                     currentStreak++;
-                    checkTime -= oneDay;
+                    checkTime -= MS_PER_DAY;
                 } else {
                     break;
                 }

@@ -1,4 +1,5 @@
 import { DataUtils } from '../utils/dataUtils';
+import { MS_PER_DAY } from '../../../common/constants';
 
 export class MiniForecast {
     dataUtils: DataUtils;
@@ -21,7 +22,7 @@ export class MiniForecast {
         this.dataUtils.cards.forEach(card => {
             const dueDate = new Date(card.due);
             const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-            const diffDays = Math.floor((dueDay.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
+            const diffDays = Math.floor((dueDay.getTime() - todayStart.getTime()) / MS_PER_DAY);
 
             if (diffDays < 0) pastDueCount++;
             else if (diffDays < 7) dueCounts[diffDays] = (dueCounts[diffDays] || 0) + 1;

@@ -1,5 +1,6 @@
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData } from '../../../types/domain';
+import { MS_PER_DAY, DAYS_PER_WEEK, HEATMAP_LEVEL_THRESHOLDS } from '../../common/constants';
 
 /**
  * @class HeatmapComponent
@@ -41,10 +42,10 @@ export class HeatmapComponent extends DashboardComponent {
                 oldestDate.setDate(oldestDate.getDate() - oldestDate.getDay());
                 
                 const diffTime = today.getTime() - oldestDate.getTime();
-                totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; 
+                totalDays = Math.floor(diffTime / MS_PER_DAY) + 1; 
                 startDate = oldestDate;
             } else {
-                totalDays = (11 * 7) + (dayOfWeek + 1); 
+                totalDays = (11 * DAYS_PER_WEEK) + (dayOfWeek + 1); 
                 startDate.setDate(today.getDate() - totalDays + 1);
             }
 
@@ -64,10 +65,10 @@ export class HeatmapComponent extends DashboardComponent {
                 cell.setAttribute('aria-label', ariaLabelText);
                 cell.setAttribute('tabindex', '0');
 
-                if (count === 0) cell.classList.add('level-0');
-                else if (count <= 2) cell.classList.add('level-1');
-                else if (count <= 5) cell.classList.add('level-2');
-                else if (count <= 8) cell.classList.add('level-3');
+                if (count === HEATMAP_LEVEL_THRESHOLDS[0]) cell.classList.add('level-0');
+                else if (count <= HEATMAP_LEVEL_THRESHOLDS[1]) cell.classList.add('level-1');
+                else if (count <= HEATMAP_LEVEL_THRESHOLDS[2]) cell.classList.add('level-2');
+                else if (count <= HEATMAP_LEVEL_THRESHOLDS[3]) cell.classList.add('level-3');
                 else cell.classList.add('level-4');
 
                 grid.appendChild(cell);

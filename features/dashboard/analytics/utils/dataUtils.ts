@@ -5,6 +5,7 @@
 
 import { getLastReviewDate } from '../../../common/utils/cardUtils';
 import { Card, ReviewLog } from '../../../../types/domain';
+import { MS_PER_DAY, MS_PER_WEEK, RECOVERED_STABILITY_THRESHOLD, GRADUATED_STABILITY_THRESHOLD } from '../../../common/constants';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
 export interface SummaryStats {
@@ -157,7 +158,7 @@ export class DataUtils {
         this.cards.forEach(card => {
             const dueDate = new Date(card.due);
             const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-            const diffDays = Math.floor((dueDay.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
+            const diffDays = Math.floor((dueDay.getTime() - todayStart.getTime()) / MS_PER_DAY);
             
             if (dueDate <= now) {
                 dueCount++;
@@ -196,8 +197,8 @@ export class DataUtils {
      */
     getLearningVelocity(): LearningVelocity {
         const now = Date.now();
-        const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
-        const twoWeeksAgo = now - (14 * 24 * 60 * 60 * 1000);
+        const oneWeekAgo = now - MS_PER_WEEK;
+        const twoWeeksAgo = now - (2 * MS_PER_WEEK);
         
         let newCardsLastWeek = 0;
         let newCardsPrevWeek = 0;
@@ -219,7 +220,7 @@ export class DataUtils {
                 }
             }
             
-            if (card.stability > 7 && card.last_review) {
+            if (card.stability > GRADUATED_STABILITY_THRESHOLD && card.last_review) {
                 if (card.last_review > oneWeekAgo) {
                     graduatedLastWeek++;
                 } else if (card.last_review > twoWeeksAgo && card.last_review <= oneWeekAgo) {
@@ -242,12 +243,12 @@ export class DataUtils {
                 firstReview = typeof firstLog === 'object' && firstLog !== null ? firstLog.date : firstLog;
             }
             if (firstReview && firstReview > oneWeekAgo) {
-                const dayIndex = 6 - Math.floor((now - firstReview) / (1000 * 60 * 60 * 24));
+                const dayIndex = 6 - Math.floor((now - firstReview) / MS_PER_DAY);
                 if (dayIndex >= 0 && dayIndex < 7) dailyNew[dayIndex]++;
             }
             
-            if (card.stability > 7 && card.last_review && card.last_review > oneWeekAgo) {
-                const dayIndex = 6 - Math.floor((now - card.last_review) / (1000 * 60 * 60 * 24));
+            if (card.stability > GRADUATED_STABILITY_THRESHOLD && card.last_review && card.last_review > oneWeekAgo) {
+                const dayIndex = 6 - Math.floor((now - card.last_review) / MS_PER_DAY);
                 if (dayIndex >= 0 && dayIndex < 7) dailyGrad[dayIndex]++;
             }
         });
@@ -344,9 +345,9 @@ export class DataUtils {
         
         this.cards.forEach(card => {
             if ((card.lapses || 0) > 0) {
-                if (card.lapses >= 2 && card.stability > 14) {
+                if (card.lapses >= 2 && card.stability > RECOVERED_STABILITY_THRESHOLD) {
                     recovered.push(card);
-                } else if (card.stability <= 14) {
+                } else if (card.stability <= RECOVERED_STABILITY_THRESHOLD) {
                     lapsed.push(card);
                 }
             }
@@ -368,19 +369,27 @@ export class DataUtils {
     calculateCurrentStreak(): number {
         let streak = 0;
         const checkDate = new Date(this.today);
+        const activeDates = Object.keys(this.activity).filter(d => this.activity[d] > 0).sort();
+        if (activeDates.length === 0) return 0;
 
-        for (let i = 0; i < 365; i++) {
+        const oldestDateParts = activeDates[0].split('-').map(Number);
+        const oldestTimestamp = new Date(oldestDateParts[0], oldestDateParts[1] - 1, oldestDateParts[2]).getTime();
+
+        let dayCount = 0;
+        while (checkDate.getTime() >= oldestTimestamp - MS_PER_DAY) {
             const dateStr = this.formatDateKey(checkDate);
             if (this.activity[dateStr] && this.activity[dateStr] > 0) {
                 streak++;
                 checkDate.setDate(checkDate.getDate() - 1);
             } else {
-                if (i === 0) {
+                if (dayCount === 0) {
                     checkDate.setDate(checkDate.getDate() - 1);
+                    dayCount++;
                     continue;
                 }
                 break;
             }
+            dayCount++;
         }
         return streak;
     }
@@ -451,7 +460,7 @@ export class DataUtils {
     getExamReadinessStats(daysAhead: number = 12): ExamReadinessStats {
         const numDays = Math.max(0, parseInt(String(daysAhead), 10) || 0);
         const now = Date.now();
-        const targetTime = now + (numDays * 24 * 60 * 60 * 1000);
+        const targetTime = now + (numDays * MS_PER_DAY);
         
         const tags: Record<string, { count: number; reviewedCount: number; totalStability: number; totalProjectedR: number }> = {};
         let totalProjectedRetrievability = 0;
@@ -572,12 +581,12 @@ export class DataUtils {
                 reviewedCardsCount++;
 
                 intervals.forEach(day => {
-                    const targetTime = now + (day * 24 * 60 * 60 * 1000);
+                    const targetTime = now + (day * MS_PER_DAY);
                     const r = sched.getRetrievability(card, targetTime);
                     retentionByInterval[day] += r;
                 });
 
-                const customTime = now + (sliderDays * 24 * 60 * 60 * 1000);
+                const customTime = now + (sliderDays * MS_PER_DAY);
                 const rCustom = sched.getRetrievability(card, customTime);
                 customRetention += rCustom;
 
@@ -586,7 +595,7 @@ export class DataUtils {
                 }
 
                 curveDays.forEach(day => {
-                    const targetTime = now + (day * 24 * 60 * 60 * 1000);
+                    const targetTime = now + (day * MS_PER_DAY);
                     curveSum[day] += sched.getRetrievability(card, targetTime);
                 });
             }

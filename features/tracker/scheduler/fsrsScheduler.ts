@@ -8,6 +8,14 @@
 import { fsrs, createEmptyCard, Rating, State, Card as TsFsrsCard, Grade } from 'ts-fsrs';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
 import { Card, FSRSParameters } from '../../../types/domain';
+import {
+    DEFAULT_FSRS_W,
+    DEFAULT_FSRS_DECAY,
+    DEFAULT_FSRS_FACTOR,
+    DEFAULT_FSRS_REQUEST_RETENTION,
+    HIGH_DIFFICULTY_THRESHOLD,
+    GRADUATED_STABILITY_THRESHOLD
+} from '../../common/constants';
 import AbstractScheduler from './scheduler';
 
 interface AppLogger {
@@ -34,10 +42,10 @@ export class FsrsScheduler extends AbstractScheduler {
      */
     constructor(params: Partial<FSRSParameters> | null = null) {
         super();
-        this.w = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
-        this.decay = -0.5;
-        this.factor = 19 / 81;
-        this.requestRetention = 0.90; // Target memory retention rate
+        this.w = [...DEFAULT_FSRS_W];
+        this.decay = DEFAULT_FSRS_DECAY;
+        this.factor = DEFAULT_FSRS_FACTOR;
+        this.requestRetention = DEFAULT_FSRS_REQUEST_RETENTION; // Target memory retention rate
 
         if (params) {
             if (params.w && Array.isArray(params.w) && params.w.length === 17) {
@@ -190,19 +198,19 @@ export class FsrsScheduler extends AbstractScheduler {
 
     isHighDifficulty(card?: Card): boolean {
         if (!card) return false;
-        return card.difficulty >= 7;
+        return card.difficulty >= HIGH_DIFFICULTY_THRESHOLD;
     }
 
     isGraduated(card?: Card): boolean {
         if (!card) return false;
-        return card.state === State.Review && card.stability > 7;
+        return card.state === State.Review && card.stability > GRADUATED_STABILITY_THRESHOLD;
     }
 
     resetConfiguration(): void {
-        this.w = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
-        this.decay = -0.5;
-        this.factor = 19 / 81;
-        this.requestRetention = 0.90;
+        this.w = [...DEFAULT_FSRS_W];
+        this.decay = DEFAULT_FSRS_DECAY;
+        this.factor = DEFAULT_FSRS_FACTOR;
+        this.requestRetention = DEFAULT_FSRS_REQUEST_RETENTION;
     }
 
     exportConfiguration(): FSRSParameters {

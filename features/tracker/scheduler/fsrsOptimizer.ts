@@ -6,6 +6,7 @@
 import { initOptimizer } from '@open-spaced-repetition/binding/dynamic-wasi';
 import { Rating } from 'ts-fsrs';
 import { Card, ReviewLog } from '../../../types/domain';
+import { MS_PER_DAY, OPTIMIZER_DEFAULT_THRESHOLD, OPTIMIZER_MAX_TRAINING_CARDS, DEFAULT_FSRS_REQUEST_RETENTION } from '../../common/constants';
 
 interface WasmBinding {
     FSRSBindingReview: new (rating: number, deltaT: number) => unknown;
@@ -40,7 +41,7 @@ export class FsrsOptimizer {
         this.epochs = 50;
     }
 
-    computeEligibility(history: Card[], threshold: number = 1000): EligibilityResult {
+    computeEligibility(history: Card[], threshold: number = OPTIMIZER_DEFAULT_THRESHOLD): EligibilityResult {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
 
         let reviewCount = 0;
@@ -64,7 +65,7 @@ export class FsrsOptimizer {
     async trainWeights(
         history: Card[],
         currentWeights: number[],
-        targetRetention: number = 0.90,
+        targetRetention: number = DEFAULT_FSRS_REQUEST_RETENTION,
         onProgress: ((current: number, total: number) => void) | null = null
     ): Promise<number[]> {
         if (!history || history.length === 0) return currentWeights;
@@ -106,7 +107,7 @@ export class FsrsOptimizer {
                                 const prevDate = (typeof prevLog === 'object' && prevLog !== null && 'date' in prevLog && typeof prevLog.date === 'number')
                                     ? prevLog.date
                                     : (typeof prevLog === 'number' ? prevLog : Date.now());
-                                deltaT = Math.round((logDate - prevDate) / (1000 * 60 * 60 * 24));
+                                deltaT = Math.round((logDate - prevDate) / MS_PER_DAY);
                                 if (deltaT < 0) deltaT = 0;
                             }
 
@@ -130,10 +131,9 @@ export class FsrsOptimizer {
             }
 
             // Cap the trainSet to a maximum limit to prevent WASM OOM or extreme timeouts
-            const MAX_TRAINING_CARDS = 2500;
-            if (trainSet.length > MAX_TRAINING_CARDS) {
-                console.log(`[FSRS Optimizer] Limiting train set from ${trainSet.length} to ${MAX_TRAINING_CARDS} cards to ensure stability.`);
-                trainSet = trainSet.slice(0, MAX_TRAINING_CARDS);
+            if (trainSet.length > OPTIMIZER_MAX_TRAINING_CARDS) {
+                console.log(`[FSRS Optimizer] Limiting train set from ${trainSet.length} to ${OPTIMIZER_MAX_TRAINING_CARDS} cards to ensure stability.`);
+                trainSet = trainSet.slice(0, OPTIMIZER_MAX_TRAINING_CARDS);
             }
 
             console.log(`[FSRS Optimizer] Training on ${trainSet.length} cards...`);
