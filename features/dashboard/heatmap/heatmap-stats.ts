@@ -1,17 +1,23 @@
-window.AlgoRecall = window.AlgoRecall || {};
+(window as any).AlgoRecall = (window as any).AlgoRecall || {};
+
+export interface StreakStatsResult {
+    currentStreak: number;
+    longestStreak: number;
+    activeDays: number;
+    maxReviews: number;
+}
 
 /**
  * @class HeatmapStats
  * @description Computes study streak statistics and renders the statistics card panels
  * inside the full-screen heatmap page.
  */
-window.AlgoRecall.HeatmapStats = class HeatmapStats {
+export class HeatmapStats {
     /**
      * Calculates current streak, longest streak, active days, and max reviews in a day,
      * and renders the corresponding HTML templates into the stats container.
-     * @param {Object} activityData - Key-value activity log data from storage.
      */
-    static renderStatsDashboard(activityData) {
+    static renderStatsDashboard(activityData: { [key: string]: number }): void {
         const container = document.getElementById('heatmap-stats-container');
         if (!container) return;
 
@@ -64,10 +70,8 @@ window.AlgoRecall.HeatmapStats = class HeatmapStats {
     /**
      * Calculates current and historical maximum streaks, active days,
      * and maximum daily review load metrics from the global activity data.
-     * @param {Object} activityData - Key-value activity log data.
-     * @returns {Object} Metric values structure: { currentStreak: number, longestStreak: number, activeDays: number, maxReviews: number }.
      */
-    static getStreakStats(activityData) {
+    static getStreakStats(activityData: { [key: string]: number }): StreakStatsResult {
         const dates = Object.keys(activityData).filter(d => activityData[d] > 0).sort();
         if (dates.length === 0) {
             return { currentStreak: 0, longestStreak: 0, activeDays: 0, maxReviews: 0 };
@@ -79,9 +83,8 @@ window.AlgoRecall.HeatmapStats = class HeatmapStats {
         let longestStreak = 0;
         let currentStreak = 0;
         
-        // Calculate Longest Streak
         let tempStreak = 0;
-        let lastTime = null;
+        let lastTime: number | null = null;
         
         dates.forEach(dStr => {
             const parts = dStr.split('-');
@@ -102,7 +105,6 @@ window.AlgoRecall.HeatmapStats = class HeatmapStats {
         });
         if (tempStreak > longestStreak) longestStreak = tempStreak;
         
-        // Calculate Current Streak
         const oneDay = 1000 * 60 * 60 * 24;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -132,13 +134,14 @@ window.AlgoRecall.HeatmapStats = class HeatmapStats {
         
         return { currentStreak, longestStreak, activeDays, maxReviews };
     }
-};
+}
 
-// Maintain legacy global binding for safety/backwards compatibility
-window.renderStatsDashboard = (activityData = window.activityData) => {
-    if (window.AlgoRecall && window.AlgoRecall.state) {
-        window.AlgoRecall.HeatmapStats.renderStatsDashboard(window.AlgoRecall.state.activityData || activityData);
+(window as any).AlgoRecall.HeatmapStats = HeatmapStats;
+
+(window as any).renderStatsDashboard = (activityData: any = (window as any).activityData) => {
+    if ((window as any).AlgoRecall && (window as any).AlgoRecall.state) {
+        (window as any).AlgoRecall.HeatmapStats.renderStatsDashboard((window as any).AlgoRecall.state.activityData || activityData);
     } else {
-        window.AlgoRecall.HeatmapStats.renderStatsDashboard(activityData);
+        (window as any).AlgoRecall.HeatmapStats.renderStatsDashboard(activityData);
     }
 };

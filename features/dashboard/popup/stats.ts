@@ -1,6 +1,11 @@
 import { DashboardComponent } from './DashboardComponent.js';
 import { getLastReviewDate } from '../../common/utils/cardUtils.js';
 
+export interface StreakResult {
+    current: number;
+    longest: number;
+}
+
 /**
  * @class StatsComponent
  * @extends DashboardComponent
@@ -8,7 +13,10 @@ import { getLastReviewDate } from '../../common/utils/cardUtils.js';
  * Computes level progressions, renders visual progress rings via SVG, and calculates consecutive study day streaks.
  */
 export class StatsComponent extends DashboardComponent {
-    constructor(coordinator) {
+    dailyGoalTarget: number;
+    longestStreak: number;
+
+    constructor(coordinator: any) {
         super(coordinator);
         this.dailyGoalTarget = 10;
         this.longestStreak = 0;
@@ -18,7 +26,7 @@ export class StatsComponent extends DashboardComponent {
      * Loads FSRS card data and activity logs, computes overall stats,
      * and renders both the level progression badge and the daily goal progress ring.
      */
-    async load() {
+    async load(): Promise<void> {
         try {
             const result = await chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'dailyGoalTarget', 'longestStreak', 'lastCelebratedMilestone', 'studyPlanSettings']);
             const cards = result.fsrsCards || [];
@@ -35,22 +43,22 @@ export class StatsComponent extends DashboardComponent {
             const retentionEl = document.getElementById('retention-rate');
 
             // Filter cards scheduled for today or earlier
-            const dueToday = cards.filter(c => c.due <= now).length;
+            const dueToday = cards.filter((c: any) => c.due <= now).length;
 
-            if (totalEl) totalEl.innerText = cards.length;
-            if (dueEl) dueEl.innerText = dueToday;
+            if (totalEl) totalEl.innerText = String(cards.length);
+            if (dueEl) dueEl.innerText = String(dueToday);
             
             // Calculate memory retention rate: True FSRS Retrievability
             let totalRetrievability = 0;
             let retrievabilityCount = 0;
-            const scheduler = window.FsrsScheduler ? new window.FsrsScheduler() : null;
+            const scheduler = (window as any).FsrsScheduler ? new (window as any).FsrsScheduler() : null;
             const currentTime = Date.now();
             
             let totalActivityReviews = 0; // Pre-calc for later
             let totalReps = 0;
             let totalLapses = 0;
             
-            cards.forEach(card => {
+            cards.forEach((card: any) => {
                 totalReps += card.reps || 0;
                 totalLapses += card.lapses || 0;
                 
@@ -78,10 +86,8 @@ export class StatsComponent extends DashboardComponent {
             }
 
             // 1. Level & XP Progression Logic
-            // RPG style level scaling: Level = floor(1 + 0.6 * sqrt(totalReviews))
             const level = Math.floor(1 + 0.6 * Math.sqrt(totalActivityReviews));
             
-            // Calculate XP progress percentage based on boundaries
             const currentLevelReviews = Math.pow((level - 1) / 0.6, 2);
             const nextLevelReviews = Math.pow(level / 0.6, 2);
             
@@ -111,7 +117,6 @@ export class StatsComponent extends DashboardComponent {
             const streakData = this.calculateStreaks(activity);
             this.longestStreak = Math.max(streakData.longest, storedLongestStreak);
             
-            // Persist longest streak if it surpasses previous record
             if (this.longestStreak > storedLongestStreak) {
                 await chrome.storage.local.set({ longestStreak: this.longestStreak });
             }
@@ -122,13 +127,10 @@ export class StatsComponent extends DashboardComponent {
             const todayEndTime = todayEnd.getTime();
             
             let completedToday = 0;
-            cards.forEach(card => {
+            cards.forEach((card: any) => {
                 const lastReview = getLastReviewDate(card);
                 
-                // Check if card has been reviewed today
                 const isReviewedToday = lastReview && new Date(lastReview).toDateString() === new Date().toDateString();
-                
-                // Ensure card was actually scheduled for today or earlier (prevent early review goal credit)
                 const wasDueTodayOrEarlier = !card.previousDue || card.previousDue <= todayEndTime;
                 
                 if (isReviewedToday && wasDueTodayOrEarlier) {
@@ -136,11 +138,9 @@ export class StatsComponent extends DashboardComponent {
                 }
             });
             
-            // Renders different gamification states based on deck size and review progress
             const gamificationPanel = document.getElementById('gamification-panel');
             if (gamificationPanel) {
                 if (cards.length === 0) {
-                    // Empty State: Welcome panel
                     gamificationPanel.innerHTML = `
                         <div class="achievement-state">
                             <div class="achievement-title" style="color: var(--md-text-low);">
@@ -151,14 +151,11 @@ export class StatsComponent extends DashboardComponent {
                         </div>
                     `;
                 } else if (dueToday === 0 && completedToday >= this.dailyGoalTarget) {
-                    // Goal Completed State: Inbox zero achieved and target review count met
                     gamificationPanel.innerHTML = this.renderGoalComplete(completedToday, this.dailyGoalTarget, streakData.current, this.longestStreak);
                 } else {
-                    // Active State: Progress ring displaying daily completions
                     gamificationPanel.innerHTML = this.renderGoalProgress(completedToday, this.dailyGoalTarget, dueToday, streakData.current, this.longestStreak);
                 }
 
-                // R3.4: Append exam countdown pill if exam mode is active
                 if (studyPlanSettings && studyPlanSettings.isActive && studyPlanSettings.examDate) {
                     const examTime = new Date(studyPlanSettings.examDate + 'T23:59:59').getTime();
                     const daysLeft = Math.max(0, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
@@ -173,23 +170,20 @@ export class StatsComponent extends DashboardComponent {
                     goalInfo.appendChild(pillHtml);
                 }
 
-                // Wire inline daily goal editor logic
                 this.bindEditorEvents(gamificationPanel);
             }
 
-            // R3.3: Milestone Detection & Celebration
+            // Milestone Detection & Celebration
             const streakMilestones = [7, 14, 30, 50, 100, 365];
             const reviewMilestones = [50, 100, 250, 500, 1000, 5000];
 
-            // Check streak milestones
-            let newMilestone = null;
+            let newMilestone: { type: string; value: number } | null = null;
             for (const milestone of streakMilestones) {
                 if (streakData.current >= milestone && lastCelebratedMilestone < milestone) {
                     newMilestone = { type: 'streak', value: milestone };
                 }
             }
 
-            // Check review count milestones (only if no streak milestone triggered)
             if (!newMilestone) {
                 for (const milestone of reviewMilestones) {
                     if (totalActivityReviews >= milestone && lastCelebratedMilestone < milestone) {
@@ -202,9 +196,8 @@ export class StatsComponent extends DashboardComponent {
                 const milestoneKey = newMilestone.value;
                 await chrome.storage.local.set({ lastCelebratedMilestone: milestoneKey });
 
-                // Small delay to let the UI render first
                 setTimeout(() => {
-                    const label = newMilestone.type === 'streak'
+                    const label = newMilestone!.type === 'streak'
                         ? `🔥 ${milestoneKey}-Day Streak!`
                         : `⭐ ${milestoneKey} Reviews!`;
                     this.showMilestoneToast(label);
@@ -219,12 +212,11 @@ export class StatsComponent extends DashboardComponent {
 
     /**
      * Binds event listeners for daily goal input adjustments inside the gamification container.
-     * @param {HTMLElement} gamificationPanel - Container element.
      */
-    bindEditorEvents(gamificationPanel) {
+    bindEditorEvents(gamificationPanel: HTMLElement): void {
         const goalEditBtn = gamificationPanel.querySelector('#goal-edit-btn');
-        const goalEditor = gamificationPanel.querySelector('#goal-editor');
-        const goalInput = gamificationPanel.querySelector('#goal-input');
+        const goalEditor = gamificationPanel.querySelector('#goal-editor') as HTMLElement | null;
+        const goalInput = gamificationPanel.querySelector('#goal-input') as HTMLInputElement | null;
         const goalSaveBtn = gamificationPanel.querySelector('#goal-save-btn');
 
         if (goalEditBtn && goalEditor && goalInput) {
@@ -234,12 +226,12 @@ export class StatsComponent extends DashboardComponent {
             });
 
             const saveGoal = async () => {
-                const val = parseInt(goalInput.value);
+                const val = parseInt(goalInput.value, 10);
                 if (val && val > 0 && val <= 999) {
                     try {
                         await chrome.storage.local.set({ dailyGoalTarget: val });
                         goalEditor.style.display = 'none';
-                        await this.load(); // Re-render stats UI
+                        await this.load();
                     } catch (error) {
                         console.error("Error saving daily goal target:", error);
                     }
@@ -251,7 +243,7 @@ export class StatsComponent extends DashboardComponent {
                     saveGoal();
                 });
             }
-            goalInput.addEventListener('keydown', (e) => {
+            goalInput.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Enter') saveGoal();
             });
         }
@@ -259,16 +251,11 @@ export class StatsComponent extends DashboardComponent {
 
     /**
      * Calculates current and longest streaks based on calendar days reviewed.
-     * Utilizes local-timezone formatted keys to match chronological dates.
-     * 
-     * @param {Object} activity - Object mapping YYYY-MM-DD strings to count values.
-     * @returns {Object} Streak metrics containing { current: number, longest: number }.
      */
-    calculateStreaks(activity) {
+    calculateStreaks(activity: { [key: string]: number }): StreakResult {
         const sortedDates = Object.keys(activity).filter(k => activity[k] > 0).sort();
         if (sortedDates.length === 0) return { current: 0, longest: 0 };
 
-        // Calculate current consecutive days backwards from today
         let currentStreak = 0;
         const today = new Date();
         const checkDate = new Date(today);
@@ -279,7 +266,6 @@ export class StatsComponent extends DashboardComponent {
                 currentStreak++;
                 checkDate.setDate(checkDate.getDate() - 1);
             } else {
-                // Allow streak continuation if today has no activity yet, but yesterday was active
                 if (i === 0) {
                     checkDate.setDate(checkDate.getDate() - 1);
                     continue;
@@ -288,17 +274,16 @@ export class StatsComponent extends DashboardComponent {
             }
         }
 
-        // Calculate longest consecutive days sequence in activity history
         let longestStreak = 0;
         let tempStreak = 0;
-        let prevDate = null;
+        let prevDate: Date | null = null;
 
         for (const dateStr of sortedDates) {
             const parts = dateStr.split('-');
-            const d = new Date(parts[0], parts[1] - 1, parts[2]);
+            const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
 
             if (prevDate) {
-                const diffDays = Math.round((d - prevDate) / (1000 * 60 * 60 * 24));
+                const diffDays = Math.round((d.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
                 if (diffDays === 1) {
                     tempStreak++;
                 } else {
@@ -317,32 +302,21 @@ export class StatsComponent extends DashboardComponent {
 
     /**
      * Generates local timezone date key string (YYYY-MM-DD).
-     * 
-     * @param {Date} date - Source JavaScript Date object.
-     * @returns {string} Date key string formatted as YYYY-MM-DD.
      */
-    formatDateKey(date) {
+    formatDateKey(date: Date): string {
         return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     }
 
     /**
      * Renders the goal progress template including the SVG progress ring circle indicator.
-     * Circle circumference is calculated as 2 * PI * R (R=42, circumference ~ 263.89).
-     * @param {number} completed - Number of reviews completed today.
-     * @param {number} target - Targeted daily goal count.
-     * @param {number} dueRemaining - Due review items left.
-     * @param {number} currentStreak - Active review streak day count.
-     * @param {number} longestStreak - Historical maximum review streak.
-     * @returns {string} Rendered progress HTML string.
      */
-    renderGoalProgress(completed, target, dueRemaining, currentStreak, longestStreak) {
+    renderGoalProgress(completed: number, target: number, dueRemaining: number, currentStreak: number, longestStreak: number): string {
         const pct = Math.min(Math.round((completed / target) * 100), 100);
-        const circumference = 2 * Math.PI * 42; // r=42
+        const circumference = 2 * Math.PI * 42;
         const offset = circumference - (pct / 100) * circumference;
 
         const streakHtml = this.renderStreakBadge(currentStreak, longestStreak);
 
-        // Goal motivation banner selection
         let motivationMsg = `<svg class="svg-icon" style="stroke: var(--md-primary); margin-right: 4px; display: inline-block; vertical-align: middle;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg> Start your daily streak today!`;
         if (completed > 0 && completed < target) {
             motivationMsg = `<svg class="svg-icon" style="stroke: var(--md-success); margin-right: 4px; display: inline-block; vertical-align: middle;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg> Keep going! ${target - completed} more to hit your goal!`;
@@ -387,13 +361,8 @@ export class StatsComponent extends DashboardComponent {
 
     /**
      * Renders the goal complete success template with checkmark indicator.
-     * @param {number} completed - Number of reviews completed today.
-     * @param {number} target - Targeted daily goal count.
-     * @param {number} currentStreak - Active review streak day count.
-     * @param {number} longestStreak - Historical maximum review streak.
-     * @returns {string} Rendered complete HTML string.
      */
-    renderGoalComplete(completed, target, currentStreak, longestStreak) {
+    renderGoalComplete(completed: number, target: number, currentStreak: number, longestStreak: number): string {
         const circumference = 2 * Math.PI * 42;
         const streakHtml = this.renderStreakBadge(currentStreak, longestStreak);
 
@@ -436,11 +405,8 @@ export class StatsComponent extends DashboardComponent {
 
     /**
      * Helper to render the streak pill badge containing fire icons.
-     * @param {number} current - Active review streak day count.
-     * @param {number} longest - Historical maximum review streak.
-     * @returns {string} Rendered streak badge HTML.
      */
-    renderStreakBadge(current, longest) {
+    renderStreakBadge(current: number, longest: number): string {
         if (current === 0 && longest === 0) return '';
         
         const fireColor = current > 0 ? 'var(--md-warning)' : 'var(--md-text-low)';
@@ -458,15 +424,10 @@ export class StatsComponent extends DashboardComponent {
         `;
     }
 
-    // ========================================================================
-    // R3.3: Confetti & Milestone Celebrations
-    // ========================================================================
-
     /**
      * Displays a milestone toast notification at the top of the popup.
-     * @param {string} message - Milestone celebration message text.
      */
-    showMilestoneToast(message) {
+    showMilestoneToast(message: string): void {
         const toast = document.getElementById('milestone-toast');
         const toastText = document.getElementById('milestone-toast-text');
         if (!toast || !toastText) return;
@@ -481,28 +442,29 @@ export class StatsComponent extends DashboardComponent {
 
     /**
      * Renders a canvas-based confetti particle animation.
-     * Generates 60 colored particles with physics (gravity, rotation, fade) over ~2.5 seconds.
      */
-    showConfetti() {
-        const canvas = document.getElementById('confetti-canvas');
+    showConfetti(): void {
+        const canvas = document.getElementById('confetti-canvas') as HTMLCanvasElement | null;
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
 
         const colors = [
-            '#a8c7fa', // primary blue
-            '#f9ab00', // warning gold
-            '#81c995', // success green
-            '#f28b82', // danger red
-            '#c58af9', // purple
-            '#4ecdc4', // teal
-            '#ff6b6b', // coral
-            '#ffe66d', // yellow
+            '#a8c7fa',
+            '#f9ab00',
+            '#81c995',
+            '#f28b82',
+            '#c58af9',
+            '#4ecdc4',
+            '#ff6b6b',
+            '#ffe66d',
         ];
 
-        const particles = [];
+        const particles: any[] = [];
         const particleCount = 60;
 
         for (let i = 0; i < particleCount; i++) {
@@ -522,7 +484,7 @@ export class StatsComponent extends DashboardComponent {
         }
 
         let frame = 0;
-        const maxFrames = 150; // ~2.5 seconds at 60fps
+        const maxFrames = 150;
 
         const animate = () => {
             frame++;
@@ -533,12 +495,11 @@ export class StatsComponent extends DashboardComponent {
                 return;
             }
 
-            // Start fading at 70% through
             const fadeStart = maxFrames * 0.7;
 
             particles.forEach(p => {
                 p.x += p.vx;
-                p.vy += 0.05; // gravity
+                p.vy += 0.05;
                 p.y += p.vy;
                 p.rotation += p.rotationSpeed;
 

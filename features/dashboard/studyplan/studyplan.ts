@@ -1,5 +1,5 @@
 /**
- * @file features/dashboard/studyplan/studyplan.js
+ * @file features/dashboard/studyplan/studyplan.ts
  * @description Exam Countdown Mode controller.
  * Redistributes all FSRS cards evenly across remaining days until exam,
  * prioritizing overdue and low-stability cards. Backs up original due dates
@@ -8,13 +8,16 @@
 import { getLastReviewDate } from '../../common/utils/cardUtils.js';
 
 class StudyPlanController {
+    allCards: any[];
+    settings: any;
+
     constructor() {
         this.allCards = [];
         this.settings = null;
     }
 
-    init() {
-        chrome.storage.local.get(['fsrsCards', 'studyPlanSettings'], (result) => {
+    init(): void {
+        chrome.storage.local.get(['fsrsCards', 'studyPlanSettings'], (result: { [key: string]: any }) => {
             this.allCards = result.fsrsCards || [];
             this.settings = result.studyPlanSettings || null;
 
@@ -28,13 +31,12 @@ class StudyPlanController {
         });
     }
 
-    bindEvents() {
-        const examDateInput = document.getElementById('exam-date-input');
-        const dailyLimitInput = document.getElementById('daily-limit-input');
-        const activateBtn = document.getElementById('activate-btn');
-        const deactivateBtn = document.getElementById('deactivate-btn');
+    bindEvents(): void {
+        const examDateInput = document.getElementById('exam-date-input') as HTMLInputElement | null;
+        const dailyLimitInput = document.getElementById('daily-limit-input') as HTMLInputElement | null;
+        const activateBtn = document.getElementById('activate-btn') as HTMLButtonElement | null;
+        const deactivateBtn = document.getElementById('deactivate-btn') as HTMLButtonElement | null;
 
-        // Set minimum date to tomorrow
         if (examDateInput) {
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
@@ -60,24 +62,24 @@ class StudyPlanController {
         }
     }
 
-    formatDate(date) {
+    formatDate(date: Date): string {
         return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     }
 
     /**
      * Updates the setup preview with calculated stats based on selected date.
      */
-    updatePreview() {
-        const examDateInput = document.getElementById('exam-date-input');
-        const dailyLimitInput = document.getElementById('daily-limit-input');
+    updatePreview(): void {
+        const examDateInput = document.getElementById('exam-date-input') as HTMLInputElement | null;
+        const dailyLimitInput = document.getElementById('daily-limit-input') as HTMLInputElement | null;
         const preview = document.getElementById('setup-preview');
-        const activateBtn = document.getElementById('activate-btn');
+        const activateBtn = document.getElementById('activate-btn') as HTMLButtonElement | null;
 
         if (!examDateInput || !examDateInput.value || !preview) return;
 
         const examDate = new Date(examDateInput.value + 'T23:59:59');
         const now = new Date();
-        const daysLeft = Math.ceil((examDate - now) / (1000 * 60 * 60 * 24));
+        const daysLeft = Math.ceil((examDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
         if (daysLeft <= 0) {
             preview.style.display = 'none';
@@ -86,20 +88,23 @@ class StudyPlanController {
         }
 
         const totalCards = this.allCards.length;
-        const limitVal = parseInt(dailyLimitInput?.value);
+        const limitVal = parseInt(dailyLimitInput?.value || '', 10);
         
         let dailyTarget = Math.ceil(totalCards / daysLeft);
         let willFinish = true;
         
-        // If they provided a valid limit that restricts finishing all cards
         if (!isNaN(limitVal) && limitVal > 0 && limitVal < dailyTarget) {
             dailyTarget = limitVal;
             willFinish = false;
         }
 
-        document.getElementById('preview-days').textContent = daysLeft;
-        document.getElementById('preview-total').textContent = willFinish ? totalCards : (dailyTarget * daysLeft);
-        document.getElementById('preview-daily').textContent = dailyTarget;
+        const prevDaysEl = document.getElementById('preview-days');
+        const prevTotalEl = document.getElementById('preview-total');
+        const prevDailyEl = document.getElementById('preview-daily');
+
+        if (prevDaysEl) prevDaysEl.textContent = String(daysLeft);
+        if (prevTotalEl) prevTotalEl.textContent = String(willFinish ? totalCards : (dailyTarget * daysLeft));
+        if (prevDailyEl) prevDailyEl.textContent = String(dailyTarget);
 
         preview.style.display = 'block';
         if (activateBtn) activateBtn.disabled = false;
@@ -108,9 +113,9 @@ class StudyPlanController {
     /**
      * Activates exam mode: backs up original due dates, redistributes cards evenly.
      */
-    activateExamMode() {
-        const examDateInput = document.getElementById('exam-date-input');
-        const dailyLimitInput = document.getElementById('daily-limit-input');
+    activateExamMode(): void {
+        const examDateInput = document.getElementById('exam-date-input') as HTMLInputElement | null;
+        const dailyLimitInput = document.getElementById('daily-limit-input') as HTMLInputElement | null;
 
         if (!examDateInput || !examDateInput.value) return;
 
@@ -118,7 +123,7 @@ class StudyPlanController {
         const examTime = new Date(examDate + 'T23:59:59').getTime();
         const now = Date.now();
         const daysLeft = Math.max(1, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
-        const limitVal = parseInt(dailyLimitInput?.value);
+        const limitVal = parseInt(dailyLimitInput?.value || '', 10);
         let cardsPerDay = Math.ceil(this.allCards.length / daysLeft);
         
         if (!isNaN(limitVal) && limitVal > 0 && limitVal < cardsPerDay) {
@@ -148,22 +153,18 @@ class StudyPlanController {
         sortedCards.forEach((card, index) => {
             const dayOffset = Math.floor(index / cardsPerDay);
             
-            // If they hit their max daily limit across all days, leave remaining cards untouched
             if (dayOffset >= daysLeft) return;
             
             const dueDate = new Date(startOfToday);
             dueDate.setDate(dueDate.getDate() + dayOffset);
-            // Set time to 9:00 AM for a reasonable study start
             dueDate.setHours(9, 0, 0, 0);
 
-            // Find the original card and update its due date
             const originalCard = this.allCards.find(c => c.id === card.id);
             if (originalCard) {
                 originalCard.due = dueDate.getTime();
             }
         });
 
-        // Save settings and updated cards
         const settings = {
             isActive: true,
             examDate: examDate,
@@ -183,10 +184,9 @@ class StudyPlanController {
     /**
      * Deactivates exam mode: restores original due dates from backup.
      */
-    deactivateExamMode() {
+    deactivateExamMode(): void {
         if (!confirm('Deactivate Exam Mode? This will restore all cards to their original FSRS-computed due dates.')) return;
 
-        // Restore original due dates
         this.allCards.forEach(card => {
             if (card.originalDue) {
                 card.due = card.originalDue;
@@ -206,17 +206,21 @@ class StudyPlanController {
     /**
      * Shows the setup panel and hides the active panel.
      */
-    renderSetupPanel() {
-        document.getElementById('setup-panel').style.display = 'block';
-        document.getElementById('active-panel').style.display = 'none';
+    renderSetupPanel(): void {
+        const setupPanel = document.getElementById('setup-panel');
+        const activePanel = document.getElementById('active-panel');
+        if (setupPanel) setupPanel.style.display = 'block';
+        if (activePanel) activePanel.style.display = 'none';
     }
 
     /**
      * Shows the active countdown panel with ring, stats, and daily schedule.
      */
-    renderActivePanel() {
-        document.getElementById('setup-panel').style.display = 'none';
-        document.getElementById('active-panel').style.display = 'block';
+    renderActivePanel(): void {
+        const setupPanel = document.getElementById('setup-panel');
+        const activePanel = document.getElementById('active-panel');
+        if (setupPanel) setupPanel.style.display = 'none';
+        if (activePanel) activePanel.style.display = 'block';
 
         const now = Date.now();
         const examTime = new Date(this.settings.examDate + 'T23:59:59').getTime();
@@ -225,42 +229,48 @@ class StudyPlanController {
         const daysPassed = totalDays - daysLeft;
         const progress = totalDays > 0 ? Math.min(daysPassed / totalDays, 1) : 0;
 
-        // Countdown ring
         const circumference = 2 * Math.PI * 52;
         const ringFill = document.getElementById('countdown-ring-fill');
         if (ringFill) {
-            ringFill.setAttribute('stroke-dasharray', circumference);
-            ringFill.setAttribute('stroke-dashoffset', circumference - (progress * circumference));
+            ringFill.setAttribute('stroke-dasharray', String(circumference));
+            ringFill.setAttribute('stroke-dashoffset', String(circumference - (progress * circumference)));
             
-            // Urgency colors
             if (daysLeft <= 3) ringFill.classList.add('urgent');
             else if (daysLeft <= 7) ringFill.classList.add('warning');
         }
 
-        document.getElementById('countdown-days').textContent = daysLeft;
-        document.getElementById('countdown-title').textContent = daysLeft === 0 ? 'Exam Day!' : 'Exam Countdown';
-        document.getElementById('countdown-exam-date').textContent = new Date(this.settings.examDate).toLocaleDateString(undefined, {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        });
+        const countDaysEl = document.getElementById('countdown-days');
+        const countTitleEl = document.getElementById('countdown-title');
+        const countExamDateEl = document.getElementById('countdown-exam-date');
 
-        // Stats
+        if (countDaysEl) countDaysEl.textContent = String(daysLeft);
+        if (countTitleEl) countTitleEl.textContent = daysLeft === 0 ? 'Exam Day!' : 'Exam Countdown';
+        if (countExamDateEl) {
+            countExamDateEl.textContent = new Date(this.settings.examDate).toLocaleDateString(undefined, {
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            });
+        }
+
         const completedCards = this.allCards.filter(c => {
             const lastReview = getLastReviewDate(c);
-            return lastReview > this.settings.activatedAt;
+            return lastReview && lastReview > this.settings.activatedAt;
         }).length;
 
-        document.getElementById('active-total-cards').textContent = this.allCards.length;
-        document.getElementById('active-daily-target').textContent = this.settings.dailyTarget;
-        document.getElementById('active-completed').textContent = completedCards;
+        const actTotalEl = document.getElementById('active-total-cards');
+        const actDailyEl = document.getElementById('active-daily-target');
+        const actCompEl = document.getElementById('active-completed');
 
-        // Daily Schedule Table
+        if (actTotalEl) actTotalEl.textContent = String(this.allCards.length);
+        if (actDailyEl) actDailyEl.textContent = String(this.settings.dailyTarget);
+        if (actCompEl) actCompEl.textContent = String(completedCards);
+
         this.renderScheduleTable(totalDays, daysLeft);
     }
 
     /**
      * Renders the daily review schedule breakdown table.
      */
-    renderScheduleTable(totalDays, daysLeft) {
+    renderScheduleTable(totalDays: number, daysLeft: number): void {
         const tbody = document.getElementById('schedule-body');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -269,7 +279,6 @@ class StudyPlanController {
         today.setHours(0, 0, 0, 0);
         const todayTime = today.getTime();
 
-        // Show up to 30 days of the schedule
         const daysToShow = Math.min(totalDays, 30);
 
         for (let i = 0; i < daysToShow; i++) {
@@ -288,7 +297,6 @@ class StudyPlanController {
             const isToday = dayDate.getTime() === todayTime;
             const isPast = dayDate.getTime() < todayTime;
 
-            // Determine status
             let statusBadge = '';
             if (isPast) {
                 statusBadge = '<span class="badge badge-complete">Done</span>';

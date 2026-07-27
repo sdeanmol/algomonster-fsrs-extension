@@ -7,7 +7,9 @@ import { DashboardComponent } from './DashboardComponent.js';
  * Calculates review volume metrics grouped by calendar date string in user's timezone.
  */
 export class HeatmapComponent extends DashboardComponent {
-    constructor(coordinator) {
+    isLifetimeView: boolean;
+
+    constructor(coordinator: any) {
         super(coordinator);
         this.isLifetimeView = false;
     }
@@ -15,12 +17,11 @@ export class HeatmapComponent extends DashboardComponent {
     /**
      * Loads FSRS review activity counts from storage and renders heat cells inside grid containers.
      * Supports showing lifetime counts or constraints to the last 12 weeks.
-     * @param {boolean} [lifetime=false] - If true, scales from the oldest recorded review date; otherwise, shows last 12 weeks.
      */
-    async load(lifetime = false) {
+    async load(lifetime: boolean = false): Promise<void> {
         try {
             const result = await chrome.storage.local.get(['fsrsActivity']);
-            const activity = result.fsrsActivity || {};
+            const activity: { [key: string]: number } = result.fsrsActivity || {};
             const grid = document.getElementById('heatmap-grid');
             if (!grid) return;
             
@@ -35,7 +36,7 @@ export class HeatmapComponent extends DashboardComponent {
             if (lifetime && Object.keys(activity).length > 0) {
                 const dateKeys = Object.keys(activity).sort();
                 const oldestDateParts = dateKeys[0].split('-'); 
-                const oldestDate = new Date(oldestDateParts[0], oldestDateParts[1] - 1, oldestDateParts[2]);
+                const oldestDate = new Date(parseInt(oldestDateParts[0], 10), parseInt(oldestDateParts[1], 10) - 1, parseInt(oldestDateParts[2], 10));
                 oldestDate.setDate(oldestDate.getDate() - oldestDate.getDay());
                 
                 const diffTime = today.getTime() - oldestDate.getTime();
@@ -58,7 +59,7 @@ export class HeatmapComponent extends DashboardComponent {
                 
                 const ariaLabelText = count === 1 ? `1 review on ${dateString}` : `${count} reviews on ${dateString}`;
                 cell.title = ariaLabelText;
-                cell.setAttribute('role', 'img'); // Or 'gridcell' if part of a grid, 'img' is simpler for purely visual data
+                cell.setAttribute('role', 'img');
                 cell.setAttribute('aria-label', ariaLabelText);
                 cell.setAttribute('tabindex', '0');
 
@@ -82,7 +83,7 @@ export class HeatmapComponent extends DashboardComponent {
     /**
      * Binds click events for lifetime view toggle interactions.
      */
-    bindEvents() {
+    bindEvents(): void {
         const toggleLifetimeBtn = document.getElementById('toggle-lifetime-btn');
         if (toggleLifetimeBtn) {
             toggleLifetimeBtn.addEventListener('click', () => {

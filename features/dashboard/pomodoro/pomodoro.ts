@@ -1,9 +1,36 @@
 /**
- * @file features/dashboard/pomodoro/pomodoro.js
+ * @file features/dashboard/pomodoro/pomodoro.ts
  * @description Pomodoro Study Timer UI controller.
  * Syncs visually with the background service worker which handles the true timer state.
  */
+interface PomodoroSettings {
+    focusDuration: number;
+    shortBreakDuration: number;
+    longBreakDuration: number;
+    sessionsBeforeLongBreak: number;
+}
+
+interface PomodoroState {
+    state: 'idle' | 'running' | 'paused';
+    phase: 'focus' | 'shortBreak' | 'longBreak';
+    currentSession: number;
+    timeRemaining: number;
+    totalTime: number;
+    targetEndTime: number | null;
+}
+
 class PomodoroTimer {
+    settings: PomodoroSettings;
+    state: 'idle' | 'running' | 'paused';
+    phase: 'focus' | 'shortBreak' | 'longBreak';
+    currentSession: number;
+    timeRemaining: number;
+    totalTime: number;
+    targetEndTime: number | null;
+    intervalId: any;
+    todaySessions: number;
+    todayFocusMinutes: number;
+
     constructor() {
         this.settings = {
             focusDuration: 25,
@@ -12,21 +39,20 @@ class PomodoroTimer {
             sessionsBeforeLongBreak: 4
         };
 
-        this.state = 'idle'; // 'idle' | 'running' | 'paused'
-        this.phase = 'focus'; // 'focus' | 'shortBreak' | 'longBreak'
+        this.state = 'idle';
+        this.phase = 'focus';
         this.currentSession = 1;
-        this.timeRemaining = 0; // seconds
-        this.totalTime = 0; // seconds for current phase
+        this.timeRemaining = 0;
+        this.totalTime = 0;
         this.targetEndTime = null;
         this.intervalId = null;
 
-        // Today's stats
         this.todaySessions = 0;
         this.todayFocusMinutes = 0;
     }
 
-    init() {
-        chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result) => {
+    init(): void {
+        chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result: { [key: string]: any }) => {
             if (result.pomodoroSettings) {
                 Object.assign(this.settings, result.pomodoroSettings);
             }
@@ -42,7 +68,6 @@ class PomodoroTimer {
                 this.resetState();
             }
 
-            // Load today's stats
             const stats = result.pomodoroStats || {};
             if (stats.lastDate === new Date().toLocaleDateString()) {
                 this.todaySessions = stats.sessionsToday || 0;
@@ -53,7 +78,6 @@ class PomodoroTimer {
             this.updateTodayStats();
             this.bindEvents();
             
-            // Re-sync UI timer visually
             if (this.state === 'running') {
                 this.startVisualInterval();
             } else {
@@ -62,14 +86,16 @@ class PomodoroTimer {
                 this.updatePhaseIndicator();
                 this.updateSessionDots();
                 
-                document.getElementById('start-btn').style.display = 'flex';
-                document.getElementById('pause-btn').style.display = 'none';
+                const startBtn = document.getElementById('start-btn');
+                const pauseBtn = document.getElementById('pause-btn');
+                if (startBtn) startBtn.style.display = 'flex';
+                if (pauseBtn) pauseBtn.style.display = 'none';
                 document.querySelector('.timer-ring-svg')?.classList.remove('running');
                 document.body.className = '';
             }
         });
         
-        chrome.storage.onChanged.addListener((changes, area) => {
+        chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
             if (area === 'local' && changes.pomodoroState) {
                 this.syncState(changes.pomodoroState.newValue);
             }
@@ -84,7 +110,7 @@ class PomodoroTimer {
         });
     }
 
-    resetState() {
+    resetState(): void {
         this.state = 'idle';
         this.phase = 'focus';
         this.currentSession = 1;
@@ -93,7 +119,7 @@ class PomodoroTimer {
         this.targetEndTime = null;
     }
 
-    getStateObj() {
+    getStateObj(): PomodoroState {
         return {
             state: this.state,
             phase: this.phase,
@@ -104,7 +130,7 @@ class PomodoroTimer {
         };
     }
 
-    syncState(newState) {
+    syncState(newState: PomodoroState | undefined): void {
         if (!newState) return;
         this.state = newState.state;
         this.phase = newState.phase;
@@ -118,8 +144,10 @@ class PomodoroTimer {
             this.updateDisplay();
             this.updateRing();
             
-            document.getElementById('start-btn').style.display = 'flex';
-            document.getElementById('pause-btn').style.display = 'none';
+            const startBtn = document.getElementById('start-btn');
+            const pauseBtn = document.getElementById('pause-btn');
+            if (startBtn) startBtn.style.display = 'flex';
+            if (pauseBtn) pauseBtn.style.display = 'none';
             document.querySelector('.timer-ring-svg')?.classList.remove('running');
             document.body.className = '';
         } else {
@@ -130,7 +158,7 @@ class PomodoroTimer {
         this.updateSessionDots();
     }
 
-    bindEvents() {
+    bindEvents(): void {
         document.getElementById('start-btn')?.addEventListener('click', () => this.start());
         document.getElementById('pause-btn')?.addEventListener('click', () => this.pause());
         document.getElementById('reset-btn')?.addEventListener('click', () => this.reset());
@@ -138,23 +166,28 @@ class PomodoroTimer {
         document.getElementById('save-settings-btn')?.addEventListener('click', () => this.saveSettings());
     }
 
-    loadSettingsUI() {
-        const focusInput = document.getElementById('focus-duration');
-        const shortInput = document.getElementById('short-break-duration');
-        const longInput = document.getElementById('long-break-duration');
-        const sessionsInput = document.getElementById('sessions-count');
+    loadSettingsUI(): void {
+        const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
+        const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
+        const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
+        const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
 
-        if (focusInput) focusInput.value = this.settings.focusDuration;
-        if (shortInput) shortInput.value = this.settings.shortBreakDuration;
-        if (longInput) longInput.value = this.settings.longBreakDuration;
-        if (sessionsInput) sessionsInput.value = this.settings.sessionsBeforeLongBreak;
+        if (focusInput) focusInput.value = String(this.settings.focusDuration);
+        if (shortInput) shortInput.value = String(this.settings.shortBreakDuration);
+        if (longInput) longInput.value = String(this.settings.longBreakDuration);
+        if (sessionsInput) sessionsInput.value = String(this.settings.sessionsBeforeLongBreak);
     }
 
-    saveSettings() {
-        const focusDuration = parseInt(document.getElementById('focus-duration')?.value) || 25;
-        const shortBreakDuration = parseInt(document.getElementById('short-break-duration')?.value) || 5;
-        const longBreakDuration = parseInt(document.getElementById('long-break-duration')?.value) || 15;
-        const sessionsBeforeLongBreak = parseInt(document.getElementById('sessions-count')?.value) || 4;
+    saveSettings(): void {
+        const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
+        const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
+        const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
+        const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
+
+        const focusDuration = parseInt(focusInput?.value || '25', 10) || 25;
+        const shortBreakDuration = parseInt(shortInput?.value || '5', 10) || 5;
+        const longBreakDuration = parseInt(longInput?.value || '15', 10) || 15;
+        const sessionsBeforeLongBreak = parseInt(sessionsInput?.value || '4', 10) || 4;
 
         this.settings = { focusDuration, shortBreakDuration, longBreakDuration, sessionsBeforeLongBreak };
 
@@ -163,7 +196,7 @@ class PomodoroTimer {
         });
     }
 
-    getPhaseDuration() {
+    getPhaseDuration(): number {
         switch (this.phase) {
             case 'focus': return this.settings.focusDuration;
             case 'shortBreak': return this.settings.shortBreakDuration;
@@ -172,7 +205,7 @@ class PomodoroTimer {
         }
     }
 
-    start() {
+    start(): void {
         if (this.state === 'running') return;
         this.state = 'running';
         this.targetEndTime = Date.now() + (this.timeRemaining * 1000);
@@ -182,7 +215,7 @@ class PomodoroTimer {
         chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'start', state: stateObj } });
     }
 
-    pause() {
+    pause(): void {
         if (this.state !== 'running') return;
         
         this.state = 'paused';
@@ -195,14 +228,14 @@ class PomodoroTimer {
         chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'pause', state: stateObj } });
     }
 
-    reset() {
+    reset(): void {
         this.resetState();
         const stateObj = this.getStateObj();
         chrome.storage.local.set({ pomodoroState: stateObj });
         chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'reset', state: stateObj } });
     }
 
-    skip() {
+    skip(): void {
         if (this.phase === 'focus') {
             if (this.currentSession >= this.settings.sessionsBeforeLongBreak) {
                 this.phase = 'longBreak';
@@ -227,17 +260,21 @@ class PomodoroTimer {
         chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'skip', state: stateObj } });
     }
 
-    startVisualInterval() {
+    startVisualInterval(): void {
         this.stopVisualInterval();
         
-        document.getElementById('start-btn').style.display = 'none';
-        document.getElementById('pause-btn').style.display = 'flex';
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        if (startBtn) startBtn.style.display = 'none';
+        if (pauseBtn) pauseBtn.style.display = 'flex';
         document.querySelector('.timer-ring-svg')?.classList.add('running');
         document.body.className = this.phase === 'focus' ? 'phase-focus' : 'phase-break';
 
         const tick = () => {
             if (this.state !== 'running') return this.stopVisualInterval();
-            this.timeRemaining = Math.max(0, Math.ceil((this.targetEndTime - Date.now()) / 1000));
+            if (this.targetEndTime) {
+                this.timeRemaining = Math.max(0, Math.ceil((this.targetEndTime - Date.now()) / 1000));
+            }
             this.updateDisplay();
             this.updateRing();
         };
@@ -248,27 +285,28 @@ class PomodoroTimer {
         this.updateSessionDots();
     }
     
-    stopVisualInterval() {
+    stopVisualInterval(): void {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
         }
     }
 
-    updateDisplay() {
+    updateDisplay(): void {
         const minutes = Math.floor(this.timeRemaining / 60);
         const seconds = this.timeRemaining % 60;
         const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-        document.getElementById('timer-time').textContent = timeStr;
+        const timerTimeEl = document.getElementById('timer-time');
+        if (timerTimeEl) timerTimeEl.textContent = timeStr;
         document.title = `${timeStr} — AlgoRecall Pomodoro`;
         
-        // Phase label
-        const labels = { focus: 'Focus Time', shortBreak: 'Short Break', longBreak: 'Long Break' };
-        document.getElementById('timer-phase-label').textContent = labels[this.phase] || 'Focus Time';
+        const labels: Record<string, string> = { focus: 'Focus Time', shortBreak: 'Short Break', longBreak: 'Long Break' };
+        const phaseLabelEl = document.getElementById('timer-phase-label');
+        if (phaseLabelEl) phaseLabelEl.textContent = labels[this.phase] || 'Focus Time';
     }
 
-    updateRing() {
+    updateRing(): void {
         const ring = document.getElementById('timer-ring-fill');
         if (!ring) return;
 
@@ -276,10 +314,9 @@ class PomodoroTimer {
         const progress = this.totalTime > 0 ? (this.totalTime - this.timeRemaining) / this.totalTime : 0;
         const offset = circumference - (progress * circumference);
 
-        ring.setAttribute('stroke-dasharray', circumference);
-        ring.setAttribute('stroke-dashoffset', offset);
+        ring.setAttribute('stroke-dasharray', String(circumference));
+        ring.setAttribute('stroke-dashoffset', String(offset));
 
-        // Color by phase
         if (this.phase === 'focus') {
             ring.classList.remove('break-ring');
         } else {
@@ -287,8 +324,8 @@ class PomodoroTimer {
         }
     }
 
-    updatePhaseIndicator() {
-        const pills = {
+    updatePhaseIndicator(): void {
+        const pills: Record<string, HTMLElement | null> = {
             'focus': document.getElementById('phase-focus'),
             'shortBreak': document.getElementById('phase-short-break'),
             'longBreak': document.getElementById('phase-long-break')
@@ -304,7 +341,7 @@ class PomodoroTimer {
         });
     }
 
-    updateSessionDots() {
+    updateSessionDots(): void {
         const dotsContainer = document.getElementById('session-dots');
         const sessionText = document.getElementById('session-text');
         if (!dotsContainer) return;
@@ -324,11 +361,11 @@ class PomodoroTimer {
         }
     }
 
-    updateTodayStats() {
+    updateTodayStats(): void {
         const sessionsEl = document.getElementById('today-sessions');
         const focusEl = document.getElementById('today-focus-time');
 
-        if (sessionsEl) sessionsEl.textContent = this.todaySessions;
+        if (sessionsEl) sessionsEl.textContent = String(this.todaySessions);
         if (focusEl) {
             if (this.todayFocusMinutes >= 60) {
                 const hours = Math.floor(this.todayFocusMinutes / 60);
@@ -342,6 +379,6 @@ class PomodoroTimer {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.pomodoro = new PomodoroTimer();
-    window.pomodoro.init();
+    (window as any).pomodoro = new PomodoroTimer();
+    (window as any).pomodoro.init();
 });

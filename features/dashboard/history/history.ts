@@ -1,10 +1,17 @@
 /**
- * @file features/dashboard/history/history.js
+ * @file features/dashboard/history/history.ts
  * @description Main controller for the dedicated contribution history dashboard.
  * Aggregates review logs by year, month, or day, and displays grid list drill-downs
  * with interactive CSS charts tracking user activity metrics.
  */
 class FSRSHistoryDashboard {
+    activityData: { [key: string]: number };
+    chromeSettings: any;
+    currentView: string;
+    selectedYear: string | null;
+    selectedMonth: string | null;
+    monthNames: string[];
+
     constructor() {
         this.activityData = {};
         this.chromeSettings = {};
@@ -14,17 +21,16 @@ class FSRSHistoryDashboard {
         this.monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     }
 
-    init() {
-        chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'chromeSettings'], (result) => {
+    init(): void {
+        chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'chromeSettings'], (result: { [key: string]: any }) => {
             let activityData = result.fsrsActivity || {};
             const allCards = result.fsrsCards || [];
 
-            // Self-heal: Rebuild activityData from existing cards, counting UNIQUE patterns reviewed per day
-            let expectedActivity = {};
-            allCards.forEach(c => {
+            let expectedActivity: { [key: string]: number } = {};
+            allCards.forEach((c: any) => {
                 if (c.historyLog) {
-                    const uniqueDatesForCard = new Set();
-                    c.historyLog.forEach(log => {
+                    const uniqueDatesForCard = new Set<string>();
+                    c.historyLog.forEach((log: any) => {
                         const timestamp = (typeof log === 'object' && log !== null) ? log.date : log;
                         const dateObj = new Date(timestamp);
                         const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -36,7 +42,6 @@ class FSRSHistoryDashboard {
                 }
             });
 
-            // If there's a mismatch (due to deleted cards), sync it back to storage
             let needsUpdate = false;
             for (const key of new Set([...Object.keys(activityData), ...Object.keys(expectedActivity)])) {
                 if (activityData[key] !== expectedActivity[key]) {
@@ -56,22 +61,13 @@ class FSRSHistoryDashboard {
         });
     }
 
-    /**
-     * Attaches click event listeners to basic static view filter buttons.
-     */
-    attachListeners() {
-        document.getElementById('view-year').addEventListener('click', () => this.setView('year'));
-        document.getElementById('view-month').addEventListener('click', () => this.setView('month'));
-        document.getElementById('view-day').addEventListener('click', () => this.setView('day'));
+    attachListeners(): void {
+        document.getElementById('view-year')?.addEventListener('click', () => this.setView('year'));
+        document.getElementById('view-month')?.addEventListener('click', () => this.setView('month'));
+        document.getElementById('view-day')?.addEventListener('click', () => this.setView('day'));
     }
 
-    /**
-     * Updates current dashboard view mode and sets target drill-down scope variables.
-     * @param {string} view - View modes: 'year', 'month', or 'day'.
-     * @param {string} [targetYear=null] - Year string filter context.
-     * @param {string} [targetMonth=null] - Month key string filter context.
-     */
-    setView(view, targetYear = null, targetMonth = null) {
+    setView(view: string, targetYear: string | null = null, targetMonth: string | null = null): void {
         this.currentView = view;
         if (view === 'year') {
             this.selectedYear = null;
@@ -86,44 +82,26 @@ class FSRSHistoryDashboard {
         this.renderView();
     }
 
-    /**
-     * Retrieves the most recent year string from aggregated data.
-     * @returns {string} The most recent year.
-     */
-    getMostRecentYear() {
+    getMostRecentYear(): string {
         const years = Object.keys(this.aggregateByYear());
         return years.length > 0 ? years.sort().reverse()[0] : new Date().getFullYear().toString();
     }
 
-    /**
-     * Retrieves the most recent month string for a given year.
-     * @param {string} year - Year filter context.
-     * @returns {string} The most recent month key.
-     */
-    getMostRecentMonth(year) {
+    getMostRecentMonth(year: string): string {
         const months = Object.keys(this.aggregateByMonth(year));
         return months.length > 0 ? months.sort().reverse()[0] : `${year}-01`;
     }
 
-    /**
-     * Navigates users to a list view of card entities matching the specific date filter.
-     * @param {string} dateRange - ISO date string or year/month key prefix.
-     * @param {Event} [event] - The trigger event.
-     */
-    openDataTab(dateRange, event) {
+    openDataTab(dateRange: string, event?: Event): void {
         if (event) event.stopPropagation();
         chrome.tabs.create({ url: `features/common/data/data.html?view=history&date=${dateRange}` });
     }
 
-    /**
-     * Builds breadcrumbs and renders the container panels/grid cards matching active view modes.
-     */
-    renderView() {
+    renderView(): void {
         ['year', 'month', 'day'].forEach(v => {
-            document.getElementById(`view-${v}`).classList.toggle('active', v === this.currentView);
+            document.getElementById(`view-${v}`)?.classList.toggle('active', v === this.currentView);
         });
 
-        // 1. Build Breadcrumbs (using classes instead of onclick)
         const breadcrumb = document.getElementById('breadcrumb');
         if (!breadcrumb) return;
 
@@ -131,12 +109,11 @@ class FSRSHistoryDashboard {
             breadcrumb.innerHTML = `All Years`;
         } else if (this.currentView === 'month') {
             breadcrumb.innerHTML = `<span class="bc-year">All Years</span> > ${this.selectedYear}`;
-        } else if (this.currentView === 'day') {
+        } else if (this.currentView === 'day' && this.selectedMonth) {
             const m = parseInt(this.selectedMonth.split('-')[1], 10) - 1;
             breadcrumb.innerHTML = `<span class="bc-year">All Years</span> > <span class="bc-month" data-year="${this.selectedYear}">${this.selectedYear}</span> > ${this.monthNames[m]}`;
         }
 
-        // 2. Render Cards
         const container = document.getElementById('chart-container');
         if (!container) return;
         container.className = `grid grid-${this.currentView}s`;
@@ -163,7 +140,7 @@ class FSRSHistoryDashboard {
                 `;
             });
         }
-        else if (this.currentView === 'month') {
+        else if (this.currentView === 'month' && this.selectedYear) {
             const monthData = this.aggregateByMonth(this.selectedYear);
             if (Object.keys(monthData).length === 0) {
                 container.innerHTML = `<div class="empty-state">No activity in ${this.selectedYear}</div>`;
@@ -184,7 +161,7 @@ class FSRSHistoryDashboard {
                 });
             }
         }
-        else if (this.currentView === 'day') {
+        else if (this.currentView === 'day' && this.selectedMonth) {
             const dayData = this.aggregateByDay(this.selectedMonth);
             if (Object.keys(dayData).length === 0) {
                 container.innerHTML = `<div class="empty-state">No activity in this month.</div>`;
@@ -208,17 +185,11 @@ class FSRSHistoryDashboard {
             }
         }
 
-        // 3. Render Chart
         this.renderHistoryChart();
-
-        // 4. Attach Dynamic Listeners to injected elements safely
         this.bindDynamicListeners();
     }
 
-    /**
-     * Computes datapoints based on active view modes and renders column chart bars.
-     */
-    renderHistoryChart() {
+    renderHistoryChart(): void {
         const chartWrapper = document.getElementById('history-chart-wrapper');
         if (!chartWrapper) return;
 
@@ -234,7 +205,7 @@ class FSRSHistoryDashboard {
         chartWrapper.style.display = 'block';
         chartWrapper.innerHTML = '';
 
-        let dataPoints = [];
+        let dataPoints: Array<{ label: string; value: number; action: (e?: Event) => void; tooltip?: string }> = [];
         if (this.currentView === 'year') {
             const yearData = this.aggregateByYear();
             const years = Object.keys(yearData).sort();
@@ -243,7 +214,7 @@ class FSRSHistoryDashboard {
                 value: yearData[yr].total,
                 action: () => this.setView('month', yr)
             }));
-        } else if (this.currentView === 'month') {
+        } else if (this.currentView === 'month' && this.selectedYear) {
             const monthData = this.aggregateByMonth(this.selectedYear);
             for (let m = 1; m <= 12; m++) {
                 const mStr = m.toString().padStart(2, '0');
@@ -256,10 +227,10 @@ class FSRSHistoryDashboard {
                     tooltip: `${this.monthNames[m - 1]} ${this.selectedYear}: ${count} reviews`
                 });
             }
-        } else if (this.currentView === 'day') {
+        } else if (this.currentView === 'day' && this.selectedMonth) {
             const dayData = this.aggregateByDay(this.selectedMonth);
             const [year, month] = this.selectedMonth.split('-');
-            const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+            const daysInMonth = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
 
             for (let d = 1; d <= daysInMonth; d++) {
                 const dStr = d.toString().padStart(2, '0');
@@ -268,7 +239,7 @@ class FSRSHistoryDashboard {
                 dataPoints.push({
                     label: d.toString(),
                     value: count,
-                    action: (e) => this.openDataTab(dateStr, e),
+                    action: (e?: Event) => this.openDataTab(dateStr, e),
                     tooltip: `${new Date(dateStr + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${count} reviews`
                 });
             }
@@ -276,24 +247,21 @@ class FSRSHistoryDashboard {
 
         const maxVal = Math.max(...dataPoints.map(p => p.value), 1);
 
-        // Create title
         const title = document.createElement('h3');
         title.className = 'chart-title-label';
         title.innerText = this.currentView === 'year'
             ? 'Reviews per Year'
             : this.currentView === 'month'
                 ? `Reviews in ${this.selectedYear}`
-                : `Reviews in ${this.monthNames[parseInt(this.selectedMonth.split('-')[1]) - 1]} ${this.selectedMonth.split('-')[0]}`;
+                : `Reviews in ${this.monthNames[parseInt((this.selectedMonth || '').split('-')[1] || '1', 10) - 1]} ${(this.selectedMonth || '').split('-')[0]}`;
         chartWrapper.appendChild(title);
 
         const chartContainerInner = document.createElement('div');
         chartContainerInner.className = 'chart-container-inner';
 
-        // Viewport
         const viewport = document.createElement('div');
         viewport.className = 'chart-viewport';
 
-        // Grid lines
         const gridLines = document.createElement('div');
         gridLines.className = 'chart-grid-lines';
         gridLines.innerHTML = `
@@ -303,7 +271,6 @@ class FSRSHistoryDashboard {
         `;
         viewport.appendChild(gridLines);
 
-        // Bars
         const barsContainer = document.createElement('div');
         barsContainer.className = 'chart-bars';
 
@@ -316,7 +283,7 @@ class FSRSHistoryDashboard {
 
             const bar = document.createElement('div');
             bar.className = 'chart-bar';
-            bar.style.height = `${Math.max(heightPct, 3)}%`; // Min 3% for visibility
+            bar.style.height = `${Math.max(heightPct, 3)}%`;
 
             if (dp.value === 0) {
                 bar.classList.add('zero-bar');
@@ -341,8 +308,8 @@ class FSRSHistoryDashboard {
                 barCol.setAttribute('tabindex', '0');
                 barCol.setAttribute('aria-label', tooltipText);
 
-                barCol.addEventListener('click', dp.action);
-                barCol.addEventListener('keydown', (e) => {
+                barCol.addEventListener('click', (e) => dp.action(e));
+                barCol.addEventListener('keydown', (e: KeyboardEvent) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         dp.action(e);
@@ -358,50 +325,45 @@ class FSRSHistoryDashboard {
         chartWrapper.appendChild(chartContainerInner);
     }
 
-    /**
-     * Safely binds click listener events to dynamically added DOM elements.
-     */
-    bindDynamicListeners() {
-        // Breadcrumb Listeners
+    bindDynamicListeners(): void {
         document.querySelectorAll('.bc-year').forEach(el => {
             el.addEventListener('click', () => this.setView('year'));
         });
         document.querySelectorAll('.bc-month').forEach(el => {
-            el.addEventListener('click', (e) => this.setView('month', e.target.getAttribute('data-year')));
+            el.addEventListener('click', (e: Event) => {
+                const target = e.target as HTMLElement;
+                this.setView('month', target.getAttribute('data-year'));
+            });
         });
 
-        // Card Drill-Down Listeners
         document.querySelectorAll('.card-year').forEach(el => {
-            el.addEventListener('click', (e) => {
-                if (e.target.closest('button')) return; // Ignore if clicking the button inside
+            el.addEventListener('click', (e: Event) => {
+                const target = e.target as HTMLElement;
+                if (target.closest('button')) return;
                 this.setView('month', el.getAttribute('data-year'));
             });
         });
         document.querySelectorAll('.card-month').forEach(el => {
-            el.addEventListener('click', (e) => {
-                if (e.target.closest('button')) return;
+            el.addEventListener('click', (e: Event) => {
+                const target = e.target as HTMLElement;
+                if (target.closest('button')) return;
                 this.setView('day', el.getAttribute('data-year'), el.getAttribute('data-month'));
             });
         });
 
-        // Link "View Data" Button Listeners
         document.querySelectorAll('.btn-year').forEach(el => {
-            el.addEventListener('click', (e) => this.openDataTab(el.getAttribute('data-year'), e));
+            el.addEventListener('click', (e: Event) => this.openDataTab(el.getAttribute('data-year') || '', e));
         });
         document.querySelectorAll('.btn-month').forEach(el => {
-            el.addEventListener('click', (e) => this.openDataTab(el.getAttribute('data-month'), e));
+            el.addEventListener('click', (e: Event) => this.openDataTab(el.getAttribute('data-month') || '', e));
         });
         document.querySelectorAll('.card-day').forEach(el => {
-            el.addEventListener('click', (e) => this.openDataTab(el.getAttribute('data-date'), e));
+            el.addEventListener('click', (e: Event) => this.openDataTab(el.getAttribute('data-date') || '', e));
         });
     }
 
-    /**
-     * Aggregates review metrics by year keys.
-     * @returns {Object} Year mapping counts.
-     */
-    aggregateByYear() {
-        const years = {};
+    aggregateByYear(): { [year: string]: { total: number; activeDays: number } } {
+        const years: { [year: string]: { total: number; activeDays: number } } = {};
         for (const [dateString, count] of Object.entries(this.activityData)) {
             const year = dateString.split('-')[0];
             if (!years[year]) years[year] = { total: 0, activeDays: 0 };
@@ -411,13 +373,8 @@ class FSRSHistoryDashboard {
         return years;
     }
 
-    /**
-     * Aggregates review metrics by month keys.
-     * @param {string} targetYear - Year filter context.
-     * @returns {Object} Month mapping counts.
-     */
-    aggregateByMonth(targetYear) {
-        const months = {};
+    aggregateByMonth(targetYear: string): { [monthKey: string]: { total: number } } {
+        const months: { [monthKey: string]: { total: number } } = {};
         for (const [dateString, count] of Object.entries(this.activityData)) {
             if (dateString.startsWith(targetYear)) {
                 const monthKey = dateString.substring(0, 7);
@@ -428,13 +385,8 @@ class FSRSHistoryDashboard {
         return months;
     }
 
-    /**
-     * Aggregates review metrics by day keys.
-     * @param {string} targetMonth - Month filter context.
-     * @returns {Object} Day mapping counts.
-     */
-    aggregateByDay(targetMonth) {
-        const days = {};
+    aggregateByDay(targetMonth: string): { [dateString: string]: number } {
+        const days: { [dateString: string]: number } = {};
         for (const [dateString, count] of Object.entries(this.activityData)) {
             if (dateString.startsWith(targetMonth)) {
                 days[dateString] = count;

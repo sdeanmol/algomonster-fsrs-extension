@@ -1,4 +1,4 @@
-window.AlgoRecall = window.AlgoRecall || {};
+(window as any).AlgoRecall = (window as any).AlgoRecall || {};
 
 /**
  * @class HeatmapDashboard
@@ -6,7 +6,10 @@ window.AlgoRecall = window.AlgoRecall || {};
  * Manages calendar date cascades, filters (lifetime, yearly, monthly, weekly), SVG cell grids,
  * and handles click events to query historical reviews details for specific days.
  */
-window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
+export class HeatmapDashboard {
+    activityData: { [key: string]: number };
+    monthNames: string[];
+
     constructor() {
         this.activityData = {};
         this.monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -15,13 +18,12 @@ window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
     /**
      * Initializes activity settings from storage and binds cascaded filter listeners.
      */
-    init() {
-        chrome.storage.local.get(['fsrsActivity'], (result) => {
+    init(): void {
+        chrome.storage.local.get(['fsrsActivity'], (result: { [key: string]: any }) => {
             this.activityData = result.fsrsActivity || {};
             
-            // Populate backup compatibility state
-            window.AlgoRecall.state = window.AlgoRecall.state || {};
-            window.AlgoRecall.state.activityData = this.activityData;
+            (window as any).AlgoRecall.state = (window as any).AlgoRecall.state || {};
+            (window as any).AlgoRecall.state.activityData = this.activityData;
             
             this.setupFilters();
             this.renderHeatmap();
@@ -32,28 +34,28 @@ window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
      * Initializes and wires select dropdown filter nodes (year, month, day selectors)
      * dynamically based on years populated in activity data history.
      */
-    setupFilters() {
-        const typeSelect = document.getElementById('filter-type');
-        const yearSelect = document.getElementById('select-year');
-        const monthSelect = document.getElementById('select-month');
-        const daySelect = document.getElementById('select-day');
+    setupFilters(): void {
+        const typeSelect = document.getElementById('filter-type') as HTMLSelectElement | null;
+        const yearSelect = document.getElementById('select-year') as HTMLSelectElement | null;
+        const monthSelect = document.getElementById('select-month') as HTMLSelectElement | null;
+        const daySelect = document.getElementById('select-day') as HTMLSelectElement | null;
+
+        if (!typeSelect || !yearSelect || !monthSelect || !daySelect) return;
 
         const today = new Date();
         const currentYear = today.getFullYear().toString();
         const currentMonth = (today.getMonth() + 1).toString().padStart(2, '0');
         const currentDay = today.getDate().toString().padStart(2, '0');
 
-        // Ensure current year is always available and selected by default
-        let years = new Set([currentYear]); 
+        let years = new Set<string>([currentYear]); 
         Object.keys(this.activityData).forEach(d => years.add(d.split('-')[0]));
         
         yearSelect.innerHTML = Array.from(years).sort().reverse().map(y => `<option value="${y}">${y}</option>`).join('');
         yearSelect.value = currentYear;
 
-        // Safely cascade Month updates
         const updateMonthDropdown = () => {
             const targetYear = yearSelect.value;
-            let activeMonths = new Set();
+            let activeMonths = new Set<string>();
             
             Object.keys(this.activityData).filter(d => d.startsWith(targetYear)).forEach(d => activeMonths.add(d.split('-')[1]));
             
@@ -61,33 +63,32 @@ window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
                 for(let i=1; i<=12; i++) activeMonths.add(i.toString().padStart(2, '0'));
             }
             
-            monthSelect.innerHTML = Array.from(activeMonths).sort().map(m => `<option value="${m}">${this.monthNames[parseInt(m)-1]}</option>`).join('');
+            monthSelect.innerHTML = Array.from(activeMonths).sort().map(m => `<option value="${m}">${this.monthNames[parseInt(m, 10)-1]}</option>`).join('');
             
             if (targetYear === currentYear && activeMonths.has(currentMonth)) {
                 monthSelect.value = currentMonth;
-            } else {
+            } else if (monthSelect.options.length > 0) {
                 monthSelect.value = monthSelect.options[0].value;
             }
         };
 
-        // Safely cascade Day updates
         const updateDayDropdown = () => {
             const targetYear = yearSelect.value;
             const targetMonth = monthSelect.value;
-            let activeDays = new Set();
+            let activeDays = new Set<string>();
             
             Object.keys(this.activityData).filter(d => d.startsWith(`${targetYear}-${targetMonth}`)).forEach(d => activeDays.add(d.split('-')[2]));
             
             if (activeDays.size === 0) {
-                const daysInMonth = new Date(parseInt(targetYear), parseInt(targetMonth), 0).getDate();
+                const daysInMonth = new Date(parseInt(targetYear, 10), parseInt(targetMonth, 10), 0).getDate();
                 for(let i=1; i<=daysInMonth; i++) activeDays.add(i.toString().padStart(2, '0'));
             }
             
-            daySelect.innerHTML = Array.from(activeDays).sort().map(d => `<option value="${d}">Day ${parseInt(d)}</option>`).join('');
+            daySelect.innerHTML = Array.from(activeDays).sort().map(d => `<option value="${d}">Day ${parseInt(d, 10)}</option>`).join('');
             
             if (targetYear === currentYear && targetMonth === currentMonth && activeDays.has(currentDay)) {
                 daySelect.value = currentDay;
-            } else {
+            } else if (daySelect.options.length > 0) {
                 daySelect.value = daySelect.options[0].value;
             }
         };
@@ -95,7 +96,6 @@ window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
         updateMonthDropdown();
         updateDayDropdown();
 
-        // Attach Event Listeners
         typeSelect.addEventListener('change', () => {
             const mode = typeSelect.value;
             yearSelect.classList.toggle('hide-select', mode === 'lifetime');
@@ -122,18 +122,26 @@ window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
      * Computes grid sizing bounds based on selected filters, resets grid contents,
      * and appends interactive cells with visual colors matching review activity levels.
      */
-    renderHeatmap() {
+    renderHeatmap(): void {
         const grid = document.getElementById('full-heatmap-grid');
         const summaryText = document.getElementById('filter-summary-text');
         if (!grid) return;
         grid.innerHTML = '';
 
-        const mode = document.getElementById('filter-type').value;
-        const chosenYear = document.getElementById('select-year').value;
-        const chosenMonth = document.getElementById('select-month').value;
-        const chosenDay = document.getElementById('select-day').value;
+        const typeSelect = document.getElementById('filter-type') as HTMLSelectElement | null;
+        const yearSelect = document.getElementById('select-year') as HTMLSelectElement | null;
+        const monthSelect = document.getElementById('select-month') as HTMLSelectElement | null;
+        const daySelect = document.getElementById('select-day') as HTMLSelectElement | null;
 
-        let startDate, totalDays;
+        if (!typeSelect || !yearSelect || !monthSelect || !daySelect) return;
+
+        const mode = typeSelect.value;
+        const chosenYear = yearSelect.value;
+        const chosenMonth = monthSelect.value;
+        const chosenDay = daySelect.value;
+
+        let startDate: Date;
+        let totalDays: number;
         let totalReviewsCalculated = 0;
 
         const y = parseInt(chosenYear, 10);
@@ -178,14 +186,13 @@ window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
             totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
             if (summaryText) summaryText.innerText = `Showing: ${this.monthNames[m]} ${y}`;
         } 
-        else if (mode === 'day-wise') {
+        else {
             startDate = new Date(y, m, d);
             startDate.setDate(startDate.getDate() - startDate.getDay()); 
             totalDays = 7; 
             if (summaryText) summaryText.innerText = `Target: ${this.monthNames[m]} ${d}, ${y}`;
         }
 
-        // Render loop
         for (let i = 0; i < totalDays; i++) {
             const cellDate = new Date(startDate);
             cellDate.setDate(startDate.getDate() + i);
@@ -230,7 +237,7 @@ window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
 
                 cell.addEventListener('click', handleCellClick);
                 
-                cell.addEventListener('keydown', (e) => {
+                cell.addEventListener('keydown', (e: KeyboardEvent) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         handleCellClick();
@@ -245,20 +252,20 @@ window.AlgoRecall.HeatmapDashboard = class HeatmapDashboard {
             summaryText.innerText += ` (${totalReviewsCalculated} Total Reviews)`;
         }
 
-        // Render Stats Dashboard
-        if (window.AlgoRecall.HeatmapStats) {
-            window.AlgoRecall.HeatmapStats.renderStatsDashboard(this.activityData);
+        if ((window as any).AlgoRecall.HeatmapStats) {
+            (window as any).AlgoRecall.HeatmapStats.renderStatsDashboard(this.activityData);
         }
 
-        // Scroll Grid
         setTimeout(() => {
             const wrapper = document.querySelector('.heatmap-wrapper');
             if (wrapper && mode === 'lifetime') wrapper.scrollLeft = wrapper.scrollWidth;
         }, 50);
     }
-};
+}
+
+(window as any).AlgoRecall.HeatmapDashboard = HeatmapDashboard;
 
 document.addEventListener('DOMContentLoaded', () => {
-    const dashboard = new window.AlgoRecall.HeatmapDashboard();
+    const dashboard = new (window as any).AlgoRecall.HeatmapDashboard();
     dashboard.init();
 });

@@ -27,7 +27,19 @@ module.exports = {
     'features/common/firebase': './features/common/firebase.ts',
     'features/common/websites/websites': './features/common/websites/websites.ts',
     'features/common/help/help': './features/common/help/help.ts',
-    'features/common/markdown': './features/common/markdown.ts'
+    'features/common/markdown': './features/common/markdown.ts',
+    'features/dashboard/forecast/forecast': './features/dashboard/forecast/forecast.ts',
+    'features/dashboard/popup/rating': './features/dashboard/popup/rating.ts',
+    'features/dashboard/popup/heatmap': './features/dashboard/popup/heatmap.ts',
+    'features/dashboard/popup/DashboardComponent': './features/dashboard/popup/DashboardComponent.ts',
+    'features/dashboard/popup/search': './features/dashboard/popup/search.ts',
+    'features/dashboard/popup/notifications': './features/dashboard/popup/notifications.ts',
+    'features/dashboard/popup/stats': './features/dashboard/popup/stats.ts',
+    'features/dashboard/studyplan/studyplan': './features/dashboard/studyplan/studyplan.ts',
+    'features/dashboard/history/history': './features/dashboard/history/history.ts',
+    'features/dashboard/pomodoro/pomodoro': './features/dashboard/pomodoro/pomodoro.ts',
+    'features/dashboard/heatmap/heatmap': './features/dashboard/heatmap/heatmap.ts',
+    'features/dashboard/heatmap/heatmap-stats': './features/dashboard/heatmap/heatmap-stats.ts'
   },
   output: {
     path: path.resolve(__dirname, 'build'),

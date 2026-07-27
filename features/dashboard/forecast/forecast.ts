@@ -1,10 +1,12 @@
 /**
- * @file features/dashboard/forecast/forecast.js
+ * @file features/dashboard/forecast/forecast.ts
  * @description Main controller for the dedicated forecast future workloads dashboard.
  * Projects upcoming review volumes up to 30 days based on scheduled card due dates,
  * rendering column charts and interactive calendars.
  */
 class ForecastDashboard {
+    chromeSettings: any;
+
     constructor() {
         this.chromeSettings = {};
     }
@@ -12,8 +14,8 @@ class ForecastDashboard {
     /**
      * Bootstraps forecast settings and triggers UI loads.
      */
-    init() {
-        chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result) => {
+    init(): void {
+        chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: { [key: string]: any }) => {
             const cards = result.fsrsCards || [];
             this.chromeSettings = result.chromeSettings || {};
             this.renderForecast(cards);
@@ -23,26 +25,22 @@ class ForecastDashboard {
     /**
      * Orchestrates the grouping of cards by due date, calculates peak/total workload stats,
      * and renders both the workload forecast chart and the 30-day forecast calendar.
-     * 
-     * @param {Array} cards - All scheduled problem cards.
      */
-    renderForecast(cards) {
+    renderForecast(cards: any[]): void {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const daysToShow = 30;
 
-        // Group cards by due date (day granularity)
-        const dueCounts = {};
+        const dueCounts: Record<number, number> = {};
         let pastDueCount = 0;
 
-        cards.forEach(card => {
+        cards.forEach((card: any) => {
             if (card.state === 0) return; // Ignore 'New' unstudied cards in spaced-repetition forecast
 
             const dueDate = new Date(card.due);
             const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
             
-            // Use Math.round to prevent off-by-one errors on Daylight Saving Time boundaries
-            const diffDays = Math.round((dueDay - todayStart) / (1000 * 60 * 60 * 24));
+            const diffDays = Math.round((dueDay.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
 
             if (diffDays < 0) {
                 pastDueCount++;
@@ -52,10 +50,8 @@ class ForecastDashboard {
             }
         });
 
-        // Add past-due cards to today
         dueCounts[0] = (dueCounts[0] || 0) + pastDueCount;
 
-        // Compute stats
         let totalUpcoming = 0;
         let peakCount = 0;
         let peakDayIdx = 0;
@@ -64,7 +60,6 @@ class ForecastDashboard {
             const count = dueCounts[i] || 0;
             totalUpcoming += count;
             
-            // Peak day should represent the highest *scheduled* future workload (ignoring current backlog/today)
             if (i > 0 && count > peakCount) {
                 peakCount = count;
                 peakDayIdx = i;
@@ -72,26 +67,27 @@ class ForecastDashboard {
         }
 
         const avgPerDay = totalUpcoming > 0 ? (totalUpcoming / (daysToShow + 1)).toFixed(1) : '0';
-        const peakDate = new Date(todayStart);
-        peakDate.setDate(peakDate.getDate() + peakDayIdx);
 
-        // Update summary cards
-        document.getElementById('forecast-total').textContent = totalUpcoming;
-        document.getElementById('forecast-avg').textContent = avgPerDay;
-        document.getElementById('forecast-peak').textContent = peakCount;
-        document.getElementById('forecast-today').textContent = dueCounts[0] || 0;
-        document.getElementById('forecast-subtitle').textContent = 
-            `${cards.length} total cards · Next 30 days starting ${this.formatDateShort(todayStart)}`;
+        const totalEl = document.getElementById('forecast-total');
+        const avgEl = document.getElementById('forecast-avg');
+        const peakEl = document.getElementById('forecast-peak');
+        const todayEl = document.getElementById('forecast-today');
+        const subtitleEl = document.getElementById('forecast-subtitle');
 
-        // Render Forecast Chart
+        if (totalEl) totalEl.textContent = String(totalUpcoming);
+        if (avgEl) avgEl.textContent = avgPerDay;
+        if (peakEl) peakEl.textContent = String(peakCount);
+        if (todayEl) todayEl.textContent = String(dueCounts[0] || 0);
+        if (subtitleEl) {
+            subtitleEl.textContent = `${cards.length} total cards · Next 30 days starting ${this.formatDateShort(todayStart)}`;
+        }
+
         this.renderForecastChart(dueCounts, todayStart, daysToShow);
 
-        // Render calendar grid
         const calendar = document.getElementById('forecast-calendar');
         if (!calendar) return;
         calendar.innerHTML = '';
 
-        // Day headers
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         dayNames.forEach(name => {
             const header = document.createElement('div');
@@ -100,7 +96,6 @@ class ForecastDashboard {
             calendar.appendChild(header);
         });
 
-        // Leading empty cells (align to weekday)
         const startDow = todayStart.getDay();
         for (let i = 0; i < startDow; i++) {
             const empty = document.createElement('div');
@@ -108,7 +103,6 @@ class ForecastDashboard {
             calendar.appendChild(empty);
         }
 
-        // Day cells
         for (let i = 0; i <= daysToShow; i++) {
             const date = new Date(todayStart);
             date.setDate(date.getDate() + i);
@@ -118,7 +112,6 @@ class ForecastDashboard {
             cell.className = 'cal-cell';
             if (i === 0) cell.classList.add('cal-today');
 
-            // Volume-based coloring
             if (count === 0) cell.classList.add('cal-level-0');
             else if (count <= 2) cell.classList.add('cal-level-1');
             else if (count <= 5) cell.classList.add('cal-level-2');
@@ -131,11 +124,10 @@ class ForecastDashboard {
             `;
             cell.title = `${this.formatDateFull(date)}: ${count} card${count !== 1 ? 's' : ''} due`;
 
-            // Click to view cards due on this day
             const cellDateStr = this.formatDateKey(date);
             const cellDayOffset = i;
             cell.addEventListener('click', () => {
-                if (count === 0) return; // No cards due, skip navigation
+                if (count === 0) return;
                 const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${cellDateStr}&offset=${cellDayOffset}`);
                 chrome.tabs.create({ url: dataUrl });
             });
@@ -143,7 +135,6 @@ class ForecastDashboard {
             calendar.appendChild(cell);
         }
 
-        // Legend
         const legend = document.createElement('div');
         legend.className = 'cal-legend';
         legend.innerHTML = `
@@ -155,45 +146,22 @@ class ForecastDashboard {
             <div class="cal-legend-cell cal-level-4"></div>
             <span class="cal-legend-label">More</span>
         `;
-        calendar.parentElement.appendChild(legend);
+        calendar.parentElement?.appendChild(legend);
     }
 
-    /**
-     * Returns a short formatted date string (e.g., 'Jul 14').
-     * @param {Date} date - Date object.
-     * @returns {string} Short formatted date.
-     */
-    formatDateShort(date) {
+    formatDateShort(date: Date): string {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
-    /**
-     * Returns a full formatted date string (e.g., 'Tue, Jul 14').
-     * @param {Date} date - Date object.
-     * @returns {string} Full formatted date.
-     */
-    formatDateFull(date) {
+    formatDateFull(date: Date): string {
         return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
-    /**
-     * Formats a Date object to local YYYY-MM-DD key.
-     * @param {Date} date - Date object.
-     * @returns {string} YYYY-MM-DD formatted date string.
-     */
-    formatDateKey(date) {
+    formatDateKey(date: Date): string {
         return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     }
 
-    /**
-     * Renders the Workload Forecast chart using dynamic CSS height columns.
-     * Bars are color-coded based on count volume to indicate upcoming peak study days.
-     * 
-     * @param {Object} dueCounts - Binned counts of cards due per day offset (index 0 = today).
-     * @param {Date} todayStart - Start date object of today.
-     * @param {number} daysToShow - Forecast range length (e.g. 30 days).
-     */
-    renderForecastChart(dueCounts, todayStart, daysToShow) {
+    renderForecastChart(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {
         const chartWrapper = document.getElementById('forecast-chart-wrapper');
         if (!chartWrapper) return;
 
@@ -221,7 +189,7 @@ class ForecastDashboard {
         viewport.className = 'chart-viewport';
 
         let maxVal = 0;
-        const dataPoints = [];
+        const dataPoints: Array<{ index: number; dateStr: string; displayDate: string; value: number }> = [];
 
         for (let i = 0; i <= daysToShow; i++) {
             const count = dueCounts[i] || 0;
@@ -240,7 +208,6 @@ class ForecastDashboard {
 
         const maxLimit = Math.max(maxVal, 1);
 
-        // Grid lines
         const gridLines = document.createElement('div');
         gridLines.className = 'chart-grid-lines';
         gridLines.innerHTML = `
@@ -250,7 +217,6 @@ class ForecastDashboard {
         `;
         viewport.appendChild(gridLines);
 
-        // Bars Container
         const barsContainer = document.createElement('div');
         barsContainer.className = 'chart-bars';
 
@@ -268,7 +234,6 @@ class ForecastDashboard {
             if (dp.value === 0) {
                 bar.classList.add('zero-bar');
             } else {
-                // Match calendar colors
                 if (dp.value <= 2) bar.classList.add('cal-bar-level-1');
                 else if (dp.value <= 5) bar.classList.add('cal-bar-level-2');
                 else if (dp.value <= 10) bar.classList.add('cal-bar-level-3');

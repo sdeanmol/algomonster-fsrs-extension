@@ -6,7 +6,10 @@ import { DashboardComponent } from './DashboardComponent.js';
  * @description Renders filtered card quick search items matching text query and topic tag fields.
  */
 export class QuickSearchComponent extends DashboardComponent {
-    constructor(coordinator) {
+    quickSearchCards: any[];
+    quickSearchDebounce: ReturnType<typeof setTimeout> | null;
+
+    constructor(coordinator: any) {
         super(coordinator);
         this.quickSearchCards = [];
         this.quickSearchDebounce = null;
@@ -15,9 +18,9 @@ export class QuickSearchComponent extends DashboardComponent {
     /**
      * Initializes quick search input and tag selectors from the dashboard.
      */
-    async load() {
-        const searchInput = document.getElementById('popup-search-input');
-        const tagFilter = document.getElementById('popup-tag-filter');
+    async load(): Promise<void> {
+        const searchInput = document.getElementById('popup-search-input') as HTMLInputElement | null;
+        const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement | null;
         const resultsContainer = document.getElementById('popup-search-results');
 
         if (!searchInput || !tagFilter || !resultsContainer) return;
@@ -32,10 +35,10 @@ export class QuickSearchComponent extends DashboardComponent {
                 tagFilter.remove(1);
             }
 
-            const tagsSet = new Set();
+            const tagsSet = new Set<string>();
             this.quickSearchCards.forEach(card => {
                 if (card.tags && Array.isArray(card.tags)) {
-                    card.tags.forEach(t => tagsSet.add(t));
+                    card.tags.forEach((t: string) => tagsSet.add(t));
                 }
             });
             [...tagsSet].sort().forEach(tag => {
@@ -52,13 +55,13 @@ export class QuickSearchComponent extends DashboardComponent {
     /**
      * Binds input and selection events for quick search filters.
      */
-    bindEvents() {
+    bindEvents(): void {
         const searchInput = document.getElementById('popup-search-input');
         const tagFilter = document.getElementById('popup-tag-filter');
 
         if (searchInput) {
             searchInput.addEventListener('input', () => {
-                clearTimeout(this.quickSearchDebounce);
+                if (this.quickSearchDebounce) clearTimeout(this.quickSearchDebounce);
                 this.quickSearchDebounce = setTimeout(() => this.renderQuickSearch(), 150);
             });
         }
@@ -71,9 +74,9 @@ export class QuickSearchComponent extends DashboardComponent {
     /**
      * Renders filtered card quick search items matching text query and topic tag fields.
      */
-    renderQuickSearch() {
-        const searchInput = document.getElementById('popup-search-input');
-        const tagFilter = document.getElementById('popup-tag-filter');
+    renderQuickSearch(): void {
+        const searchInput = document.getElementById('popup-search-input') as HTMLInputElement | null;
+        const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement | null;
         const resultsContainer = document.getElementById('popup-search-results');
 
         if (!searchInput || !resultsContainer) return;
@@ -97,7 +100,7 @@ export class QuickSearchComponent extends DashboardComponent {
             if (query) {
                 const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(query);
                 const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(query);
-                const tagMatch = card.tags && card.tags.some(t => t.toLowerCase().includes(query));
+                const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(query));
                 if (!titleMatch && !urlMatch && !tagMatch) return false;
             }
 
@@ -119,7 +122,7 @@ export class QuickSearchComponent extends DashboardComponent {
             const statusBadge = isDue
                 ? '<span class="popup-badge popup-badge-due">Due</span>'
                 : '<span class="popup-badge popup-badge-safe">Safe</span>';
-            const tagsHtml = (card.tags || []).slice(0, 3).map(t => `<span class="popup-tag">${t}</span>`).join('');
+            const tagsHtml = (card.tags || []).slice(0, 3).map((t: string) => `<span class="popup-tag">${t}</span>`).join('');
             const title = card.problemTitle || 'Untitled';
 
             return `<a href="${card.problemUrl}" target="_blank" class="popup-search-item" title="${title}" aria-label="${title}">

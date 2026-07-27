@@ -8,7 +8,7 @@ import { DashboardComponent } from './DashboardComponent.js';
  * and dynamically swaps in Chrome Web Store rating links.
  */
 export class RatingComponent extends DashboardComponent {
-    constructor(coordinator) {
+    constructor(coordinator: any) {
         super(coordinator);
     }
 
@@ -16,11 +16,11 @@ export class RatingComponent extends DashboardComponent {
      * Initializes CWS feedback banner elements, sets up action button hooks (snooze, rated),
      * and reads rating configurations from local storage.
      */
-    async load() {
+    async load(): Promise<void> {
         const card = document.getElementById('rating-prompt-card');
         const promptState = document.getElementById('rating-prompt-state');
         const thanksState = document.getElementById('rating-thanks-state');
-        const rateBtn = document.getElementById('rate-store-btn');
+        const rateBtn = document.getElementById('rate-store-btn') as HTMLAnchorElement | null;
 
         if (!card) return;
 
@@ -46,15 +46,15 @@ export class RatingComponent extends DashboardComponent {
             if (rating.status === 'unrated') {
                 if (cardsCount >= 1) {
                     card.classList.remove('hide-panel');
-                    promptState.classList.remove('hide-panel');
-                    thanksState.classList.add('hide-panel');
+                    promptState?.classList.remove('hide-panel');
+                    thanksState?.classList.add('hide-panel');
                 } else {
                     card.classList.add('hide-panel');
                 }
             } else if (rating.status === 'rated') {
                 card.classList.remove('hide-panel');
-                promptState.classList.add('hide-panel');
-                thanksState.classList.remove('hide-panel');
+                promptState?.classList.add('hide-panel');
+                thanksState?.classList.remove('hide-panel');
             } else {
                 card.classList.add('hide-panel');
             }
@@ -66,7 +66,7 @@ export class RatingComponent extends DashboardComponent {
     /**
      * Binds click events to snooze, feedback rating confirmation, and edits.
      */
-    bindEvents() {
+    bindEvents(): void {
         const card = document.getElementById('rating-prompt-card');
         const promptState = document.getElementById('rating-prompt-state');
         const thanksState = document.getElementById('rating-thanks-state');
@@ -97,8 +97,8 @@ export class RatingComponent extends DashboardComponent {
                     await chrome.storage.local.set({
                         ratingPromptState: { status: 'rated', snoozedUntil: 0 }
                     });
-                    promptState.classList.add('hide-panel');
-                    thanksState.classList.remove('hide-panel');
+                    promptState?.classList.add('hide-panel');
+                    thanksState?.classList.remove('hide-panel');
                     this.showStatus("Thank you for your rating!");
                 } catch (error) {
                     console.error("Error setting already rated status:", error);
@@ -116,8 +116,8 @@ export class RatingComponent extends DashboardComponent {
                     await chrome.storage.local.set({
                         ratingPromptState: { status: 'unrated', snoozedUntil: 0 }
                     });
-                    promptState.classList.remove('hide-panel');
-                    thanksState.classList.add('hide-panel');
+                    promptState?.classList.remove('hide-panel');
+                    thanksState?.classList.add('hide-panel');
                 } catch (error) {
                     console.error("Error resetting rating status:", error);
                 }

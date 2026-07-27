@@ -8,7 +8,7 @@ import { DashboardComponent } from './DashboardComponent.js';
  * and routes test notifications through runtime messages to the background script.
  */
 export class NotificationsComponent extends DashboardComponent {
-    constructor(coordinator) {
+    constructor(coordinator: any) {
         super(coordinator);
     }
 
@@ -16,7 +16,7 @@ export class NotificationsComponent extends DashboardComponent {
      * Checks Chrome/HTML Notification permissions, toggling permission warning banners
      * and adjusting action button visibility appropriately.
      */
-    checkPermissions() {
+    checkPermissions(): void {
         if (typeof Notification !== 'undefined') {
             const warningBanner = document.getElementById('permission-warning-banner');
             const enableBtn = document.getElementById('enable-notifications-btn');
@@ -43,18 +43,18 @@ export class NotificationsComponent extends DashboardComponent {
      * Initializes notification toggles, frequency select dropdowns, and test triggers.
      * Sets up local change listeners to sync preferences back to storage databases.
      */
-    async loadSettings() {
-        const notifToggle = document.getElementById('toggle-notifications');
-        const notifInterval = document.getElementById('notification-interval');
+    async loadSettings(): Promise<void> {
+        const notifToggle = document.getElementById('toggle-notifications') as HTMLInputElement | null;
+        const notifInterval = document.getElementById('notification-interval') as HTMLSelectElement | null;
         const customIntervalContainer = document.getElementById('custom-interval-container');
-        const customIntervalInput = document.getElementById('custom-interval-input');
-        const notifStickyToggle = document.getElementById('toggle-sticky-notification') || document.getElementById('toggle-require-interaction');
-        const quietToggle = document.getElementById('toggle-quiet-hours');
+        const customIntervalInput = document.getElementById('custom-interval-input') as HTMLInputElement | null;
+        const notifStickyToggle = (document.getElementById('toggle-sticky-notification') || document.getElementById('toggle-require-interaction')) as HTMLInputElement | null;
+        const quietToggle = document.getElementById('toggle-quiet-hours') as HTMLInputElement | null;
         const quietContainer = document.getElementById('quiet-hours-container') || document.getElementById('quiet-hours-inputs');
-        const quietStart = document.getElementById('quiet-hours-start') || document.getElementById('quiet-start');
-        const quietEnd = document.getElementById('quiet-hours-end') || document.getElementById('quiet-end');
+        const quietStart = (document.getElementById('quiet-hours-start') || document.getElementById('quiet-start')) as HTMLInputElement | null;
+        const quietEnd = (document.getElementById('quiet-hours-end') || document.getElementById('quiet-end')) as HTMLInputElement | null;
 
-        const updateNotificationUI = (settings) => {
+        const updateNotificationUI = (settings: any) => {
             if (!notifToggle) return;
             notifToggle.checked = settings.enabled !== false;
             if (notifStickyToggle) {
@@ -98,17 +98,17 @@ export class NotificationsComponent extends DashboardComponent {
     /**
      * Binds event listeners to enable button, interval inputs, and test triggers.
      */
-    bindEvents() {
+    bindEvents(): void {
         const enableBtn = document.getElementById('enable-notifications-btn');
-        const notifToggle = document.getElementById('toggle-notifications');
-        const notifInterval = document.getElementById('notification-interval');
+        const notifToggle = document.getElementById('toggle-notifications') as HTMLInputElement | null;
+        const notifInterval = document.getElementById('notification-interval') as HTMLSelectElement | null;
         const customIntervalContainer = document.getElementById('custom-interval-container');
-        const customIntervalInput = document.getElementById('custom-interval-input');
-        const notifStickyToggle = document.getElementById('toggle-sticky-notification') || document.getElementById('toggle-require-interaction');
-        const quietToggle = document.getElementById('toggle-quiet-hours');
+        const customIntervalInput = document.getElementById('custom-interval-input') as HTMLInputElement | null;
+        const notifStickyToggle = (document.getElementById('toggle-sticky-notification') || document.getElementById('toggle-require-interaction')) as HTMLInputElement | null;
+        const quietToggle = document.getElementById('toggle-quiet-hours') as HTMLInputElement | null;
         const quietContainer = document.getElementById('quiet-hours-container') || document.getElementById('quiet-hours-inputs');
-        const quietStart = document.getElementById('quiet-hours-start') || document.getElementById('quiet-start');
-        const quietEnd = document.getElementById('quiet-hours-end') || document.getElementById('quiet-end');
+        const quietStart = (document.getElementById('quiet-hours-start') || document.getElementById('quiet-start')) as HTMLInputElement | null;
+        const quietEnd = (document.getElementById('quiet-hours-end') || document.getElementById('quiet-end')) as HTMLInputElement | null;
         const testNotifBtn = document.getElementById('test-notification-btn');
 
         if (enableBtn) {
@@ -195,7 +195,7 @@ export class NotificationsComponent extends DashboardComponent {
 
         if (testNotifBtn) {
             testNotifBtn.addEventListener('click', () => {
-                chrome.runtime.sendMessage({ action: 'test_notification' }, (response) => {
+                chrome.runtime.sendMessage({ action: 'test_notification' }, (response: any) => {
                     if (chrome.runtime.lastError) {
                         console.error("Error sending test message:", chrome.runtime.lastError.message);
                         this.showStatus("Error triggering notification.", true);
@@ -209,10 +209,10 @@ export class NotificationsComponent extends DashboardComponent {
         }
 
         // R3.6: Weekly Digest Toggle
-        const weeklyDigestToggle = document.getElementById('toggle-weekly-digest');
+        const weeklyDigestToggle = document.getElementById('toggle-weekly-digest') as HTMLInputElement | null;
         if (weeklyDigestToggle) {
             // Load saved preference
-            chrome.storage.local.get(['weeklySummaryEnabled'], (result) => {
+            chrome.storage.local.get(['weeklySummaryEnabled'], (result: { [key: string]: any }) => {
                 weeklyDigestToggle.checked = result.weeklySummaryEnabled !== false;
             });
             weeklyDigestToggle.addEventListener('change', () => {
