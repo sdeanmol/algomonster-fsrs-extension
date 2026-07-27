@@ -1,14 +1,19 @@
+import { DataUtils } from '../utils/dataUtils.js';
+
 export class RetentionBarChart {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+    sortBy: string;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
         this.sortBy = 'retention';
     }
 
-    setSortBy(val) {
+    setSortBy(val: string): void {
         this.sortBy = val;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -24,28 +29,29 @@ export class RetentionBarChart {
             stats.sort((a, b) => b.lapses - a.lapses);
         }
 
-        // Display top 10 max for neatness
         stats = stats.slice(0, 10);
 
-        const getTagColorClass = (dueCount) => {
-            if (dueCount === 0) return 'tag-color-4'; // Green (No due)
-            if (dueCount <= 5) return 'tag-color-2'; // Light Blue (Few due)
-            if (dueCount <= 10) return 'tag-color-5'; // Yellow/Orange (Some due)
-            if (dueCount <= 20) return 'tag-color-1'; // Pink (Many due)
-            return 'tag-color-6'; // Red (A lot due)
+        const getTagColorClass = (dueCount: number) => {
+            if (dueCount === 0) return 'tag-color-4';
+            if (dueCount <= 5) return 'tag-color-2';
+            if (dueCount <= 10) return 'tag-color-5';
+            if (dueCount <= 20) return 'tag-color-1';
+            return 'tag-color-6';
         };
 
         let html = '<div class="retention-bars-container">';
         
         stats.forEach(s => {
-            let val, displayVal, fillClass;
+            let val = 0;
+            let displayVal = '';
+            let fillClass = '';
 
             if (this.sortBy === 'retention') {
                 val = s.trueRetention;
                 displayVal = `${s.trueRetention}%`;
                 fillClass = val < 70 ? 'fill-danger' : (val < 85 ? 'fill-warning' : 'fill-good');
             } else if (this.sortBy === 'stability') {
-                val = Math.min(100, (s.avgStability / 30) * 100); // Normalize roughly against 30 days
+                val = Math.min(100, (s.avgStability / 30) * 100);
                 displayVal = `${s.avgStability.toFixed(1)}d`;
                 fillClass = 'fill-default';
             } else if (this.sortBy === 'cards') {
@@ -77,13 +83,14 @@ export class RetentionBarChart {
         html += '</div>';
         container.innerHTML = html;
 
-        // Add event listeners for clickable tags
         const clickableTags = container.querySelectorAll('.clickable-tag');
         clickableTags.forEach(tagSpan => {
             tagSpan.addEventListener('click', () => {
                 const tag = tagSpan.getAttribute('data-tag');
-                const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=total&tag=${encodeURIComponent(tag)}`);
-                chrome.tabs.create({ url: dataUrl });
+                if (tag) {
+                    const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=total&tag=${encodeURIComponent(tag)}`);
+                    chrome.tabs.create({ url: dataUrl });
+                }
             });
         });
     }

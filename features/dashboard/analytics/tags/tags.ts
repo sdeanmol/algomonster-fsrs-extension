@@ -1,15 +1,21 @@
 import { CoverageTable } from './coverageTable.js';
 import { RetentionBarChart } from './retentionBarChart.js';
+import { DataUtils, TagStats } from '../utils/dataUtils.js';
 
 export class TagsTab {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+    coverageTable: CoverageTable;
+    retentionBarChart: RetentionBarChart;
+    rendered: boolean;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
         this.coverageTable = new CoverageTable(this.dataUtils);
         this.retentionBarChart = new RetentionBarChart(this.dataUtils);
         this.rendered = false;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -52,11 +58,14 @@ Tag Colors (Due Cards):
                 </div>
             `;
 
-            const sortBySelect = container.querySelector('#tag-sort-by');
-            sortBySelect.addEventListener('change', (e) => {
-                this.retentionBarChart.setSortBy(e.target.value);
-                this.retentionBarChart.render('retention-bar-chart-container');
-            });
+            const sortBySelect = container.querySelector('#tag-sort-by') as HTMLSelectElement | null;
+            if (sortBySelect) {
+                sortBySelect.addEventListener('change', (e: Event) => {
+                    const target = e.target as HTMLSelectElement;
+                    this.retentionBarChart.setSortBy(target.value);
+                    this.retentionBarChart.render('retention-bar-chart-container');
+                });
+            }
 
             this.rendered = true;
         }
@@ -66,26 +75,23 @@ Tag Colors (Due Cards):
         this.renderNextAction('tags-next-action-container');
     }
 
-    renderNextAction(containerId) {
+    renderNextAction(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
         const stats = this.dataUtils.getStatsByTag();
         const globalStats = this.dataUtils.getSummaryStats();
-        // Compare against genuine current retrievability
         const globalRetention = globalStats.trueRetention || 90;
 
-        let weakestTag = null;
+        let weakestTag: TagStats | null = null;
 
         stats.forEach(s => {
-            // Only consider tags with significant data and lower than the global retention average
             if (s.count >= 5 && (!weakestTag || s.trueRetention < weakestTag.trueRetention)) {
                 weakestTag = s;
             }
         });
 
-        // Scheduling logic: If a specific subject is pulling down the global retention by more than 5%
-        if (weakestTag && weakestTag.trueRetention < (globalRetention - 5)) {
+        if (weakestTag && (weakestTag as TagStats).trueRetention < (globalRetention - 5)) {
             container.innerHTML = `
                 <div class="actionable-insight-banner warning" style="margin-bottom:0;">
                     <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -93,7 +99,7 @@ Tag Colors (Due Cards):
                     </svg>
                     <div class="insight-content">
                         <h3>Next Action: Target Weak Tags</h3>
-                        <p>Your <strong>${weakestTag.tag}</strong> tag has a retrievability of ${weakestTag.trueRetention}%, which is significantly below your overall average of ${globalRetention}%. Your next action is to do a <strong>custom study session</strong> focused only on this tag to boost its stability.</p>
+                        <p>Your <strong>${(weakestTag as TagStats).tag}</strong> tag has a retrievability of ${(weakestTag as TagStats).trueRetention}%, which is significantly below your overall average of ${globalRetention}%. Your next action is to do a <strong>custom study session</strong> focused only on this tag to boost its stability.</p>
                     </div>
                 </div>
             `;

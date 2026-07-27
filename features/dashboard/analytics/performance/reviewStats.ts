@@ -1,14 +1,19 @@
+import { DataUtils } from '../utils/dataUtils.js';
+
 export class ReviewStats {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+    period: string;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
         this.period = 'daily';
     }
 
-    setPeriod(period) {
+    setPeriod(period: string): void {
         this.period = period;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -19,12 +24,11 @@ export class ReviewStats {
             return;
         }
 
-        let buckets = [];
+        const buckets: Array<{ label: string; tooltip: string; value: number }> = [];
         let totalReviews = 0;
         let activePeriods = 0;
 
         if (this.period === 'daily') {
-            // Show last 14 days
             const today = new Date();
             for (let i = 13; i >= 0; i--) {
                 const d = new Date(today);
@@ -40,7 +44,6 @@ export class ReviewStats {
                 });
             }
         } else if (this.period === 'weekly') {
-            // Show last 12 weeks
             const today = new Date();
             for (let w = 11; w >= 0; w--) {
                 let weekTotal = 0;
@@ -62,7 +65,6 @@ export class ReviewStats {
                 });
             }
         } else if (this.period === 'monthly') {
-            // Show last 12 months
             const today = new Date();
             for (let m = 11; m >= 0; m--) {
                 const monthDate = new Date(today.getFullYear(), today.getMonth() - m, 1);
@@ -84,8 +86,7 @@ export class ReviewStats {
         const avgPerPeriod = activePeriods > 0 ? (totalReviews / buckets.length).toFixed(1) : '0';
         const maxVal = Math.max(...buckets.map(b => b.value), 1);
 
-        // Summary row
-        const periodLabels = { daily: 'Day', weekly: 'Week', monthly: 'Month' };
+        const periodLabels: Record<string, string> = { daily: 'Day', weekly: 'Week', monthly: 'Month' };
         let html = `<div class="review-stats-summary">
             <div class="review-stat-mini">
                 <div class="review-stat-value">${totalReviews}</div>
@@ -101,7 +102,6 @@ export class ReviewStats {
             </div>
         </div>`;
 
-        // Bar chart
         html += '<div class="review-bars-container">';
         buckets.forEach(b => {
             const heightPct = (b.value / maxVal) * 100;

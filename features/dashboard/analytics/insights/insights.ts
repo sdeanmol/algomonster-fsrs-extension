@@ -1,13 +1,18 @@
 import { ReviewTimeAnalytics } from './reviewTimeAnalytics.js';
+import { DataUtils } from '../utils/dataUtils.js';
 
 export class InsightsTab {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+    reviewTimeAnalytics: ReviewTimeAnalytics;
+    rendered: boolean;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
         this.reviewTimeAnalytics = new ReviewTimeAnalytics(this.dataUtils);
         this.rendered = false;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
         
@@ -34,7 +39,7 @@ export class InsightsTab {
         this.renderNextAction('insights-next-action-container');
     }
 
-    renderNextAction(containerId) {
+    renderNextAction(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 

@@ -1,15 +1,21 @@
 import { RetentionChart } from './retentionChart.js';
 import { PredictionComparison } from './predictionComparison.js';
+import { DataUtils } from '../utils/dataUtils.js';
 
 export class MemoryTab {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+    retentionChart: RetentionChart;
+    predictionComparison: PredictionComparison;
+    rendered: boolean;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
         this.retentionChart = new RetentionChart(this.dataUtils);
         this.predictionComparison = new PredictionComparison(this.dataUtils);
         this.rendered = false;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -54,30 +60,39 @@ export class MemoryTab {
                 </div>
             `;
 
-            // Bind events for the dropdowns and toggles
-            const groupBySelect = container.querySelector('#retention-group-by');
-            const confidenceToggle = container.querySelector('#toggle-confidence-bands');
-            const tagFilterInput = container.querySelector('#retention-tag-filter');
-            const tagFilterWrapper = container.querySelector('#tag-filter-wrapper');
+            const groupBySelect = container.querySelector('#retention-group-by') as HTMLSelectElement | null;
+            const confidenceToggle = container.querySelector('#toggle-confidence-bands') as HTMLInputElement | null;
+            const tagFilterInput = container.querySelector('#retention-tag-filter') as HTMLInputElement | null;
+            const tagFilterWrapper = container.querySelector('#tag-filter-wrapper') as HTMLElement | null;
 
-            groupBySelect.addEventListener('change', (e) => {
-                const groupBy = e.target.value;
-                this.retentionChart.setGroupBy(groupBy);
-                this.retentionChart.render('retention-curves-container');
+            if (groupBySelect) {
+                groupBySelect.addEventListener('change', (e: Event) => {
+                    const target = e.target as HTMLSelectElement;
+                    const groupBy = target.value;
+                    this.retentionChart.setGroupBy(groupBy);
+                    this.retentionChart.render('retention-curves-container');
 
-                // Toggle visibility of the tag filter based on the group-by selection
-                tagFilterWrapper.style.display = (groupBy === 'tag') ? 'flex' : 'none';
-            });
+                    if (tagFilterWrapper) {
+                        tagFilterWrapper.style.display = (groupBy === 'tag') ? 'flex' : 'none';
+                    }
+                });
+            }
 
-            tagFilterInput.addEventListener('input', (e) => {
-                this.retentionChart.setFilterTag(e.target.value);
-                this.retentionChart.render('retention-curves-container');
-            });
+            if (tagFilterInput) {
+                tagFilterInput.addEventListener('input', (e: Event) => {
+                    const target = e.target as HTMLInputElement;
+                    this.retentionChart.setFilterTag(target.value);
+                    this.retentionChart.render('retention-curves-container');
+                });
+            }
 
-            confidenceToggle.addEventListener('change', (e) => {
-                this.retentionChart.setShowConfidence(e.target.checked);
-                this.retentionChart.render('retention-curves-container');
-            });
+            if (confidenceToggle) {
+                confidenceToggle.addEventListener('change', (e: Event) => {
+                    const target = e.target as HTMLInputElement;
+                    this.retentionChart.setShowConfidence(target.checked);
+                    this.retentionChart.render('retention-curves-container');
+                });
+            }
 
             this.rendered = true;
         }
@@ -88,16 +103,14 @@ export class MemoryTab {
         this.renderPersonalMemoryStatus('personal-memory-status-container');
     }
 
-    renderPersonalMemoryStatus(containerId) {
+    renderPersonalMemoryStatus(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
-        chrome.storage.local.get(['fsrsGlobalParams'], (result) => {
+        chrome.storage.local.get(['fsrsGlobalParams'], (result: { [key: string]: any }) => {
             const params = result.fsrsGlobalParams || {};
             const isPersonalized = params.version && params.version.includes('personalized');
             const timestamp = params.timestamp ? new Date(params.timestamp).toLocaleDateString() : 'Never';
-
-            const stats = this.dataUtils.getSummaryStats();
 
             let statusBadge = '<span class="tag-badge" style="background:var(--md-surface-variant); color:var(--md-text-low);">Default Weights</span>';
             if (isPersonalized) {
@@ -105,7 +118,7 @@ export class MemoryTab {
             }
 
             container.innerHTML = `
-                <div class="memory-panel ana-panel-wide" style="display:flex; justify-content:space-between; align-items:center; padding:16px;">
+                <div class="memory-panel ana-panel-wide" style="display:flex; justify-space-between; align-items:center; padding:16px;">
                     <div>
                         <h3 style="margin:0 0 4px 0; font-size:14px;">Personal Memory Model</h3>
                         <p style="margin:0; font-size:12px; color:var(--md-text-low);">Uses your history to predict forgetting.</p>
@@ -126,13 +139,12 @@ export class MemoryTab {
         });
     }
 
-    renderNextAction(containerId) {
+    renderNextAction(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
         const stats = this.dataUtils.getSummaryStats();
 
-        // Fetch Requested Retention from active scheduler (default 90%)
         const requestedRetention = this.dataUtils.scheduler
             ? Math.round(this.dataUtils.scheduler.getDefaultRequestRetention() * 100)
             : 90;

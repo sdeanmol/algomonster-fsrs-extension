@@ -1,16 +1,20 @@
 import { getLastReviewDate } from '../../../common/utils/cardUtils.js';
+import { DataUtils } from '../utils/dataUtils.js';
 
 export class RecoveryTracking {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+    tagFilter: string;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
         this.tagFilter = 'all';
     }
 
-    setTagFilter(tag) {
+    setTagFilter(tag: string): void {
         this.tagFilter = tag;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -43,7 +47,7 @@ export class RecoveryTracking {
         container.innerHTML = html;
     }
     
-    buildTable(cards, isRecovered) {
+    buildTable(cards: any[], isRecovered: boolean): string {
         if (cards.length === 0) {
             return `<div class="retention-empty">No cards found in this category.</div>`;
         }
@@ -54,14 +58,11 @@ export class RecoveryTracking {
             const lapses = c.lapses || 0;
             const stab = c.stability > 0 ? c.stability.toFixed(1) + 'd' : '0d';
             
-            // Heuristic for days since last lapse (assume last review was a lapse if struggling)
-            // Ideally derived from historyLog
             let daysSince = 0;
-            let lastLapseLog = null;
+            let lastLapseLog: any = null;
             
             if (c.historyLog && c.historyLog.length > 0) {
-                // Find the most recent lapse by searching backwards and ensuring it's an object
-                lastLapseLog = c.historyLog.slice().reverse().find(l => typeof l === 'object' && l.rating === 1);
+                lastLapseLog = c.historyLog.slice().reverse().find((l: any) => typeof l === 'object' && l.rating === 1);
             }
             
             if (lastLapseLog && lastLapseLog.date) {

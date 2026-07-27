@@ -1,15 +1,21 @@
 import { RecoveryTracking } from './recoveryTracking.js';
 import { ReviewStats } from './reviewStats.js';
+import { DataUtils } from '../utils/dataUtils.js';
 
 export class PerformanceTab {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+    reviewStats: ReviewStats;
+    recoveryTracking: RecoveryTracking;
+    rendered: boolean;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
         this.reviewStats = new ReviewStats(this.dataUtils);
         this.recoveryTracking = new RecoveryTracking(this.dataUtils);
         this.rendered = false;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
         
@@ -43,7 +49,6 @@ export class PerformanceTab {
                             <div class="performance-controls">
                                 <select id="performance-filter-tag" class="modern-select">
                                     <option value="all">All Tags</option>
-                                    <!-- Options populated dynamically if needed -->
                                 </select>
                             </div>
                         </div>
@@ -52,17 +57,23 @@ export class PerformanceTab {
                 </div>
             `;
             
-            // Basic event listener for future filter expansion
-            const tagFilter = container.querySelector('#performance-filter-tag');
-            tagFilter.addEventListener('change', (e) => {
-                this.recoveryTracking.setTagFilter(e.target.value);
-                this.recoveryTracking.render('recovery-tracking-container');
-            });
-            const periodSelect = container.querySelector('#review-period-select');
-            periodSelect.addEventListener('change', (e) => {
-                this.reviewStats.setPeriod(e.target.value);
-                this.reviewStats.render('review-stats-container');
-            });
+            const tagFilter = container.querySelector('#performance-filter-tag') as HTMLSelectElement | null;
+            if (tagFilter) {
+                tagFilter.addEventListener('change', (e: Event) => {
+                    const target = e.target as HTMLSelectElement;
+                    this.recoveryTracking.setTagFilter(target.value);
+                    this.recoveryTracking.render('recovery-tracking-container');
+                });
+            }
+
+            const periodSelect = container.querySelector('#review-period-select') as HTMLSelectElement | null;
+            if (periodSelect) {
+                periodSelect.addEventListener('change', (e: Event) => {
+                    const target = e.target as HTMLSelectElement;
+                    this.reviewStats.setPeriod(target.value);
+                    this.reviewStats.render('review-stats-container');
+                });
+            }
             
             this.rendered = true;
         }
@@ -72,14 +83,13 @@ export class PerformanceTab {
         this.renderNextAction('performance-next-action-container');
     }
 
-    renderNextAction(containerId) {
+    renderNextAction(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
         const dataUtils = this.dataUtils;
         let struggling = 0;
         dataUtils.cards.forEach(c => {
-            // Determine difficulty dynamically from the active scheduling algorithm
             const isHard = dataUtils.scheduler ? dataUtils.scheduler.isHighDifficulty(c) : (c.difficulty || 0) >= 7;
             if (isHard && (c.lapses || 0) >= 1) {
                 struggling++;

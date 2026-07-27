@@ -1,9 +1,13 @@
+import { DataUtils } from '../utils/dataUtils.js';
+
 export class CoverageTable {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -30,12 +34,12 @@ export class CoverageTable {
                 <tbody>
         `;
 
-        const getTagColorClass = (dueCount) => {
-            if (dueCount === 0) return 'tag-color-4'; // Green (No due)
-            if (dueCount <= 5) return 'tag-color-2'; // Light Blue (Few due)
-            if (dueCount <= 10) return 'tag-color-5'; // Yellow/Orange (Some due)
-            if (dueCount <= 20) return 'tag-color-1'; // Pink (Many due)
-            return 'tag-color-6'; // Red (A lot due)
+        const getTagColorClass = (dueCount: number) => {
+            if (dueCount === 0) return 'tag-color-4';
+            if (dueCount <= 5) return 'tag-color-2';
+            if (dueCount <= 10) return 'tag-color-5';
+            if (dueCount <= 20) return 'tag-color-1';
+            return 'tag-color-6';
         };
 
         stats.forEach(s => {
@@ -60,13 +64,14 @@ export class CoverageTable {
         tableHtml += `</tbody></table></div>`;
         container.innerHTML = tableHtml;
 
-        // Add event listeners for clickable tags
         const clickableTags = container.querySelectorAll('.clickable-tag');
         clickableTags.forEach(tagSpan => {
             tagSpan.addEventListener('click', () => {
                 const tag = tagSpan.getAttribute('data-tag');
-                const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=total&tag=${encodeURIComponent(tag)}`);
-                chrome.tabs.create({ url: dataUrl });
+                if (tag) {
+                    const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=total&tag=${encodeURIComponent(tag)}`);
+                    chrome.tabs.create({ url: dataUrl });
+                }
             });
         });
     }

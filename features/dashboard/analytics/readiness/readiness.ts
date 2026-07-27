@@ -1,16 +1,21 @@
 /**
- * @file features/dashboard/analytics/readiness/readiness.js
+ * @file features/dashboard/analytics/readiness/readiness.ts
  * @description Exam Readiness tab controller. Predicts expected recall per subject/tag
  * based on the FSRS exponential memory decay formula for an upcoming exam date.
  */
 
+import { DataUtils } from '../utils/dataUtils.js';
+
 export class ReadinessTab {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+    daysAhead: number;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
         this.daysAhead = 12;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -63,7 +68,6 @@ export class ReadinessTab {
 
         container.innerHTML = `
             <div class="readiness-wrapper">
-                <!-- Simulation Control Panel -->
                 <div class="readiness-control-card">
                     <div class="control-header">
                         <h2>Exam Readiness Forecast</h2>
@@ -94,7 +98,6 @@ export class ReadinessTab {
                     </div>
                 </div>
 
-                <!-- Overall Readiness Summary Cards -->
                 <div class="readiness-metrics-grid">
                     <div class="readiness-metric-card">
                         <span class="metric-title">Overall Expected Recall</span>
@@ -125,7 +128,6 @@ export class ReadinessTab {
                     </div>
                 </div>
 
-                <!-- Subject / Tag Predictions Breakdown -->
                 <div class="readiness-section">
                     <div class="section-header">
                         <h3>Expected Recall by Subject / Tag</h3>
@@ -137,7 +139,6 @@ export class ReadinessTab {
                     </div>
                 </div>
 
-                <!-- Action Footer -->
                 <div class="readiness-footer-actions">
                     <a href="../studyplan/studyplan.html" class="btn btn-primary">
                         <svg class="svg-icon" viewBox="0 0 24 24"><path d="M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path><polyline points="16 2 16 6"></polyline><polyline points="8 2 8 6"></polyline><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -150,11 +151,12 @@ export class ReadinessTab {
         this.bindEvents();
     }
 
-    bindEvents() {
-        const daysInput = document.getElementById('readiness-days-input');
+    bindEvents(): void {
+        const daysInput = document.getElementById('readiness-days-input') as HTMLInputElement | null;
         if (daysInput) {
-            daysInput.addEventListener('input', (e) => {
-                const val = parseInt(e.target.value, 10);
+            daysInput.addEventListener('input', (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const val = parseInt(target.value, 10);
                 if (!isNaN(val) && val >= 0) {
                     this.daysAhead = val;
                     this.render('tab-readiness');
@@ -164,8 +166,9 @@ export class ReadinessTab {
 
         const presetChips = document.querySelectorAll('.preset-chip');
         presetChips.forEach(chip => {
-            chip.addEventListener('click', (e) => {
-                const days = parseInt(e.currentTarget.dataset.days, 10);
+            chip.addEventListener('click', (e: Event) => {
+                const currentTarget = e.currentTarget as HTMLElement;
+                const days = parseInt(currentTarget.dataset.days || '', 10);
                 if (!isNaN(days)) {
                     this.daysAhead = days;
                     this.render('tab-readiness');
@@ -174,7 +177,7 @@ export class ReadinessTab {
         });
     }
 
-    escapeHtml(str) {
+    escapeHtml(str: string): string {
         if (!str) return '';
         return String(str)
             .replace(/&/g, '&amp;')

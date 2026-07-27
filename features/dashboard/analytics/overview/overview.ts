@@ -1,9 +1,16 @@
 import { MemoryHealth } from './memoryHealth.js';
 import { LearningVelocity } from './learningVelocity.js';
 import { MiniForecast } from './miniForecast.js';
+import { DataUtils } from '../utils/dataUtils.js';
 
 export class OverviewTab {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+    memoryHealth: MemoryHealth;
+    learningVelocity: LearningVelocity;
+    miniForecast: MiniForecast;
+    rendered: boolean;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
         this.memoryHealth = new MemoryHealth(this.dataUtils);
         this.learningVelocity = new LearningVelocity(this.dataUtils);
@@ -11,7 +18,7 @@ export class OverviewTab {
         this.rendered = false;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
         
@@ -33,14 +40,9 @@ export class OverviewTab {
         this.miniForecast.render('mini-forecast-container');
     }
 
-    renderNextAction(containerId) {
+    renderNextAction(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
-
-        // Simple logic for next action priority:
-        // 1. High due count
-        // 2. Memory health low
-        // 3. Keep it up
 
         const stats = this.dataUtils.getSummaryStats();
         const dueCount = stats.due || 0;

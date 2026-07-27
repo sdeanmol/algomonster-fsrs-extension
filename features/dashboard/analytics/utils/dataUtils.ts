@@ -1,15 +1,112 @@
 /**
- * @file features/dashboard/analytics/utils/dataUtils.js
+ * @file features/dashboard/analytics/utils/dataUtils.ts
  * @description Shared utilities for aggregating and calculating FSRS data.
  */
 
 import { getLastReviewDate } from '../../../common/utils/cardUtils.js';
 
+export interface SummaryStats {
+    totalCards: number;
+    reviewedCards: number;
+    totalReps: number;
+    totalLapses: number;
+    retention: number;
+    trueRetention: number;
+    avgStability: number;
+    totalActivityReviews: number;
+    due: number;
+    dueToday: number;
+    streak: number;
+}
+
+export interface LearningVelocity {
+    newCardsPerDay: string;
+    newCardsTrend: number;
+    sparklineNew: number[];
+    graduatedPerWeek: number;
+    graduatedTrend: number;
+    sparklineGrad: number[];
+    reviewsPerDay: string;
+    reviewsTrend: number;
+    sparklineRev: number[];
+}
+
+export interface TagStats {
+    tag: string;
+    count: number;
+    retention: number;
+    trueRetention: number;
+    avgStability: number;
+    lapses: number;
+    due: number;
+}
+
+export interface PerformanceStats {
+    lapsed: any[];
+    recovered: any[];
+}
+
+export interface ReviewTimeInsights {
+    hasTimeData: boolean;
+    data: Array<{
+        bucket: string;
+        reviews: number;
+        retention: number;
+        avgDurationMs: number | null;
+    }>;
+}
+
+export interface ExamReadinessTagResult {
+    tag: string;
+    count: number;
+    reviewedCount: number;
+    expectedRecall: number;
+    avgStability: number;
+    status: string;
+    statusClass: string;
+}
+
+export interface ExamReadinessStats {
+    daysAhead: number;
+    targetDate: Date;
+    overallRecall: number;
+    totalCards: number;
+    reviewedCards: number;
+    atRiskCount: number;
+    tags: ExamReadinessTagResult[];
+}
+
+export interface SimulationCurvePoint {
+    day: number;
+    retention: number;
+}
+
+export interface FutureMemorySimulationStats {
+    today: number;
+    d30: number;
+    d90: number;
+    d180: number;
+    custom: {
+        days: number;
+        retention: number;
+        forgottenCount: number;
+        totalCards: number;
+    };
+    curvePoints: SimulationCurvePoint[];
+    totalCards: number;
+    reviewedCards: number;
+}
+
 export class DataUtils {
-    constructor(cards, activity, scheduler) {
+    cards: any[];
+    activity: { [key: string]: number };
+    scheduler: any;
+    today: Date;
+    todayStart: Date;
+
+    constructor(cards: any[], activity: { [key: string]: number }, scheduler: any) {
         this.cards = cards || [];
         
-        // Ensure consistent camelCase properties for analytics calculations
         this.cards.forEach(card => {
             card.lastReview = getLastReviewDate(card);
             
@@ -26,7 +123,7 @@ export class DataUtils {
     /**
      * Get basic summary statistics
      */
-    getSummaryStats() {
+    getSummaryStats(): SummaryStats {
         let totalReps = 0;
         let totalLapses = 0;
         let totalStability = 0;
@@ -47,8 +144,8 @@ export class DataUtils {
         const retention = totalReps > 0 ? Math.round(((totalReps - totalLapses) / totalReps) * 100) : 0;
         const avgStability = reviewedCards > 0 ? (totalStability / reviewedCards) : 0;
 
-        let dueCount = 0; // Due exactly right now
-        let dueTodayCount = 0; // Due anytime today or past due
+        let dueCount = 0;
+        let dueTodayCount = 0;
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -58,14 +155,12 @@ export class DataUtils {
         this.cards.forEach(card => {
             const dueDate = new Date(card.due);
             const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-            const diffDays = Math.floor((dueDay - todayStart) / (1000 * 60 * 60 * 24));
+            const diffDays = Math.floor((dueDay.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
             
-            // Cards due at this exact millisecond
             if (dueDate <= now) {
                 dueCount++;
             }
             
-            // Cards due anytime today
             if (diffDays <= 0) {
                 dueTodayCount++;
             }
@@ -84,8 +179,8 @@ export class DataUtils {
             reviewedCards,
             totalReps,
             totalLapses,
-            retention, // Historic log retention
-            trueRetention, // FSRS Current Retrievability
+            retention,
+            trueRetention,
             avgStability,
             totalActivityReviews,
             due: dueCount,
@@ -97,7 +192,7 @@ export class DataUtils {
     /**
      * Get learning velocity metrics
      */
-    getLearningVelocity() {
+    getLearningVelocity(): LearningVelocity {
         const now = Date.now();
         const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
         const twoWeeksAgo = now - (14 * 24 * 60 * 60 * 1000);
@@ -137,7 +232,6 @@ export class DataUtils {
         let dailyGrad = [0, 0, 0, 0, 0, 0, 0];
         let dailyRev = [0, 0, 0, 0, 0, 0, 0];
 
-        // We will need to map timestamp to the correct bin 0-6 (0 is 6 days ago, 6 is today)
         this.cards.forEach(card => {
             let firstReview = card.lastReview;
             if (card.historyLog && card.historyLog.length > 0) {
@@ -161,13 +255,13 @@ export class DataUtils {
             const val = this.activity[key] || 0;
             if (i < 7) {
                 reviewsLastWeek += val;
-                dailyRev[6 - i] = val; // i=0 is today (index 6), i=6 is 6 days ago (index 0)
+                dailyRev[6 - i] = val;
             } else {
                 reviewsPrevWeek += val;
             }
         }
 
-        const calcTrend = (current, previous) => {
+        const calcTrend = (current: number, previous: number) => {
             if (previous === 0) return current > 0 ? 100 : 0;
             return Math.round(((current - previous) / previous) * 100);
         };
@@ -188,12 +282,12 @@ export class DataUtils {
     /**
      * Group cards by tag and calculate stats
      */
-    getStatsByTag() {
-        const tags = {};
+    getStatsByTag(): TagStats[] {
+        const tags: { [tag: string]: any } = {};
         
         this.cards.forEach(card => {
             const cardTags = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
-            cardTags.forEach(tag => {
+            cardTags.forEach((tag: string) => {
                 if (!tags[tag]) {
                     tags[tag] = { count: 0, totalReps: 0, totalLapses: 0, totalStability: 0, reviewed: 0, due: 0, totalRetrievability: 0, retrievabilityCount: 0 };
                 }
@@ -218,7 +312,7 @@ export class DataUtils {
             });
         });
         
-        const result = [];
+        const result: TagStats[] = [];
         for (const [tag, data] of Object.entries(tags)) {
             const retention = data.totalReps > 0 ? ((data.totalReps - data.totalLapses) / data.totalReps) * 100 : 0;
             const trueRetention = data.retrievabilityCount > 0 ? (data.totalRetrievability / data.retrievabilityCount) * 100 : retention;
@@ -240,9 +334,9 @@ export class DataUtils {
     /**
      * Get lapse leaderboard / recovery stats
      */
-    getPerformanceStats() {
-        const lapsed = [];
-        const recovered = [];
+    getPerformanceStats(): PerformanceStats {
+        const lapsed: any[] = [];
+        const recovered: any[] = [];
         
         this.cards.forEach(card => {
             if ((card.lapses || 0) > 0) {
@@ -263,11 +357,11 @@ export class DataUtils {
     /**
      * Format date to YYYY-MM-DD
      */
-    formatDateKey(date) {
+    formatDateKey(date: Date): string {
         return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     }
     
-    calculateCurrentStreak() {
+    calculateCurrentStreak(): number {
         let streak = 0;
         const checkDate = new Date(this.today);
 
@@ -287,19 +381,19 @@ export class DataUtils {
         return streak;
     }
     
-    getReviewTimeInsights() {
-        const times = {
-            morning: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 },   // 5AM - 12PM
-            afternoon: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 }, // 12PM - 5PM
-            evening: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 },   // 5PM - 9PM
-            night: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 }      // 9PM - 5AM
+    getReviewTimeInsights(): ReviewTimeInsights {
+        const times: Record<string, { reviews: number; reps: number; lapses: number; duration: number; durationCount: number }> = {
+            morning: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 },
+            afternoon: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 },
+            evening: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 },
+            night: { reviews: 0, reps: 0, lapses: 0, duration: 0, durationCount: 0 }
         };
         
         let hasTimeData = false;
         
         this.cards.forEach(card => {
             if (card.historyLog && card.historyLog.length > 0) {
-                card.historyLog.forEach((log, index) => {
+                card.historyLog.forEach((log: any) => {
                     if (log.date) {
                         hasTimeData = true;
                         const d = new Date(log.date);
@@ -326,7 +420,7 @@ export class DataUtils {
             }
         });
         
-        const result = [];
+        const result: Array<{ bucket: string; reviews: number; retention: number; avgDurationMs: number | null }> = [];
         for (const [bucket, data] of Object.entries(times)) {
             const retention = data.reps > 0 ? ((data.reps - data.lapses) / data.reps) * 100 : 0;
             const avgDurationMs = data.durationCount > 0 ? (data.duration / data.durationCount) : null;
@@ -347,15 +441,13 @@ export class DataUtils {
     /**
      * Calculates projected Exam Readiness recall rates per tag and overall deck
      * based on FSRS memory decay for a target exam date N days ahead.
-     * @param {number} daysAhead Number of days until the exam (e.g. 12)
-     * @returns {Object} Exam readiness projections and subject breakdown
      */
-    getExamReadinessStats(daysAhead = 12) {
-        const numDays = Math.max(0, parseInt(daysAhead, 10) || 0);
+    getExamReadinessStats(daysAhead: number = 12): ExamReadinessStats {
+        const numDays = Math.max(0, parseInt(String(daysAhead), 10) || 0);
         const now = Date.now();
         const targetTime = now + (numDays * 24 * 60 * 60 * 1000);
         
-        const tags = {};
+        const tags: { [tag: string]: any } = {};
         let totalProjectedRetrievability = 0;
         let totalReviewedCards = 0;
 
@@ -366,13 +458,12 @@ export class DataUtils {
             const hasReviewHistory = card.stability > 0 && (card.lastReview || card.last_review);
             
             if (hasReviewHistory && this.scheduler) {
-                // Determine projected retrievability using FSRS scheduler for targetTime
                 projectedR = this.scheduler.getRetrievability(card, targetTime);
                 totalProjectedRetrievability += projectedR;
                 totalReviewedCards++;
             }
 
-            cardTags.forEach(tag => {
+            cardTags.forEach((tag: string) => {
                 if (!tags[tag]) {
                     tags[tag] = {
                         count: 0,
@@ -396,7 +487,7 @@ export class DataUtils {
             : 0;
 
         let atRiskCount = 0;
-        const tagResults = [];
+        const tagResults: ExamReadinessTagResult[] = [];
 
         for (const [tag, data] of Object.entries(tags)) {
             const expectedRecall = data.reviewedCount > 0 
@@ -430,7 +521,6 @@ export class DataUtils {
             });
         }
 
-        // Sort tags by lowest expected recall first (prioritize subjects needing attention)
         tagResults.sort((a, b) => a.expectedRecall - b.expectedRecall);
 
         return {
@@ -446,22 +536,19 @@ export class DataUtils {
 
     /**
      * Calculates Future Memory Simulation data predicting decay if user stops studying.
-     * Evaluates FSRS retrievability at Today (0d), 30d, 90d, 180d and custom days.
-     * @param {number} customDays Number of days for the interactive slider (e.g. 45)
-     * @returns {Object} Memory simulation retention percentages and decay curve points
      */
-    getFutureMemorySimulation(customDays = 45) {
-        const sliderDays = Math.max(0, parseInt(customDays, 10) || 0);
+    getFutureMemorySimulation(customDays: number = 45): FutureMemorySimulationStats {
+        const sliderDays = Math.max(0, parseInt(String(customDays), 10) || 0);
         const now = Date.now();
         
         const intervals = [0, 30, 90, 180];
-        const retentionByInterval = { 0: 0, 30: 0, 90: 0, 180: 0 };
+        const retentionByInterval: Record<number, number> = { 0: 0, 30: 0, 90: 0, 180: 0 };
         let customRetention = 0;
         let forgottenCount = 0;
         let reviewedCardsCount = 0;
 
         const curveDays = [0, 15, 30, 45, 60, 90, 120, 150, 180];
-        const curveSum = {};
+        const curveSum: Record<number, number> = {};
         curveDays.forEach(d => curveSum[d] = 0);
 
         this.cards.forEach(card => {
@@ -469,14 +556,12 @@ export class DataUtils {
             if (hasReviewHistory && this.scheduler) {
                 reviewedCardsCount++;
 
-                // Compute retrievability for key milestone intervals
                 intervals.forEach(day => {
                     const targetTime = now + (day * 24 * 60 * 60 * 1000);
                     const r = this.scheduler.getRetrievability(card, targetTime);
                     retentionByInterval[day] += r;
                 });
 
-                // Compute retrievability for custom slider days
                 const customTime = now + (sliderDays * 24 * 60 * 60 * 1000);
                 const rCustom = this.scheduler.getRetrievability(card, customTime);
                 customRetention += rCustom;
@@ -485,7 +570,6 @@ export class DataUtils {
                     forgottenCount++;
                 }
 
-                // Compute points for curve graph
                 curveDays.forEach(day => {
                     const targetTime = now + (day * 24 * 60 * 60 * 1000);
                     curveSum[day] += this.scheduler.getRetrievability(card, targetTime);
@@ -493,7 +577,7 @@ export class DataUtils {
             }
         });
 
-        const calcAvgPercent = (sum) => reviewedCardsCount > 0 ? Math.round((sum / reviewedCardsCount) * 100) : 0;
+        const calcAvgPercent = (sum: number) => reviewedCardsCount > 0 ? Math.round((sum / reviewedCardsCount) * 100) : 0;
 
         const todayRetention = calcAvgPercent(retentionByInterval[0]);
         const d30Retention = calcAvgPercent(retentionByInterval[30]);
@@ -501,7 +585,7 @@ export class DataUtils {
         const d180Retention = calcAvgPercent(retentionByInterval[180]);
         const customRetentionPercent = calcAvgPercent(customRetention);
 
-        const curvePoints = curveDays.map(day => ({
+        const curvePoints: SimulationCurvePoint[] = curveDays.map(day => ({
             day,
             retention: calcAvgPercent(curveSum[day])
         }));

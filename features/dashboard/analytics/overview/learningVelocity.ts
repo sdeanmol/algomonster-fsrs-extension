@@ -1,9 +1,13 @@
+import { DataUtils } from '../utils/dataUtils.js';
+
 export class LearningVelocity {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -13,7 +17,7 @@ export class LearningVelocity {
         const sparkline2 = this.generateSparkline('#50e3c2', velocity.sparklineGrad);
         const sparkline3 = this.generateSparkline('#f5a623', velocity.sparklineRev);
 
-        const formatTrend = (val) => {
+        const formatTrend = (val: number) => {
             if (val === 0) return `<span class="kpi-trend" style="color:var(--md-text-low);">0%</span>`;
             if (val > 0) return `<span class="kpi-trend trend-up">▲ ${val}%</span>`;
             return `<span class="kpi-trend trend-down">▼ ${Math.abs(val)}%</span>`;
@@ -66,11 +70,11 @@ export class LearningVelocity {
         `;
     }
 
-    generateSparkline(color, dataArray = []) {
+    generateSparkline(color: string, dataArray: number[] = []): string {
         if (!dataArray || dataArray.length === 0) return '';
         
         const maxVal = Math.max(...dataArray, 1);
-        const pts = [];
+        const pts: string[] = [];
         const xStep = 100 / Math.max(1, dataArray.length - 1);
         
         for (let i = 0; i < dataArray.length; i++) {

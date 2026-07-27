@@ -1,9 +1,13 @@
+import { DataUtils } from '../utils/dataUtils.js';
+
 export class MiniForecast {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -11,14 +15,13 @@ export class MiniForecast {
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-        // Count due cards per day for next 7 days
-        const dueCounts = {};
+        const dueCounts: Record<number, number> = {};
         let pastDueCount = 0;
 
         this.dataUtils.cards.forEach(card => {
             const dueDate = new Date(card.due);
             const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-            const diffDays = Math.floor((dueDay - todayStart) / (1000 * 60 * 60 * 24));
+            const diffDays = Math.floor((dueDay.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
 
             if (diffDays < 0) pastDueCount++;
             else if (diffDays < 7) dueCounts[diffDays] = (dueCounts[diffDays] || 0) + 1;
@@ -66,7 +69,6 @@ export class MiniForecast {
             </div>
         `;
         
-        // Add event listener for the link after rendering
         const fullForecastLink = container.querySelector('#full-forecast-link');
         if (fullForecastLink) {
             fullForecastLink.addEventListener('click', (e) => {
@@ -75,7 +77,6 @@ export class MiniForecast {
             });
         }
 
-        // Add event listeners for day cards
         const dayCards = container.querySelectorAll('.forecast-day-card');
         dayCards.forEach(card => {
             card.addEventListener('click', () => {

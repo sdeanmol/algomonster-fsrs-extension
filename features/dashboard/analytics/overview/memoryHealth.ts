@@ -1,25 +1,27 @@
+import { DataUtils } from '../utils/dataUtils.js';
+
 export class MemoryHealth {
-    constructor(dataUtils) {
+    dataUtils: DataUtils;
+
+    constructor(dataUtils: DataUtils) {
         this.dataUtils = dataUtils;
     }
 
-    render(containerId) {
+    render(containerId: string): void {
         const container = document.getElementById(containerId);
         if (!container) return;
 
         const stats = this.dataUtils.getSummaryStats();
         
-        // Calculate a genuine memory health score based on average current retrievability
         let healthScore = 0;
         if (stats.trueRetention > 0) {
             healthScore = stats.trueRetention;
         } else if (stats.retention > 0) {
             healthScore = stats.retention;
         } else {
-            healthScore = 0; // No data yet
+            healthScore = 0;
         }
 
-        // Determine target retention baseline (usually 90%)
         let targetRetention = 90;
         if (this.dataUtils.scheduler && this.dataUtils.scheduler.requestRetention) {
             targetRetention = this.dataUtils.scheduler.requestRetention * 100;
@@ -38,7 +40,6 @@ export class MemoryHealth {
             statusClass = 'health-good'; 
         }
 
-        // Determine trend based on current streak consistency
         const trend = stats.streak >= 3 ? '▲ Consistent' : (stats.streak > 0 ? '▶ Active' : '▼ Needs Review');
         const trendMsg = stats.streak >= 3 ? 'You are building strong long-term memory.' : 'Review more consistently to improve memory health.';
         const trendClass = stats.streak >= 3 ? 'trend-up' : (stats.streak > 0 ? '' : 'trend-down');
