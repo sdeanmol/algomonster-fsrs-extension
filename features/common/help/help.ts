@@ -10,6 +10,11 @@ class HelpCenterSPA {
     }
 
     init(): void {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get('tab');
+        if (tabParam) {
+            this.switchTab(tabParam);
+        }
         this.bindTabNavigation();
         this.bindSearchFilter();
         this.bindCloseButton();
