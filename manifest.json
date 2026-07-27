@@ -57,16 +57,8 @@
         "*://*.codingame.com/*"
       ],
       "js": [
-        "features/common/logger.js",
         "features/common/marked.min.js",
-        "features/common/markdown.js",
-        "features/tracker/scheduler/scheduler.js",
         "dist/fsrsScheduler.bundle.js",
-        "content/state.js",
-        "content/utils.js",
-        "features/highlighter/highlighter.js",
-        "content/notifications.js",
-        "features/tracker/tracker.js",
         "content/content.js"
       ],
       "css": ["features/highlighter/style.css"]

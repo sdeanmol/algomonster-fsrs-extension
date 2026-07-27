@@ -68,7 +68,7 @@ export class BackupManager {
             Logger.time('Backup', 'exportBackup');
             Logger.info('Backup', 'Starting backup export process...');
         }
-        const raw = await chrome.storage.local.get(null);
+        const raw: any = (await chrome.storage.local.get(null)) as any;
 
         // Extract and deduplicate URLs across bookmarks, cards, marks, pagecontents
         const pages: Array<{ url: string; title: string; icon: string }> = [];

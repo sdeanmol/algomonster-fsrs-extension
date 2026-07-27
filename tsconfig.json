@@ -8,12 +8,24 @@
     "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": [
+      "chrome",
+      "jest",
+      "node"
+    ],
     "strict": false,
     "baseUrl": ".",
     "paths": {
-      "@common/*": ["features/common/*"],
-      "@tracker/*": ["features/tracker/*"],
-      "@dashboard/*": ["features/dashboard/*"]
+      "@common/*": [
+        "features/common/*"
+      ],
+      "@tracker/*": [
+        "features/tracker/*"
+      ],
+      "@dashboard/*": [
+        "features/dashboard/*"
+      ]
     }
   },
   "include": [
@@ -22,6 +34,11 @@
   ],
   "exclude": [
     "node_modules",
-    "build"
+    "build",
+    "tests",
+    "coverage",
+    "backup",
+    "*.config.js",
+    "test_opt.js"
   ]
 }

@@ -1,3 +1,12 @@
+import '../features/common/logger';
+import '../features/common/markdown';
+import '../features/tracker/scheduler/scheduler';
+import './state';
+import './utils';
+import '../features/highlighter/highlighter';
+import './notifications';
+import '../features/tracker/tracker';
+
 (window as any).AlgoRecall = (window as any).AlgoRecall || {};
 
 /**
