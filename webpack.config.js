@@ -11,38 +11,24 @@ module.exports = {
     'dist/config.bundle': './features/tracker/config/fsrsConfig.ts',
     'dist/fsrsScheduler.bundle': './features/tracker/scheduler/fsrsScheduler.ts',
     'features/common/logger': './features/common/logger.ts',
-    'features/common/utils/cardUtils': './features/common/utils/cardUtils.ts',
+    'features/common/markdown': './features/common/markdown.ts',
+    'features/tracker/scheduler/scheduler': './features/tracker/scheduler/scheduler.ts',
+    'features/tracker/tracker': './features/tracker/tracker.ts',
+    'features/highlighter/highlighter': './features/highlighter/highlighter.ts',
     'features/dashboard/popup/popup': './features/dashboard/popup/popup.ts',
     'features/highlighter/options/highlightOptions': './features/highlighter/options/highlightOptions.ts',
     'features/dashboard/analytics/analytics': './features/dashboard/analytics/analytics.ts',
-    'features/tracker/scheduler/fsrsOptimizerFast': './features/tracker/scheduler/fsrsOptimizerFast.ts',
-    'features/tracker/scheduler/scheduler': './features/tracker/scheduler/scheduler.ts',
-    'features/tracker/scheduler/fsrsOptimizer': './features/tracker/scheduler/fsrsOptimizer.ts',
-    'features/tracker/tracker': './features/tracker/tracker.ts',
-    'features/tracker/editor/editor': './features/tracker/editor/editor.ts',
-    'features/common/welcome/welcome': './features/common/welcome/welcome.ts',
-    'features/common/theme-sync': './features/common/theme-sync.ts',
-    'features/common/data/backupManager': './features/common/data/backupManager.ts',
-    'features/common/data/data': './features/common/data/data.ts',
-    'features/common/firebase': './features/common/firebase.ts',
-    'features/common/websites/websites': './features/common/websites/websites.ts',
-    'features/common/help/help': './features/common/help/help.ts',
-    'features/common/markdown': './features/common/markdown.ts',
     'features/dashboard/forecast/forecast': './features/dashboard/forecast/forecast.ts',
-    'features/dashboard/popup/rating': './features/dashboard/popup/rating.ts',
-    'features/dashboard/popup/heatmap': './features/dashboard/popup/heatmap.ts',
-    'features/dashboard/popup/DashboardComponent': './features/dashboard/popup/DashboardComponent.ts',
-    'features/dashboard/popup/search': './features/dashboard/popup/search.ts',
-    'features/dashboard/popup/notifications': './features/dashboard/popup/notifications.ts',
-    'features/dashboard/popup/stats': './features/dashboard/popup/stats.ts',
     'features/dashboard/studyplan/studyplan': './features/dashboard/studyplan/studyplan.ts',
     'features/dashboard/history/history': './features/dashboard/history/history.ts',
     'features/dashboard/pomodoro/pomodoro': './features/dashboard/pomodoro/pomodoro.ts',
     'features/dashboard/heatmap/heatmap': './features/dashboard/heatmap/heatmap.ts',
-    'features/dashboard/heatmap/heatmap-stats': './features/dashboard/heatmap/heatmap-stats.ts',
-    'features/highlighter/highlighter': './features/highlighter/highlighter.ts',
-    'features/highlighter/manager/highlights': './features/highlighter/manager/highlights.ts',
-    'features/highlighter/manager/highlights-helpers': './features/highlighter/manager/highlights-helpers.ts'
+    'features/tracker/editor/editor': './features/tracker/editor/editor.ts',
+    'features/common/welcome/welcome': './features/common/welcome/welcome.ts',
+    'features/common/data/data': './features/common/data/data.ts',
+    'features/common/websites/websites': './features/common/websites/websites.ts',
+    'features/common/help/help': './features/common/help/help.ts',
+    'features/highlighter/manager/highlights': './features/highlighter/manager/highlights.ts'
   },
   output: {
     path: path.resolve(__dirname, 'build'),
@@ -65,38 +51,39 @@ module.exports = {
     extensions: ['.ts', '.js'],
     extensionAlias: {
       '.js': ['.ts', '.js']
+    },
+    alias: {
+      '@common': path.resolve(__dirname, 'features/common'),
+      '@tracker': path.resolve(__dirname, 'features/tracker'),
+      '@dashboard': path.resolve(__dirname, 'features/dashboard')
     }
   },
   plugins: [
     new CopyPlugin({
       patterns: [
         { from: 'manifest.json', to: '.' },
-        {
-          from: 'background',
+        { 
+          from: 'background', 
           to: 'background',
           noErrorOnMissing: true,
           globOptions: { ignore: ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'] }
         },
-        {
-          from: 'content',
+        { 
+          from: 'content', 
           to: 'content',
           noErrorOnMissing: true,
           globOptions: { ignore: ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'] }
         },
-        {
-          from: 'features',
+        { 
+          from: 'features', 
           to: 'features',
-          globOptions: {
+          globOptions: { 
             ignore: [
-              '**/*.test.js',
-              '**/__tests__/**',
-              '**/*.md',
-              '**/*.ts',
-              '**/tracker/config/fsrsConfig.*',
-              '**/tracker/scheduler/fsrsScheduler.*',
-              '**/tracker/scheduler/fsrsOptimizer.js',
-              '**/tracker/scheduler/fsrsOptimizerFast.js'
-            ]
+              '**/*.test.js', 
+              '**/__tests__/**', 
+              '**/*.md', 
+              '**/*.ts'
+            ] 
           }
         },
         { from: 'icons', to: 'icons' }

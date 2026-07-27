@@ -5,14 +5,16 @@
     "moduleResolution": "bundler",
     "allowJs": true,
     "checkJs": false,
-    "noEmit": false,
+    "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "strict": true,
-    "types": [
-      "jest",
-      "node"
-    ]
+    "strict": false,
+    "baseUrl": ".",
+    "paths": {
+      "@common/*": ["features/common/*"],
+      "@tracker/*": ["features/tracker/*"],
+      "@dashboard/*": ["features/dashboard/*"]
+    }
   },
   "include": [
     "**/*.ts",
