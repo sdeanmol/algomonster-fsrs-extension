@@ -106,4 +106,6 @@ if (typeof window !== 'undefined') {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = AbstractScheduler;
+    (module.exports as any).AbstractScheduler = AbstractScheduler;
+    (module.exports as any).default = AbstractScheduler;
 }

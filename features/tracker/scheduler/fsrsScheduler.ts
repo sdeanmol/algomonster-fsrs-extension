@@ -8,9 +8,9 @@
 import { fsrs, createEmptyCard, Rating, State, Card as TsFsrsCard, Grade } from 'ts-fsrs';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
 
-declare const AbstractScheduler: any;
+import AbstractScheduler from './scheduler';
 
-const BaseScheduler: any = typeof require !== 'undefined' ? require('./scheduler') : (typeof AbstractScheduler !== 'undefined' ? AbstractScheduler : class {});
+const BaseScheduler: any = AbstractScheduler || (typeof window !== 'undefined' && (window as any).AbstractScheduler) || class {};
 
 export class FsrsScheduler extends BaseScheduler {
     public w: number[];
