@@ -1,3 +1,5 @@
+import { HighlightsHelpers } from './highlights-helpers';
+
 window.AlgoRecall = window.AlgoRecall || {};
 
 export class HighlightsManager {

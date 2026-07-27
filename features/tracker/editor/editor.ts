@@ -4,6 +4,7 @@
  * Provides real-time rendering previews, auto-save triggers,
  * and updates review card approach files or fallback draft directories.
  */
+import { Markdown } from '@common/markdown';
 
 class EditorManager {
     problemUrl: string;

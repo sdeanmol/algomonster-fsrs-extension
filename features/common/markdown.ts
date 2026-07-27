@@ -8,7 +8,7 @@ declare const marked: any;
  * Implements fallback rendering when marked is unavailable and performs structural regex-based sanitization
  * of potential XSS vectors (unsafe tags, inline attributes, javascript: URIs).
  */
-(window as any).AlgoRecall.Markdown = class Markdown {
+export class Markdown {
     /**
      * Configures the marked options if loaded.
      */
@@ -65,8 +65,10 @@ declare const marked: any;
     }
 };
 
+(window as any).AlgoRecall.Markdown = Markdown;
+
 // Initialize configurations
-(window as any).AlgoRecall.Markdown.init();
+Markdown.init();
 
 // Maintain legacy global binding for safety/backwards compatibility
-(window as any).renderMarkdown = (window as any).AlgoRecall.Markdown.render;
+(window as any).renderMarkdown = Markdown.render;

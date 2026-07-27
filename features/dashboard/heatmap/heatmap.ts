@@ -1,3 +1,5 @@
+import { HeatmapStats } from './heatmap-stats';
+
 (window as any).AlgoRecall = (window as any).AlgoRecall || {};
 
 /**

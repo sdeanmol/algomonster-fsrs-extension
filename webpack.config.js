@@ -28,6 +28,7 @@ module.exports = {
     'features/common/data/data': './features/common/data/data.ts',
     'features/common/websites/websites': './features/common/websites/websites.ts',
     'features/common/help/help': './features/common/help/help.ts',
+    'features/common/theme-sync': './features/common/theme-sync.ts',
     'features/highlighter/manager/highlights': './features/highlighter/manager/highlights.ts'
   },
   output: {
