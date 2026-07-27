@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FSRS State Transitions & Rating Guide</title>
+    <style>
+        :root {
+            --md-bg: #121214;
+            --md-surface: #1e1e22;
+            --md-surface-variant: #28282e;
+            --md-border: rgba(255, 255, 255, 0.1);
+            --md-border-hover: rgba(255, 255, 255, 0.2);
+            --md-text-high: #f0f0f5;
+            --md-text-med: #c0c0d0;
+            --md-text-low: #888899;
+            --md-primary: #a8dadc;
+            --md-primary-container: rgba(168, 218, 220, 0.15);
+            --md-success: #2ecc71;
+            --md-warning: #f1c40f;
+            --md-danger: #e74c3c;
+        }
+
+        body {
+            background-color: var(--md-bg);
+            color: var(--md-text-high);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 32px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--md-text-high);
+            margin: 0 0 8px 0;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--md-text-low);
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: var(--md-surface);
+            border: 1px solid var(--md-border);
+            border-radius: 14px;
+            padding: 22px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-accent {
+            background: var(--md-surface-variant);
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--md-text-high);
+            margin: 0 0 12px 0;
+        }
+
+        h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--md-primary);
+            margin: 0 0 10px 0;
+        }
+
+        p {
+            font-size: 13.5px;
+            color: var(--md-text-med);
+            margin: 0 0 12px 0;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        @media (max-width: 600px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .state-card {
+            background: var(--md-surface-variant);
+            border: 1px solid var(--md-border);
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+
+        .state-badge {
+            font-size: 10.5px;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 12px;
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        .state-badge-new {
+            background: rgba(168, 218, 220, 0.18);
+            color: var(--md-primary);
+            border: 1px solid rgba(168, 218, 220, 0.3);
+        }
+
+        .state-badge-learning {
+            background: rgba(241, 196, 15, 0.18);
+            color: #f39c12;
+            border: 1px solid rgba(241, 196, 15, 0.3);
+        }
+
+        .state-badge-review {
+            background: rgba(46, 204, 113, 0.18);
+            color: #27ae60;
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+
+        .state-badge-relearning {
+            background: rgba(231, 76, 60, 0.18);
+            color: #e74c3c;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+
+        .rating-badge {
+            font-size: 11px;
+            font-weight: 800;
+            display: inline-block;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin: 16px 0;
+            border-radius: 12px;
+            border: 1px solid var(--md-border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            text-align: left;
+        }
+
+        th {
+            background: var(--md-surface-variant);
+            color: var(--md-text-high);
+            font-weight: 700;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--md-border);
+        }
+
+        td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--md-border);
+            color: var(--md-text-med);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(168, 218, 220, 0.04);
+        }
+
+        .rating-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .rating-item {
+            background: var(--md-surface-variant);
+            border-radius: 10px;
+            padding: 12px;
+            border-left: 4px solid var(--md-border);
+        }
+
+        .rating-again { border-left-color: var(--md-danger); }
+        .rating-hard { border-left-color: var(--md-warning); }
+        .rating-good { border-left-color: var(--md-primary); }
+        .rating-easy { border-left-color: var(--md-success); }
+
+        .callout-box {
+            background: var(--md-surface-variant);
+            border-left: 4px solid var(--md-primary);
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin: 14px 0;
+        }
+
+        .callout-danger { border-left-color: var(--md-danger); }
+        .callout-warning { border-left-color: var(--md-warning); }
+
+        .callout-box h4 {
+            margin: 0 0 6px 0;
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--md-text-high);
+        }
+
+        .callout-box p {
+            margin: 0;
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+
+        code {
+            background: var(--md-surface-variant);
+            border: 1px solid var(--md-border);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: SFMono-Regular, Consolas, monospace;
+            font-size: 12px;
+            color: var(--md-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧠 FSRS State Transitions & Rating Guide</h1>
+        <p class="subtitle">A complete student-friendly guide on how FSRS manages memory decay, card stages, and ratings.</p>
+
+        <!-- Section 1 -->
+        <div class="card">
+            <h2>🌱 1. Overview of FSRS Card Stages</h2>
+            <p>FSRS categorizes your coding flashcards into 4 fundamental stages as you learn and review them:</p>
+            <div class="grid-2">
+                <div class="state-card">
+                    <span class="state-badge state-badge-new">Stage 0: New</span>
+                    <h3 style="margin-top: 8px;">🆕 Fresh Card</h3>
+                    <p>A problem card you just created. You haven't practiced or tested yourself on it yet.</p>
+                </div>
+                <div class="state-card">
+                    <span class="state-badge state-badge-learning">Stage 1: Learning</span>
+                    <h3 style="margin-top: 8px;">📖 Practice Mode</h3>
+                    <p>Short-term practice rounds (1m, 10m). You are building initial pattern memory.</p>
+                </div>
+                <div class="state-card">
+                    <span class="state-badge state-badge-review">Stage 2: Review</span>
+                    <h3 style="margin-top: 8px;">🏆 Mastered!</h3>
+                    <p>Card is in long-term memory. FSRS spaces out review dates exponentially (4d, 12d, 1mo).</p>
+                </div>
+                <div class="state-card">
+                    <span class="state-badge state-badge-relearning">Stage 3: Relearning</span>
+                    <h3 style="margin-top: 8px;">🔄 Quick Refresher</h3>
+                    <p>Forgot a mastered card? FSRS puts it in a quick refresher mode until it's safely back in long-term memory.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2 -->
+        <div class="card">
+            <h2>🔄 2. Complete FSRS Stage Transition Matrix (All 16 Combinations)</h2>
+            <p>Here is the <strong>100% complete breakdown</strong> of what happens for every single card stage and button press:</p>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Current Stage</th>
+                            <th>Your Button Press</th>
+                            <th>Next Stage</th>
+                            <th>What Happens Next?</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Stage 0: New -->
+                        <tr style="border-top: 2px solid var(--md-primary);">
+                            <td><span class="state-badge state-badge-new">🆕 New (0)</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-danger);">🔴 Again</span></td>
+                            <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
+                            <td>Starts practice mode! FSRS schedules a quick re-test in ~1 to 5 mins.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-new">🆕 New (0)</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-warning);">🟡 Hard</span></td>
+                            <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
+                            <td>Starts practice mode. FSRS schedules a short check-in in ~5 to 10 mins.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-new">🆕 New (0)</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-primary);">🟢 Good</span></td>
+                            <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
+                            <td>Moves to the next practice step! Review in ~10 mins or tomorrow.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-new">🆕 New (0)</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-success);">🔵 Easy</span></td>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td>Nailed it! Skips practice and graduates straight to long-term memory (4+ days).</td>
+                        </tr>
+
+                        <!-- Stage 1: Learning -->
+                        <tr style="border-top: 2px solid var(--md-warning);">
+                            <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-danger);">🔴 Again</span></td>
+                            <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
+                            <td>Resets practice timer back to Step 1 (~1 min).</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-warning);">🟡 Hard</span></td>
+                            <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
+                            <td>Stays in practice mode; schedules another short check-in soon.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-primary);">🟢 Good</span></td>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td>Practice complete! Card moves to Mastered status in long-term memory.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-success);">🔵 Easy</span></td>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td>Skips remaining practice steps and graduates with a bonus long break!</td>
+                        </tr>
+
+                        <!-- Stage 2: Mastered -->
+                        <tr style="border-top: 2px solid var(--md-success);">
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-danger);">🔴 Again</span></td>
+                            <td><span class="state-badge state-badge-relearning">🔄 Refresher</span></td>
+                            <td><strong>Memory slip!</strong> Card enters a quick Refresher round to rebuild memory strength.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-warning);">🟡 Hard</span></td>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td>Stays Mastered! Next review date extended moderately.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-primary);">🟢 Good</span></td>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td>Stays Mastered! Next review interval expands smoothly (e.g. 10d &rarr; 25d).</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-success);">🔵 Easy</span></td>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td>Stays Mastered! Total recall! Interval leaps significantly (e.g. 10d &rarr; 45d+).</td>
+                        </tr>
+
+                        <!-- Stage 3: Refresher -->
+                        <tr style="border-top: 2px solid var(--md-danger);">
+                            <td><span class="state-badge state-badge-relearning">🔄 Refresher</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-danger);">🔴 Again</span></td>
+                            <td><span class="state-badge state-badge-relearning">🔄 Refresher</span></td>
+                            <td>Resets refresher timer back to Step 1 (~1 min).</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-relearning">🔄 Refresher</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-warning);">🟡 Hard</span></td>
+                            <td><span class="state-badge state-badge-relearning">🔄 Refresher</span></td>
+                            <td>Stays in refresher mode until memory is fully rebuilt.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-relearning">🔄 Refresher</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-primary);">🟢 Good</span></td>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td>Refresher complete! Returns to long-term memory.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-badge-relearning">🔄 Refresher</span></td>
+                            <td><span class="rating-badge" style="color:var(--md-success);">🔵 Easy</span></td>
+                            <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
+                            <td>Refresher aced! Returns to long-term memory with a bonus long break!</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 3 -->
+        <div class="card">
+            <h2>🎯 3. How to Grade Yourself (Button Guide)</h2>
+            <div class="rating-grid">
+                <div class="rating-item rating-again">
+                    <span class="rating-badge" style="color:var(--md-danger);">🔴 Again</span>
+                    <p><strong>"I blanked out / Got stuck"</strong><br>Couldn't recall the main pattern or <strong>forgot a key algorithm step</strong>.</p>
+                </div>
+                <div class="rating-item rating-hard">
+                    <span class="rating-badge" style="color:var(--md-warning);">🟡 Hard</span>
+                    <p><strong>"I got it, but it was a struggle!"</strong><br>Correct recall, but required heavy effort or minor syntax hesitations.</p>
+                </div>
+                <div class="rating-item rating-good">
+                    <span class="rating-badge" style="color:var(--md-primary);">🟢 Good (Default Choice!)</span>
+                    <p><strong>"Smooth recall!"</strong><br>Remembered the approach and solved it in standard time. Make this your main button ~70-80% of the time.</p>
+                </div>
+                <div class="rating-item rating-easy">
+                    <span class="rating-badge" style="color:var(--md-success);">🔵 Easy</span>
+                    <p><strong>"Piece of cake!"</strong><br>Felt completely obvious or trivial. Pushes the next review far into the future.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4 -->
+        <div class="card">
+            <h2>🧩 4. What If I Only Remember SOME of the Problem?</h2>
+            
+            <div class="callout-box callout-danger">
+                <h4>The Interview Reality Check: Missing Core Logic? &rarr; Press 🔴 <code>Again</code></h4>
+                <p>Ask yourself: <i>"If an interviewer gave me this problem right now, would my missing piece make me get stuck?"</i><br>
+                If <strong>YES</strong> (e.g. forgot duplicate handling in 3Sum or DP base cases), press 🔴 <strong><code>Again</code></strong>. It's totally okay to fail a card—that's how your brain builds bulletproof recall!</p>
+            </div>
+
+            <div class="callout-box callout-warning">
+                <h4>Main Algorithm Solid, Just Paused on Syntax? &rarr; Press 🟡 <code>Hard</code></h4>
+                <p>If your high-level approach and logic were 100% correct, but you just briefly paused on language syntax (like queue or map functions), press 🟡 <strong><code>Hard</code></strong>.</p>
+            </div>
+
+            <div class="callout-box">
+                <h4>💡 Student Tip: The "Break-It-Down" Rule</h4>
+                <p>If a problem note feels huge and you always forget half of it, break it into 2 smaller cards! For example: Card #1 = <i>High-Level Pattern & Time Complexity</i>, Card #2 = <i>Tricky Edge Cases & Base Cases</i>.</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

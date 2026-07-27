@@ -454,6 +454,110 @@ body {
     border-color: var(--md-border-hover);
 }
 
+/* FSRS State & Matrix Table Styling */
+.fsrs-table-container {
+    overflow-x: auto;
+    margin: 16px 0;
+    border-radius: 12px;
+    border: 1px solid var(--md-border);
+}
+
+.fsrs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    text-align: left;
+}
+
+.fsrs-table th {
+    background: var(--md-surface-variant);
+    color: var(--md-text-high);
+    font-weight: 700;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--md-border);
+    white-space: nowrap;
+}
+
+.fsrs-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--md-border);
+    color: var(--md-text-med);
+    vertical-align: middle;
+}
+
+.fsrs-table tr:last-child td {
+    border-bottom: none;
+}
+
+.fsrs-table tr:hover td {
+    background: rgba(168, 199, 250, 0.04);
+}
+
+/* State Badges */
+.state-badge {
+    font-size: 10.5px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.state-badge-new {
+    background: rgba(168, 199, 250, 0.18);
+    color: var(--md-primary);
+    border: 1px solid rgba(168, 199, 250, 0.3);
+}
+
+.state-badge-learning {
+    background: rgba(241, 196, 15, 0.18);
+    color: #f39c12;
+    border: 1px solid rgba(241, 196, 15, 0.3);
+}
+
+.state-badge-review {
+    background: rgba(46, 204, 113, 0.18);
+    color: #27ae60;
+    border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.state-badge-relearning {
+    background: rgba(231, 76, 60, 0.18);
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+/* Callout Box */
+.callout-box {
+    background: var(--md-surface-variant);
+    border-left: 4px solid var(--md-primary);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 14px 0;
+}
+
+.callout-box-warning {
+    border-left-color: var(--md-warning);
+}
+
+.callout-box-danger {
+    border-left-color: var(--md-danger);
+}
+
+.callout-box h4 {
+    margin: 0 0 6px 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--md-text-high);
+}
+
+.callout-box p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--md-text-med);
+    line-height: 1.5;
+}
+
 @media (prefers-reduced-motion: reduce) {
 
     *,
