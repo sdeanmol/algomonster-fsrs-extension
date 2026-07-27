@@ -6,8 +6,33 @@ import './utils';
 import '../features/highlighter/highlighter';
 import './notifications';
 import '../features/tracker/tracker';
+import { Card, StorageData, ExtensionMessage, MessageResponse, FSRSParameters } from '../types/domain';
+import { AlgoRecallState } from './state';
+import { Utils } from './utils';
+import { Notifier } from './notifications';
+import { Highlighter } from '../features/highlighter/highlighter';
+import Tracker from '../features/tracker/tracker';
+import { LoggerClass } from '../features/common/logger';
 
-(window as any).AlgoRecall = (window as any).AlgoRecall || {};
+interface AlgoRecallGlobal {
+    state?: AlgoRecallState;
+    Utils?: typeof Utils;
+    Notifier?: typeof Notifier;
+    Highlighter?: new () => Highlighter;
+    Tracker?: new () => Tracker;
+    Orchestrator?: typeof AlgoRecallOrchestrator;
+    orchestrator?: AlgoRecallOrchestrator;
+}
+
+function getAlgoRecallGlobal(): AlgoRecallGlobal {
+    const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
+    win.AlgoRecall = win.AlgoRecall || {};
+    return win.AlgoRecall;
+}
+
+function getLogger(): LoggerClass | undefined {
+    return (window as unknown as { Logger?: LoggerClass }).Logger;
+}
 
 /**
  * @class AlgoRecallOrchestrator
@@ -15,25 +40,29 @@ import '../features/tracker/tracker';
  * Initializes settings, cards, and styling configurations from storage, boots the highlighter and tracker UI overlays,
  * registers click triggers for SPA client-side navigations, and monitors DOM updates via MutationObserver.
  */
-(window as any).AlgoRecall.Orchestrator = class Orchestrator {
-    state: any;
-    utils: any;
-    notifier: any;
-    highlighter: any;
-    tracker: any;
+export class AlgoRecallOrchestrator {
+    state: AlgoRecallState;
+    utils: typeof Utils;
+    notifier: typeof Notifier;
+    highlighter: Highlighter;
+    tracker: Tracker;
     domObserver: MutationObserver | null;
 
     constructor() {
-        if (window.Logger) {
-            window.Logger.info('ContentScript', 'Orchestrator initializing...');
+        const logger = getLogger();
+        if (logger) {
+            logger.info('ContentScript', 'Orchestrator initializing...');
         }
-        this.state = (window as any).AlgoRecall.state;
-        this.utils = (window as any).AlgoRecall.Utils;
-        this.notifier = (window as any).AlgoRecall.Notifier;
+        const algoGlobal = getAlgoRecallGlobal();
+        this.state = algoGlobal.state as AlgoRecallState;
+        this.utils = algoGlobal.Utils || Utils;
+        this.notifier = algoGlobal.Notifier || Notifier;
         
         // Instantiate component controllers
-        this.highlighter = new (window as any).AlgoRecall.Highlighter();
-        this.tracker = new (window as any).AlgoRecall.Tracker();
+        const HighlighterClass = algoGlobal.Highlighter || Highlighter;
+        const TrackerClass = algoGlobal.Tracker || Tracker;
+        this.highlighter = new HighlighterClass();
+        this.tracker = new TrackerClass();
         
         this.domObserver = null;
     }
@@ -42,9 +71,15 @@ import '../features/tracker/tracker';
      * Initializes the orchestrator and components.
      */
     async init(): Promise<void> {
-        if (window.Logger) window.Logger.time('ContentScript', 'Init Storage Load');
-        chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result: { [key: string]: any }) => {
-            if (window.Logger) window.Logger.timeEnd('ContentScript', 'Init Storage Load');
+        const logger = getLogger();
+        if (logger) logger.time('ContentScript', 'Init Storage Load');
+        chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result: StorageData & {
+            marks?: unknown[];
+            bookmarks?: unknown[];
+            pagecontents?: unknown[];
+            whitelistedWebsites?: Array<{ domain: string }>;
+        }) => {
+            if (logger) logger.timeEnd('ContentScript', 'Init Storage Load');
             // Verify whitelisting
             const whitelistedWebsites: Array<{ domain: string }> = result.whitelistedWebsites || [
                 { domain: "algo.monster" },
@@ -62,17 +97,18 @@ import '../features/tracker/tracker';
             const currentDomain = window.location.hostname;
             const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
             if (!isWhitelisted) {
-                if (window.Logger) window.Logger.info('ContentScript', `Domain ${currentDomain} is not whitelisted. Exiting.`);
+                if (logger) logger.info('ContentScript', `Domain ${currentDomain} is not whitelisted. Exiting.`);
                 return; // Exit early, disabled by user
             }
-            if (window.Logger) window.Logger.debug('ContentScript', `Domain ${currentDomain} is whitelisted. Proceeding with init.`);
+            if (logger) logger.debug('ContentScript', `Domain ${currentDomain} is whitelisted. Proceeding with init.`);
 
             if (result.fsrsGlobalParams) {
-                if (result.fsrsGlobalParams.w) this.state.scheduler.w = result.fsrsGlobalParams.w;
-                if (result.fsrsGlobalParams.decay !== undefined) this.state.scheduler.decay = result.fsrsGlobalParams.decay;
-                if (result.fsrsGlobalParams.factor !== undefined) this.state.scheduler.factor = result.fsrsGlobalParams.factor;
-                if (result.fsrsGlobalParams.requestRetention !== undefined) {
-                    this.state.scheduler.requestRetention = result.fsrsGlobalParams.requestRetention;
+                const params = result.fsrsGlobalParams as Partial<FSRSParameters>;
+                if (params.w && this.state.scheduler) (this.state.scheduler as unknown as { w: number[] }).w = params.w;
+                if (params.decay !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { decay: number }).decay = params.decay;
+                if (params.factor !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { factor: number }).factor = params.factor;
+                if (params.requestRetention !== undefined && this.state.scheduler) {
+                    (this.state.scheduler as unknown as { requestRetention: number }).requestRetention = params.requestRetention;
                 }
             }
 
@@ -133,7 +169,7 @@ import '../features/tracker/tracker';
      */
     setupMutationObserver(): void {
         this.domObserver = new MutationObserver(() => {
-            clearTimeout(this.state.highlightDebounceTimer);
+            if (this.state.highlightDebounceTimer) clearTimeout(this.state.highlightDebounceTimer);
             this.state.highlightDebounceTimer = setTimeout(() => {
                 this.highlighter.applyHighlightsForCurrentPage();
                 
@@ -164,9 +200,10 @@ import '../features/tracker/tracker';
      * @param {string} areaName - Storage classification bucket name.
      */
     handleStorageChanged(changes: { [key: string]: chrome.storage.StorageChange }, areaName: string): void {
+        const logger = getLogger();
         const changedKeys = Object.keys(changes).filter(key => key !== 'debugLogs');
-        if (changedKeys.length > 0 && window.Logger) {
-            window.Logger.debug('ContentScript', `Storage changed in ${areaName}`, changedKeys);
+        if (changedKeys.length > 0 && logger) {
+            logger.debug('ContentScript', `Storage changed in ${areaName}`, changedKeys);
         }
         if (areaName === 'local') {
             if (changes.chromeSettings) {
@@ -195,25 +232,25 @@ import '../features/tracker/tracker';
                 }
             }
             if (changes.fsrsCards) {
-                this.state.cards = changes.fsrsCards.newValue || [];
+                this.state.cards = (changes.fsrsCards.newValue as Card[]) || [];
                 this.tracker.refreshWidgetState();
             }
             if (changes.fsrsTopicWeights) {
-                this.state.topicWeights = changes.fsrsTopicWeights.newValue || {};
+                this.state.topicWeights = (changes.fsrsTopicWeights.newValue as Record<string, number[]>) || {};
             }
             if (changes.marks) {
-                this.state.marks = changes.marks.newValue || [];
+                this.state.marks = (changes.marks.newValue as unknown[]) || [];
                 this.highlighter.applyHighlightsForCurrentPage();
             }
             if (changes.bookmarks) {
-                this.state.bookmarks = changes.bookmarks.newValue || [];
+                this.state.bookmarks = (changes.bookmarks.newValue as unknown[]) || [];
             }
             if (changes.pagecontents) {
-                this.state.pagecontents = changes.pagecontents.newValue || [];
+                this.state.pagecontents = (changes.pagecontents.newValue as unknown[]) || [];
             }
             if (changes.whitelistedWebsites) {
                 const currentDomain = window.location.hostname;
-                const whitelistedWebsites: Array<{ domain: string }> = changes.whitelistedWebsites.newValue || [
+                const whitelistedWebsites: Array<{ domain: string }> = (changes.whitelistedWebsites.newValue as Array<{ domain: string }>) || [
                     { domain: "algo.monster" },
                     { domain: "systemdesignschool.io" },
                     { domain: "codeforces.com" },
@@ -228,7 +265,7 @@ import '../features/tracker/tracker';
                 const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
                 if (!isWhitelisted) {
                     this.highlighter.removeHighlighterUI();
-                    this.tracker.removeUI();
+                    (this.tracker as unknown as { removeUI?: () => void }).removeUI?.();
                 } else {
                     if (!document.getElementById('algo-fsrs-overlay') && document.body) {
                         this.tracker.createUI();
@@ -237,17 +274,17 @@ import '../features/tracker/tracker';
                 }
             }
             if (changes.fsrsGlobalParams) {
-                const params = changes.fsrsGlobalParams.newValue || {};
-                if (params.w) this.state.scheduler.w = params.w;
-                if (params.decay !== undefined) this.state.scheduler.decay = params.decay;
-                if (params.factor !== undefined) this.state.scheduler.factor = params.factor;
-                if (params.requestRetention !== undefined) this.state.scheduler.requestRetention = params.requestRetention;
+                const params = (changes.fsrsGlobalParams.newValue || {}) as Partial<FSRSParameters>;
+                if (params.w && this.state.scheduler) (this.state.scheduler as unknown as { w: number[] }).w = params.w;
+                if (params.decay !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { decay: number }).decay = params.decay;
+                if (params.factor !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { factor: number }).factor = params.factor;
+                if (params.requestRetention !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { requestRetention: number }).requestRetention = params.requestRetention;
             }
             if (changes.approachDrafts) {
                 this.tracker.refreshWidgetState();
             }
             if (changes.theme) {
-                this.state.currentTheme = changes.theme.newValue || 'dark';
+                this.state.currentTheme = (changes.theme.newValue as string) || 'dark';
                 this.applyThemeClass();
             }
         }
@@ -255,22 +292,24 @@ import '../features/tracker/tracker';
 
     /**
      * Handles runtime messages sent from the background worker.
-     * @param {Object} request - Messaging payload dictionary.
+     * @param {ExtensionMessage} request - Messaging payload dictionary.
      * @param {chrome.runtime.MessageSender} sender - Sender source details metadata.
      * @param {Function} sendResponse - Callback function routing replies.
      */
-    handleMessage(request: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void): boolean | void {
-        if (window.Logger) window.Logger.debug('ContentScript', `Received message: ${request.action}`);
+    handleMessage(request: ExtensionMessage, sender: chrome.runtime.MessageSender, sendResponse: (response?: MessageResponse) => void): boolean | void {
+        const logger = getLogger();
+        if (logger) logger.debug('ContentScript', `Received message: ${request.action}`);
         if (request.action === "spa_url_changed") {
             setTimeout(this.triggerAggressiveUIUpdate.bind(this), 50);
         }
         if (request.action === "show_custom_notification") {
             try {
-                this.notifier.showPageNotification(request.title, request.message, request.type, request.count);
+                this.notifier.showPageNotification((request.title as string) || '', (request.message as string) || '', (request.type as string) || '', request.count as number | undefined);
                 if (sendResponse) sendResponse({ success: true });
-            } catch (e: any) {
-                if (window.Logger) window.Logger.error('ContentScript', 'Failed to show page notification', e);
-                if (sendResponse) sendResponse({ success: false, error: e.message });
+            } catch (e) {
+                const errorObj = e instanceof Error ? e : new Error(String(e));
+                if (logger) logger.error('ContentScript', 'Failed to show page notification', errorObj);
+                if (sendResponse) sendResponse({ success: false, error: errorObj.message });
             }
         }
     }
@@ -321,31 +360,37 @@ import '../features/tracker/tracker';
             n.classList.toggle('light-theme', isLight);
         });
     }
-};
+}
+
+getAlgoRecallGlobal().Orchestrator = AlgoRecallOrchestrator;
 
 // Auto-run coordinates bootstrapping inside content scope
 document.addEventListener('DOMContentLoaded', () => {
-    (window as any).AlgoRecall.orchestrator = new (window as any).AlgoRecall.Orchestrator();
-    (window as any).AlgoRecall.orchestrator.init();
+    const algoGlobal = getAlgoRecallGlobal();
+    algoGlobal.orchestrator = new AlgoRecallOrchestrator();
+    algoGlobal.orchestrator.init();
 });
 
 // Fallback if DOMContentLoaded fired early
 if (document.readyState === 'interactive' || document.readyState === 'complete') {
-    if (!(window as any).AlgoRecall.orchestrator) {
-        (window as any).AlgoRecall.orchestrator = new (window as any).AlgoRecall.Orchestrator();
-        (window as any).AlgoRecall.orchestrator.init();
+    const algoGlobal = getAlgoRecallGlobal();
+    if (!algoGlobal.orchestrator) {
+        algoGlobal.orchestrator = new AlgoRecallOrchestrator();
+        algoGlobal.orchestrator.init();
     }
 }
 
 // Global Error Handlers for Content Script Isolation
 window.addEventListener('error', function(event: ErrorEvent) {
-    if (window.Logger && event.filename && event.filename.includes(chrome.runtime.id)) {
-        window.Logger.error('ContentScript', 'Unhandled runtime error', { message: event.message, filename: event.filename, lineno: event.lineno, colno: event.colno, error: event.error });
+    const logger = getLogger();
+    if (logger && event.filename && event.filename.includes(chrome.runtime.id)) {
+        logger.error('ContentScript', 'Unhandled runtime error', { message: event.message, filename: event.filename, lineno: event.lineno, colno: event.colno, error: event.error });
     }
 });
 
 window.addEventListener('unhandledrejection', function(event: PromiseRejectionEvent) {
-    if (window.Logger) {
-        window.Logger.error('ContentScript', 'Unhandled promise rejection', event.reason);
+    const logger = getLogger();
+    if (logger) {
+        logger.error('ContentScript', 'Unhandled promise rejection', event.reason);
     }
 });

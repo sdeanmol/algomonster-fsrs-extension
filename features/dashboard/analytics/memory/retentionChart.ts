@@ -1,9 +1,10 @@
 import { ConfidenceBand } from './confidenceBand';
 import { DataUtils } from '../utils/dataUtils';
+import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
 export class RetentionChart {
     dataUtils: DataUtils;
-    scheduler: any;
+    scheduler: AbstractScheduler | null;
     groupBy: string;
     showConfidence: boolean;
     chartColors: string[];
@@ -39,7 +40,7 @@ export class RetentionChart {
         const container = document.getElementById(containerId);
         if (!container) return;
 
-        const groups: { [key: string]: { stabilities: number[]; count: number; difficulties: number[] } } = {};
+        const groups: Record<string, { stabilities: number[]; count: number; difficulties: number[] }> = {};
         this.dataUtils.cards.forEach(card => {
             if (this.filterTag) {
                 const hasTag = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(this.filterTag));
@@ -107,8 +108,9 @@ export class RetentionChart {
             const color = this.chartColors[idx % this.chartColors.length];
             const points = timePoints.map(t => {
                 let R = 0;
-                if (this.scheduler && typeof this.scheduler.getProjectedRetrievability === 'function') {
-                    R = this.scheduler.getProjectedRetrievability(gData.avgStability, t);
+                const sched = this.scheduler as (AbstractScheduler & { getProjectedRetrievability?: (stability: number, days: number) => number }) | null;
+                if (sched && typeof sched.getProjectedRetrievability === 'function') {
+                    R = sched.getProjectedRetrievability(gData.avgStability, t);
                 } else {
                     const stability = gData.avgStability;
                     if (stability > 0) {

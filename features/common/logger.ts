@@ -8,7 +8,7 @@ export interface LogEntry {
     level: string;
     module: string;
     message: string;
-    data: string | null | { [key: string]: any };
+    data: string | null | Record<string, unknown>;
 }
 
 export class LoggerClass {
@@ -23,9 +23,9 @@ export class LoggerClass {
 
         // Listen for changes to developer mode
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
-            chrome.storage.onChanged.addListener((changes: { [key: string]: { oldValue?: any; newValue?: any } }, area: string) => {
+            chrome.storage.onChanged.addListener((changes: { [key: string]: { oldValue?: unknown; newValue?: unknown } }, area: string) => {
                 if (area === 'local' && changes.chromeSettings) {
-                    const newSettings = changes.chromeSettings.newValue || {};
+                    const newSettings = (changes.chromeSettings.newValue || {}) as { developerMode?: boolean };
                     this.devMode = !!newSettings.developerMode;
                 }
             });
@@ -34,7 +34,7 @@ export class LoggerClass {
 
     private _initDevMode(): void {
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
+            chrome.storage.local.get(['chromeSettings'], (result: { chromeSettings?: { developerMode?: boolean } }) => {
                 const settings = result.chromeSettings || {};
                 this.devMode = !!settings.developerMode;
             });
@@ -58,7 +58,7 @@ export class LoggerClass {
 
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                 const result = await chrome.storage.local.get(['debugLogs']);
-                let logs: LogEntry[] = result.debugLogs || [];
+                let logs: LogEntry[] = (result.debugLogs as LogEntry[]) || [];
                 logs.push(...logsToFlush);
 
                 // Limit to last 1000 logs to prevent storage bloat
@@ -68,7 +68,7 @@ export class LoggerClass {
 
                 await chrome.storage.local.set({ debugLogs: logs });
             }
-        } catch (e) {
+        } catch {
             // Silently fail to avoid recursive error logging
         } finally {
             this.isFlushing = false;
@@ -78,67 +78,67 @@ export class LoggerClass {
         }
     }
 
-    private _persistLog(level: string, module: string, message: string, data?: any): void {
+    private _persistLog(level: string, moduleName: string, message: string, data?: unknown): void {
         if (!this.devMode && level !== 'ERROR' && level !== 'FATAL') return;
         const timestamp = new Date().toISOString();
-        let safeData: any = null;
+        let safeData: string | Record<string, unknown> | null = null;
         try {
             if (data instanceof Error) {
                 safeData = { message: data.message, stack: data.stack };
             } else if (data) {
                 safeData = JSON.stringify(data);
             }
-        } catch (e) {
+        } catch {
             safeData = "[Unserializable Data]";
         }
 
-        this.logQueue.push({ timestamp, level, module, message, data: safeData });
+        this.logQueue.push({ timestamp, level, module: moduleName, message, data: safeData });
         this._flushLogs();
     }
 
     /**
      * Formats the log message.
      */
-    private _formatMsg(module: string, message: string): string {
+    private _formatMsg(moduleName: string, message: string): string {
         const timestamp = new Date().toISOString();
-        return `[${timestamp}] [${module}] ${message}`;
+        return `[${timestamp}] [${moduleName}] ${message}`;
     }
 
-    debug(module: string, message: string, data: any = null): void {
+    debug(moduleName: string, message: string, data: unknown = null): void {
         if (!this._canLog('DEBUG')) return;
-        this._persistLog('DEBUG', module, message, data);
+        this._persistLog('DEBUG', moduleName, message, data);
         if (data) {
-            console.debug(this._formatMsg(module, message), data);
+            console.debug(this._formatMsg(moduleName, message), data);
         } else {
-            console.debug(this._formatMsg(module, message));
+            console.debug(this._formatMsg(moduleName, message));
         }
     }
 
-    info(module: string, message: string, data: any = null): void {
+    info(moduleName: string, message: string, data: unknown = null): void {
         if (!this._canLog('INFO')) return;
-        this._persistLog('INFO', module, message, data);
+        this._persistLog('INFO', moduleName, message, data);
         if (data) {
-            console.info(this._formatMsg(module, message), data);
+            console.info(this._formatMsg(moduleName, message), data);
         } else {
-            console.info(this._formatMsg(module, message));
+            console.info(this._formatMsg(moduleName, message));
         }
     }
 
-    warn(module: string, message: string, data: any = null): void {
+    warn(moduleName: string, message: string, data: unknown = null): void {
         if (!this._canLog('WARN')) return;
-        this._persistLog('WARN', module, message, data);
+        this._persistLog('WARN', moduleName, message, data);
         if (data) {
-            console.warn(this._formatMsg(module, message), data);
+            console.warn(this._formatMsg(moduleName, message), data);
         } else {
-            console.warn(this._formatMsg(module, message));
+            console.warn(this._formatMsg(moduleName, message));
         }
     }
 
-    error(module: string, message: string, data: any = null): void {
+    error(moduleName: string, message: string, data: unknown = null): void {
         if (!this._canLog('ERROR')) return;
 
-        const errorData: { module: string; timestamp: string; message: string; error?: string; stack?: string; metadata?: any } = {
-            module,
+        const errorData: { module: string; timestamp: string; message: string; error?: string; stack?: string; metadata?: unknown } = {
+            module: moduleName,
             timestamp: new Date().toISOString(),
             message
         };
@@ -150,17 +150,17 @@ export class LoggerClass {
             errorData.metadata = data;
         }
 
-        this._persistLog('ERROR', module, message, data);
-        console.error(this._formatMsg(module, message), errorData);
+        this._persistLog('ERROR', moduleName, message, data);
+        console.error(this._formatMsg(moduleName, message), errorData);
     }
 
-    fatal(module: string, message: string, data: any = null): void {
-        this.error(module, `FATAL: ${message}`, data);
+    fatal(moduleName: string, message: string, data: unknown = null): void {
+        this.error(moduleName, `FATAL: ${message}`, data);
     }
 
-    group(module: string, groupName: string): void {
+    group(moduleName: string, groupName: string): void {
         if (!this._canLog('DEBUG')) return;
-        console.group(this._formatMsg(module, groupName));
+        console.group(this._formatMsg(moduleName, groupName));
     }
 
     groupEnd(): void {
@@ -168,34 +168,34 @@ export class LoggerClass {
         console.groupEnd();
     }
 
-    time(module: string, timerName: string): void {
+    time(moduleName: string, timerName: string): void {
         if (!this._canLog('DEBUG')) return;
-        const key = `${module}:${timerName}`;
+        const key = `${moduleName}:${timerName}`;
         this.timers.set(key, performance.now());
-        console.time(`[${module}] ${timerName}`);
+        console.time(`[${moduleName}] ${timerName}`);
     }
 
-    timeEnd(module: string, timerName: string): void {
+    timeEnd(moduleName: string, timerName: string): void {
         if (!this._canLog('DEBUG')) return;
-        const key = `${module}:${timerName}`;
+        const key = `${moduleName}:${timerName}`;
         if (!this.timers.has(key)) return;
 
         const start = this.timers.get(key);
         const duration = start ? (performance.now() - start).toFixed(2) + 'ms' : 'unknown';
         this.timers.delete(key);
 
-        console.timeEnd(`[${module}] ${timerName}`);
-        this.debug(module, `${timerName} completed in ${duration}`);
+        console.timeEnd(`[${moduleName}] ${timerName}`);
+        this.debug(moduleName, `${timerName} completed in ${duration}`);
     }
 }
 
 export const Logger = new LoggerClass();
 
 if (typeof globalThis !== 'undefined') {
-    (globalThis as any).Logger = Logger;
+    (globalThis as unknown as { Logger?: LoggerClass }).Logger = Logger;
 }
 if (typeof window !== 'undefined') {
-    (window as any).Logger = Logger;
+    (window as unknown as { Logger?: LoggerClass }).Logger = Logger;
 }
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { Logger };

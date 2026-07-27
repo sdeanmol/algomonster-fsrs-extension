@@ -5,16 +5,23 @@
 
 import { initOptimizer } from '@open-spaced-repetition/binding/dynamic-wasi';
 import { Rating } from 'ts-fsrs';
+import { Card, ReviewLog } from '../../../types/domain';
 
-let _bindingInstance: any = null;
+interface WasmBinding {
+    FSRSBindingReview: new (rating: number, deltaT: number) => unknown;
+    FSRSBindingItem: new (reviews: unknown[]) => unknown;
+    computeParameters: (trainSet: unknown[], options: { enableShortTerm?: boolean; timeout?: number; progress?: (current: number, total: number) => void }) => Promise<number[]>;
+}
+
+let _bindingInstance: WasmBinding | null = null;
 const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-binding.wasm32-wasi.wasm', import.meta.url);
 
-async function getBinding(): Promise<any> {
+async function getBinding(): Promise<WasmBinding> {
     if (!_bindingInstance) {
-        _bindingInstance = await initOptimizer({
-            wasm: wasmUrl as any,
+        _bindingInstance = (await initOptimizer({
+            wasm: wasmUrl as unknown as URL,
             worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', import.meta.url))
-        });
+        })) as unknown as WasmBinding;
     }
     return _bindingInstance;
 }
@@ -33,13 +40,13 @@ export class FsrsOptimizer {
         this.epochs = 50;
     }
 
-    computeEligibility(history: any[], threshold: number = 1000): EligibilityResult {
+    computeEligibility(history: Card[], threshold: number = 1000): EligibilityResult {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
 
         let reviewCount = 0;
-        let uniqueCards = new Set<string>();
+        const uniqueCards = new Set<string>();
 
-        history.forEach((card: any) => {
+        history.forEach((card: Card) => {
             if (card.historyLog && card.historyLog.length > 1) {
                 reviewCount += (card.historyLog.length - 1);
                 uniqueCards.add(card.id);
@@ -55,7 +62,7 @@ export class FsrsOptimizer {
     }
 
     async trainWeights(
-        history: any[],
+        history: Card[],
         currentWeights: number[],
         targetRetention: number = 0.90,
         onProgress: ((current: number, total: number) => void) | null = null
@@ -64,29 +71,28 @@ export class FsrsOptimizer {
 
         try {
             const binding = await getBinding();
-            let trainSet: any[] = [];
+            let trainSet: unknown[] = [];
 
-            history.forEach((card: any) => {
+            history.forEach((card: Card) => {
                 if (card.historyLog && card.historyLog.length > 0) {
-                    const reviews: any[] = [];
-                    let firstLog = card.historyLog[0];
-                    let firstDate = typeof firstLog === 'object' ? firstLog.date : firstLog;
+                    const reviews: unknown[] = [];
 
                     let hasValidDeltaT = false;
-                    card.historyLog.forEach((log: any, index: number) => {
+                    card.historyLog.forEach((log: ReviewLog | number | { rating?: unknown; date?: unknown }, index: number) => {
                         let ratingNum: number = Rating.Good;
                         let logDate: number;
 
                         if (typeof log === 'object' && log !== null) {
-                            if (log.rating === 'again') ratingNum = Rating.Again;
-                            else if (log.rating === 'hard') ratingNum = Rating.Hard;
-                            else if (log.rating === 'good') ratingNum = Rating.Good;
-                            else if (log.rating === 'easy') ratingNum = Rating.Easy;
-                            else if (typeof log.rating === 'number') ratingNum = log.rating;
+                            const rawLog = log as Record<string, unknown>;
+                            if (rawLog.rating === 'again') ratingNum = Rating.Again;
+                            else if (rawLog.rating === 'hard') ratingNum = Rating.Hard;
+                            else if (rawLog.rating === 'good') ratingNum = Rating.Good;
+                            else if (rawLog.rating === 'easy') ratingNum = Rating.Easy;
+                            else if (typeof rawLog.rating === 'number') ratingNum = rawLog.rating;
 
-                            logDate = log.date;
+                            logDate = typeof rawLog.date === 'number' ? rawLog.date : Date.now();
                         } else {
-                            logDate = log;
+                            logDate = typeof log === 'number' ? log : Date.now();
                         }
 
                         // Only valid FSRS ratings (1-4) should be passed to the optimizer
@@ -95,9 +101,11 @@ export class FsrsOptimizer {
 
                             // For FSRS, the first actual review MUST have delta_t = 0.
                             // Subsequent reviews calculate delta_t based on the previous log.
-                            if (reviews.length > 0 && index > 0) {
-                                let prevLog = card.historyLog[index - 1];
-                                let prevDate = typeof prevLog === 'object' ? prevLog.date : prevLog;
+                            if (reviews.length > 0 && index > 0 && card.historyLog) {
+                                const prevLog = card.historyLog[index - 1];
+                                const prevDate = (typeof prevLog === 'object' && prevLog !== null && 'date' in prevLog && typeof prevLog.date === 'number')
+                                    ? prevLog.date
+                                    : (typeof prevLog === 'number' ? prevLog : Date.now());
                                 deltaT = Math.round((logDate - prevDate) / (1000 * 60 * 60 * 24));
                                 if (deltaT < 0) deltaT = 0;
                             }
@@ -125,7 +133,6 @@ export class FsrsOptimizer {
             const MAX_TRAINING_CARDS = 2500;
             if (trainSet.length > MAX_TRAINING_CARDS) {
                 console.log(`[FSRS Optimizer] Limiting train set from ${trainSet.length} to ${MAX_TRAINING_CARDS} cards to ensure stability.`);
-                // Shuffle or just slice. We'll just slice the most recent ones or just take a slice.
                 trainSet = trainSet.slice(0, MAX_TRAINING_CARDS);
             }
 
@@ -149,6 +156,7 @@ export class FsrsOptimizer {
 }
 
 export default FsrsOptimizer;
+
 if (typeof window !== 'undefined') {
-    (window as any).FsrsOptimizer = FsrsOptimizer;
+    (window as unknown as { FsrsOptimizer: typeof FsrsOptimizer }).FsrsOptimizer = FsrsOptimizer;
 }

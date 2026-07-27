@@ -1,10 +1,11 @@
 import { HighlightsHelpers } from './highlights-helpers';
+import { HighlightMark, BookmarkItem, StorageData } from '../../../types/domain';
 
 window.AlgoRecall = window.AlgoRecall || {};
 
 export class HighlightsManager {
-    loadedMarks: any[];
-    loadedBookmarks: any[];
+    loadedMarks: HighlightMark[];
+    loadedBookmarks: BookmarkItem[];
     searchQuery: string;
     activeColorFilter: string | null;
     activePageFilter: string;
@@ -20,8 +21,8 @@ export class HighlightsManager {
         this.sortOption = 'newest';
     }
 
-    get helpers(): any {
-        return window.AlgoRecall.HighlightsHelpers;
+    get helpers(): typeof HighlightsHelpers {
+        return window.AlgoRecall.HighlightsHelpers || HighlightsHelpers;
     }
 
     init(): void {
@@ -90,7 +91,7 @@ export class HighlightsManager {
     }
 
     loadHighlights(): void {
-        chrome.storage.local.get(['marks', 'bookmarks'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['marks', 'bookmarks'], (result: StorageData) => {
             this.loadedMarks = result.marks || [];
             this.loadedBookmarks = result.bookmarks || [];
             
@@ -165,7 +166,7 @@ export class HighlightsManager {
         const clearFiltersBtn = document.getElementById('clear-filters-btn');
         if (!container) return;
 
-        let filtered = this.loadedMarks.filter(mark => {
+        const filtered = this.loadedMarks.filter(mark => {
             const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
             const pageTitle = bookmark && bookmark.title ? bookmark.title.toLowerCase() : '';
             const markText = mark.text.toLowerCase();
@@ -300,9 +301,9 @@ export class HighlightsManager {
 
     deleteHighlight(markId: string): void {
         if (confirm("Are you sure you want to delete this highlight?")) {
-            chrome.storage.local.get(['marks'], (result: { [key: string]: any }) => {
+            chrome.storage.local.get(['marks'], (result: StorageData) => {
                 let marks = result.marks || [];
-                marks = marks.filter((m: any) => (m.id || m.createdAt.toString()) !== markId);
+                marks = marks.filter((m: HighlightMark) => (m.id || m.createdAt.toString()) !== markId);
                 chrome.storage.local.set({ marks }, () => {
                     this.loadHighlights();
                 });
@@ -311,7 +312,7 @@ export class HighlightsManager {
     }
 
     exportHighlightsToMarkdown(): void {
-        let filtered = this.loadedMarks.filter(mark => {
+        const filtered = this.loadedMarks.filter(mark => {
             const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
             const pageTitle = bookmark && bookmark.title ? bookmark.title.toLowerCase() : '';
             const markText = mark.text.toLowerCase();
@@ -364,7 +365,9 @@ export class HighlightsManager {
     }
 }
 
-window.AlgoRecall.HighlightsManager = HighlightsManager;
+const win = window as unknown as { AlgoRecall: { HighlightsManager?: typeof HighlightsManager } };
+win.AlgoRecall = win.AlgoRecall || {};
+win.AlgoRecall.HighlightsManager = HighlightsManager;
 
 document.addEventListener('DOMContentLoaded', () => {
     const manager = new HighlightsManager();

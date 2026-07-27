@@ -1,8 +1,54 @@
 import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
+import { Card, StorageData } from '../../types/domain';
+import FsrsScheduler from './scheduler/fsrsScheduler';
 
-(window as any).AlgoRecall = (window as any).AlgoRecall || {};
+interface AlgoRecallState {
+    cards: Card[];
+    topicWeights: Record<string, number[]>;
+    scheduler: FsrsScheduler;
+}
 
-declare const renderMarkdown: any;
+interface DraftEntry {
+    approach?: string;
+    tags?: string;
+    timeComplexity?: string;
+    spaceComplexity?: string;
+    [key: string]: unknown;
+}
+
+interface AppLogger {
+    debug(category: string, message: string, data?: unknown): void;
+    info(category: string, message: string, data?: unknown): void;
+    warn(category: string, message: string, data?: unknown): void;
+    error(category: string, message: string, data?: unknown): void;
+}
+
+interface AppUtils {
+    getAutoTags(): string[];
+    getExtractedProblemTitle(): string;
+}
+
+interface AlgoRecallGlobal {
+    state: AlgoRecallState;
+    Utils: AppUtils;
+    Notifier: unknown;
+    Tracker: typeof Tracker;
+    orchestrator?: { applyThemeClass(): void };
+}
+
+function getAlgoRecallGlobal(): AlgoRecallGlobal {
+    const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
+    win.AlgoRecall = win.AlgoRecall || ({} as AlgoRecallGlobal);
+    return win.AlgoRecall;
+}
+
+function getLogger(): AppLogger | undefined {
+    return (window as unknown as { Logger?: AppLogger }).Logger;
+}
+
+function getRenderMarkdown(): ((text: string) => string) | undefined {
+    return (window as unknown as { renderMarkdown?: (text: string) => string }).renderMarkdown;
+}
 
 /**
  * @class FSRSTracker
@@ -10,7 +56,7 @@ declare const renderMarkdown: any;
  * Provides controls for recording approaches, entering study card notes, assigning initial difficulty,
  * tagging, drag positioning toggles, and executing interactive revision card sessions with hotkeys.
  */
-(window as any).AlgoRecall.Tracker = class Tracker {
+class Tracker {
     activeReviewFilter: string | null;
     reviewIndex: number;
     totalToReview: number;
@@ -34,29 +80,30 @@ declare const renderMarkdown: any;
     /**
      * Helper to retrieve state.
      */
-    get state(): any {
-        return (window as any).AlgoRecall.state;
+    get state(): AlgoRecallState {
+        return getAlgoRecallGlobal().state;
     }
 
     /**
      * Helper to retrieve utils.
      */
-    get utils(): any {
-        return (window as any).AlgoRecall.Utils;
+    get utils(): AppUtils {
+        return getAlgoRecallGlobal().Utils;
     }
 
     /**
      * Helper to retrieve notifier.
      */
-    get notifier(): any {
-        return (window as any).AlgoRecall.Notifier;
+    get notifier(): unknown {
+        return getAlgoRecallGlobal().Notifier;
     }
 
     /**
      * Commits the current cards array to Chrome local storage sync.
      */
     saveCards(): void {
-        if ((window as any).Logger) (window as any).Logger.info('Tracker', `Saving ${this.state.cards.length} FSRS cards to storage`);
+        const logger = getLogger();
+        if (logger) logger.info('Tracker', `Saving ${this.state.cards.length} FSRS cards to storage`);
         chrome.storage.local.set({ fsrsCards: this.state.cards });
     }
 
@@ -65,13 +112,14 @@ declare const renderMarkdown: any;
      * Records counts grouped by calendar date string in user's timezone.
      */
     logReviewActivity(): void {
-        chrome.storage.local.get(['fsrsActivity'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['fsrsActivity'], (result: StorageData & { fsrsActivity?: Record<string, number> }) => {
             const activity = result.fsrsActivity || {};
             const today = new Date();
             const dateString = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
             activity[dateString] = (activity[dateString] || 0) + 1;
             chrome.storage.local.set({ fsrsActivity: activity });
-            if ((window as any).Logger) (window as any).Logger.debug('Tracker', `Logged review activity for ${dateString}: ${activity[dateString]} reviews`);
+            const logger = getLogger();
+            if (logger) logger.debug('Tracker', `Logged review activity for ${dateString}: ${activity[dateString]} reviews`);
         });
     }
 
@@ -81,8 +129,9 @@ declare const renderMarkdown: any;
      */
     refreshWidgetState(): void {
         if (!chrome.runtime?.id) {
-            if ((window as any).Logger) {
-                (window as any).Logger.warn('Tracker', 'Extension context invalidated. Ignoring refresh.');
+            const logger = getLogger();
+            if (logger) {
+                logger.warn('Tracker', 'Extension context invalidated. Ignoring refresh.');
                 alert("Please refresh the page");
             }
             return;
@@ -90,7 +139,8 @@ declare const renderMarkdown: any;
         const container = document.getElementById('algo-fsrs-container');
         if (!container) return;
 
-        if ((window as any).Logger) (window as any).Logger.debug('Tracker', 'Refreshing widget state...');
+        const logger = getLogger();
+        if (logger) logger.debug('Tracker', 'Refreshing widget state...');
 
         // Reset to default view on SPA navigation
         const reviewUi = document.getElementById('fsrs-review-ui');
@@ -179,7 +229,7 @@ declare const renderMarkdown: any;
             // Highlight the previous rating
             ratingBtns.forEach(btn => {
                 const btnRating = parseInt(btn.getAttribute('data-rating') || '0', 10);
-                if (activeCard.lastRating === btnRating) {
+                if ((activeCard as Card & { lastRating?: number }).lastRating === btnRating) {
                     btn.style.opacity = "1";
                     btn.style.boxShadow = "0 0 0 2px #fff inset";
                 } else {
@@ -189,7 +239,7 @@ declare const renderMarkdown: any;
             });
         } else {
             // New Card: Reset UI (check draft in storage)
-            chrome.storage.local.get(['approachDrafts'], (res: { [key: string]: any }) => {
+            chrome.storage.local.get(['approachDrafts'], (res: { approachDrafts?: Record<string, DraftEntry | string> }) => {
                 const drafts = res.approachDrafts || {};
                 const draft = drafts[targetCleanUrl];
 
@@ -197,25 +247,25 @@ declare const renderMarkdown: any;
                     if (typeof draft === 'object' && draft !== null) {
                         approachArea.value = draft.approach || "";
                     } else {
-                        approachArea.value = draft || "";
+                        approachArea.value = (draft as string) || "";
                     }
                 }
                 if (tagsInput && document.activeElement !== tagsInput) {
                     if (typeof draft === 'object' && draft !== null && draft.tags !== undefined) {
                         tagsInput.value = draft.tags;
-                    } else {
+                    } else if (this.utils && typeof this.utils.getAutoTags === 'function') {
                         tagsInput.value = this.utils.getAutoTags().join(', ');
                     }
                 }
-            });
-            if (actionLabel) actionLabel.innerText = "Save & Rate Initial Difficulty for New Card:";
-            if (updateTextBtn) updateTextBtn.style.display = "none";
-            if (deleteCardBtn) deleteCardBtn.style.display = "none";
-            if (saveRatingsContainer) saveRatingsContainer.removeAttribute('data-existing-id');
+                if (actionLabel) actionLabel.innerText = "Save & Rate Initial Difficulty for New Card:";
+                if (updateTextBtn) updateTextBtn.style.display = "none";
+                if (deleteCardBtn) deleteCardBtn.style.display = "none";
+                if (saveRatingsContainer) saveRatingsContainer.removeAttribute('data-existing-id');
 
-            ratingBtns.forEach(btn => {
-                btn.style.opacity = "1";
-                btn.style.boxShadow = "none";
+                ratingBtns.forEach(btn => {
+                    btn.style.opacity = "1";
+                    btn.style.boxShadow = "none";
+                });
             });
         }
     }
@@ -244,6 +294,8 @@ declare const renderMarkdown: any;
         container.setAttribute('aria-label', 'FSRS Tracker');
         container.style.display = 'none';
 
+        const autoTagsStr = (this.utils && typeof this.utils.getAutoTags === 'function') ? this.utils.getAutoTags().join(', ') : '';
+
         container.innerHTML = `
             <div id="fsrs-header">
                 <div class="fsrs-title">
@@ -264,7 +316,7 @@ declare const renderMarkdown: any;
             <div id="fsrs-body">
                 <div class="fsrs-tags-container">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                    <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" placeholder="Add tags (comma separated)..." value="${this.utils.getAutoTags().join(', ')}">
+                    <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" placeholder="Add tags (comma separated)..." value="${autoTagsStr}">
                 </div>
                 
                 <div class="fsrs-approach-header">
@@ -303,8 +355,8 @@ declare const renderMarkdown: any;
 
         // 3. WIDGET TOGGLE CONTROLS
         let isDragging = false;
-        let dragStart = { x: 0, y: 0 };
-        let initialPos = { x: 0, y: 0 };
+        const dragStart = { x: 0, y: 0 };
+        const initialPos = { x: 0, y: 0 };
 
         const onMouseMove = (e: MouseEvent) => {
             const dx = e.clientX - dragStart.x;
@@ -390,7 +442,7 @@ declare const renderMarkdown: any;
             const existingId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
 
             if (existingId) {
-                const index = this.state.cards.findIndex((c: any) => c.id === existingId);
+                const index = this.state.cards.findIndex((c: Card) => c.id === existingId);
                 if (index > -1) {
                     this.state.cards[index].approach = currentText;
                     this.state.cards[index].tags = currentTagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
@@ -402,7 +454,7 @@ declare const renderMarkdown: any;
                     cardId: existingId
                 });
             } else {
-                chrome.storage.local.get(['approachDrafts'], (res: { [key: string]: any }) => {
+                chrome.storage.local.get(['approachDrafts'], (res: { approachDrafts?: Record<string, DraftEntry | string> }) => {
                     const drafts = res.approachDrafts || {};
                     drafts[targetCleanUrl] = { approach: currentText, tags: currentTagsText };
                     chrome.storage.local.set({ approachDrafts: drafts }, () => {
@@ -422,7 +474,7 @@ declare const renderMarkdown: any;
             const existingId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
             if (existingId) {
                 if (confirm("Remove this card from future reviews? This will delete the card and its repetition history.")) {
-                    this.state.cards = this.state.cards.filter((c: any) => c.id !== existingId);
+                    this.state.cards = this.state.cards.filter((c: Card) => c.id !== existingId);
                     this.activeCardId = null;
                     this.saveCards();
                     this.refreshWidgetState();
@@ -433,7 +485,7 @@ declare const renderMarkdown: any;
         document.getElementById('fsrs-update-text-btn')?.addEventListener('click', (e: Event) => {
             const existingId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
             if (existingId) {
-                const index = this.state.cards.findIndex((c: any) => c.id === existingId);
+                const index = this.state.cards.findIndex((c: Card) => c.id === existingId);
                 if (index > -1) {
                     this.state.cards[index].approach = (document.getElementById('fsrs-approach') as HTMLTextAreaElement)?.value || '';
                     const tagsVal = (document.getElementById('fsrs-tags-input') as HTMLInputElement)?.value || '';
@@ -464,10 +516,10 @@ declare const renderMarkdown: any;
                 const rating = parseInt(target.getAttribute('data-rating') || '1', 10);
                 const existingId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
                 const targetCleanUrl = cleanUrl(window.location.href);
-                const problemTitle = this.utils.getExtractedProblemTitle();
+                const problemTitle = (this.utils && typeof this.utils.getExtractedProblemTitle === 'function') ? this.utils.getExtractedProblemTitle() : document.title;
 
                 // Dynamic Topic Weights mapping
-                let customWeights: any = null;
+                let customWeights: number[] | null = null;
                 if (this.state.topicWeights && parsedTags && parsedTags.length > 0) {
                     for (const tag of parsedTags) {
                         if (this.state.topicWeights[tag]) {
@@ -478,19 +530,19 @@ declare const renderMarkdown: any;
                 }
 
                 if (existingId) {
-                    const index = this.state.cards.findIndex((c: any) => c.id === existingId);
+                    const index = this.state.cards.findIndex((c: Card) => c.id === existingId);
                     if (index > -1) {
                         this.state.cards[index].approach = approach;
                         this.state.cards[index].tags = parsedTags;
                         this.state.cards[index] = this.state.scheduler.reviewCard(this.state.cards[index], rating, customWeights);
-                        this.state.cards[index].lastRating = rating;
+                        (this.state.cards[index] as Card & { lastRating?: number }).lastRating = rating;
                         this.activeCardId = existingId;
                     }
                 } else {
                     let newCard = this.state.scheduler.createCard(problemTitle, targetCleanUrl, "", approach, parsedTags);
                     newCard.id = generateCardId();
                     newCard = this.state.scheduler.reviewCard(newCard, rating, customWeights);
-                    newCard.lastRating = rating;
+                    (newCard as Card & { lastRating?: number }).lastRating = rating;
                     this.state.cards.push(newCard);
                     this.activeCardId = newCard.id;
                 }
@@ -498,7 +550,7 @@ declare const renderMarkdown: any;
                 this.saveCards();
 
                 // Clear draft if it exists
-                chrome.storage.local.get(['approachDrafts'], (res: { [key: string]: any }) => {
+                chrome.storage.local.get(['approachDrafts'], (res: { approachDrafts?: Record<string, DraftEntry | string> }) => {
                     const drafts = res.approachDrafts || {};
                     if (drafts[targetCleanUrl]) {
                         delete drafts[targetCleanUrl];
@@ -515,8 +567,9 @@ declare const renderMarkdown: any;
             });
         });
 
-        if ((window as any).AlgoRecall.orchestrator) {
-            (window as any).AlgoRecall.orchestrator.applyThemeClass();
+        const globalAlgo = getAlgoRecallGlobal();
+        if (globalAlgo.orchestrator) {
+            globalAlgo.orchestrator.applyThemeClass();
         }
     }
 
@@ -536,14 +589,14 @@ declare const renderMarkdown: any;
         const tagsText = tagsInputEl.value;
 
         if (existingId) {
-            const card = this.state.cards.find((c: any) => c.id === existingId);
+            const card = this.state.cards.find((c: Card) => c.id === existingId);
             if (card) {
                 card.approach = text;
                 card.tags = tagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
                 this.saveCards();
             }
         } else {
-            chrome.storage.local.get(['approachDrafts'], (res: { [key: string]: any }) => {
+            chrome.storage.local.get(['approachDrafts'], (res: { approachDrafts?: Record<string, DraftEntry | string> }) => {
                 const drafts = res.approachDrafts || {};
                 drafts[targetCleanUrl] = { approach: text, tags: tagsText };
                 chrome.storage.local.set({ approachDrafts: drafts });
@@ -554,13 +607,13 @@ declare const renderMarkdown: any;
     /**
      * Returns a sorted list of due study cards based on the scheduled FSRS timestamp.
      */
-    getDueCards(filterTag?: string | null): any[] {
+    getDueCards(filterTag?: string | null): Card[] {
         const now = new Date().getTime();
-        let due = this.state.cards.filter((c: any) => c.due <= now);
+        let due = this.state.cards.filter((c: Card) => c.due <= now);
         if (filterTag && filterTag !== '__all__') {
-            due = due.filter((c: any) => c.tags && c.tags.includes(filterTag));
+            due = due.filter((c: Card) => c.tags && c.tags.includes(filterTag));
         }
-        return due.sort((a: any, b: any) => a.due - b.due);
+        return due.sort((a: Card, b: Card) => a.due - b.due);
     }
 
     /**
@@ -576,7 +629,7 @@ declare const renderMarkdown: any;
 
         // Collect unique tags from due cards
         const tagSet = new Set<string>();
-        allDue.forEach((c: any) => { if (c.tags) c.tags.forEach((t: string) => tagSet.add(t)); });
+        allDue.forEach((c: Card) => { if (c.tags) c.tags.forEach((t: string) => tagSet.add(t)); });
         const uniqueTags = [...tagSet].sort();
 
         // If only one tag (or none), skip picker and go straight to review
@@ -595,7 +648,7 @@ declare const renderMarkdown: any;
         reviewUi.style.display = 'block';
 
         const tagChipsHtml = uniqueTags.map(tag => {
-            const count = allDue.filter((c: any) => c.tags && c.tags.includes(tag)).length;
+            const count = allDue.filter((c: Card) => c.tags && c.tags.includes(tag)).length;
             return `<button class="fsrs-tag-chip" data-tag="${tag}">${tag} <span class="fsrs-tag-count">${count}</span></button>`;
         }).join('');
 
@@ -702,9 +755,10 @@ declare const renderMarkdown: any;
         const progressPct = Math.round((this.reviewIndex / this.totalToReview) * 100);
 
         // Render approach with Markdown
-        const approachHtml = typeof renderMarkdown === 'function'
-            ? renderMarkdown(currentCard.approach)
-            : currentCard.approach.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+        const renderFn = getRenderMarkdown();
+        const approachHtml = typeof renderFn === 'function'
+            ? renderFn(currentCard.approach || '')
+            : (currentCard.approach || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 
         reviewUi.innerHTML = `
             <div class="fsrs-review-header">
@@ -820,12 +874,12 @@ declare const renderMarkdown: any;
      * Applies the review rating to a target card, calculates new FSRS scheduler values,
      * updates storage databases, and logs activity increments.
      */
-    handleRating(card: any, rating: number, timeTaken: number = 0): void {
-        const index = this.state.cards.findIndex((c: any) => c.id === card.id);
+    handleRating(card: Card, rating: number, timeTaken: number = 0): void {
+        const index = this.state.cards.findIndex((c: Card) => c.id === card.id);
         if (index === -1) return;
 
         // Determine if this card has a tag that matches a custom weight profile
-        let customWeightsToApply: any = null;
+        let customWeightsToApply: number[] | null = null;
         if (card.tags && card.tags.length > 0) {
             for (const tag of card.tags) {
                 if (this.state.topicWeights[tag]) {
@@ -836,7 +890,7 @@ declare const renderMarkdown: any;
         }
 
         this.state.cards[index] = this.state.scheduler.reviewCard(card, rating, customWeightsToApply, Date.now(), timeTaken);
-        this.state.cards[index].lastRating = rating;
+        (this.state.cards[index] as Card & { lastRating?: number }).lastRating = rating;
 
         this.saveCards();
         this.logReviewActivity();
@@ -851,4 +905,12 @@ declare const renderMarkdown: any;
             this._reviewKeyHandler = null;
         }
     }
-};
+}
+
+if (typeof window !== 'undefined') {
+    const win = window as unknown as { AlgoRecall: { Tracker: typeof Tracker } };
+    win.AlgoRecall = win.AlgoRecall || {};
+    win.AlgoRecall.Tracker = Tracker;
+}
+
+export default Tracker;

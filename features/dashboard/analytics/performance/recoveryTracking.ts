@@ -1,5 +1,6 @@
-import { getLastReviewDate } from '@common/utils/cardUtils';
+import { getLastReviewDate } from '../../../common/utils/cardUtils';
 import { DataUtils } from '../utils/dataUtils';
+import { Card, ReviewLog } from '../../../../types/domain';
 
 export class RecoveryTracking {
     dataUtils: DataUtils;
@@ -28,7 +29,7 @@ export class RecoveryTracking {
             filteredRecovered = recovered.filter(c => c.tags && c.tags.includes(this.tagFilter));
         }
 
-        let html = `
+        const html = `
             <div class="recovery-sections">
                 <div class="recovery-column">
                     <h4 class="recovery-title"><span style="color:var(--md-success);">✓</span> Recovered</h4>
@@ -47,22 +48,28 @@ export class RecoveryTracking {
         container.innerHTML = html;
     }
     
-    buildTable(cards: any[], isRecovered: boolean): string {
+    buildTable(cards: Card[], isRecovered: boolean): string {
         if (cards.length === 0) {
             return `<div class="retention-empty">No cards found in this category.</div>`;
         }
         
-        let rows = cards.map(c => {
+        const rows = cards.map(c => {
             const url = c.problemUrl || '#';
             const title = c.problemTitle || 'Untitled';
             const lapses = c.lapses || 0;
             const stab = c.stability > 0 ? c.stability.toFixed(1) + 'd' : '0d';
             
             let daysSince = 0;
-            let lastLapseLog: any = null;
+            let lastLapseLog: ReviewLog | null = null;
             
             if (c.historyLog && c.historyLog.length > 0) {
-                lastLapseLog = c.historyLog.slice().reverse().find((l: any) => typeof l === 'object' && l.rating === 1);
+                const logs = c.historyLog.slice().reverse();
+                for (const log of logs) {
+                    if (typeof log === 'object' && log !== null && log.rating === 1) {
+                        lastLapseLog = log;
+                        break;
+                    }
+                }
             }
             
             if (lastLapseLog && lastLapseLog.date) {

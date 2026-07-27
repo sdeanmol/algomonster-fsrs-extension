@@ -1,11 +1,13 @@
+import { Card, StorageData, ChromeSettings } from '../../../types/domain';
+
 /**
  * @file features/dashboard/forecast/forecast.ts
  * @description Main controller for the dedicated forecast future workloads dashboard.
  * Projects upcoming review volumes up to 30 days based on scheduled card due dates,
  * rendering column charts and interactive calendars.
  */
-class ForecastDashboard {
-    chromeSettings: any;
+export class ForecastDashboard {
+    chromeSettings: ChromeSettings;
 
     constructor() {
         this.chromeSettings = {};
@@ -15,8 +17,8 @@ class ForecastDashboard {
      * Bootstraps forecast settings and triggers UI loads.
      */
     init(): void {
-        chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: { [key: string]: any }) => {
-            const cards = result.fsrsCards || [];
+        chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: StorageData) => {
+            const cards: Card[] = result.fsrsCards || [];
             this.chromeSettings = result.chromeSettings || {};
             this.renderForecast(cards);
         });
@@ -26,7 +28,7 @@ class ForecastDashboard {
      * Orchestrates the grouping of cards by due date, calculates peak/total workload stats,
      * and renders both the workload forecast chart and the 30-day forecast calendar.
      */
-    renderForecast(cards: any[]): void {
+    renderForecast(cards: Card[]): void {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const daysToShow = 30;
@@ -34,7 +36,7 @@ class ForecastDashboard {
         const dueCounts: Record<number, number> = {};
         let pastDueCount = 0;
 
-        cards.forEach((card: any) => {
+        cards.forEach((card: Card) => {
             if (card.state === 0) return; // Ignore 'New' unstudied cards in spaced-repetition forecast
 
             const dueDate = new Date(card.due);
@@ -54,7 +56,6 @@ class ForecastDashboard {
 
         let totalUpcoming = 0;
         let peakCount = 0;
-        let peakDayIdx = 0;
 
         for (let i = 0; i <= daysToShow; i++) {
             const count = dueCounts[i] || 0;
@@ -62,7 +63,6 @@ class ForecastDashboard {
             
             if (i > 0 && count > peakCount) {
                 peakCount = count;
-                peakDayIdx = i;
             }
         }
 

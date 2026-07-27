@@ -5,8 +5,82 @@
  */
 import '../logger';
 import { ensureCardIds } from '../utils/cardUtils';
+import { Card, StorageData, UserSettings, WhitelistedWebsite, HighlightMark, BookmarkItem } from '../../../types/domain';
+import { LoggerClass } from '../logger';
 
-const Logger = (globalThis as any).Logger;
+function getLogger(): LoggerClass | undefined {
+    return (globalThis as unknown as { Logger?: LoggerClass }).Logger;
+}
+
+export interface BackupPageData {
+    id?: number;
+    url: string;
+    title: string;
+    icon: string;
+}
+
+export interface BackupCardData extends Omit<Card, 'problemUrl' | 'problemTitle'> {
+    u?: number;
+    problemUrl?: string;
+    problemTitle?: string;
+}
+
+export interface BackupBookmarkData {
+    url?: string;
+    title?: string;
+    u?: number;
+    meta?: { favIconUrl?: string; [key: string]: unknown };
+}
+
+export interface BackupMarkData {
+    url?: string;
+    u?: number;
+    type?: string;
+    [key: string]: unknown;
+}
+
+export interface BackupPageContentData {
+    url?: string;
+    u?: number;
+    [key: string]: unknown;
+}
+
+export interface BackupCounts {
+    pages: number;
+    cards: number;
+    marks: number;
+    bookmarks: number;
+    pagecontents: number;
+}
+
+export interface BackupHeader {
+    type: 'header';
+    data: {
+        version: number;
+        timestamp: number;
+        counts: BackupCounts;
+    };
+}
+
+export interface BackupFooter {
+    type: 'footer';
+    data: {
+        checksum: string;
+        count: number;
+    };
+}
+
+export type BackupLine =
+    | BackupHeader
+    | BackupFooter
+    | { type: 'page'; data: BackupPageData }
+    | { type: 'card'; data: BackupCardData }
+    | { type: 'mark'; data: BackupMarkData }
+    | { type: 'bookmark'; data: BackupBookmarkData }
+    | { type: 'pagecontent'; data: BackupPageContentData }
+    | { type: 'activity'; data: Record<string, number> }
+    | { type: 'weights'; data: Record<string, number[]> }
+    | { type: 'settings'; data: UserSettings & Record<string, unknown> };
 
 /**
  * Incremental 32-bit FNV-1a Hasher for integrity verification.
@@ -65,14 +139,22 @@ export class BackupManager {
      * Yields output chunks using a ReadableStream and triggers a download.
      */
     static async exportBackup(): Promise<void> {
-        if (Logger) {
-            Logger.time('Backup', 'exportBackup');
-            Logger.info('Backup', 'Starting backup export process...');
+        const logger = getLogger();
+        if (logger) {
+            logger.time('Backup', 'exportBackup');
+            logger.info('Backup', 'Starting backup export process...');
         }
-        const raw: any = (await chrome.storage.local.get(null)) as any;
+        const raw = (await chrome.storage.local.get(null)) as StorageData & {
+            marks?: BackupMarkData[];
+            bookmarks?: BackupBookmarkData[];
+            pagecontents?: BackupPageContentData[];
+            ratingPromptState?: unknown;
+            dailyGoalTarget?: number | null;
+            longestStreak?: number;
+        };
 
         // Extract and deduplicate URLs across bookmarks, cards, marks, pagecontents
-        const pages: Array<{ url: string; title: string; icon: string }> = [];
+        const pages: BackupPageData[] = [];
         const urlToPageId = new Map<string, number>();
 
         const getOrCreatePageId = (url: string | undefined, title: string = '', icon: string = ''): number | null => {
@@ -110,36 +192,36 @@ export class BackupManager {
         }
 
         // Generate deduplicated structures
-        const dupBookmarks = (raw.bookmarks || []).map((b: any) => ({
-            u: urlToPageId.get(b.url),
-            meta: b.meta
+        const dupBookmarks: BackupBookmarkData[] = (raw.bookmarks || []).map((b) => ({
+            u: b.url ? urlToPageId.get(b.url) : undefined,
+            meta: (b.meta as { favIconUrl?: string; [key: string]: unknown }) || undefined
         }));
 
-        const dupCards = (raw.fsrsCards || []).map((c: any) => {
-            const copy = { ...c };
-            copy.u = urlToPageId.get(c.problemUrl);
+        const dupCards: BackupCardData[] = (raw.fsrsCards || []).map((c) => {
+            const copy: BackupCardData = { ...c };
+            if (c.problemUrl) copy.u = urlToPageId.get(c.problemUrl);
             delete copy.problemUrl;
             delete copy.problemTitle;
             return copy;
         });
 
-        const dupMarks = (raw.marks || []).map((m: any) => {
-            const copy = { ...m };
-            copy.u = urlToPageId.get(m.url);
+        const dupMarks: BackupMarkData[] = (raw.marks || []).map((m) => {
+            const copy: BackupMarkData = { ...m };
+            if (m.url) copy.u = urlToPageId.get(m.url);
             delete copy.url;
             return copy;
         });
 
-        const dupPageContents = (raw.pagecontents || []).map((pc: any) => {
-            const copy = { ...pc };
-            copy.u = urlToPageId.get(pc.url);
+        const dupPageContents: BackupPageContentData[] = (raw.pagecontents || []).map((pc) => {
+            const copy: BackupPageContentData = { ...pc };
+            if (pc.url) copy.u = urlToPageId.get(pc.url);
             delete copy.url;
             return copy;
         });
 
         // Setup streaming generator of lines
         function* generateLines() {
-            const counts = {
+            const counts: BackupCounts = {
                 pages: pages.length,
                 cards: dupCards.length,
                 marks: dupMarks.length,
@@ -177,7 +259,7 @@ export class BackupManager {
             }
 
             // Export general user preferences and statistics
-            const settings: any = {
+            const settings: UserSettings & Record<string, unknown> = {
                 chromeSettings: raw.chromeSettings || {},
                 notificationSettings: raw.notificationSettings || {},
                 theme: raw.theme || 'dark',
@@ -217,7 +299,8 @@ export class BackupManager {
         });
 
         // Native Compression Stream
-        const compressedStream = stream.pipeThrough(new (window as any).CompressionStream('gzip'));
+        const windowWithCompression = window as unknown as { CompressionStream: new (format: string) => TransformStream };
+        const compressedStream = stream.pipeThrough(new windowWithCompression.CompressionStream('gzip'));
         const response = new Response(compressedStream, {
             headers: { 'Content-Type': 'application/gzip' }
         });
@@ -231,9 +314,9 @@ export class BackupManager {
             filename: filename,
             saveAs: true
         });
-        if (Logger) {
-            Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
-            Logger.timeEnd('Backup', 'exportBackup');
+        if (logger) {
+            logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
+            logger.timeEnd('Backup', 'exportBackup');
         }
     }
 
@@ -242,9 +325,10 @@ export class BackupManager {
      * validates checksum, and hydrates local storage atomically.
      */
     static async importBackup(file: File, onStatus: (msg: string, isError?: boolean) => void): Promise<void> {
-        if (Logger) {
-            Logger.time('Backup', 'importBackup');
-            Logger.info('Backup', `Starting backup import from file: ${file.name} (${file.size} bytes)`);
+        const logger = getLogger();
+        if (logger) {
+            logger.time('Backup', 'importBackup');
+            logger.info('Backup', `Starting backup import from file: ${file.name} (${file.size} bytes)`);
         }
         try {
             // 1. Detect format using magic bytes
@@ -260,12 +344,13 @@ export class BackupManager {
             }
 
             // 2. Perform fast pre-pass validation to check integrity (only for V2 backups)
-            let prePassResult: any;
+            let prePassResult: { isV2: boolean; header?: BackupHeader; counts?: BackupCounts };
             try {
                 prePassResult = await this.validateStream(file, isGzip);
-            } catch (err: any) {
-                console.error("Integrity/Checksum error during pre-pass validation:", err);
-                onStatus(err.message, true);
+            } catch (err) {
+                const errorObj = err instanceof Error ? err : new Error(String(err));
+                console.error("Integrity/Checksum error during pre-pass validation:", errorObj);
+                onStatus(errorObj.message, true);
                 return;
             }
 
@@ -279,24 +364,25 @@ export class BackupManager {
             // 3. Reconstruct tables from lines in the second pass
             let stream: ReadableStream = file.stream();
             if (isGzip) {
-                stream = stream.pipeThrough(new (window as any).DecompressionStream('gzip'));
+                const windowWithDecompression = window as unknown as { DecompressionStream: new (format: string) => TransformStream };
+                stream = stream.pipeThrough(new windowWithDecompression.DecompressionStream('gzip'));
             }
 
-            const pages: any[] = [];
-            const cards: any[] = [];
-            const marks: any[] = [];
-            const bookmarks: any[] = [];
-            const pagecontents: any[] = [];
-            let activity: any = {};
-            let weights: any = {};
-            let settings: any = {};
+            const pages: BackupPageData[] = [];
+            const cards: BackupCardData[] = [];
+            const marks: BackupMarkData[] = [];
+            const bookmarks: BackupBookmarkData[] = [];
+            const pagecontents: BackupPageContentData[] = [];
+            let activity: Record<string, number> = {};
+            let weights: Record<string, number[]> = {};
+            let settings: UserSettings & Record<string, unknown> = {};
 
             const linesIterable = readLines(stream);
             for await (const line of linesIterable) {
                 if (!line.trim()) continue;
-                const parsed = JSON.parse(line);
+                const parsed = JSON.parse(line) as BackupLine;
                 if (parsed.type === "page") {
-                    pages[parsed.data.id] = parsed.data;
+                    if (parsed.data.id !== undefined) pages[parsed.data.id] = parsed.data;
                 } else if (parsed.type === "card") {
                     cards.push(parsed.data);
                 } else if (parsed.type === "mark") {
@@ -315,19 +401,19 @@ export class BackupManager {
             }
 
             // Reconstruct URL references
-            const reconstructedCards = cards.map(c => {
-                const page = pages[c.u];
-                if (!page) return c;
-                const rc = { ...c };
+            const reconstructedCards: Card[] = cards.map(c => {
+                const page = c.u !== undefined ? pages[c.u] : undefined;
+                if (!page) return c as Card;
+                const rc: Card = { ...(c as Card) };
                 rc.problemUrl = page.url;
                 rc.problemTitle = page.title;
-                delete rc.u;
+                delete (rc as BackupCardData).u;
                 return rc;
             });
             ensureCardIds(reconstructedCards);
 
             const reconstructedBookmarks = bookmarks.map(b => {
-                const page = pages[b.u];
+                const page = b.u !== undefined ? pages[b.u] : undefined;
                 if (!page) return b;
                 return {
                     url: page.url,
@@ -337,7 +423,7 @@ export class BackupManager {
             });
 
             const reconstructedMarks = marks.map(m => {
-                const page = pages[m.u];
+                const page = m.u !== undefined ? pages[m.u] : undefined;
                 if (!page) return m;
                 const rm = { ...m };
                 rm.url = page.url;
@@ -347,7 +433,7 @@ export class BackupManager {
             });
 
             const reconstructedPageContents = pagecontents.map(pc => {
-                const page = pages[pc.u];
+                const page = pc.u !== undefined ? pages[pc.u] : undefined;
                 if (!page) return pc;
                 const rpc = { ...pc };
                 rpc.url = page.url;
@@ -356,39 +442,40 @@ export class BackupManager {
             });
 
             // Hydrate local storage atomically
-            const storageUpdate: any = {
+            const storageUpdate: StorageData & Record<string, unknown> = {
                 fsrsCards: reconstructedCards,
                 fsrsActivity: activity,
                 fsrsTopicWeights: weights,
-                marks: reconstructedMarks,
-                bookmarks: reconstructedBookmarks,
+                marks: reconstructedMarks as unknown as HighlightMark[],
+                bookmarks: reconstructedBookmarks as unknown as BookmarkItem[],
                 pagecontents: reconstructedPageContents,
                 chromeSettings: settings.chromeSettings || {},
                 notificationSettings: settings.notificationSettings || {},
-                theme: settings.theme || 'dark',
+                theme: (settings.theme as 'dark' | 'light') || 'dark',
                 fsrsGlobalParams: settings.fsrsGlobalParams || {},
                 ratingPromptState: settings.ratingPromptState || {},
-                dailyGoalTarget: settings.dailyGoalTarget || null,
-                longestStreak: settings.longestStreak || 0
+                dailyGoalTarget: (settings.dailyGoalTarget as number | null) || null,
+                longestStreak: (settings.longestStreak as number) || 0
             };
 
-            if (settings.whitelistedWebsites && settings.whitelistedWebsites.length > 0) {
-                storageUpdate.whitelistedWebsites = settings.whitelistedWebsites;
+            if (settings.whitelistedWebsites && Array.isArray(settings.whitelistedWebsites) && settings.whitelistedWebsites.length > 0) {
+                storageUpdate.whitelistedWebsites = settings.whitelistedWebsites as WhitelistedWebsite[];
             } else {
                 await chrome.storage.local.remove('whitelistedWebsites');
             }
 
             await chrome.storage.local.set(storageUpdate);
             onStatus("Backup restored successfully!");
-            if (Logger) {
-                Logger.info('Backup', 'Backup restored successfully!');
-                Logger.timeEnd('Backup', 'importBackup');
+            if (logger) {
+                logger.info('Backup', 'Backup restored successfully!');
+                logger.timeEnd('Backup', 'importBackup');
             }
 
-        } catch (err: any) {
-            if (Logger) Logger.error('Backup', 'Backup restoration failed', err);
-            console.error("Backup restoration failed:", err);
-            onStatus("Restoration failed: " + err.message, true);
+        } catch (err) {
+            const errorObj = err instanceof Error ? err : new Error(String(err));
+            if (logger) logger.error('Backup', 'Backup restoration failed', errorObj);
+            console.error("Backup restoration failed:", errorObj);
+            onStatus("Restoration failed: " + errorObj.message, true);
         }
     }
 
@@ -396,25 +483,26 @@ export class BackupManager {
      * Reads through the backup file stream without executing database writes,
      * ensuring formatting constraints and the checksum match.
      */
-    static async validateStream(file: File, isGzip: boolean): Promise<any> {
+    static async validateStream(file: File, isGzip: boolean): Promise<{ isV2: boolean; header?: BackupHeader; counts?: BackupCounts }> {
         let stream: ReadableStream = file.stream();
         if (isGzip) {
-            stream = stream.pipeThrough(new (window as any).DecompressionStream('gzip'));
+            const windowWithDecompression = window as unknown as { DecompressionStream: new (format: string) => TransformStream };
+            stream = stream.pipeThrough(new windowWithDecompression.DecompressionStream('gzip'));
         }
 
         const hasher = new Fnv1aHasher();
         let lineCount = 0;
-        let header: any = null;
-        let footer: any = null;
+        let header: BackupHeader | null = null;
+        let footer: BackupFooter | null = null;
 
         const linesIterable = readLines(stream);
         for await (const line of linesIterable) {
             if (!line.trim()) continue;
 
-            let parsed: any;
+            let parsed: BackupLine;
             try {
-                parsed = JSON.parse(line);
-            } catch (err) {
+                parsed = JSON.parse(line) as BackupLine;
+            } catch {
                 // If it fails on the first line, it's definitely not V2 JSONL
                 if (lineCount === 0) {
                     return { isV2: false };
@@ -464,51 +552,71 @@ export class BackupManager {
             reader.onload = async (event: ProgressEvent<FileReader>) => {
                 try {
                     const text = event.target?.result as string;
-                    const imported = JSON.parse(text);
+                    const imported = JSON.parse(text) as {
+                        cards?: Card[];
+                        activity?: Record<string, number>;
+                        weights?: Record<string, number[]>;
+                        marks?: BackupMarkData[];
+                        bookmarks?: BackupBookmarkData[];
+                        pagecontents?: BackupPageContentData[];
+                        chromeSettings?: Record<string, unknown>;
+                        notificationSettings?: Record<string, unknown>;
+                        theme?: 'dark' | 'light';
+                        whitelistedWebsites?: WhitelistedWebsite[];
+                        fsrsGlobalParams?: Record<string, unknown>;
+                        ratingPromptState?: Record<string, unknown>;
+                        dailyGoalTarget?: number | null;
+                        longestStreak?: number;
+                    } | Card[];
 
-                    const rawImportedCards = Array.isArray(imported) ? imported : (imported.cards || []);
+                    const rawImportedCards: Card[] = Array.isArray(imported) ? imported : (imported.cards || []);
                     ensureCardIds(rawImportedCards);
 
-                    const storageUpdate: any = {
+                    const storageUpdate: StorageData & Record<string, unknown> = {
                         fsrsCards: rawImportedCards,
                         fsrsActivity: Array.isArray(imported) ? {} : (imported.activity || {}),
                         fsrsTopicWeights: Array.isArray(imported) ? {} : (imported.weights || {})
                     };
 
-                    if (imported.marks) {
-                        storageUpdate.marks = imported.marks.map((m: any) => {
-                            m.type = m.type || 'highlight';
-                            return m;
-                        });
-                    }
-                    if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks;
-                    if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
-                    if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
-                    if (imported.notificationSettings) storageUpdate.notificationSettings = imported.notificationSettings;
+                    if (!Array.isArray(imported)) {
+                        if (imported.marks) {
+                            storageUpdate.marks = (imported.marks as unknown as HighlightMark[]).map((m) => {
+                                m.type = m.type || 'highlight';
+                                return m;
+                            });
+                        }
+                        if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks as unknown as BookmarkItem[];
+                        if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
+                        if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
+                        if (imported.notificationSettings) storageUpdate.notificationSettings = imported.notificationSettings;
 
-                    if (imported.theme) storageUpdate.theme = imported.theme;
-                    if (imported.whitelistedWebsites && imported.whitelistedWebsites.length > 0) {
-                        storageUpdate.whitelistedWebsites = imported.whitelistedWebsites;
-                    } else if (imported.whitelistedWebsites && imported.whitelistedWebsites.length === 0) {
-                        await chrome.storage.local.remove('whitelistedWebsites');
+                        if (imported.theme) storageUpdate.theme = imported.theme;
+                        if (imported.whitelistedWebsites && imported.whitelistedWebsites.length > 0) {
+                            storageUpdate.whitelistedWebsites = imported.whitelistedWebsites;
+                        } else if (imported.whitelistedWebsites && imported.whitelistedWebsites.length === 0) {
+                            await chrome.storage.local.remove('whitelistedWebsites');
+                        }
+                        if (imported.fsrsGlobalParams) storageUpdate.fsrsGlobalParams = imported.fsrsGlobalParams;
+                        if (imported.ratingPromptState) storageUpdate.ratingPromptState = imported.ratingPromptState;
+                        if (imported.dailyGoalTarget !== undefined) storageUpdate.dailyGoalTarget = imported.dailyGoalTarget;
+                        if (imported.longestStreak !== undefined) storageUpdate.longestStreak = imported.longestStreak;
                     }
-                    if (imported.fsrsGlobalParams) storageUpdate.fsrsGlobalParams = imported.fsrsGlobalParams;
-                    if (imported.ratingPromptState) storageUpdate.ratingPromptState = imported.ratingPromptState;
-                    if (imported.dailyGoalTarget !== undefined) storageUpdate.dailyGoalTarget = imported.dailyGoalTarget;
-                    if (imported.longestStreak !== undefined) storageUpdate.longestStreak = imported.longestStreak;
 
                     await chrome.storage.local.set(storageUpdate);
                     onStatus("Legacy backup imported successfully!");
-                    if (Logger) {
-                        Logger.info('Backup', 'Legacy backup imported successfully!');
-                        Logger.timeEnd('Backup', 'importBackup');
+                    const logger = getLogger();
+                    if (logger) {
+                        logger.info('Backup', 'Legacy backup imported successfully!');
+                        logger.timeEnd('Backup', 'importBackup');
                     }
                     resolve();
                 } catch (err) {
-                    if (Logger) Logger.error('Backup', 'Legacy backup restoration failed', err);
-                    console.error("Legacy Backup Error:", err);
+                    const errorObj = err instanceof Error ? err : new Error(String(err));
+                    const logger = getLogger();
+                    if (logger) logger.error('Backup', 'Legacy backup restoration failed', errorObj);
+                    console.error("Legacy Backup Error:", errorObj);
                     onStatus("Failed to parse legacy JSON backup file.", true);
-                    reject(err);
+                    reject(errorObj);
                 }
             };
             reader.onerror = () => {

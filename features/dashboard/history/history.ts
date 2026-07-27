@@ -1,12 +1,14 @@
+import { Card, StorageData, ChromeSettings, ReviewLog } from '../../../types/domain';
+
 /**
  * @file features/dashboard/history/history.ts
  * @description Main controller for the dedicated contribution history dashboard.
  * Aggregates review logs by year, month, or day, and displays grid list drill-downs
  * with interactive CSS charts tracking user activity metrics.
  */
-class FSRSHistoryDashboard {
-    activityData: { [key: string]: number };
-    chromeSettings: any;
+export class FSRSHistoryDashboard {
+    activityData: Record<string, number>;
+    chromeSettings: ChromeSettings;
     currentView: string;
     selectedYear: string | null;
     selectedMonth: string | null;
@@ -22,15 +24,15 @@ class FSRSHistoryDashboard {
     }
 
     init(): void {
-        chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'chromeSettings'], (result: { [key: string]: any }) => {
-            let activityData = result.fsrsActivity || {};
-            const allCards = result.fsrsCards || [];
+        chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'chromeSettings'], (result: StorageData) => {
+            let activityData: Record<string, number> = result.fsrsActivity || {};
+            const allCards: Card[] = result.fsrsCards || [];
 
-            let expectedActivity: { [key: string]: number } = {};
-            allCards.forEach((c: any) => {
+            const expectedActivity: Record<string, number> = {};
+            allCards.forEach((c: Card) => {
                 if (c.historyLog) {
                     const uniqueDatesForCard = new Set<string>();
-                    c.historyLog.forEach((log: any) => {
+                    c.historyLog.forEach((log: ReviewLog | number) => {
                         const timestamp = (typeof log === 'object' && log !== null) ? log.date : log;
                         const dateObj = new Date(timestamp);
                         const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -362,8 +364,8 @@ class FSRSHistoryDashboard {
         });
     }
 
-    aggregateByYear(): { [year: string]: { total: number; activeDays: number } } {
-        const years: { [year: string]: { total: number; activeDays: number } } = {};
+    aggregateByYear(): Record<string, { total: number; activeDays: number }> {
+        const years: Record<string, { total: number; activeDays: number }> = {};
         for (const [dateString, count] of Object.entries(this.activityData)) {
             const year = dateString.split('-')[0];
             if (!years[year]) years[year] = { total: 0, activeDays: 0 };
@@ -373,8 +375,8 @@ class FSRSHistoryDashboard {
         return years;
     }
 
-    aggregateByMonth(targetYear: string): { [monthKey: string]: { total: number } } {
-        const months: { [monthKey: string]: { total: number } } = {};
+    aggregateByMonth(targetYear: string): Record<string, { total: number }> {
+        const months: Record<string, { total: number }> = {};
         for (const [dateString, count] of Object.entries(this.activityData)) {
             if (dateString.startsWith(targetYear)) {
                 const monthKey = dateString.substring(0, 7);
@@ -385,8 +387,8 @@ class FSRSHistoryDashboard {
         return months;
     }
 
-    aggregateByDay(targetMonth: string): { [dateString: string]: number } {
-        const days: { [dateString: string]: number } = {};
+    aggregateByDay(targetMonth: string): Record<string, number> {
+        const days: Record<string, number> = {};
         for (const [dateString, count] of Object.entries(this.activityData)) {
             if (dateString.startsWith(targetMonth)) {
                 days[dateString] = count;

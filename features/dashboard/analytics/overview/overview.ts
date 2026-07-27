@@ -2,6 +2,7 @@ import { MemoryHealth } from './memoryHealth';
 import { LearningVelocity } from './learningVelocity';
 import { MiniForecast } from './miniForecast';
 import { DataUtils } from '../utils/dataUtils';
+import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
 export class OverviewTab {
     dataUtils: DataUtils;
@@ -60,8 +61,9 @@ export class OverviewTab {
         let title = 'You are all caught up!';
         let message = 'Your next step is to <strong>enjoy the rest of your day</strong>. Alternatively, you can learn some new cards.';
 
-        const targetRetention = (this.dataUtils.scheduler && this.dataUtils.scheduler.requestRetention)
-            ? this.dataUtils.scheduler.requestRetention * 100
+        const sched = this.dataUtils.scheduler as (AbstractScheduler & { requestRetention?: number }) | null;
+        const targetRetention = (sched && sched.requestRetention)
+            ? sched.requestRetention * 100
             : 90;
 
         if (dueCount > 0) {

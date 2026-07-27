@@ -73,7 +73,7 @@ class OnboardingWelcome {
      * Fetches current theme selection and syncs button state.
      */
     syncThemePreference(): void {
-        chrome.storage.local.get(['theme'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['theme'], (result: { theme?: string }) => {
             const theme = result.theme || 'dark';
             this.setActiveThemeButton(theme);
         });

@@ -1,4 +1,22 @@
-(window as any).AlgoRecall = (window as any).AlgoRecall || {};
+import { AlgoRecallState } from './state';
+import { MessageResponse } from '../types/domain';
+
+interface AlgoRecallGlobal {
+    state?: AlgoRecallState;
+    Notifier?: typeof Notifier;
+    orchestrator?: {
+        tracker?: {
+            refreshWidgetState(): void;
+            startReview(): void;
+        };
+    };
+}
+
+function getAlgoRecallGlobal(): AlgoRecallGlobal {
+    const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
+    win.AlgoRecall = win.AlgoRecall || {};
+    return win.AlgoRecall;
+}
 
 /**
  * @class PageNotifier
@@ -6,7 +24,7 @@
  * Handles user actions such as dismissing, snoozing reviews for 15 minutes, or instantly expanding
  * the review widget panel on active tabs.
  */
-(window as any).AlgoRecall.Notifier = class Notifier {
+export class Notifier {
     /**
      * Creates and appends an interactive custom floating notification popup card inside the current tab body.
      * Auto-dismisses standard alert flags after 6 seconds; review reminder flags remain sticky.
@@ -28,7 +46,7 @@
         notification.setAttribute('role', 'alert');
         notification.setAttribute('aria-live', 'assertive');
         
-        const state = (window as any).AlgoRecall.state;
+        const state = getAlgoRecallGlobal().state;
         if (state && state.currentTheme === 'light') {
             notification.classList.add('light-theme');
         }
@@ -109,7 +127,7 @@
             snoozeBtn.addEventListener('click', () => {
                 if (autoDismissTimer) clearTimeout(autoDismissTimer);
                 dismissNotification();
-                chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: 15 }, (response?: any) => {
+                chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: 15 }, (_response?: MessageResponse) => {
                     // Background handles scheduling snoozeFsrsReviews
                 });
             });
@@ -128,7 +146,7 @@
                 if (launcher) launcher.style.display = 'none';
                 if (container) {
                     container.style.display = 'block';
-                    const orchestrator = (window as any).AlgoRecall.orchestrator;
+                    const orchestrator = getAlgoRecallGlobal().orchestrator;
                     if (orchestrator && orchestrator.tracker) {
                         orchestrator.tracker.refreshWidgetState();
                         orchestrator.tracker.startReview();
@@ -137,4 +155,6 @@
             });
         }
     }
-};
+}
+
+getAlgoRecallGlobal().Notifier = Notifier;

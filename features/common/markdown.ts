@@ -1,6 +1,26 @@
-(window as any).AlgoRecall = (window as any).AlgoRecall || {};
+interface MarkedOptions {
+    breaks?: boolean;
+    gfm?: boolean;
+    headerIds?: boolean;
+    mangle?: boolean;
+}
 
-declare const marked: any;
+interface MarkedLibrary {
+    setOptions(options: MarkedOptions): void;
+    parse(src: string): string;
+}
+
+declare const marked: MarkedLibrary | undefined;
+
+interface AlgoRecallMarkdownGlobal {
+    Markdown?: typeof Markdown;
+}
+
+function getAlgoRecallGlobal(): AlgoRecallMarkdownGlobal {
+    const win = window as unknown as { AlgoRecall: AlgoRecallMarkdownGlobal };
+    win.AlgoRecall = win.AlgoRecall || {};
+    return win.AlgoRecall;
+}
 
 /**
  * @class Markdown
@@ -13,7 +33,7 @@ export class Markdown {
      * Configures the marked options if loaded.
      */
     static init(): void {
-        if (typeof marked !== 'undefined') {
+        if (typeof marked !== 'undefined' && marked && typeof marked.setOptions === 'function') {
             marked.setOptions({
                 breaks: true,       // Convert \n to <br>
                 gfm: true,          // GitHub Flavored Markdown (tables, strikethrough)
@@ -32,7 +52,7 @@ export class Markdown {
     static render(text: string): string {
         if (!text || typeof text !== 'string') return '';
         
-        if (typeof marked === 'undefined') {
+        if (typeof marked === 'undefined' || !marked || typeof marked.parse !== 'function') {
             // Fallback: escape HTML and convert newlines
             return text
                 .replace(/&/g, '&amp;')
@@ -54,7 +74,7 @@ export class Markdown {
             html = html.replace(/javascript\s*:/gi, '');
             
             return html;
-        } catch (e) {
+        } catch {
             // Fallback on parse error
             return text
                 .replace(/&/g, '&amp;')
@@ -63,12 +83,12 @@ export class Markdown {
                 .replace(/\n/g, '<br>');
         }
     }
-};
+}
 
-(window as any).AlgoRecall.Markdown = Markdown;
+getAlgoRecallGlobal().Markdown = Markdown;
 
 // Initialize configurations
 Markdown.init();
 
 // Maintain legacy global binding for safety/backwards compatibility
-(window as any).renderMarkdown = Markdown.render;
+(window as unknown as { renderMarkdown?: typeof Markdown.render }).renderMarkdown = Markdown.render;

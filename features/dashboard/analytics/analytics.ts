@@ -1,4 +1,4 @@
-import { DataUtils } from './utils/dataUtils';
+import { DataUtils, SummaryStats } from './utils/dataUtils';
 import { OverviewTab } from './overview/overview';
 import { MemoryTab } from './memory/memory';
 import { TagsTab } from './tags/tags';
@@ -6,13 +6,19 @@ import { PerformanceTab } from './performance/performance';
 import { InsightsTab } from './insights/insights';
 import { ReadinessTab } from './readiness/readiness';
 import { FutureMemorySimulation } from './memory/futureMemorySimulation';
+import { Card, StorageData } from '../../../types/domain';
+import AbstractScheduler from '../../tracker/scheduler/scheduler';
 
 export type TabKey = 'overview' | 'readiness' | 'memory' | 'simulation' | 'tags' | 'performance' | 'insights';
+
+export interface AnalyticsTabComponent {
+    render(containerId: string): void;
+}
 
 class AnalyticsDashboardSPA {
     dataUtils: DataUtils | null;
     currentTab: TabKey;
-    tabs: Record<TabKey, any>;
+    tabs: Record<TabKey, AnalyticsTabComponent | null>;
     tabTitles: Record<TabKey, string>;
 
     constructor() {
@@ -42,12 +48,13 @@ class AnalyticsDashboardSPA {
     }
 
     init(): void {
-        chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result: { [key: string]: any }) => {
-            const cards = result.fsrsCards || [];
-            const activity = result.fsrsActivity || {};
+        chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result: StorageData) => {
+            const cards: Card[] = result.fsrsCards || [];
+            const activity: Record<string, number> = result.fsrsActivity || {};
             
             const initializeDataUtils = () => {
-                const scheduler = typeof window !== 'undefined' && (window as any).FsrsScheduler ? new (window as any).FsrsScheduler() : null;
+                const SchedulerClass = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
+                const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass() : null;
                 this.dataUtils = new DataUtils(cards, activity, scheduler);
                 
                 // Initialize tab controllers
@@ -75,10 +82,11 @@ class AnalyticsDashboardSPA {
             };
 
             // If FsrsScheduler is bundled with WASM and loaded asynchronously, we wait for it
-            if (typeof window !== 'undefined' && (window as any).FsrsScheduler === undefined) {
+            const win = window as unknown as { FsrsScheduler?: unknown };
+            if (win.FsrsScheduler === undefined) {
                 let retries = 0;
                 const interval = setInterval(() => {
-                    if ((window as any).FsrsScheduler !== undefined || retries > 50) { // 5 seconds max
+                    if (win.FsrsScheduler !== undefined || retries > 50) { // 5 seconds max
                         clearInterval(interval);
                         initializeDataUtils();
                     }
@@ -108,7 +116,7 @@ class AnalyticsDashboardSPA {
         });
     }
 
-    updateGlobalKPIs(stats: any): void {
+    updateGlobalKPIs(stats: SummaryStats): void {
         if (!stats || !this.dataUtils) return;
 
         const cardsElem = document.getElementById('global-kpi-cards');
@@ -123,7 +131,7 @@ class AnalyticsDashboardSPA {
         if (dueElem) dueElem.textContent = String(dueCount);
 
         if (readinessElem) {
-            const readinessData = this.dataUtils.getExamReadinessStats(12) as any;
+            const readinessData = this.dataUtils.getExamReadinessStats(12);
             readinessElem.textContent = `${readinessData.overallRecall || 0}%`;
         }
     }
@@ -150,7 +158,7 @@ class AnalyticsDashboardSPA {
         
         // Lazy-render content
         if (this.tabs[tabId]) {
-            this.tabs[tabId].render(`tab-${tabId}`);
+            this.tabs[tabId]!.render(`tab-${tabId}`);
         }
     }
 }

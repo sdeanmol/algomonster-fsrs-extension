@@ -1,16 +1,13 @@
-/**
- * @file features/dashboard/pomodoro/pomodoro.ts
- * @description Pomodoro Study Timer UI controller.
- * Syncs visually with the background service worker which handles the true timer state.
- */
-interface PomodoroSettings {
+import { StorageData, ExtensionMessage } from '../../../types/domain';
+
+export interface PomodoroSettings {
     focusDuration: number;
     shortBreakDuration: number;
     longBreakDuration: number;
     sessionsBeforeLongBreak: number;
 }
 
-interface PomodoroState {
+export interface PomodoroState {
     state: 'idle' | 'running' | 'paused';
     phase: 'focus' | 'shortBreak' | 'longBreak';
     currentSession: number;
@@ -19,7 +16,18 @@ interface PomodoroState {
     targetEndTime: number | null;
 }
 
-class PomodoroTimer {
+export interface PomodoroStats {
+    sessionsToday?: number;
+    focusMinutesToday?: number;
+    lastDate?: string;
+}
+
+/**
+ * @file features/dashboard/pomodoro/pomodoro.ts
+ * @description Pomodoro Study Timer UI controller.
+ * Syncs visually with the background service worker which handles the true timer state.
+ */
+export class PomodoroTimer {
     settings: PomodoroSettings;
     state: 'idle' | 'running' | 'paused';
     phase: 'focus' | 'shortBreak' | 'longBreak';
@@ -27,7 +35,7 @@ class PomodoroTimer {
     timeRemaining: number;
     totalTime: number;
     targetEndTime: number | null;
-    intervalId: any;
+    intervalId: ReturnType<typeof setInterval> | null;
     todaySessions: number;
     todayFocusMinutes: number;
 
@@ -52,7 +60,11 @@ class PomodoroTimer {
     }
 
     init(): void {
-        chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result: StorageData & {
+            pomodoroSettings?: PomodoroSettings;
+            pomodoroStats?: PomodoroStats;
+            pomodoroState?: PomodoroState;
+        }) => {
             if (result.pomodoroSettings) {
                 Object.assign(this.settings, result.pomodoroSettings);
             }
@@ -97,10 +109,10 @@ class PomodoroTimer {
         
         chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
             if (area === 'local' && changes.pomodoroState) {
-                this.syncState(changes.pomodoroState.newValue);
+                this.syncState(changes.pomodoroState.newValue as PomodoroState | undefined);
             }
             if (area === 'local' && changes.pomodoroStats) {
-                const stats = changes.pomodoroStats.newValue;
+                const stats = changes.pomodoroStats.newValue as PomodoroStats | undefined;
                 if (stats && stats.lastDate === new Date().toLocaleDateString()) {
                     this.todaySessions = stats.sessionsToday || 0;
                     this.todayFocusMinutes = stats.focusMinutesToday || 0;
@@ -379,6 +391,7 @@ class PomodoroTimer {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    (window as any).pomodoro = new PomodoroTimer();
-    (window as any).pomodoro.init();
+    const win = window as unknown as { pomodoro?: PomodoroTimer };
+    win.pomodoro = new PomodoroTimer();
+    win.pomodoro.init();
 });

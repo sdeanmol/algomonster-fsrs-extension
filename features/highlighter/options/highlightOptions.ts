@@ -1,15 +1,11 @@
+import { StorageData, ChromeSettings } from '../../../types/domain';
+
 export interface Palette {
     name: string;
     colors: string[];
 }
 
-export interface ChromeSettings {
-    defaultHighlightColor?: string;
-    recentColors?: string[];
-    showMarkerPopup?: boolean;
-    activePaletteIndex?: number;
-    palettes?: Palette[];
-}
+export { ChromeSettings };
 
 class HighlightOptionsManager {
     DEFAULT_PALETTES: Palette[];
@@ -42,7 +38,7 @@ class HighlightOptionsManager {
      * Initializes components and settings properties from Chrome storage.
      */
     init(): void {
-        chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['chromeSettings'], (result: StorageData) => {
             if (result.chromeSettings) {
                 this.chromeSettings = { ...this.chromeSettings, ...result.chromeSettings };
             }

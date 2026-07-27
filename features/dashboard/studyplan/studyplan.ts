@@ -1,3 +1,13 @@
+import { getLastReviewDate } from '../../common/utils/cardUtils';
+import { Card, StorageData } from '../../../types/domain';
+
+export interface StudyPlanSettings {
+    isActive: boolean;
+    examDate: string;
+    dailyTarget: number;
+    activatedAt: number;
+}
+
 /**
  * @file features/dashboard/studyplan/studyplan.ts
  * @description Exam Countdown Mode controller.
@@ -5,11 +15,9 @@
  * prioritizing overdue and low-stability cards. Backs up original due dates
  * for restoration on deactivation.
  */
-import { getLastReviewDate } from '@common/utils/cardUtils';
-
-class StudyPlanController {
-    allCards: any[];
-    settings: any;
+export class StudyPlanController {
+    allCards: Card[];
+    settings: StudyPlanSettings | null;
 
     constructor() {
         this.allCards = [];
@@ -17,7 +25,7 @@ class StudyPlanController {
     }
 
     init(): void {
-        chrome.storage.local.get(['fsrsCards', 'studyPlanSettings'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['fsrsCards', 'studyPlanSettings'], (result: StorageData & { studyPlanSettings?: StudyPlanSettings }) => {
             this.allCards = result.fsrsCards || [];
             this.settings = result.studyPlanSettings || null;
 
@@ -131,7 +139,7 @@ class StudyPlanController {
         }
 
         // Backup original due dates
-        this.allCards.forEach(card => {
+        this.allCards.forEach((card: Card & { originalDue?: number }) => {
             if (!card.originalDue) {
                 card.originalDue = card.due;
             }
@@ -165,7 +173,7 @@ class StudyPlanController {
             }
         });
 
-        const settings = {
+        const settings: StudyPlanSettings = {
             isActive: true,
             examDate: examDate,
             dailyTarget: cardsPerDay,
@@ -187,7 +195,7 @@ class StudyPlanController {
     deactivateExamMode(): void {
         if (!confirm('Deactivate Exam Mode? This will restore all cards to their original FSRS-computed due dates.')) return;
 
-        this.allCards.forEach(card => {
+        this.allCards.forEach((card: Card & { originalDue?: number }) => {
             if (card.originalDue) {
                 card.due = card.originalDue;
                 delete card.originalDue;
@@ -217,6 +225,7 @@ class StudyPlanController {
      * Shows the active countdown panel with ring, stats, and daily schedule.
      */
     renderActivePanel(): void {
+        if (!this.settings) return;
         const setupPanel = document.getElementById('setup-panel');
         const activePanel = document.getElementById('active-panel');
         if (setupPanel) setupPanel.style.display = 'none';
@@ -251,9 +260,10 @@ class StudyPlanController {
             });
         }
 
+        const activatedAt = this.settings.activatedAt;
         const completedCards = this.allCards.filter(c => {
             const lastReview = getLastReviewDate(c);
-            return lastReview && lastReview > this.settings.activatedAt;
+            return lastReview && lastReview > activatedAt;
         }).length;
 
         const actTotalEl = document.getElementById('active-total-cards');
@@ -271,6 +281,7 @@ class StudyPlanController {
      * Renders the daily review schedule breakdown table.
      */
     renderScheduleTable(totalDays: number, daysLeft: number): void {
+        if (!this.settings) return;
         const tbody = document.getElementById('schedule-body');
         if (!tbody) return;
         tbody.innerHTML = '';

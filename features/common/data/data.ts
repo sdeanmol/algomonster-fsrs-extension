@@ -1,4 +1,5 @@
 import { ensureCardIds } from '../utils/cardUtils';
+import { Card, StorageData, UserSettings } from '../../../types/domain';
 
 /**
  * @file features/common/data/data.ts
@@ -8,7 +9,7 @@ import { ensureCardIds } from '../utils/cardUtils';
  * overall memory retention rates calculations, stacked distribution bars, and card deletion events.
  */
 class FSRSDataDashboard {
-    allCards: any[];
+    allCards: Card[];
     currentView: string;
     targetDate: string | null;
 
@@ -18,7 +19,7 @@ class FSRSDataDashboard {
     selectedPlatform: string;
     selectedState: string;
     sortBy: string;
-    chromeSettings: any;
+    chromeSettings: UserSettings & { showCharts?: boolean };
 
     selectedCardIds: Set<string>;
 
@@ -57,9 +58,9 @@ class FSRSDataDashboard {
             this.selectedTag = urlTag;
         }
 
-        chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: StorageData) => {
             this.allCards = ensureCardIds(result.fsrsCards || []);
-            this.chromeSettings = result.chromeSettings || {};
+            this.chromeSettings = (result.chromeSettings || {}) as UserSettings & { showCharts?: boolean };
 
             // Dynamic Filter Populators
             this.populateTagsFilter();
@@ -205,7 +206,7 @@ class FSRSDataDashboard {
         tagSelect.innerHTML = '<option value="all">All Tags</option>';
 
         const tagsSet = new Set<string>();
-        this.allCards.forEach((card: any) => {
+        this.allCards.forEach((card: Card) => {
             if (card.tags && Array.isArray(card.tags)) {
                 card.tags.forEach((t: string) => tagsSet.add(t));
             }
@@ -242,7 +243,7 @@ class FSRSDataDashboard {
         };
 
         const platforms = new Set<string>();
-        this.allCards.forEach((card: any) => {
+        this.allCards.forEach((card: Card) => {
             const platform = this.extractPlatform(card.problemUrl);
             if (platform) platforms.add(platform);
         });
@@ -258,7 +259,7 @@ class FSRSDataDashboard {
     /**
      * Extracts platform hostname from a URL.
      */
-    extractPlatform(url: string): string | null {
+    extractPlatform(url?: string): string | null {
         if (!url || url.startsWith('#')) return null;
         try {
             const hostname = new URL(url).hostname.replace(/^www\./, '');
@@ -291,26 +292,24 @@ class FSRSDataDashboard {
         const clearFiltersBtn = document.getElementById('clear-filters-btn');
         const now = new Date().getTime();
 
-        let baseCards: any[] = [];
-        let isRetention = false;
+        let baseCards: Card[] = [];
 
         if (this.currentView === 'total') {
             if (titleEl) titleEl.innerText = 'Total Saved Patterns';
             baseCards = [...this.allCards];
         }
         else if (this.currentView === 'due') {
-            baseCards = this.allCards.filter((c: any) => c.due <= now).sort((a: any, b: any) => a.due - b.due);
+            baseCards = this.allCards.filter((c: Card) => c.due <= now).sort((a: Card, b: Card) => a.due - b.due);
             if (titleEl) titleEl.innerText = 'Patterns Due Today';
         }
         else if (this.currentView === 'retention') {
-            isRetention = true;
-            baseCards = this.allCards.filter((c: any) => c.lapses > 0).sort((a: any, b: any) => b.lapses - a.lapses);
+            baseCards = this.allCards.filter((c: Card) => (c.lapses || 0) > 0).sort((a: Card, b: Card) => (b.lapses || 0) - (a.lapses || 0));
             if (titleEl) titleEl.innerText = 'Retention';
         }
         else if (this.currentView === 'history' && this.targetDate) {
-            const filteredCards = this.allCards.filter((c: any) => {
+            const filteredCards = this.allCards.filter((c: Card & { historyLog?: (number | { date: number })[] }) => {
                 if (!c.historyLog) return false;
-                return c.historyLog.some((logEntry: any) => {
+                return c.historyLog.some((logEntry) => {
                     const timestamp = (typeof logEntry === 'object' && logEntry !== null) ? logEntry.date : logEntry;
                     const dateObj = new Date(timestamp);
                     const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -343,18 +342,18 @@ class FSRSDataDashboard {
             const targetEndTime = targetDayEnd.getTime();
 
             if (dayOffset === 0) {
-                baseCards = this.allCards.filter((c: any) => c.due < targetEndTime);
+                baseCards = this.allCards.filter((c: Card) => c.due < targetEndTime);
             } else {
-                baseCards = this.allCards.filter((c: any) => c.due >= targetStartTime && c.due < targetEndTime);
+                baseCards = this.allCards.filter((c: Card) => c.due >= targetStartTime && c.due < targetEndTime);
             }
 
-            baseCards.sort((a: any, b: any) => a.due - b.due);
+            baseCards.sort((a: Card, b: Card) => a.due - b.due);
 
             const dateDisplay = new Date(this.targetDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             if (titleEl) titleEl.innerText = `Cards Due — ${dateDisplay}`;
         }
 
-        let filtered = baseCards.filter((card: any) => {
+        let filtered = baseCards.filter((card: Card) => {
             const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(this.searchQuery.toLowerCase());
             const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(this.searchQuery.toLowerCase());
             const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(this.searchQuery.toLowerCase()));
@@ -423,9 +422,9 @@ class FSRSDataDashboard {
     /**
      * Renders a table of FSRS card items.
      */
-    generateCardsTable(cardsArray: any[], showLapses: boolean = true): string {
+    generateCardsTable(cardsArray: Card[], showLapses: boolean = true): string {
         const now = new Date().getTime();
-        const allChecked = cardsArray.length > 0 && cardsArray.every((c: any) => this.selectedCardIds.has(c.id));
+        const allChecked = cardsArray.length > 0 && cardsArray.every((c: Card) => Boolean(c.id && this.selectedCardIds.has(c.id)));
 
         let table = `<div class="table-responsive"><table><thead><tr>
             <th class="th-checkbox"><input type="checkbox" id="select-all-checkbox" class="card-checkbox" ${allChecked ? 'checked' : ''}></th>
@@ -440,7 +439,7 @@ class FSRSDataDashboard {
             <th>Actions</th>
         </tr></thead><tbody>`;
 
-        cardsArray.forEach((card: any) => {
+        cardsArray.forEach((card: Card) => {
             const isPastDue = card.due <= now;
             const statusBadge = isPastDue
                 ? '<span class="badge badge-due">Due Now</span>'
@@ -464,12 +463,12 @@ class FSRSDataDashboard {
                 lapsesBadge = `<span class="badge badge-lapsed" title="${lapses} lapse(s) recorded">⚠️ ${lapses}</span>`;
             }
 
-            const isChecked = this.selectedCardIds.has(card.id);
+            const isChecked = Boolean(card.id && this.selectedCardIds.has(card.id));
             const isLeech = lapses >= 3;
 
             table += `<tr class="${isChecked ? 'row-selected' : ''} ${isLeech ? 'row-leech' : ''}">
-                <td class="td-checkbox"><input type="checkbox" class="card-checkbox row-checkbox" data-id="${card.id}" ${isChecked ? 'checked' : ''}></td>
-                <td style="white-space: normal; word-wrap: break-word; max-width: 250px;"><a href="${card.problemUrl}" target="_blank">${card.problemTitle || 'Untitled'}</a></td>
+                <td class="td-checkbox"><input type="checkbox" class="card-checkbox row-checkbox" data-id="${card.id || ''}" ${isChecked ? 'checked' : ''}></td>
+                <td style="white-space: normal; word-wrap: break-word; max-width: 250px;"><a href="${card.problemUrl || '#'}" target="_blank">${card.problemTitle || 'Untitled'}</a></td>
                 <td style="white-space: normal; word-wrap: break-word; max-width: 200px;">${tagsHtml}</td>
                 <td>${statusBadge}</td>
                 <td><span class="badge badge-state ${stateClass}">${stateLabel}${isLeech ? ' (Leech)' : ''}</span></td>
@@ -479,10 +478,10 @@ class FSRSDataDashboard {
                 ${showLapses ? `<td>${lapsesBadge}</td>` : ''}
                 <td class="td-actions">
                     <div class="actions-wrapper">
-                        <button class="edit-card-btn" data-id="${card.id}" title="Edit Card" aria-label="Edit Card">
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        <button class="edit-card-btn" data-id="${card.id || ''}" title="Edit Card" aria-label="Edit Card">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 2 2 2h14a2 2 0 0 2 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                         </button>
-                        <button class="delete-card-btn" data-id="${card.id}" title="Remove Card from Reviews" aria-label="Remove Card from Reviews">
+                        <button class="delete-card-btn" data-id="${card.id || ''}" title="Remove Card from Reviews" aria-label="Remove Card from Reviews">
                             <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         </button>
                     </div>
@@ -496,7 +495,7 @@ class FSRSDataDashboard {
     /**
      * Sorts the filtered cards array based on current sort selection.
      */
-    sortCards(cards: any[]): any[] {
+    sortCards(cards: Card[]): Card[] {
         const sorted = [...cards];
         switch (this.sortBy) {
             case 'due-asc':
@@ -513,14 +512,18 @@ class FSRSDataDashboard {
                 return sorted.sort((a, b) => (b.lapses || 0) - (a.lapses || 0));
             case 'created-desc':
                 return sorted.sort((a, b) => {
-                    const aCreated = a.historyLog && a.historyLog.length > 0 ? a.historyLog[0] : 0;
-                    const bCreated = b.historyLog && b.historyLog.length > 0 ? b.historyLog[0] : 0;
+                    const aLog = (a as Card & { historyLog?: (number | { date: number })[] }).historyLog;
+                    const bLog = (b as Card & { historyLog?: (number | { date: number })[] }).historyLog;
+                    const aCreated = aLog && aLog.length > 0 ? (typeof aLog[0] === 'number' ? aLog[0] : aLog[0].date) : 0;
+                    const bCreated = bLog && bLog.length > 0 ? (typeof bLog[0] === 'number' ? bLog[0] : bLog[0].date) : 0;
                     return bCreated - aCreated;
                 });
             case 'created-asc':
                 return sorted.sort((a, b) => {
-                    const aCreated = a.historyLog && a.historyLog.length > 0 ? a.historyLog[0] : 0;
-                    const bCreated = b.historyLog && b.historyLog.length > 0 ? b.historyLog[0] : 0;
+                    const aLog = (a as Card & { historyLog?: (number | { date: number })[] }).historyLog;
+                    const bLog = (b as Card & { historyLog?: (number | { date: number })[] }).historyLog;
+                    const aCreated = aLog && aLog.length > 0 ? (typeof aLog[0] === 'number' ? aLog[0] : aLog[0].date) : 0;
+                    const bCreated = bLog && bLog.length > 0 ? (typeof bLog[0] === 'number' ? bLog[0] : bLog[0].date) : 0;
                     return aCreated - bCreated;
                 });
             default:
@@ -622,7 +625,7 @@ class FSRSDataDashboard {
         if (count === 0) return;
 
         if (confirm(`Are you sure you want to delete ${count} selected card(s)? This cannot be undone.`)) {
-            this.allCards = this.allCards.filter(c => !this.selectedCardIds.has(c.id));
+            this.allCards = this.allCards.filter(c => Boolean(c.id && !this.selectedCardIds.has(c.id)));
             this.selectedCardIds.clear();
             chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
                 this.populateTagsFilter();
@@ -646,7 +649,7 @@ class FSRSDataDashboard {
         const newTags = newTagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
 
         this.allCards.forEach(card => {
-            if (this.selectedCardIds.has(card.id)) {
+            if (card.id && this.selectedCardIds.has(card.id)) {
                 card.tags = newTags;
             }
         });
@@ -669,7 +672,7 @@ class FSRSDataDashboard {
         if (confirm(`Reschedule ${count} selected card(s) to be due now? This resets their due date to today.`)) {
             const now = Date.now();
             this.allCards.forEach(card => {
-                if (this.selectedCardIds.has(card.id)) {
+                if (card.id && this.selectedCardIds.has(card.id)) {
                     card.due = now;
                 }
             });
@@ -745,7 +748,7 @@ class FSRSDataDashboard {
     /**
      * Renders statistical cards and distributions of card states.
      */
-    renderAnalyticsPanel(cards: any[]): void {
+    renderAnalyticsPanel(cards: Card[]): void {
         const panel = document.getElementById('analytics-panel');
         if (!panel) return;
 
@@ -766,7 +769,7 @@ class FSRSDataDashboard {
         let reviewCount = 0;
         let lapsedCount = 0;
 
-        cards.forEach((c: any) => {
+        cards.forEach((c: Card) => {
             const reps = c.reps || 0;
             const stability = c.stability || 0;
             const lapses = c.lapses || 0;
@@ -784,7 +787,7 @@ class FSRSDataDashboard {
         const lapsedPct = Math.round((lapsedCount / total) * 100) || 0;
 
         const tagCounts: Record<string, number> = {};
-        cards.forEach((c: any) => {
+        cards.forEach((c: Card) => {
             if (c.tags && Array.isArray(c.tags)) {
                 c.tags.forEach((t: string) => {
                     tagCounts[t] = (tagCounts[t] || 0) + 1;

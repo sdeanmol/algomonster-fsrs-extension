@@ -3,10 +3,14 @@ import { HeatmapComponent } from './heatmap';
 import { NotificationsComponent } from './notifications';
 import { RatingComponent } from './rating';
 import { QuickSearchComponent } from './search';
-import { BackupManager } from '@common/data/backupManager';
-import '@common/logger';
+import { BackupManager } from '../../common/data/backupManager';
+import '../../common/logger';
+import { Card, StorageData, UserSettings, ChromeSettings } from '../../../types/domain';
+import { LoggerClass } from '../../common/logger';
 
-const Logger = (globalThis as any).Logger;
+function getLogger(): LoggerClass | undefined {
+    return (globalThis as unknown as { Logger?: LoggerClass }).Logger;
+}
 
 export interface PopupDOM {
     themeToggleBtn: HTMLElement | null;
@@ -86,33 +90,34 @@ export class AlgoRecallDashboard {
         };
 
         // Subclass Components instantiation
-        this.stats = new StatsComponent(this as any);
-        this.heatmap = new HeatmapComponent(this as any);
-        this.notifications = new NotificationsComponent(this as any);
-        this.rating = new RatingComponent(this as any);
-        this.search = new QuickSearchComponent(this as any);
+        this.stats = new StatsComponent(this);
+        this.heatmap = new HeatmapComponent(this);
+        this.notifications = new NotificationsComponent(this);
+        this.rating = new RatingComponent(this);
+        this.search = new QuickSearchComponent(this);
     }
 
     /**
      * Initializes the dashboard, binds page event listeners, and boots sub-components.
      */
     async init(): Promise<void> {
-        if (Logger) {
-            Logger.info('Popup', 'Popup initialized.');
-            Logger.time('Popup', 'init');
+        const logger = getLogger();
+        if (logger) {
+            logger.info('Popup', 'Popup initialized.');
+            logger.time('Popup', 'init');
         }
         this.bindEvents();
 
         // Boot component lifecycle steps
-        this.stats.init();
-        this.heatmap.init();
-        this.notifications.init();
-        this.rating.init();
-        this.search.init();
+        this.stats.bindEvents();
+        this.heatmap.bindEvents();
+        this.notifications.bindEvents();
+        this.rating.bindEvents();
+        this.search.bindEvents();
 
         // Perform initial loading from storage databases
         await this.loadAll();
-        if (Logger) Logger.timeEnd('Popup', 'init');
+        if (logger) logger.timeEnd('Popup', 'init');
     }
 
     /**
@@ -133,24 +138,25 @@ export class AlgoRecallDashboard {
      * Binds click and state change event listeners for settings panels, exports, and page routers.
      */
     bindEvents(): void {
+        const logger = getLogger();
         // Theme Switcher Initialization
         if (this.dom.themeToggleBtn) {
             this.dom.themeToggleBtn.addEventListener('click', async () => {
                 try {
-                    const result = await chrome.storage.local.get(['theme']);
+                    const result = (await chrome.storage.local.get(['theme'])) as StorageData;
                     const currentTheme = result.theme || 'dark';
                     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
                     await chrome.storage.local.set({ theme: newTheme });
                     this.showStatus(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode!`);
                 } catch (error) {
-                    if (Logger) Logger.error('Popup', "Error toggling theme settings", error);
+                    if (logger) logger.error('Popup', "Error toggling theme settings", error instanceof Error ? error : new Error(String(error)));
                 }
             });
         }
 
         // Floating Highlighter switch setup
         if (this.dom.markerToggle) {
-            chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
+            chrome.storage.local.get(['chromeSettings'], (result: StorageData) => {
                 if (result.chromeSettings && result.chromeSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
                     this.dom.markerToggle.checked = result.chromeSettings.showMarkerPopup;
                 }
@@ -158,19 +164,19 @@ export class AlgoRecallDashboard {
             this.dom.markerToggle.addEventListener('change', async (e: Event) => {
                 try {
                     const target = e.target as HTMLInputElement;
-                    const result = await chrome.storage.local.get(['chromeSettings']);
-                    let settings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                    const result = (await chrome.storage.local.get(['chromeSettings'])) as StorageData;
+                    const settings: ChromeSettings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
                     settings.showMarkerPopup = target.checked;
                     await chrome.storage.local.set({ chromeSettings: settings });
                 } catch (error) {
-                    if (Logger) Logger.error('Popup', "Error setting showMarkerPopup config", error);
+                    if (logger) logger.error('Popup', "Error setting showMarkerPopup config", error instanceof Error ? error : new Error(String(error)));
                 }
             });
         }
 
         // Visual charts display switch setup
         if (this.dom.chartsToggle) {
-            chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
+            chrome.storage.local.get(['chromeSettings'], (result: StorageData) => {
                 const showCharts = result.chromeSettings && result.chromeSettings.showCharts !== undefined
                     ? result.chromeSettings.showCharts
                     : true;
@@ -181,20 +187,20 @@ export class AlgoRecallDashboard {
             this.dom.chartsToggle.addEventListener('change', async (e: Event) => {
                 try {
                     const target = e.target as HTMLInputElement;
-                    const result = await chrome.storage.local.get(['chromeSettings']);
-                    let settings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                    const result = (await chrome.storage.local.get(['chromeSettings'])) as StorageData;
+                    const settings: ChromeSettings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
                     settings.showCharts = target.checked;
                     await chrome.storage.local.set({ chromeSettings: settings });
                     this.showStatus(`Visual charts ${target.checked ? 'enabled' : 'disabled'}!`);
                 } catch (error) {
-                    if (Logger) Logger.error('Popup', "Error setting showCharts config", error);
+                    if (logger) logger.error('Popup', "Error setting showCharts config", error instanceof Error ? error : new Error(String(error)));
                 }
             });
         }
 
         // Developer mode display switch setup
         if (this.dom.devModeToggle) {
-            chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
+            chrome.storage.local.get(['chromeSettings'], (result: StorageData) => {
                 const devMode = result.chromeSettings && result.chromeSettings.developerMode !== undefined
                     ? result.chromeSettings.developerMode
                     : false;
@@ -208,8 +214,8 @@ export class AlgoRecallDashboard {
             this.dom.devModeToggle.addEventListener('change', async (e: Event) => {
                 try {
                     const target = e.target as HTMLInputElement;
-                    const result = await chrome.storage.local.get(['chromeSettings']);
-                    let settings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                    const result = (await chrome.storage.local.get(['chromeSettings'])) as StorageData;
+                    const settings: ChromeSettings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
                     settings.developerMode = target.checked;
                     await chrome.storage.local.set({ chromeSettings: settings });
                     if (this.dom.devModeActions) {
@@ -217,20 +223,20 @@ export class AlgoRecallDashboard {
                     }
                     this.showStatus(`Developer mode ${target.checked ? 'enabled' : 'disabled'}!`);
                 } catch (error) {
-                    if (Logger) Logger.error('Popup', "Error setting developerMode config", error);
+                    if (logger) logger.error('Popup', "Error setting developerMode config", error instanceof Error ? error : new Error(String(error)));
                 }
             });
 
             if (this.dom.exportDebugLogsBtn) {
                 this.dom.exportDebugLogsBtn.addEventListener('click', () => {
-                    chrome.storage.local.get(['debugLogs'], (result: { [key: string]: any }) => {
+                    chrome.storage.local.get(['debugLogs'], (result: { debugLogs?: unknown[] }) => {
                         const logs = result.debugLogs || [];
                         if (logs.length === 0) {
                             this.showStatus('No debug logs found.', true);
                             return;
                         }
 
-                        const logLines = logs.map((l: any) => JSON.stringify(l)).join('\n');
+                        const logLines = logs.map((l: unknown) => JSON.stringify(l)).join('\n');
                         const blob = new Blob([logLines], { type: 'application/json' });
                         const url = URL.createObjectURL(blob);
 
@@ -282,9 +288,10 @@ export class AlgoRecallDashboard {
                 try {
                     await BackupManager.exportBackup();
                     this.showStatus("Backup exported successfully!");
-                } catch (err: any) {
-                    if (Logger) Logger.error('Popup', "Backup export failed", err);
-                    this.showStatus("Export failed: " + err.message, true);
+                } catch (err) {
+                    const errorObj = err instanceof Error ? err : new Error(String(err));
+                    if (logger) logger.error('Popup', "Backup export failed", errorObj);
+                    this.showStatus("Export failed: " + errorObj.message, true);
                 }
             });
         }
@@ -302,7 +309,7 @@ export class AlgoRecallDashboard {
                     if (!isError && msg.includes("successfully")) {
                         await this.loadAll();
                         // Update UI settings toggles in case they changed
-                        chrome.storage.local.get(['chromeSettings'], (result: { [key: string]: any }) => {
+                        chrome.storage.local.get(['chromeSettings'], (result: StorageData) => {
                             if (result.chromeSettings) {
                                 if (result.chromeSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
                                     this.dom.markerToggle.checked = result.chromeSettings.showMarkerPopup;
@@ -324,7 +331,7 @@ export class AlgoRecallDashboard {
         // R9.1: Anki backup export setup
         if (this.dom.ankiExportBtn) {
             this.dom.ankiExportBtn.addEventListener('click', () => {
-                chrome.storage.local.get(['fsrsCards'], (result: { [key: string]: any }) => {
+                chrome.storage.local.get(['fsrsCards'], (result: StorageData) => {
                     const cards = result.fsrsCards || [];
                     if (cards.length === 0) {
                         this.showStatus('No cards to export.', true);
@@ -361,9 +368,9 @@ export class AlgoRecallDashboard {
                             return;
                         }
 
-                        chrome.storage.local.get(['fsrsCards'], (result: { [key: string]: any }) => {
+                        chrome.storage.local.get(['fsrsCards'], (result: StorageData) => {
                             const existing = result.fsrsCards || [];
-                            const existingTitles = new Set(existing.map((c: any) => c.problemTitle?.toLowerCase()));
+                            const existingTitles = new Set(existing.map((c: Card) => c.problemTitle?.toLowerCase()));
 
                             // Skip duplicates by title
                             const unique = newCards.filter(c => !existingTitles.has(c.problemTitle?.toLowerCase()));
@@ -374,7 +381,7 @@ export class AlgoRecallDashboard {
                                 this.stats.load();
                             });
                         });
-                    } catch (err) {
+                    } catch {
                         this.showStatus('Error reading Anki file.', true);
                     }
                 };
@@ -413,10 +420,10 @@ export class AlgoRecallDashboard {
      * Export FSRS cards to Anki-compatible tab-separated text.
      * Format: Front<TAB>Back<TAB>Tags
      * Includes Anki header directives for auto-configuration on import.
-     * @param {Object[]} cards - Array of FSRS cards.
+     * @param {Card[]} cards - Array of FSRS cards.
      * @returns {string} Anki-compatible text data.
      */
-    exportToAnkiText(cards: any[]): string {
+    exportToAnkiText(cards: Card[]): string {
         const lines: string[] = [];
 
         // Anki header directives
@@ -427,7 +434,7 @@ export class AlgoRecallDashboard {
         lines.push('#notetype:Basic');
         lines.push('');
 
-        cards.forEach((card: any) => {
+        cards.forEach((card: Card) => {
             const front = (card.problemTitle || 'Untitled').replace(/\t/g, ' ').replace(/\n/g, ' ');
             const back = (card.approach || '').replace(/\t/g, '    '); // Keep newlines for Anki markdown
             const tags = (card.tags || []).map((t: string) => `algorecall::${t.replace(/\s+/g, '_')}`).join(' ');
@@ -447,11 +454,11 @@ export class AlgoRecallDashboard {
      * Import Anki tab-separated text into FSRS card objects.
      * Expects: Front<TAB>Back<TAB>Tags (optional)
      * @param {string} text - The raw Anki-formatted text content.
-     * @returns {Object[]} Created stub FSRS card objects.
+     * @returns {Card[]} Created stub FSRS card objects.
      */
-    importFromAnkiText(text: string): any[] {
+    importFromAnkiText(text: string): Card[] {
         const lines = text.split('\n');
-        const cards: any[] = [];
+        const cards: Card[] = [];
         const now = Date.now();
 
         for (const line of lines) {
@@ -483,7 +490,7 @@ export class AlgoRecallDashboard {
                 : [];
 
             // Create stub FSRS card
-            const card = {
+            const card: Card = {
                 id: `imported_${now}_${Math.random().toString(36).substr(2, 8)}`,
                 problemTitle: front,
                 problemUrl: problemUrl || `#imported-${encodeURIComponent(front.substring(0, 50))}`,
@@ -492,15 +499,16 @@ export class AlgoRecallDashboard {
                 due: now, // Due immediately for first review
                 stability: 0,
                 difficulty: 0,
-                elapsedDays: 0,
-                scheduledDays: 0,
+                elapsed_days: 0,
+                scheduled_days: 0,
+                learning_steps: 0,
                 reps: 0,
                 lapses: 0,
                 state: 0, // New
-                lastReview: null,
-                lastRating: null,
+                last_review: null,
+                lastRating: undefined,
                 historyLog: [],
-                previousDue: null
+                previousDue: undefined
             };
 
             cards.push(card);

@@ -1,37 +1,38 @@
 /**
- * @file features/dashboard/popup/DashboardComponent.ts
- * @description Base class representing a visual panel/component within the dashboard popup.
- * Provides standard lifecycle hooks (init, bindEvents) and access to the central coordinator.
+ * @interface DashboardCoordinator
+ * @description Contract for popup dashboard navigation and panel lifecycle management.
  */
+export interface DashboardCoordinator {
+    showStatus(message: string): void;
+}
 
-export class DashboardComponent {
-    coordinator: any;
+/**
+ * @class DashboardComponent
+ * @description Base class for popup option view panels.
+ */
+export abstract class DashboardComponent {
+    coordinator: DashboardCoordinator;
 
-    /**
-     * @param {any} coordinator - Reference to the central AlgoRecallDashboard coordinator.
-     */
-    constructor(coordinator: any) {
+    constructor(coordinator: DashboardCoordinator) {
         this.coordinator = coordinator;
     }
 
     /**
-     * Lifecycle method to initialize the component.
+     * Component data load hook.
      */
-    init(): void {
-        this.bindEvents();
-    }
+    abstract load(): Promise<void>;
 
     /**
-     * Lifecycle method to bind DOM event listeners. To be overridden or extended by subclasses.
+     * Component event listener binding hook.
      */
-    bindEvents(): void {}
+    abstract bindEvents(): void;
 
     /**
-     * Relays status toast message display back to the central coordinator.
+     * Delegates toast feedback notifications to parent coordinator.
      */
-    showStatus(msg: string, isError: boolean = false): void {
+    showStatus(message: string): void {
         if (this.coordinator && typeof this.coordinator.showStatus === 'function') {
-            this.coordinator.showStatus(msg, isError);
+            this.coordinator.showStatus(message);
         }
     }
 }

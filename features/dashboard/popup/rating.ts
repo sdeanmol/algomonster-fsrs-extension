@@ -1,4 +1,5 @@
-import { DashboardComponent } from './DashboardComponent';
+import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
+import { StorageData } from '../../../types/domain';
 
 /**
  * @class RatingComponent
@@ -8,7 +9,7 @@ import { DashboardComponent } from './DashboardComponent';
  * and dynamically swaps in Chrome Web Store rating links.
  */
 export class RatingComponent extends DashboardComponent {
-    constructor(coordinator: any) {
+    constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
     }
 
@@ -31,13 +32,15 @@ export class RatingComponent extends DashboardComponent {
         }
 
         try {
-            const result = await chrome.storage.local.get(['ratingPromptState', 'fsrsCards']);
+            const result = (await chrome.storage.local.get(['ratingPromptState', 'fsrsCards'])) as StorageData & {
+                ratingPromptState?: { status?: string; snoozedUntil?: number };
+            };
             const rating = result.ratingPromptState || { status: 'unrated', snoozedUntil: 0 };
             const cardsCount = (result.fsrsCards || []).length;
 
             // Check snooze expiration
             const now = Date.now();
-            if (rating.status === 'snoozed' && now >= rating.snoozedUntil) {
+            if (rating.status === 'snoozed' && rating.snoozedUntil && now >= rating.snoozedUntil) {
                 rating.status = 'unrated';
                 await chrome.storage.local.set({ ratingPromptState: rating });
             }

@@ -1,4 +1,5 @@
 import { DataUtils } from '../utils/dataUtils';
+import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
 export class MemoryHealth {
     dataUtils: DataUtils;
@@ -23,8 +24,9 @@ export class MemoryHealth {
         }
 
         let targetRetention = 90;
-        if (this.dataUtils.scheduler && this.dataUtils.scheduler.requestRetention) {
-            targetRetention = this.dataUtils.scheduler.requestRetention * 100;
+        const sched = this.dataUtils.scheduler as (AbstractScheduler & { requestRetention?: number }) | null;
+        if (sched && sched.requestRetention) {
+            targetRetention = sched.requestRetention * 100;
         }
 
         let statusText = 'Excellent';

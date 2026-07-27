@@ -1,4 +1,5 @@
-import { DashboardComponent } from './DashboardComponent';
+import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
+import { Card, StorageData } from '../../../types/domain';
 
 /**
  * @class QuickSearchComponent
@@ -6,10 +7,10 @@ import { DashboardComponent } from './DashboardComponent';
  * @description Renders filtered card quick search items matching text query and topic tag fields.
  */
 export class QuickSearchComponent extends DashboardComponent {
-    quickSearchCards: any[];
+    quickSearchCards: Card[];
     quickSearchDebounce: ReturnType<typeof setTimeout> | null;
 
-    constructor(coordinator: any) {
+    constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
         this.quickSearchCards = [];
         this.quickSearchDebounce = null;
@@ -27,7 +28,7 @@ export class QuickSearchComponent extends DashboardComponent {
 
         try {
             // Load cards and populate tag filter
-            const result = await chrome.storage.local.get(['fsrsCards']);
+            const result = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
             this.quickSearchCards = result.fsrsCards || [];
 
             // Populate tag dropdown (keep the 'All Tags' option)
@@ -92,7 +93,7 @@ export class QuickSearchComponent extends DashboardComponent {
         }
 
         const now = Date.now();
-        let filtered = this.quickSearchCards.filter(card => {
+        const filtered = this.quickSearchCards.filter(card => {
             // Tag filter
             if (selectedTag !== 'all' && !(card.tags && card.tags.includes(selectedTag))) return false;
 

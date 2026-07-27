@@ -3,18 +3,20 @@
  * @description Shared utilities for processing card objects safely across different module schemas.
  */
 
+import { Card } from '../../../types/domain';
+
 export interface CardHistoryLogEntry {
     date: number | string;
     rating?: number;
     duration?: number;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export interface CardLike {
     lastReview?: number | string | Date | null;
     last_review?: number | string | Date | null;
     historyLog?: (CardHistoryLogEntry | number | string)[];
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 /**
@@ -27,7 +29,7 @@ export interface CardLike {
 export function getLastReviewDate(card?: CardLike | null): number | null {
     if (!card) return null;
 
-    let lr: any = card.lastReview || card.last_review;
+    let lr = card.lastReview || card.last_review;
 
     if (!lr && card.historyLog && card.historyLog.length > 0) {
         const lastLog = card.historyLog[card.historyLog.length - 1];
@@ -36,7 +38,14 @@ export function getLastReviewDate(card?: CardLike | null): number | null {
 
     if (!lr) return null;
 
-    return lr;
+    if (typeof lr === 'number') return lr;
+    if (typeof lr === 'string') {
+        const parsed = Date.parse(lr);
+        return isNaN(parsed) ? null : parsed;
+    }
+    if (lr instanceof Date) return lr.getTime();
+
+    return null;
 }
 
 /**
@@ -57,7 +66,7 @@ export function cleanUrl(url?: string | null): string {
 /**
  * Filters all cards matching the specified URL.
  */
-export function getCardsForUrl(cards: any[], url: string): any[] {
+export function getCardsForUrl(cards: Card[], url: string): Card[] {
     if (!Array.isArray(cards) || !url) return [];
     const targetClean = cleanUrl(url);
     return cards.filter(c => c && c.problemUrl && cleanUrl(c.problemUrl) === targetClean);
@@ -67,7 +76,7 @@ export function getCardsForUrl(cards: any[], url: string): any[] {
  * Ensures that every card in the array has a valid unique `id` property.
  * Modifies missing IDs in-place and returns the array.
  */
-export function ensureCardIds(cards: any[]): any[] {
+export function ensureCardIds(cards: Card[]): Card[] {
     if (!Array.isArray(cards)) return [];
     const existingIds = new Set<string>();
     cards.forEach(c => {
@@ -89,4 +98,3 @@ export function ensureCardIds(cards: any[]): any[] {
 
     return cards;
 }
-

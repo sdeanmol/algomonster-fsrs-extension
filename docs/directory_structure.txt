@@ -1,3 +1,7 @@
+anmolrastogi@Anmols-MacBook-Air algomonster-fsrs-extension % find . \             
+  \( -name node_modules -o -name scratch -o -name coverage -o -name .npm -o -name .github -o -name build -o -name .vscode -o -name .git \) -prune \
+  -o -print > directory_structure.txt
+
 .
 ./firestore.rules
 ./background

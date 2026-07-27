@@ -1,6 +1,14 @@
+export interface AlgoRecallGlobal {
+    Highlighter?: unknown;
+    HighlightsHelpers?: typeof HighlightsHelpers;
+    state?: Record<string, unknown>;
+    Utils?: Record<string, unknown>;
+    [key: string]: unknown;
+}
+
 declare global {
     interface Window {
-        AlgoRecall: any;
+        AlgoRecall: AlgoRecallGlobal;
         copyToClipboard: (text: string) => Promise<void>;
         escapeHtml: (text: string) => string;
         highlightSearchMatch: (text: string, query: string) => string;
@@ -58,7 +66,7 @@ export class HighlightsHelpers {
         try {
             const u = new URL(url);
             return u.hostname + u.pathname;
-        } catch (e) {
+        } catch {
             return url;
         }
     }

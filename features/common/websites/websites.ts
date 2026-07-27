@@ -67,9 +67,9 @@ export class WhitelistedWebsitesManager {
         const list = document.getElementById('whitelisted-sites-list');
         if (!list) return;
 
-        chrome.storage.local.get(['whitelistedWebsites'], (result: { [key: string]: any }) => {
-            let sites: WhitelistedSite[] = result.whitelistedWebsites;
-            if (!sites) {
+        chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
+            let sites: WhitelistedSite[] = result.whitelistedWebsites || [];
+            if (!result.whitelistedWebsites) {
                 // First time: initialize storage with default list
                 sites = [...this.defaultSitesList.map(s => ({ ...s }))];
                 chrome.storage.local.set({ whitelistedWebsites: sites });
@@ -140,7 +140,7 @@ export class WhitelistedWebsitesManager {
                 return;
             }
 
-            chrome.storage.local.get(['whitelistedWebsites'], (result: { [key: string]: any }) => {
+            chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
                 const sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map(s => ({ ...s }))];
                 if (sites.some(s => s.domain === hostname)) {
                     this.showToast("Website is already whitelisted.");
@@ -188,7 +188,7 @@ export class WhitelistedWebsitesManager {
                     }
                 });
             });
-        } catch (e) {
+        } catch {
             this.showToast("Please enter a valid URL or domain.");
         }
     }
@@ -197,7 +197,7 @@ export class WhitelistedWebsitesManager {
      * Revokes host origin permissions and dynamic scripts, then updates storage list.
      */
     handleDeleteWebsite(siteDomain: string): void {
-        chrome.storage.local.get(['whitelistedWebsites'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
             let sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map(s => ({ ...s }))];
             const site = sites.find(s => s.domain === siteDomain);
             if (!site) return;
@@ -225,7 +225,7 @@ export class WhitelistedWebsitesManager {
 
                     chrome.permissions.remove({
                         origins: [originPattern]
-                    }, (removed: boolean) => {
+                    }, () => {
                         if (chrome.runtime.lastError) {
                             console.warn("Permission remove warning:", chrome.runtime.lastError.message);
                         }
@@ -240,8 +240,8 @@ export class WhitelistedWebsitesManager {
      * Restores initial hardcoded whitelisted platforms.
      */
     restoreDefaults(): void {
-        chrome.storage.local.get(['whitelistedWebsites'], (result: { [key: string]: any }) => {
-            let currentSites: WhitelistedSite[] = result.whitelistedWebsites || [];
+        chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
+            const currentSites: WhitelistedSite[] = result.whitelistedWebsites || [];
             
             const customSites = currentSites.filter(s => !s.isDefault);
             const restoredList = [...this.defaultSitesList.map(s => ({ ...s })), ...customSites];
@@ -277,5 +277,5 @@ export default WhitelistedWebsitesManager;
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = WhitelistedWebsitesManager;
 } else if (typeof window !== 'undefined') {
-    (window as any).WhitelistedWebsitesManager = WhitelistedWebsitesManager;
+    (window as unknown as { WhitelistedWebsitesManager?: typeof WhitelistedWebsitesManager }).WhitelistedWebsitesManager = WhitelistedWebsitesManager;
 }

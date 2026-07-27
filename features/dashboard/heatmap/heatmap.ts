@@ -1,6 +1,5 @@
 import { HeatmapStats } from './heatmap-stats';
-
-(window as any).AlgoRecall = (window as any).AlgoRecall || {};
+import { StorageData } from '../../../types/domain';
 
 /**
  * @class HeatmapDashboard
@@ -9,7 +8,7 @@ import { HeatmapStats } from './heatmap-stats';
  * and handles click events to query historical reviews details for specific days.
  */
 export class HeatmapDashboard {
-    activityData: { [key: string]: number };
+    activityData: Record<string, number>;
     monthNames: string[];
 
     constructor() {
@@ -21,11 +20,8 @@ export class HeatmapDashboard {
      * Initializes activity settings from storage and binds cascaded filter listeners.
      */
     init(): void {
-        chrome.storage.local.get(['fsrsActivity'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['fsrsActivity'], (result: StorageData) => {
             this.activityData = result.fsrsActivity || {};
-            
-            (window as any).AlgoRecall.state = (window as any).AlgoRecall.state || {};
-            (window as any).AlgoRecall.state.activityData = this.activityData;
             
             this.setupFilters();
             this.renderHeatmap();
@@ -49,7 +45,7 @@ export class HeatmapDashboard {
         const currentMonth = (today.getMonth() + 1).toString().padStart(2, '0');
         const currentDay = today.getDate().toString().padStart(2, '0');
 
-        let years = new Set<string>([currentYear]); 
+        const years = new Set<string>([currentYear]); 
         Object.keys(this.activityData).forEach(d => years.add(d.split('-')[0]));
         
         yearSelect.innerHTML = Array.from(years).sort().reverse().map(y => `<option value="${y}">${y}</option>`).join('');
@@ -57,15 +53,15 @@ export class HeatmapDashboard {
 
         const updateMonthDropdown = () => {
             const targetYear = yearSelect.value;
-            let activeMonths = new Set<string>();
+            const activeMonths = new Set<string>();
             
             Object.keys(this.activityData).filter(d => d.startsWith(targetYear)).forEach(d => activeMonths.add(d.split('-')[1]));
             
             if (activeMonths.size === 0) {
-                for(let i=1; i<=12; i++) activeMonths.add(i.toString().padStart(2, '0'));
+                for (let i = 1; i <= 12; i++) activeMonths.add(i.toString().padStart(2, '0'));
             }
             
-            monthSelect.innerHTML = Array.from(activeMonths).sort().map(m => `<option value="${m}">${this.monthNames[parseInt(m, 10)-1]}</option>`).join('');
+            monthSelect.innerHTML = Array.from(activeMonths).sort().map(m => `<option value="${m}">${this.monthNames[parseInt(m, 10) - 1]}</option>`).join('');
             
             if (targetYear === currentYear && activeMonths.has(currentMonth)) {
                 monthSelect.value = currentMonth;
@@ -77,13 +73,13 @@ export class HeatmapDashboard {
         const updateDayDropdown = () => {
             const targetYear = yearSelect.value;
             const targetMonth = monthSelect.value;
-            let activeDays = new Set<string>();
+            const activeDays = new Set<string>();
             
             Object.keys(this.activityData).filter(d => d.startsWith(`${targetYear}-${targetMonth}`)).forEach(d => activeDays.add(d.split('-')[2]));
             
             if (activeDays.size === 0) {
                 const daysInMonth = new Date(parseInt(targetYear, 10), parseInt(targetMonth, 10), 0).getDate();
-                for(let i=1; i<=daysInMonth; i++) activeDays.add(i.toString().padStart(2, '0'));
+                for (let i = 1; i <= daysInMonth; i++) activeDays.add(i.toString().padStart(2, '0'));
             }
             
             daySelect.innerHTML = Array.from(activeDays).sort().map(d => `<option value="${d}">Day ${parseInt(d, 10)}</option>`).join('');
@@ -204,7 +200,7 @@ export class HeatmapDashboard {
             const currentMonthString = (cellDate.getMonth() + 1).toString().padStart(2, '0');
             const currentDayString = cellDate.getDate().toString().padStart(2, '0');
 
-            let count = this.activityData[dateString] || 0;
+            const count = this.activityData[dateString] || 0;
             
             const cell = document.createElement('div');
             cell.className = 'heatmap-cell';
@@ -254,9 +250,7 @@ export class HeatmapDashboard {
             summaryText.innerText += ` (${totalReviewsCalculated} Total Reviews)`;
         }
 
-        if ((window as any).AlgoRecall.HeatmapStats) {
-            (window as any).AlgoRecall.HeatmapStats.renderStatsDashboard(this.activityData);
-        }
+        HeatmapStats.renderStatsDashboard(this.activityData);
 
         setTimeout(() => {
             const wrapper = document.querySelector('.heatmap-wrapper');
@@ -265,9 +259,7 @@ export class HeatmapDashboard {
     }
 }
 
-(window as any).AlgoRecall.HeatmapDashboard = HeatmapDashboard;
-
 document.addEventListener('DOMContentLoaded', () => {
-    const dashboard = new (window as any).AlgoRecall.HeatmapDashboard();
+    const dashboard = new HeatmapDashboard();
     dashboard.init();
 });

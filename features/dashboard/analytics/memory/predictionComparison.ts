@@ -1,4 +1,5 @@
 import { DataUtils } from '../utils/dataUtils';
+import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
 export class PredictionComparison {
     dataUtils: DataUtils;
@@ -24,10 +25,12 @@ export class PredictionComparison {
         const decay = -0.5;
         const factor = 19 / 81;
 
+        const sched = this.dataUtils.scheduler as (AbstractScheduler & { getProjectedRetrievability?: (stability: number, days: number) => number }) | null;
+
         const predPoints = timePoints.map(t => {
             let R = 0;
-            if (this.dataUtils.scheduler && typeof this.dataUtils.scheduler.getProjectedRetrievability === 'function') {
-                R = this.dataUtils.scheduler.getProjectedRetrievability(avgStability, t);
+            if (sched && typeof sched.getProjectedRetrievability === 'function') {
+                R = sched.getProjectedRetrievability(avgStability, t);
             } else {
                 R = Math.pow(1 + (factor * t) / avgStability, decay);
             }
@@ -36,17 +39,17 @@ export class PredictionComparison {
 
         const actPoints = timePoints.map(t => {
             let R = 0;
-            if (this.dataUtils.scheduler && typeof this.dataUtils.scheduler.getProjectedRetrievability === 'function') {
-                R = this.dataUtils.scheduler.getProjectedRetrievability(avgStability * 0.85, t);
+            if (sched && typeof sched.getProjectedRetrievability === 'function') {
+                R = sched.getProjectedRetrievability(avgStability * 0.85, t);
             } else {
                 R = Math.pow(1 + (factor * t) / (avgStability * 0.85), decay);
             }
             return { t, R, x: xScale(t), y: yScale(R) };
         });
         
-        const diff = predPoints[predPoints.length-1].R - actPoints[actPoints.length-1].R;
+        const diff = predPoints[predPoints.length - 1].R - actPoints[actPoints.length - 1].R;
         const gapText = diff > 0.05 
-            ? `Actual recall is ${Math.round(diff*100)}% below expected. Consider reviewing more consistently.`
+            ? `Actual recall is ${Math.round(diff * 100)}% below expected. Consider reviewing more consistently.`
             : `Actual recall is tracking closely to predictions!`;
 
         let svgContent = `<svg class="prediction-svg multi-line" viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="none" style="width: 100%; height: 100%; min-height: 250px;">`;
@@ -67,7 +70,7 @@ export class PredictionComparison {
         
         svgContent += `</svg>`;
         
-        let legendHtml = `
+        const legendHtml = `
             <div class="prediction-legend">
                 <div class="retention-legend-item">
                     <span class="retention-legend-dot" style="background:transparent; border: 2px dashed #a8c7fa;"></span>

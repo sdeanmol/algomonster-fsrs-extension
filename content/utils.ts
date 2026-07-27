@@ -1,4 +1,15 @@
-(window as any).AlgoRecall = (window as any).AlgoRecall || {};
+import { AlgoRecallState } from './state';
+
+interface AlgoRecallGlobal {
+    state?: AlgoRecallState;
+    Utils?: typeof Utils;
+}
+
+function getAlgoRecallGlobal(): AlgoRecallGlobal {
+    const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
+    win.AlgoRecall = win.AlgoRecall || {};
+    return win.AlgoRecall;
+}
 
 export interface DOMMeta {
     parentTagName: string;
@@ -19,7 +30,7 @@ export interface HighlightMetaSource {
  * dynamic theme styling injections (CSS Custom Highlights API), and heuristic parsing
  * of problem tags and titles across coding environments (LeetCode, AlgoMonster, AtCoder).
  */
-(window as any).AlgoRecall.Utils = class Utils {
+export class Utils {
     /**
      * Serializes the DOM path coordinates of a given text node.
      * Loops parent elements up to the body/document root to produce a unique node path index list,
@@ -31,11 +42,11 @@ export interface HighlightMetaSource {
      */
     static getDOMMeta(node: Node, offset: number): DOMMeta {
         const parent = node.parentNode as HTMLElement;
-        let path: number[] = [];
+        const path: number[] = [];
         let current: Node | null = parent;
         while (current && current !== document.body && current !== document.documentElement) {
             if (current.parentNode) {
-                let index = Array.from(current.parentNode.childNodes).indexOf(current as ChildNode);
+                const index = Array.from(current.parentNode.childNodes).indexOf(current as ChildNode);
                 path.unshift(index);
             }
             current = current.parentNode;
@@ -113,7 +124,7 @@ export interface HighlightMetaSource {
                 }
                 return range;
             }
-        } catch (e) { }
+        } catch { }
         return null;
     }
 
@@ -126,7 +137,7 @@ export interface HighlightMetaSource {
      * @returns {string} The registered highlight class name.
      */
     static ensureHighlightStyle(color: string, type: string = 'highlight'): string {
-        const state = (window as any).AlgoRecall.state;
+        const state = getAlgoRecallGlobal().state;
         const colorHash = color.replace('#', '');
         let prefix = 'algo-hl';
         let cssRule = `background-color: ${color}; color: inherit;`;
@@ -161,7 +172,7 @@ export interface HighlightMetaSource {
                 const rawTopic = segments[segments.length - 1];
                 return [rawTopic.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')];
             }
-        } catch (e) { }
+        } catch { }
         return ["AlgoRecall"];
     }
 
@@ -210,7 +221,7 @@ export interface HighlightMetaSource {
                             .join(' ');
                     }
                 }
-            } catch (e) {}
+            } catch { }
         }
         
         // General title fallback
@@ -222,4 +233,6 @@ export interface HighlightMetaSource {
         title = title.replace(' - AtCoder', '');
         return title.trim();
     }
-};
+}
+
+getAlgoRecallGlobal().Utils = Utils;

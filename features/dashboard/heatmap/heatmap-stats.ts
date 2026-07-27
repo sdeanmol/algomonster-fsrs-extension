@@ -1,5 +1,3 @@
-(window as any).AlgoRecall = (window as any).AlgoRecall || {};
-
 export interface StreakStatsResult {
     currentStreak: number;
     longestStreak: number;
@@ -17,7 +15,7 @@ export class HeatmapStats {
      * Calculates current streak, longest streak, active days, and max reviews in a day,
      * and renders the corresponding HTML templates into the stats container.
      */
-    static renderStatsDashboard(activityData: { [key: string]: number }): void {
+    static renderStatsDashboard(activityData: Record<string, number>): void {
         const container = document.getElementById('heatmap-stats-container');
         if (!container) return;
 
@@ -71,7 +69,7 @@ export class HeatmapStats {
      * Calculates current and historical maximum streaks, active days,
      * and maximum daily review load metrics from the global activity data.
      */
-    static getStreakStats(activityData: { [key: string]: number }): StreakStatsResult {
+    static getStreakStats(activityData: Record<string, number>): StreakStatsResult {
         const dates = Object.keys(activityData).filter(d => activityData[d] > 0).sort();
         if (dates.length === 0) {
             return { currentStreak: 0, longestStreak: 0, activeDays: 0, maxReviews: 0 };
@@ -111,8 +109,8 @@ export class HeatmapStats {
         const todayTime = today.getTime();
         
         let checkTime = todayTime;
-        let todayStr = new Date(checkTime - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        let yesterdayStr = new Date(checkTime - oneDay - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const todayStr = new Date(checkTime - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const yesterdayStr = new Date(checkTime - oneDay - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
         
         if (activityData[todayStr] > 0 || activityData[yesterdayStr] > 0) {
             if (activityData[todayStr] > 0) {
@@ -136,12 +134,6 @@ export class HeatmapStats {
     }
 }
 
-(window as any).AlgoRecall.HeatmapStats = HeatmapStats;
-
-(window as any).renderStatsDashboard = (activityData: any = (window as any).activityData) => {
-    if ((window as any).AlgoRecall && (window as any).AlgoRecall.state) {
-        (window as any).AlgoRecall.HeatmapStats.renderStatsDashboard((window as any).AlgoRecall.state.activityData || activityData);
-    } else {
-        (window as any).AlgoRecall.HeatmapStats.renderStatsDashboard(activityData);
-    }
-};
+const win = window as unknown as { AlgoRecall: { HeatmapStats?: typeof HeatmapStats } };
+win.AlgoRecall = win.AlgoRecall || {};
+win.AlgoRecall.HeatmapStats = HeatmapStats;

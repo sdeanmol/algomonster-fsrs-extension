@@ -1,6 +1,7 @@
 import { RetentionChart } from './retentionChart';
 import { PredictionComparison } from './predictionComparison';
 import { DataUtils } from '../utils/dataUtils';
+import { StorageData } from '../../../../types/domain';
 
 export class MemoryTab {
     dataUtils: DataUtils;
@@ -107,7 +108,7 @@ export class MemoryTab {
         const container = document.getElementById(containerId);
         if (!container) return;
 
-        chrome.storage.local.get(['fsrsGlobalParams'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['fsrsGlobalParams'], (result: StorageData & { fsrsGlobalParams?: { version?: string; timestamp?: number } }) => {
             const params = result.fsrsGlobalParams || {};
             const isPersonalized = params.version && params.version.includes('personalized');
             const timestamp = params.timestamp ? new Date(params.timestamp).toLocaleDateString() : 'Never';

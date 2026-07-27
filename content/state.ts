@@ -5,6 +5,9 @@
  * to act as a shared memory layer on targeted domains.
  */
 
+import { Card } from '../types/domain';
+import AbstractScheduler from '../features/tracker/scheduler/scheduler';
+
 export interface Palette {
     name: string;
     colors: string[];
@@ -19,36 +22,46 @@ export interface ChromeSettings {
 }
 
 export interface AlgoRecallState {
-    scheduler: any;
-    cards: any[];
+    scheduler: AbstractScheduler;
+    cards: Card[];
     lastCheckedUrl: string;
-    topicWeights: Record<string, number>;
+    topicWeights: Record<string, number[]>;
     currentTheme: string;
-    marks: any[];
-    bookmarks: any[];
-    pagecontents: any[];
+    marks: unknown[];
+    bookmarks: unknown[];
+    pagecontents: unknown[];
     chromeSettings: ChromeSettings;
     activeHighlightStyles: Set<string>;
-    highlightDebounceTimer: any;
-    activeMarkRanges: any[];
+    highlightDebounceTimer: ReturnType<typeof setTimeout> | null;
+    activeMarkRanges: unknown[];
     hoveredMarkId: string | number | null;
-    hideTooltipTimer: any;
+    hideTooltipTimer: ReturnType<typeof setTimeout> | null;
 }
 
-declare global {
-    interface Window {
-        AlgoRecall: any;
-        FsrsScheduler: any;
-        Logger: any;
-    }
+export interface AlgoRecallGlobal {
+    state?: AlgoRecallState;
+    Utils?: unknown;
+    Notifier?: unknown;
+    Tracker?: unknown;
+    Highlighter?: unknown;
+    Orchestrator?: unknown;
+    orchestrator?: { applyThemeClass(): void; tracker?: { refreshWidgetState(): void; startReview(): void } };
+    HighlightsHelpers?: unknown;
+    HighlightsManager?: unknown;
 }
 
-(window as any).AlgoRecall = (window as any).AlgoRecall || {};
+function getAlgoRecallGlobal(): AlgoRecallGlobal {
+    const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
+    win.AlgoRecall = win.AlgoRecall || {};
+    return win.AlgoRecall;
+}
+
+const algoGlobal = getAlgoRecallGlobal();
 
 // Instantiated state container
-(window as any).AlgoRecall.state = {
+algoGlobal.state = {
     // Instantiated scheduling algorithm controller (FSRS as default)
-    scheduler: typeof (window as any).FsrsScheduler === 'function' ? new (window as any).FsrsScheduler() : null,
+    scheduler: typeof (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler === 'function' ? new (window as unknown as { FsrsScheduler: new () => AbstractScheduler }).FsrsScheduler() : ({} as AbstractScheduler),
 
     // Active collection of study cards/patterns loaded from storage
     cards: [],

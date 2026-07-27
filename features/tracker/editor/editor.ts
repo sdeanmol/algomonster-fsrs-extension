@@ -5,6 +5,19 @@
  * and updates review card approach files or fallback draft directories.
  */
 import { Markdown } from '@common/markdown';
+import { Card, StorageData } from '../../../types/domain';
+
+interface DraftEntry {
+    approach?: string;
+    timeComplexity?: string;
+    spaceComplexity?: string;
+    [key: string]: unknown;
+}
+
+interface BookmarkEntry {
+    url: string;
+    title?: string;
+}
 
 class EditorManager {
     problemUrl: string;
@@ -53,17 +66,17 @@ class EditorManager {
      * Retrieves current FSRS cards, drafts, and bookmarks to fill editor textfields.
      */
     loadContent(): void {
-        chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: { [key: string]: any }) => {
-            const cards = result.fsrsCards || [];
-            const bookmarks = result.bookmarks || [];
-            const drafts = result.approachDrafts || {};
+        chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: StorageData & { bookmarks?: BookmarkEntry[]; approachDrafts?: Record<string, DraftEntry | string> }) => {
+            const cards: Card[] = result.fsrsCards || [];
+            const bookmarks: BookmarkEntry[] = result.bookmarks || [];
+            const drafts: Record<string, DraftEntry | string> = result.approachDrafts || {};
 
-            let card = null;
+            let card: Card | undefined;
             if (this.cardId) {
-                card = cards.find((c: any) => c.id === this.cardId);
+                card = cards.find((c: Card) => c.id === this.cardId);
             }
             if (!card && this.cleanUrl) {
-                card = cards.find((c: any) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
+                card = cards.find((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
             }
 
             const urlEl = document.getElementById('problem-url');
@@ -78,14 +91,14 @@ class EditorManager {
             if (card) {
                 this.isCardExisting = true;
                 if (!this.cardId && card.id) this.cardId = card.id;
-                if (titleEl) titleEl.textContent = card.problemTitle || card.title || "FSRS Insights";
+                if (titleEl) titleEl.textContent = card.problemTitle || (card as Card & { title?: string }).title || "FSRS Insights";
                 if (textarea) textarea.value = card.approach || "";
-                if (tcInput) tcInput.value = card.timeComplexity || "";
-                if (scInput) scInput.value = card.spaceComplexity || "";
+                if (tcInput) tcInput.value = (card as Card & { timeComplexity?: string }).timeComplexity || "";
+                if (scInput) scInput.value = (card as Card & { spaceComplexity?: string }).spaceComplexity || "";
                 if (statusEl) statusEl.textContent = "Loaded FSRS card";
             } else {
                 this.isCardExisting = false;
-                const bookmark = bookmarks.find((b: any) => b.url.split('?')[0].split('#')[0] === this.cleanUrl);
+                const bookmark = bookmarks.find((b: BookmarkEntry) => b.url.split('?')[0].split('#')[0] === this.cleanUrl);
                 if (titleEl) titleEl.textContent = (bookmark && bookmark.title) || this.getCleanDisplayUrl(this.problemUrl);
                 
                 const draftVal = drafts[this.cleanUrl];
@@ -93,7 +106,7 @@ class EditorManager {
                 let tc = "";
                 let sc = "";
                 if (draftVal) {
-                    if (typeof draftVal === 'object') {
+                    if (typeof draftVal === 'object' && draftVal !== null) {
                         draftText = draftVal.approach || "";
                         tc = draftVal.timeComplexity || "";
                         sc = draftVal.spaceComplexity || "";
@@ -164,8 +177,9 @@ class EditorManager {
                 if (this.isPreviewMode) {
                     // Render preview
                     const text = (document.getElementById('editor-textarea') as HTMLTextAreaElement)?.value || '';
-                    editorPreview.innerHTML = ((window as any).AlgoRecall && (window as any).AlgoRecall.Markdown)
-                        ? (window as any).AlgoRecall.Markdown.render(text)
+                    const win = window as unknown as { AlgoRecall?: { Markdown?: typeof Markdown } };
+                    editorPreview.innerHTML = win.AlgoRecall?.Markdown
+                        ? win.AlgoRecall.Markdown.render(text)
                         : text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
                     
                     const textarea = document.getElementById('editor-textarea');
@@ -200,15 +214,15 @@ class EditorManager {
         const tc = (document.getElementById('time-complexity-input') as HTMLInputElement)?.value.trim() || '';
         const sc = (document.getElementById('space-complexity-input') as HTMLInputElement)?.value.trim() || '';
         
-        chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: { [key: string]: any }) => {
+        chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
             if (this.isCardExisting) {
-                const cards = result.fsrsCards || [];
+                const cards: Card[] = result.fsrsCards || [];
                 let index = -1;
                 if (this.cardId) {
-                    index = cards.findIndex((c: any) => c.id === this.cardId);
+                    index = cards.findIndex((c: Card) => c.id === this.cardId);
                 }
                 if (index === -1 && this.cleanUrl) {
-                    index = cards.findIndex((c: any) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
+                    index = cards.findIndex((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
                 }
                 if (index > -1) {
                     cards[index].approach = text;
@@ -221,7 +235,7 @@ class EditorManager {
                     if (callback) callback();
                 }
             } else {
-                const drafts = result.approachDrafts || {};
+                const drafts: Record<string, DraftEntry> = result.approachDrafts || {};
                 const existingDraft = drafts[this.cleanUrl];
                 if (existingDraft && typeof existingDraft === 'object') {
                     existingDraft.approach = text;
@@ -248,7 +262,7 @@ class EditorManager {
         try {
             const u = new URL(url);
             return u.hostname + u.pathname;
-        } catch (e) {
+        } catch {
             return url;
         }
     }

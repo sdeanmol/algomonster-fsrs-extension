@@ -7,6 +7,7 @@
 
 import FsrsOptimizer from '../scheduler/fsrsOptimizer';
 import FsrsOptimizerFast from '../scheduler/fsrsOptimizerFast';
+import { Card, FSRSParameters, StorageData } from '../../../types/domain';
 
 export interface WeightHelpDetail {
     title: string;
@@ -196,7 +197,7 @@ export class FSRSConfigManager {
      * Checks history to see if enough reviews exist to unlock optimization.
      */
     async checkOptimizationEligibility(): Promise<void> {
-        const result: { fsrsCards?: any[] } = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
+        const result: { fsrsCards?: Card[] } = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
         const historyArray = result.fsrsCards || [];
 
         const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
@@ -256,10 +257,10 @@ export class FSRSConfigManager {
         }, 500);
 
         try {
-            const result: { fsrsCards?: any[] } = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
+            const result: { fsrsCards?: Card[] } = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
             const historyArray = result.fsrsCards || [];
 
-            let currentWeights: number[] = [];
+            const currentWeights: number[] = [];
             for (let i = 0; i < 17; i++) {
                 const input = document.getElementById(`weight-input-${i}`) as HTMLInputElement | null;
                 currentWeights.push(input ? parseFloat(input.value) : this.defaultWeights[i]);
@@ -330,8 +331,8 @@ export class FSRSConfigManager {
      */
     loadFSRSConfig(): void {
         if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
-        chrome.storage.local.get(['fsrsGlobalParams', 'fsrsTopicWeights'], (result: { fsrsGlobalParams?: any; fsrsTopicWeights?: any }) => {
-            const params = result.fsrsGlobalParams || {};
+        chrome.storage.local.get(['fsrsGlobalParams', 'fsrsTopicWeights'], (result: { fsrsGlobalParams?: FSRSParameters; fsrsTopicWeights?: Record<string, number[]> }) => {
+            const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
             const weights: number[] = params.w || [...this.defaultWeights];
             const decay: number = params.decay !== undefined ? params.decay : this.defaultDecay;
             const factor: number = params.factor !== undefined ? params.factor : this.defaultFactor;
@@ -406,11 +407,11 @@ export class FSRSConfigManager {
     /**
      * Checks if there's enough history to optimize.
      */
-    computeEligibility(history: any[], threshold: number = 1000): EligibilityResult {
+    computeEligibility(history: Card[], threshold: number = 1000): EligibilityResult {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
 
         let reviewCount = 0;
-        let uniqueCards = new Set<any>();
+        const uniqueCards = new Set<string>();
 
         history.forEach(card => {
             if (card.historyLog && card.historyLog.length > 1) {
@@ -493,7 +494,7 @@ export class FSRSConfigManager {
             weights.push(val);
         }
 
-        const newParams = {
+        const newParams: FSRSParameters = {
             w: weights,
             decay,
             factor,
@@ -512,7 +513,7 @@ export class FSRSConfigManager {
      */
     restoreDefaults(): void {
         if (confirm("Restore ALL parameters, optimization status, and coefficients to standard default values?")) {
-            const newParams = {
+            const newParams: FSRSParameters = {
                 w: [...this.defaultWeights],
                 decay: this.defaultDecay,
                 factor: this.defaultFactor,
@@ -541,8 +542,8 @@ export class FSRSConfigManager {
     restoreGlobalParameters(): void {
         if (confirm("Reset Global Parameters to standard defaults?")) {
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: any }) => {
-                    const params = result.fsrsGlobalParams || {};
+                chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
+                    const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
                     params.requestRetention = this.defaultRetention;
                     params.decay = this.defaultDecay;
                     params.factor = this.defaultFactor;
@@ -561,10 +562,8 @@ export class FSRSConfigManager {
     resetOptimization(): void {
         if (confirm("Reset Personal Memory Optimization status?")) {
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: any }) => {
-                    const params = result.fsrsGlobalParams || {};
-                    delete params.version;
-                    delete params.timestamp;
+                chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: StorageData['fsrsGlobalParams'] }) => {
+                    const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
                     chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
                         this.loadFSRSConfig();
                         this.showToast("Optimization status reset.");
@@ -580,8 +579,8 @@ export class FSRSConfigManager {
     restoreWeights(): void {
         if (confirm("Reset FSRS Coefficients to default weights?")) {
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: any }) => {
-                    const params = result.fsrsGlobalParams || {};
+                chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
+                    const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
                     params.w = [...this.defaultWeights];
                     chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
                         this.loadFSRSConfig();
@@ -616,7 +615,7 @@ export class FSRSConfigManager {
         }
 
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.get(['fsrsTopicWeights'], (result: { fsrsTopicWeights?: any }) => {
+            chrome.storage.local.get(['fsrsTopicWeights'], (result: { fsrsTopicWeights?: Record<string, number[]> }) => {
                 const topicWeights = result.fsrsTopicWeights || {};
                 topicWeights[tag] = weightsArray;
 
@@ -635,7 +634,7 @@ export class FSRSConfigManager {
      */
     handleDeleteTagProfile(tag: string): void {
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.get(['fsrsTopicWeights'], (result: { fsrsTopicWeights?: any }) => {
+            chrome.storage.local.get(['fsrsTopicWeights'], (result: { fsrsTopicWeights?: Record<string, number[]> }) => {
                 const topicWeights = result.fsrsTopicWeights || {};
                 delete topicWeights[tag];
 

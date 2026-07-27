@@ -1,4 +1,5 @@
-import { DashboardComponent } from './DashboardComponent';
+import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
+import { StorageData } from '../../../types/domain';
 
 /**
  * @class HeatmapComponent
@@ -9,7 +10,7 @@ import { DashboardComponent } from './DashboardComponent';
 export class HeatmapComponent extends DashboardComponent {
     isLifetimeView: boolean;
 
-    constructor(coordinator: any) {
+    constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
         this.isLifetimeView = false;
     }
@@ -20,8 +21,8 @@ export class HeatmapComponent extends DashboardComponent {
      */
     async load(lifetime: boolean = false): Promise<void> {
         try {
-            const result = await chrome.storage.local.get(['fsrsActivity']);
-            const activity: { [key: string]: number } = result.fsrsActivity || {};
+            const result = (await chrome.storage.local.get(['fsrsActivity'])) as StorageData;
+            const activity: Record<string, number> = result.fsrsActivity || {};
             const grid = document.getElementById('heatmap-grid');
             if (!grid) return;
             

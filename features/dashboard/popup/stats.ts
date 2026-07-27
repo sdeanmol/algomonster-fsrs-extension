@@ -1,9 +1,25 @@
-import { DashboardComponent } from './DashboardComponent';
-import { getLastReviewDate } from '@common/utils/cardUtils';
+import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
+import { getLastReviewDate } from '../../common/utils/cardUtils';
+import { Card, StorageData } from '../../../types/domain';
+import AbstractScheduler from '../../tracker/scheduler/scheduler';
 
 export interface StreakResult {
     current: number;
     longest: number;
+}
+
+interface ConfettiParticle {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    vx: number;
+    vy: number;
+    color: string;
+    rotation: number;
+    rotationSpeed: number;
+    opacity: number;
+    shape: 'rect' | 'circle';
 }
 
 /**
@@ -16,7 +32,7 @@ export class StatsComponent extends DashboardComponent {
     dailyGoalTarget: number;
     longestStreak: number;
 
-    constructor(coordinator: any) {
+    constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
         this.dailyGoalTarget = 10;
         this.longestStreak = 0;
@@ -28,12 +44,15 @@ export class StatsComponent extends DashboardComponent {
      */
     async load(): Promise<void> {
         try {
-            const result = await chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'dailyGoalTarget', 'longestStreak', 'lastCelebratedMilestone', 'studyPlanSettings']);
-            const cards = result.fsrsCards || [];
-            const activity = result.fsrsActivity || {};
-            this.dailyGoalTarget = result.dailyGoalTarget || 10;
-            const storedLongestStreak = result.longestStreak || 0;
-            const lastCelebratedMilestone = result.lastCelebratedMilestone || 0;
+            const result = (await chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'dailyGoalTarget', 'longestStreak', 'lastCelebratedMilestone', 'studyPlanSettings'])) as StorageData & {
+                lastCelebratedMilestone?: number;
+                studyPlanSettings?: { isActive?: boolean; examDate?: string };
+            };
+            const cards: Card[] = result.fsrsCards || [];
+            const activity: Record<string, number> = result.fsrsActivity || {};
+            this.dailyGoalTarget = typeof result.dailyGoalTarget === 'number' ? result.dailyGoalTarget : 10;
+            const storedLongestStreak = typeof result.longestStreak === 'number' ? result.longestStreak : 0;
+            const lastCelebratedMilestone = typeof result.lastCelebratedMilestone === 'number' ? result.lastCelebratedMilestone : 0;
             const studyPlanSettings = result.studyPlanSettings || null;
             const now = new Date().getTime();
             
@@ -43,7 +62,7 @@ export class StatsComponent extends DashboardComponent {
             const retentionEl = document.getElementById('retention-rate');
 
             // Filter cards scheduled for today or earlier
-            const dueToday = cards.filter((c: any) => c.due <= now).length;
+            const dueToday = cards.filter((c: Card) => c.due <= now).length;
 
             if (totalEl) totalEl.innerText = String(cards.length);
             if (dueEl) dueEl.innerText = String(dueToday);
@@ -51,14 +70,15 @@ export class StatsComponent extends DashboardComponent {
             // Calculate memory retention rate: True FSRS Retrievability
             let totalRetrievability = 0;
             let retrievabilityCount = 0;
-            const scheduler = (window as any).FsrsScheduler ? new (window as any).FsrsScheduler() : null;
+            const SchedulerClass = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
+            const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass() : null;
             const currentTime = Date.now();
             
             let totalActivityReviews = 0; // Pre-calc for later
             let totalReps = 0;
             let totalLapses = 0;
             
-            cards.forEach((card: any) => {
+            cards.forEach((card: Card) => {
                 totalReps += card.reps || 0;
                 totalLapses += card.lapses || 0;
                 
@@ -70,6 +90,11 @@ export class StatsComponent extends DashboardComponent {
                         retrievabilityCount++;
                     }
                 }
+            });
+
+            // Sum up activity
+            Object.values(activity).forEach(count => {
+                totalActivityReviews += count;
             });
 
             if (retentionEl) {
@@ -127,10 +152,10 @@ export class StatsComponent extends DashboardComponent {
             const todayEndTime = todayEnd.getTime();
             
             let completedToday = 0;
-            cards.forEach((card: any) => {
+            cards.forEach((card: Card) => {
                 const lastReview = getLastReviewDate(card);
                 
-                const isReviewedToday = lastReview && new Date(lastReview).toDateString() === new Date().toDateString();
+                const isReviewedToday = lastReview ? new Date(lastReview).toDateString() === new Date().toDateString() : false;
                 const wasDueTodayOrEarlier = !card.previousDue || card.previousDue <= todayEndTime;
                 
                 if (isReviewedToday && wasDueTodayOrEarlier) {
@@ -247,6 +272,13 @@ export class StatsComponent extends DashboardComponent {
                 if (e.key === 'Enter') saveGoal();
             });
         }
+    }
+
+    /**
+     * Binds event listeners for interactive stats elements.
+     */
+    bindEvents(): void {
+        // Events are bound during load or UI interactions
     }
 
     /**
@@ -464,7 +496,7 @@ export class StatsComponent extends DashboardComponent {
             '#ffe66d',
         ];
 
-        const particles: any[] = [];
+        const particles: ConfettiParticle[] = [];
         const particleCount = 60;
 
         for (let i = 0; i < particleCount; i++) {

@@ -7,12 +7,23 @@
 
 import { fsrs, createEmptyCard, Rating, State, Card as TsFsrsCard, Grade } from 'ts-fsrs';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
-
+import { Card, FSRSParameters } from '../../../types/domain';
 import AbstractScheduler from './scheduler';
 
-const BaseScheduler: any = AbstractScheduler || (typeof window !== 'undefined' && (window as any).AbstractScheduler) || class {};
+interface AppLogger {
+    debug(category: string, message: string, data?: unknown): void;
+    info(category: string, message: string, data?: unknown): void;
+    error(category: string, message: string, data?: unknown): void;
+}
 
-export class FsrsScheduler extends BaseScheduler {
+function getLogger(): AppLogger | undefined {
+    if (typeof window !== 'undefined') {
+        return (window as unknown as { Logger?: AppLogger }).Logger;
+    }
+    return undefined;
+}
+
+export class FsrsScheduler extends AbstractScheduler {
     public w: number[];
     public decay: number;
     public factor: number;
@@ -21,7 +32,7 @@ export class FsrsScheduler extends BaseScheduler {
     /**
      * Initializes the FSRS scheduler with standard FSRS-4.5 weights and constants.
      */
-    constructor(params: { w?: number[]; decay?: number | string; factor?: number | string; requestRetention?: number | string } | null = null) {
+    constructor(params: Partial<FSRSParameters> | null = null) {
         super();
         this.w = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
         this.decay = -0.5;
@@ -44,9 +55,10 @@ export class FsrsScheduler extends BaseScheduler {
         }
     }
 
-    createCard(problemTitle: string, problemUrl: string, textRead: string, approach: string, tags: string[] = []): any {
-        if (typeof window !== 'undefined' && (window as any).Logger) {
-            (window as any).Logger.debug('FSRS', 'Creating new card', { problemTitle, problemUrl });
+    createCard(problemTitle: string = '', problemUrl: string = '', textRead: string = '', approach: string = '', tags: string[] = []): Card {
+        const logger = getLogger();
+        if (logger) {
+            logger.debug('FSRS', 'Creating new card', { problemTitle, problemUrl });
         }
         const now = new Date();
 
@@ -76,14 +88,18 @@ export class FsrsScheduler extends BaseScheduler {
         };
     }
 
-    reviewCard(card: any, rating: Rating | number, customWeights: number[] | null = null, now: number = Date.now(), timeTaken: number | null = null): any {
-        if (typeof window !== 'undefined' && (window as any).Logger) {
-            (window as any).Logger.debug('FSRS', `Reviewing card: ${card.problemTitle} with rating ${rating}`);
+    reviewCard(card?: Card, rating: Rating | number = Rating.Good, customWeights: number[] | null = null, now: number = Date.now(), timeTaken: number | null = null): Card {
+        if (!card) {
+            throw new Error("Card is required for reviewCard");
         }
-        let newCard: any = { ...card };
+        const logger = getLogger();
+        if (logger) {
+            logger.debug('FSRS', `Reviewing card: ${card.problemTitle} with rating ${rating}`);
+        }
+        const newCard: Card = { ...card };
 
         newCard.previousDue = card.due;
-        newCard.historyLog = newCard.historyLog || [];
+        newCard.historyLog = newCard.historyLog ? [...newCard.historyLog] : [];
 
         const logEntry: { rating: Rating | number; date: number; duration?: number } = { rating, date: now };
         if (timeTaken !== null) {
@@ -91,7 +107,7 @@ export class FsrsScheduler extends BaseScheduler {
         }
         newCard.historyLog.push(logEntry);
 
-        let lastReview = getLastReviewDate(card);
+        const lastReview = getLastReviewDate(card);
 
         const w = (customWeights && customWeights.length === 17) ? customWeights : this.w;
 
@@ -101,14 +117,14 @@ export class FsrsScheduler extends BaseScheduler {
             request_retention: this.requestRetention
         });
 
-        // Convert plain object back to ts-fsrs Card interface format
+        const cardExt = newCard as Card & { elapsedDays?: number; scheduledDays?: number; learningSteps?: number };
         const tsCard: TsFsrsCard = {
             due: new Date(newCard.due),
             stability: newCard.stability,
             difficulty: newCard.difficulty,
-            elapsed_days: newCard.elapsed_days !== undefined ? newCard.elapsed_days : (newCard.elapsedDays || 0),
-            scheduled_days: newCard.scheduled_days !== undefined ? newCard.scheduled_days : (newCard.scheduledDays || 0),
-            learning_steps: newCard.learning_steps !== undefined ? newCard.learning_steps : (newCard.learningSteps || 0),
+            elapsed_days: newCard.elapsed_days !== undefined ? newCard.elapsed_days : (cardExt.elapsedDays || 0),
+            scheduled_days: newCard.scheduled_days !== undefined ? newCard.scheduled_days : (cardExt.scheduledDays || 0),
+            learning_steps: newCard.learning_steps !== undefined ? newCard.learning_steps : (cardExt.learningSteps || 0),
             reps: newCard.reps,
             lapses: newCard.lapses,
             state: newCard.state,
@@ -133,20 +149,22 @@ export class FsrsScheduler extends BaseScheduler {
         return newCard;
     }
 
-    getRetrievability(card: any, now: number = Date.now()): number {
-        let lastReview = getLastReviewDate(card);
+    getRetrievability(card?: Card, now: number = Date.now()): number {
+        if (!card) return 0;
+        const lastReview = getLastReviewDate(card);
 
         if (card.stability <= 0 || !lastReview) {
             return 0;
         }
 
+        const cardExt = card as Card & { elapsedDays?: number; scheduledDays?: number; learningSteps?: number };
         const tsCard: TsFsrsCard = {
             due: new Date(card.due),
             stability: card.stability,
             difficulty: card.difficulty,
-            elapsed_days: card.elapsed_days !== undefined ? card.elapsed_days : (card.elapsedDays || 0),
-            scheduled_days: card.scheduled_days !== undefined ? card.scheduled_days : (card.scheduledDays || 0),
-            learning_steps: card.learning_steps !== undefined ? card.learning_steps : (card.learningSteps || 0),
+            elapsed_days: card.elapsed_days !== undefined ? card.elapsed_days : (cardExt.elapsedDays || 0),
+            scheduled_days: card.scheduled_days !== undefined ? card.scheduled_days : (cardExt.scheduledDays || 0),
+            learning_steps: card.learning_steps !== undefined ? card.learning_steps : (cardExt.learningSteps || 0),
             reps: card.reps,
             lapses: card.lapses,
             state: card.state,
@@ -161,7 +179,7 @@ export class FsrsScheduler extends BaseScheduler {
         return scheduler.get_retrievability(tsCard, new Date(now), false) || 0;
     }
 
-    getProjectedRetrievability(stability: number, elapsedDays: number): number {
+    getProjectedRetrievability(stability: number = 0, elapsedDays: number = 0): number {
         if (stability <= 0) return 0;
         return Math.pow(1 + (this.factor * elapsedDays) / stability, this.decay);
     }
@@ -170,11 +188,13 @@ export class FsrsScheduler extends BaseScheduler {
         return this.requestRetention;
     }
 
-    isHighDifficulty(card: any): boolean {
+    isHighDifficulty(card?: Card): boolean {
+        if (!card) return false;
         return card.difficulty >= 7;
     }
 
-    isGraduated(card: any): boolean {
+    isGraduated(card?: Card): boolean {
+        if (!card) return false;
         return card.state === State.Review && card.stability > 7;
     }
 
@@ -185,7 +205,7 @@ export class FsrsScheduler extends BaseScheduler {
         this.requestRetention = 0.90;
     }
 
-    exportConfiguration(): { w: number[]; decay: number; factor: number; requestRetention: number } {
+    exportConfiguration(): FSRSParameters {
         return {
             w: [...this.w],
             decay: this.decay,
@@ -194,7 +214,7 @@ export class FsrsScheduler extends BaseScheduler {
         };
     }
 
-    importConfiguration(config?: any): void {
+    importConfiguration(config?: Partial<FSRSParameters>): void {
         if (!config) return;
         if (config.w && Array.isArray(config.w) && config.w.length === 17) {
             this.w = config.w;
@@ -207,9 +227,10 @@ export class FsrsScheduler extends BaseScheduler {
 
 export default FsrsScheduler;
 
+if (typeof window !== 'undefined') {
+    (window as unknown as { FsrsScheduler?: typeof FsrsScheduler }).FsrsScheduler = FsrsScheduler;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = FsrsScheduler;
-}
-if (typeof window !== 'undefined') {
-    (window as any).FsrsScheduler = FsrsScheduler;
 }

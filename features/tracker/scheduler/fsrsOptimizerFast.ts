@@ -3,6 +3,15 @@
  * @description Lightweight JavaScript optimizer for personalized FSRS weights.
  */
 
+import { Card } from '../../../types/domain';
+
+declare global {
+    interface Window {
+        FsrsOptimizer?: typeof FsrsOptimizerFast;
+        FsrsOptimizerFast?: typeof FsrsOptimizerFast;
+    }
+}
+
 export interface EligibilityResult {
     eligible: boolean;
     count: number;
@@ -22,13 +31,13 @@ export class FsrsOptimizerFast {
     /**
      * Checks if there's enough history to optimize.
      */
-    computeEligibility(history: any[], threshold: number = 1000): EligibilityResult {
+    computeEligibility(history: Card[], threshold: number = 1000): EligibilityResult {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
 
         let reviewCount = 0;
-        let uniqueCards = new Set<string>();
+        const uniqueCards = new Set<string>();
 
-        history.forEach((card: any) => {
+        history.forEach((card: Card) => {
             if (card.historyLog && card.historyLog.length > 1) {
                 // Count actual reviews, excluding the creation event
                 reviewCount += (card.historyLog.length - 1);
@@ -50,17 +59,17 @@ export class FsrsOptimizerFast {
      * Used as a fallback because WASM binding for exact log-loss gradient descent can fail on certain MV3 environments.
      */
     async trainWeights(
-        history: any[],
+        history: Card[],
         currentWeights: number[],
         targetRetention: number = 0.90,
         onProgress: ((current: number, total: number) => void) | null = null
     ): Promise<number[]> {
-        let w = [...currentWeights];
+        const w = [...currentWeights];
 
         let totalReps = 0;
         let totalLapses = 0;
 
-        history.forEach((card: any) => {
+        history.forEach((card: Card) => {
             if (card.reps > 0) {
                 totalReps += card.reps;
                 totalLapses += (card.lapses || 0);
@@ -103,7 +112,8 @@ export class FsrsOptimizerFast {
 }
 
 export default FsrsOptimizerFast;
+
 if (typeof window !== 'undefined') {
-    (window as any).FsrsOptimizer = FsrsOptimizerFast;
-    (window as any).FsrsOptimizerFast = FsrsOptimizerFast;
+    window.FsrsOptimizer = FsrsOptimizerFast;
+    window.FsrsOptimizerFast = FsrsOptimizerFast;
 }

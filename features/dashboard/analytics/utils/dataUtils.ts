@@ -3,7 +3,9 @@
  * @description Shared utilities for aggregating and calculating FSRS data.
  */
 
-import { getLastReviewDate } from '@common/utils/cardUtils';
+import { getLastReviewDate } from '../../../common/utils/cardUtils';
+import { Card, ReviewLog } from '../../../../types/domain';
+import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
 export interface SummaryStats {
     totalCards: number;
@@ -42,8 +44,8 @@ export interface TagStats {
 }
 
 export interface PerformanceStats {
-    lapsed: any[];
-    recovered: any[];
+    lapsed: Card[];
+    recovered: Card[];
 }
 
 export interface ReviewTimeInsights {
@@ -98,17 +100,17 @@ export interface FutureMemorySimulationStats {
 }
 
 export class DataUtils {
-    cards: any[];
-    activity: { [key: string]: number };
-    scheduler: any;
+    cards: Card[];
+    activity: Record<string, number>;
+    scheduler: AbstractScheduler | null;
     today: Date;
     todayStart: Date;
 
-    constructor(cards: any[], activity: { [key: string]: number }, scheduler: any) {
+    constructor(cards: Card[], activity: Record<string, number>, scheduler: AbstractScheduler | null) {
         this.cards = cards || [];
         
-        this.cards.forEach(card => {
-            card.lastReview = getLastReviewDate(card);
+        this.cards.forEach((card: Card & { elapsedDays?: number; scheduledDays?: number }) => {
+            card.last_review = getLastReviewDate(card);
             
             if (card.elapsedDays === undefined) card.elapsedDays = card.elapsed_days || 0;
             if (card.scheduledDays === undefined) card.scheduledDays = card.scheduled_days || 0;
@@ -165,8 +167,8 @@ export class DataUtils {
                 dueTodayCount++;
             }
 
-            if (card.stability > 0 && card.lastReview && this.scheduler) {
-                const r = this.scheduler.getRetrievability(card, now);
+            if (card.stability > 0 && card.last_review && this.scheduler) {
+                const r = this.scheduler.getRetrievability(card, now.getTime());
                 totalRetrievability += r;
                 retrievabilityCount++;
             }
@@ -203,9 +205,10 @@ export class DataUtils {
         let graduatedPrevWeek = 0;
         
         this.cards.forEach(card => {
-            let firstReview = card.lastReview;
+            let firstReview: number | null | undefined = card.last_review;
             if (card.historyLog && card.historyLog.length > 0) {
-                firstReview = card.historyLog[0].date;
+                const firstLog = card.historyLog[0] as ReviewLog | number;
+                firstReview = typeof firstLog === 'object' && firstLog !== null ? firstLog.date : firstLog;
             }
             
             if (firstReview) {
@@ -216,10 +219,10 @@ export class DataUtils {
                 }
             }
             
-            if (card.stability > 7 && card.lastReview) {
-                if (card.lastReview > oneWeekAgo) {
+            if (card.stability > 7 && card.last_review) {
+                if (card.last_review > oneWeekAgo) {
                     graduatedLastWeek++;
-                } else if (card.lastReview > twoWeeksAgo && card.lastReview <= oneWeekAgo) {
+                } else if (card.last_review > twoWeeksAgo && card.last_review <= oneWeekAgo) {
                     graduatedPrevWeek++;
                 }
             }
@@ -228,22 +231,23 @@ export class DataUtils {
         let reviewsLastWeek = 0;
         let reviewsPrevWeek = 0;
         
-        let dailyNew = [0, 0, 0, 0, 0, 0, 0];
-        let dailyGrad = [0, 0, 0, 0, 0, 0, 0];
-        let dailyRev = [0, 0, 0, 0, 0, 0, 0];
+        const dailyNew = [0, 0, 0, 0, 0, 0, 0];
+        const dailyGrad = [0, 0, 0, 0, 0, 0, 0];
+        const dailyRev = [0, 0, 0, 0, 0, 0, 0];
 
         this.cards.forEach(card => {
-            let firstReview = card.lastReview;
+            let firstReview: number | null | undefined = card.last_review;
             if (card.historyLog && card.historyLog.length > 0) {
-                firstReview = card.historyLog[0].date;
+                const firstLog = card.historyLog[0] as ReviewLog | number;
+                firstReview = typeof firstLog === 'object' && firstLog !== null ? firstLog.date : firstLog;
             }
             if (firstReview && firstReview > oneWeekAgo) {
                 const dayIndex = 6 - Math.floor((now - firstReview) / (1000 * 60 * 60 * 24));
                 if (dayIndex >= 0 && dayIndex < 7) dailyNew[dayIndex]++;
             }
             
-            if (card.stability > 7 && card.lastReview && card.lastReview > oneWeekAgo) {
-                const dayIndex = 6 - Math.floor((now - card.lastReview) / (1000 * 60 * 60 * 24));
+            if (card.stability > 7 && card.last_review && card.last_review > oneWeekAgo) {
+                const dayIndex = 6 - Math.floor((now - card.last_review) / (1000 * 60 * 60 * 24));
                 if (dayIndex >= 0 && dayIndex < 7) dailyGrad[dayIndex]++;
             }
         });
@@ -283,7 +287,7 @@ export class DataUtils {
      * Group cards by tag and calculate stats
      */
     getStatsByTag(): TagStats[] {
-        const tags: { [tag: string]: any } = {};
+        const tags: Record<string, { count: number; totalReps: number; totalLapses: number; totalStability: number; reviewed: number; due: number; totalRetrievability: number; retrievabilityCount: number }> = {};
         
         this.cards.forEach(card => {
             const cardTags = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
@@ -304,7 +308,7 @@ export class DataUtils {
                     tags[tag].due++;
                 }
 
-                if (card.stability > 0 && card.lastReview && this.scheduler) {
+                if (card.stability > 0 && card.last_review && this.scheduler) {
                     const r = this.scheduler.getRetrievability(card, Date.now());
                     tags[tag].totalRetrievability += r;
                     tags[tag].retrievabilityCount++;
@@ -335,8 +339,8 @@ export class DataUtils {
      * Get lapse leaderboard / recovery stats
      */
     getPerformanceStats(): PerformanceStats {
-        const lapsed: any[] = [];
-        const recovered: any[] = [];
+        const lapsed: Card[] = [];
+        const recovered: Card[] = [];
         
         this.cards.forEach(card => {
             if ((card.lapses || 0) > 0) {
@@ -393,25 +397,27 @@ export class DataUtils {
         
         this.cards.forEach(card => {
             if (card.historyLog && card.historyLog.length > 0) {
-                card.historyLog.forEach((log: any) => {
-                    if (log.date) {
+                card.historyLog.forEach((log: ReviewLog | number) => {
+                    const logObj = (typeof log === 'object' && log !== null) ? log : { date: log, rating: 0 };
+                    if (logObj.date) {
                         hasTimeData = true;
-                        const d = new Date(log.date);
+                        const d = new Date(logObj.date);
                         const h = d.getHours();
                         let bucket = 'night';
                         if (h >= 5 && h < 12) bucket = 'morning';
                         else if (h >= 12 && h < 17) bucket = 'afternoon';
                         else if (h >= 17 && h < 21) bucket = 'evening';
                         
-                        if (log.rating > 0) {
+                        const ratingNum = typeof logObj.rating === 'number' ? logObj.rating : Number(logObj.rating);
+                        if (ratingNum > 0) {
                             times[bucket].reviews++;
                             times[bucket].reps++;
-                            if (log.rating === 1) { 
+                            if (ratingNum === 1) { 
                                 times[bucket].lapses++;
                             }
                             
-                            if (log.duration !== undefined) {
-                                times[bucket].duration += log.duration;
+                            if (logObj.duration !== undefined) {
+                                times[bucket].duration += logObj.duration;
                                 times[bucket].durationCount++;
                             }
                         }
@@ -447,7 +453,7 @@ export class DataUtils {
         const now = Date.now();
         const targetTime = now + (numDays * 24 * 60 * 60 * 1000);
         
-        const tags: { [tag: string]: any } = {};
+        const tags: Record<string, { count: number; reviewedCount: number; totalStability: number; totalProjectedR: number }> = {};
         let totalProjectedRetrievability = 0;
         let totalReviewedCards = 0;
 
@@ -455,7 +461,7 @@ export class DataUtils {
             const cardTags = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
             
             let projectedR = 0;
-            const hasReviewHistory = card.stability > 0 && (card.lastReview || card.last_review);
+            const hasReviewHistory = card.stability > 0 && (card.last_review);
             
             if (hasReviewHistory && this.scheduler) {
                 projectedR = this.scheduler.getRetrievability(card, targetTime);
@@ -551,19 +557,28 @@ export class DataUtils {
         const curveSum: Record<number, number> = {};
         curveDays.forEach(d => curveSum[d] = 0);
 
+        const sched = this.scheduler;
+        if (!sched) {
+            return {
+                today: 0, d30: 0, d90: 0, d180: 0,
+                custom: { days: sliderDays, retention: 0, forgottenCount: 0, totalCards: this.cards.length },
+                curvePoints: [], totalCards: this.cards.length, reviewedCards: 0
+            };
+        }
+
         this.cards.forEach(card => {
-            const hasReviewHistory = card.stability > 0 && (card.lastReview || card.last_review);
-            if (hasReviewHistory && this.scheduler) {
+            const hasReviewHistory = card.stability > 0 && (card.last_review);
+            if (hasReviewHistory) {
                 reviewedCardsCount++;
 
                 intervals.forEach(day => {
                     const targetTime = now + (day * 24 * 60 * 60 * 1000);
-                    const r = this.scheduler.getRetrievability(card, targetTime);
+                    const r = sched.getRetrievability(card, targetTime);
                     retentionByInterval[day] += r;
                 });
 
                 const customTime = now + (sliderDays * 24 * 60 * 60 * 1000);
-                const rCustom = this.scheduler.getRetrievability(card, customTime);
+                const rCustom = sched.getRetrievability(card, customTime);
                 customRetention += rCustom;
 
                 if (rCustom < 0.70) {
@@ -572,7 +587,7 @@ export class DataUtils {
 
                 curveDays.forEach(day => {
                     const targetTime = now + (day * 24 * 60 * 60 * 1000);
-                    curveSum[day] += this.scheduler.getRetrievability(card, targetTime);
+                    curveSum[day] += sched.getRetrievability(card, targetTime);
                 });
             }
         });

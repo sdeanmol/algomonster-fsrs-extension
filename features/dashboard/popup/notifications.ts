@@ -1,4 +1,5 @@
-import { DashboardComponent } from './DashboardComponent';
+import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
+import { StorageData, NotificationSettings, MessageResponse } from '../../../types/domain';
 
 /**
  * @class NotificationsComponent
@@ -8,8 +9,16 @@ import { DashboardComponent } from './DashboardComponent';
  * and routes test notifications through runtime messages to the background script.
  */
 export class NotificationsComponent extends DashboardComponent {
-    constructor(coordinator: any) {
+    constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
+    }
+
+    /**
+     * Required implementation of abstract load from DashboardComponent
+     */
+    async load(): Promise<void> {
+        await this.loadSettings();
+        this.checkPermissions();
     }
 
     /**
@@ -54,7 +63,7 @@ export class NotificationsComponent extends DashboardComponent {
         const quietStart = (document.getElementById('quiet-hours-start') || document.getElementById('quiet-start')) as HTMLInputElement | null;
         const quietEnd = (document.getElementById('quiet-hours-end') || document.getElementById('quiet-end')) as HTMLInputElement | null;
 
-        const updateNotificationUI = (settings: any) => {
+        const updateNotificationUI = (settings: NotificationSettings) => {
             if (!notifToggle) return;
             notifToggle.checked = settings.enabled !== false;
             if (notifStickyToggle) {
@@ -82,7 +91,7 @@ export class NotificationsComponent extends DashboardComponent {
         };
 
         try {
-            const result = await chrome.storage.local.get(['notificationSettings']);
+            const result = (await chrome.storage.local.get(['notificationSettings'])) as StorageData & { notificationSettings?: NotificationSettings };
             const settings = result.notificationSettings || {
                 enabled: true,
                 frequency: '60',
@@ -119,7 +128,7 @@ export class NotificationsComponent extends DashboardComponent {
                         if (permission === 'granted') {
                             this.showStatus("Notifications enabled successfully!");
                         } else {
-                            this.showStatus("Notifications were not allowed.", true);
+                            this.showStatus("Notifications were not allowed.");
                         }
                     });
                 }
@@ -128,7 +137,7 @@ export class NotificationsComponent extends DashboardComponent {
 
         const saveNotificationSettings = async () => {
             try {
-                const result = await chrome.storage.local.get(['notificationSettings']);
+                const result = (await chrome.storage.local.get(['notificationSettings'])) as StorageData & { notificationSettings?: NotificationSettings };
                 const oldSettings = result.notificationSettings || { priority: '2' };
                 let frequency = notifInterval ? notifInterval.value : '60';
                 if (frequency === 'custom' && customIntervalInput) {
@@ -136,7 +145,7 @@ export class NotificationsComponent extends DashboardComponent {
                     frequency = (!isNaN(customVal) && customVal > 0) ? String(customVal) : '60';
                 }
 
-                const updatedSettings = {
+                const updatedSettings: NotificationSettings = {
                     enabled: notifToggle ? notifToggle.checked : true,
                     frequency: frequency,
                     priority: oldSettings.priority || '2',
@@ -195,14 +204,14 @@ export class NotificationsComponent extends DashboardComponent {
 
         if (testNotifBtn) {
             testNotifBtn.addEventListener('click', () => {
-                chrome.runtime.sendMessage({ action: 'test_notification' }, (response: any) => {
+                chrome.runtime.sendMessage({ action: 'test_notification' }, (response?: MessageResponse) => {
                     if (chrome.runtime.lastError) {
                         console.error("Error sending test message:", chrome.runtime.lastError.message);
-                        this.showStatus("Error triggering notification.", true);
+                        this.showStatus("Error triggering notification.");
                     } else if (response && response.success) {
                         this.showStatus("Test notification sent!");
                     } else {
-                        this.showStatus("Failed to send test notification.", true);
+                        this.showStatus("Failed to send test notification.");
                     }
                 });
             });
@@ -212,7 +221,7 @@ export class NotificationsComponent extends DashboardComponent {
         const weeklyDigestToggle = document.getElementById('toggle-weekly-digest') as HTMLInputElement | null;
         if (weeklyDigestToggle) {
             // Load saved preference
-            chrome.storage.local.get(['weeklySummaryEnabled'], (result: { [key: string]: any }) => {
+            chrome.storage.local.get(['weeklySummaryEnabled'], (result: { weeklySummaryEnabled?: boolean }) => {
                 weeklyDigestToggle.checked = result.weeklySummaryEnabled !== false;
             });
             weeklyDigestToggle.addEventListener('change', () => {
