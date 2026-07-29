@@ -662,7 +662,27 @@
 .h-bar-fill {
     height: 100%;
     border-radius: 6px;
-    transition: width 0.5s ease-out;
+    transition: width 0.5s ease-out, background-color 0.25s ease;
+}
+
+.h-bar-fill.fill-good,
+.fill-good {
+    background-color: var(--md-success);
+}
+
+.h-bar-fill.fill-warning,
+.fill-warning {
+    background-color: var(--md-warning);
+}
+
+.h-bar-fill.fill-danger,
+.fill-danger {
+    background-color: var(--md-danger);
+}
+
+.h-bar-fill.fill-default,
+.fill-default {
+    background-color: var(--md-primary);
 }
 
 .h-bar-value {

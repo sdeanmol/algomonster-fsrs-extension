@@ -1,4 +1,11 @@
-import { StorageData, ExtensionMessage } from '../../../types/domain';
+/**
+ * @file features/dashboard/pomodoro/pomodoro.ts
+ * @description Pomodoro Study Timer UI controller.
+ * Syncs visually with the background service worker which handles the true timer state.
+ */
+
+import { Logger } from '@common/logger';
+import { StorageData } from '../../../types/domain';
 
 export interface PomodoroSettings {
     focusDuration: number;
@@ -22,11 +29,6 @@ export interface PomodoroStats {
     lastDate?: string;
 }
 
-/**
- * @file features/dashboard/pomodoro/pomodoro.ts
- * @description Pomodoro Study Timer UI controller.
- * Syncs visually with the background service worker which handles the true timer state.
- */
 export class PomodoroTimer {
     settings: PomodoroSettings;
     state: 'idle' | 'running' | 'paused';
@@ -60,7 +62,6 @@ export class PomodoroTimer {
     }
 
     init(): void {
-        const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
         try {
             chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result: StorageData & {
                 pomodoroSettings?: PomodoroSettings;
@@ -68,6 +69,13 @@ export class PomodoroTimer {
                 pomodoroState?: PomodoroState;
             }) => {
                 try {
+                    const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                    if (lastError) {
+                        const errorMessage = lastError.message || String(lastError);
+                        Logger.error('PomodoroTimer', `Storage error fetching pomodoro data: ${errorMessage}`, { error: lastError });
+                        return;
+                    }
+
                     if (result.pomodoroSettings) {
                         Object.assign(this.settings, result.pomodoroSettings);
                     }
@@ -107,302 +115,488 @@ export class PomodoroTimer {
                         if (pauseBtn) pauseBtn.style.display = 'none';
                         document.querySelector('.timer-ring-svg')?.classList.remove('running');
                     }
+
                     chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
-                        if (area === 'local' && changes.pomodoroState) {
-                            this.syncState(changes.pomodoroState.newValue as PomodoroState | undefined);
-                        }
-                        if (area === 'local' && changes.pomodoroStats) {
-                            const stats = changes.pomodoroStats.newValue as PomodoroStats | undefined;
-                            if (stats && stats.lastDate === new Date().toLocaleDateString()) {
-                                this.todaySessions = stats.sessionsToday || 0;
-                                this.todayFocusMinutes = stats.focusMinutesToday || 0;
-                                this.updateTodayStats();
+                        try {
+                            if (area === 'local' && changes.pomodoroState) {
+                                this.syncState(changes.pomodoroState.newValue as PomodoroState | undefined);
                             }
+                            if (area === 'local' && changes.pomodoroStats) {
+                                const stats = changes.pomodoroStats.newValue as PomodoroStats | undefined;
+                                if (stats && stats.lastDate === new Date().toLocaleDateString()) {
+                                    this.todaySessions = stats.sessionsToday || 0;
+                                    this.todayFocusMinutes = stats.focusMinutesToday || 0;
+                                    this.updateTodayStats();
+                                }
+                            }
+                        } catch (changeErr) {
+                            const errorMessage = changeErr instanceof Error ? changeErr.message : String(changeErr);
+                            Logger.error('PomodoroTimer', `Error handling storage change event: ${errorMessage}`, { changeErr });
                         }
                     });
                 } catch (innerErr) {
                     const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    if (logger) logger.error('Pomodoro', `Error during pomodoro dashboard init: ${errorMessage}`, { innerErr });
+                    Logger.error('PomodoroTimer', `Error during pomodoro dashboard init: ${errorMessage}`, { innerErr });
                     // Comment: Non-fatal initialization error
                 }
             });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            if (logger) logger.error('Pomodoro', `Failed to fetch storage in Pomodoro init: ${errorMessage}`, { err });
+            Logger.error('PomodoroTimer', `Failed to fetch storage in Pomodoro init: ${errorMessage}`, { err });
             // Comment: Catch storage retrieval error gracefully
         }
     }
 
     resetState(): void {
-        this.state = 'idle';
-        this.phase = 'focus';
-        this.currentSession = 1;
-        this.totalTime = this.getPhaseDuration() * 60;
-        this.timeRemaining = this.totalTime;
-        this.targetEndTime = null;
+        try {
+            this.state = 'idle';
+            this.phase = 'focus';
+            this.currentSession = 1;
+            this.totalTime = this.getPhaseDuration() * 60;
+            this.timeRemaining = this.totalTime;
+            this.targetEndTime = null;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error resetting pomodoro state: ${errorMessage}`, { err });
+        }
     }
 
     getStateObj(): PomodoroState {
-        return {
-            state: this.state,
-            phase: this.phase,
-            currentSession: this.currentSession,
-            timeRemaining: this.timeRemaining,
-            totalTime: this.totalTime,
-            targetEndTime: this.targetEndTime
-        };
+        try {
+            return {
+                state: this.state,
+                phase: this.phase,
+                currentSession: this.currentSession,
+                timeRemaining: this.timeRemaining,
+                totalTime: this.totalTime,
+                targetEndTime: this.targetEndTime
+            };
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error getting state object: ${errorMessage}`, { err });
+            return {
+                state: 'idle',
+                phase: 'focus',
+                currentSession: 1,
+                timeRemaining: 0,
+                totalTime: 0,
+                targetEndTime: null
+            };
+        }
     }
 
     syncState(newState: PomodoroState | undefined): void {
-        if (!newState) return;
-        this.state = newState.state;
-        this.phase = newState.phase;
-        this.currentSession = newState.currentSession;
-        this.totalTime = newState.totalTime;
-        this.targetEndTime = newState.targetEndTime;
-        
-        if (this.state !== 'running') {
-            this.timeRemaining = newState.timeRemaining;
-            this.stopVisualInterval();
-            this.updateDisplay();
-            this.updateRing();
+        try {
+            if (!newState) return;
+            this.state = newState.state;
+            this.phase = newState.phase;
+            this.currentSession = newState.currentSession;
+            this.totalTime = newState.totalTime;
+            this.targetEndTime = newState.targetEndTime;
             
-            const startBtn = document.getElementById('start-btn');
-            const pauseBtn = document.getElementById('pause-btn');
-            if (startBtn) startBtn.style.display = 'flex';
-            if (pauseBtn) pauseBtn.style.display = 'none';
-            document.querySelector('.timer-ring-svg')?.classList.remove('running');
-            document.body.className = '';
-        } else {
-            this.startVisualInterval();
+            if (this.state !== 'running') {
+                this.timeRemaining = newState.timeRemaining;
+                this.stopVisualInterval();
+                this.updateDisplay();
+                this.updateRing();
+                
+                const startBtn = document.getElementById('start-btn');
+                const pauseBtn = document.getElementById('pause-btn');
+                if (startBtn) startBtn.style.display = 'flex';
+                if (pauseBtn) pauseBtn.style.display = 'none';
+                document.querySelector('.timer-ring-svg')?.classList.remove('running');
+                document.body.className = '';
+            } else {
+                this.startVisualInterval();
+            }
+            
+            this.updatePhaseIndicator();
+            this.updateSessionDots();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error syncing pomodoro state: ${errorMessage}`, { newState, err });
         }
-        
-        this.updatePhaseIndicator();
-        this.updateSessionDots();
     }
 
     bindEvents(): void {
-        document.getElementById('start-btn')?.addEventListener('click', () => this.start());
-        document.getElementById('pause-btn')?.addEventListener('click', () => this.pause());
-        document.getElementById('reset-btn')?.addEventListener('click', () => this.reset());
-        document.getElementById('skip-btn')?.addEventListener('click', () => this.skip());
-        document.getElementById('save-settings-btn')?.addEventListener('click', () => this.saveSettings());
+        try {
+            document.getElementById('start-btn')?.addEventListener('click', () => {
+                try {
+                    this.start();
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('PomodoroTimer', `Error in start button click handler: ${errorMessage}`, { err });
+                }
+            });
+            document.getElementById('pause-btn')?.addEventListener('click', () => {
+                try {
+                    this.pause();
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('PomodoroTimer', `Error in pause button click handler: ${errorMessage}`, { err });
+                }
+            });
+            document.getElementById('reset-btn')?.addEventListener('click', () => {
+                try {
+                    this.reset();
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('PomodoroTimer', `Error in reset button click handler: ${errorMessage}`, { err });
+                }
+            });
+            document.getElementById('skip-btn')?.addEventListener('click', () => {
+                try {
+                    this.skip();
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('PomodoroTimer', `Error in skip button click handler: ${errorMessage}`, { err });
+                }
+            });
+            document.getElementById('save-settings-btn')?.addEventListener('click', () => {
+                try {
+                    this.saveSettings();
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('PomodoroTimer', `Error in save settings button click handler: ${errorMessage}`, { err });
+                }
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error binding pomodoro events: ${errorMessage}`, { err });
+            // Comment: Non-fatal event listener binding error
+        }
     }
 
     loadSettingsUI(): void {
-        const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
-        const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
-        const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
-        const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
+        try {
+            const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
+            const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
+            const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
+            const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
 
-        if (focusInput) focusInput.value = String(this.settings.focusDuration);
-        if (shortInput) shortInput.value = String(this.settings.shortBreakDuration);
-        if (longInput) longInput.value = String(this.settings.longBreakDuration);
-        if (sessionsInput) sessionsInput.value = String(this.settings.sessionsBeforeLongBreak);
+            if (focusInput) focusInput.value = String(this.settings.focusDuration);
+            if (shortInput) shortInput.value = String(this.settings.shortBreakDuration);
+            if (longInput) longInput.value = String(this.settings.longBreakDuration);
+            if (sessionsInput) sessionsInput.value = String(this.settings.sessionsBeforeLongBreak);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error loading settings UI: ${errorMessage}`, { err });
+        }
     }
 
     saveSettings(): void {
-        const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
-        const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
-        const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
-        const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
+        try {
+            const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
+            const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
+            const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
+            const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
 
-        const focusDuration = parseInt(focusInput?.value || '25', 10) || 25;
-        const shortBreakDuration = parseInt(shortInput?.value || '5', 10) || 5;
-        const longBreakDuration = parseInt(longInput?.value || '15', 10) || 15;
-        const sessionsBeforeLongBreak = parseInt(sessionsInput?.value || '4', 10) || 4;
+            const focusDuration = parseInt(focusInput?.value || '25', 10) || 25;
+            const shortBreakDuration = parseInt(shortInput?.value || '5', 10) || 5;
+            const longBreakDuration = parseInt(longInput?.value || '15', 10) || 15;
+            const sessionsBeforeLongBreak = parseInt(sessionsInput?.value || '4', 10) || 4;
 
-        this.settings = { focusDuration, shortBreakDuration, longBreakDuration, sessionsBeforeLongBreak };
+            this.settings = { focusDuration, shortBreakDuration, longBreakDuration, sessionsBeforeLongBreak };
 
-        chrome.storage.local.set({ pomodoroSettings: this.settings }, () => {
-            this.reset();
-        });
+            chrome.storage.local.set({ pomodoroSettings: this.settings }, () => {
+                try {
+                    const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                    if (lastError) {
+                        const errorMessage = lastError.message || String(lastError);
+                        Logger.error('PomodoroTimer', `Storage error saving pomodoroSettings: ${errorMessage}`, { error: lastError });
+                        return;
+                    }
+                    this.reset();
+                } catch (cbErr) {
+                    const errorMessage = cbErr instanceof Error ? cbErr.message : String(cbErr);
+                    Logger.error('PomodoroTimer', `Error in storage set callback for saveSettings: ${errorMessage}`, { cbErr });
+                }
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error saving pomodoro settings: ${errorMessage}`, { err });
+        }
     }
 
     getPhaseDuration(): number {
-        switch (this.phase) {
-            case 'focus': return this.settings.focusDuration;
-            case 'shortBreak': return this.settings.shortBreakDuration;
-            case 'longBreak': return this.settings.longBreakDuration;
-            default: return this.settings.focusDuration;
+        try {
+            switch (this.phase) {
+                case 'focus': return this.settings.focusDuration;
+                case 'shortBreak': return this.settings.shortBreakDuration;
+                case 'longBreak': return this.settings.longBreakDuration;
+                default: return this.settings.focusDuration;
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error getting phase duration: ${errorMessage}`, { phase: this.phase, err });
+            return this.settings.focusDuration || 25;
         }
     }
 
     start(): void {
-        if (this.state === 'running') return;
-        this.state = 'running';
-        this.targetEndTime = Date.now() + (this.timeRemaining * 1000);
-        
-        const stateObj = this.getStateObj();
-        chrome.storage.local.set({ pomodoroState: stateObj });
-        chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'start', state: stateObj } });
+        try {
+            if (this.state === 'running') return;
+            this.state = 'running';
+            this.targetEndTime = Date.now() + (this.timeRemaining * 1000);
+            
+            const stateObj = this.getStateObj();
+            chrome.storage.local.set({ pomodoroState: stateObj }, () => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('PomodoroTimer', `Storage error saving pomodoroState on start: ${errorMessage}`, { error: lastError });
+                }
+            });
+            chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'start', state: stateObj } });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error starting pomodoro timer: ${errorMessage}`, { err });
+        }
     }
 
     pause(): void {
-        if (this.state !== 'running') return;
-        
-        this.state = 'paused';
-        if (this.targetEndTime) {
-            this.timeRemaining = Math.max(0, Math.ceil((this.targetEndTime - Date.now()) / 1000));
-        }
-        
-        const stateObj = this.getStateObj();
-        chrome.storage.local.set({ pomodoroState: stateObj });
-        chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'pause', state: stateObj } });
-    }
-
-    reset(): void {
-        this.resetState();
-        const stateObj = this.getStateObj();
-        chrome.storage.local.set({ pomodoroState: stateObj });
-        chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'reset', state: stateObj } });
-    }
-
-    skip(): void {
-        if (this.phase === 'focus') {
-            if (this.currentSession >= this.settings.sessionsBeforeLongBreak) {
-                this.phase = 'longBreak';
-            } else {
-                this.phase = 'shortBreak';
-            }
-        } else {
-            if (this.phase === 'longBreak') {
-                this.currentSession = 1;
-            } else {
-                this.currentSession++;
-            }
-            this.phase = 'focus';
-        }
-        this.state = 'idle';
-        this.totalTime = this.getPhaseDuration() * 60;
-        this.timeRemaining = this.totalTime;
-        this.targetEndTime = null;
-        
-        const stateObj = this.getStateObj();
-        chrome.storage.local.set({ pomodoroState: stateObj });
-        chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'skip', state: stateObj } });
-    }
-
-    startVisualInterval(): void {
-        this.stopVisualInterval();
-        
-        const startBtn = document.getElementById('start-btn');
-        const pauseBtn = document.getElementById('pause-btn');
-        if (startBtn) startBtn.style.display = 'none';
-        if (pauseBtn) pauseBtn.style.display = 'flex';
-        document.querySelector('.timer-ring-svg')?.classList.add('running');
-        document.body.className = this.phase === 'focus' ? 'phase-focus' : 'phase-break';
-
-        const tick = () => {
-            if (this.state !== 'running') return this.stopVisualInterval();
+        try {
+            if (this.state !== 'running') return;
+            
+            this.state = 'paused';
             if (this.targetEndTime) {
                 this.timeRemaining = Math.max(0, Math.ceil((this.targetEndTime - Date.now()) / 1000));
             }
-            this.updateDisplay();
-            this.updateRing();
-        };
-        
-        tick();
-        this.intervalId = setInterval(tick, 1000);
-        this.updatePhaseIndicator();
-        this.updateSessionDots();
+            
+            const stateObj = this.getStateObj();
+            chrome.storage.local.set({ pomodoroState: stateObj }, () => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('PomodoroTimer', `Storage error saving pomodoroState on pause: ${errorMessage}`, { error: lastError });
+                }
+            });
+            chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'pause', state: stateObj } });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error pausing pomodoro timer: ${errorMessage}`, { err });
+        }
+    }
+
+    reset(): void {
+        try {
+            this.resetState();
+            const stateObj = this.getStateObj();
+            chrome.storage.local.set({ pomodoroState: stateObj }, () => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('PomodoroTimer', `Storage error saving pomodoroState on reset: ${errorMessage}`, { error: lastError });
+                }
+            });
+            chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'reset', state: stateObj } });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error resetting pomodoro timer: ${errorMessage}`, { err });
+        }
+    }
+
+    skip(): void {
+        try {
+            if (this.phase === 'focus') {
+                if (this.currentSession >= this.settings.sessionsBeforeLongBreak) {
+                    this.phase = 'longBreak';
+                } else {
+                    this.phase = 'shortBreak';
+                }
+            } else {
+                if (this.phase === 'longBreak') {
+                    this.currentSession = 1;
+                } else {
+                    this.currentSession++;
+                }
+                this.phase = 'focus';
+            }
+            this.state = 'idle';
+            this.totalTime = this.getPhaseDuration() * 60;
+            this.timeRemaining = this.totalTime;
+            this.targetEndTime = null;
+            
+            const stateObj = this.getStateObj();
+            chrome.storage.local.set({ pomodoroState: stateObj }, () => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('PomodoroTimer', `Storage error saving pomodoroState on skip: ${errorMessage}`, { error: lastError });
+                }
+            });
+            chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'skip', state: stateObj } });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error skipping pomodoro phase: ${errorMessage}`, { err });
+        }
+    }
+
+    startVisualInterval(): void {
+        try {
+            this.stopVisualInterval();
+            
+            const startBtn = document.getElementById('start-btn');
+            const pauseBtn = document.getElementById('pause-btn');
+            if (startBtn) startBtn.style.display = 'none';
+            if (pauseBtn) pauseBtn.style.display = 'flex';
+            document.querySelector('.timer-ring-svg')?.classList.add('running');
+            document.body.className = this.phase === 'focus' ? 'phase-focus' : 'phase-break';
+
+            const tick = () => {
+                try {
+                    if (this.state !== 'running') return this.stopVisualInterval();
+                    if (this.targetEndTime) {
+                        this.timeRemaining = Math.max(0, Math.ceil((this.targetEndTime - Date.now()) / 1000));
+                    }
+                    this.updateDisplay();
+                    this.updateRing();
+                } catch (tickErr) {
+                    const errorMessage = tickErr instanceof Error ? tickErr.message : String(tickErr);
+                    Logger.error('PomodoroTimer', `Error in visual timer tick: ${errorMessage}`, { tickErr });
+                }
+            };
+            
+            tick();
+            this.intervalId = setInterval(tick, 1000);
+            this.updatePhaseIndicator();
+            this.updateSessionDots();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error starting visual interval: ${errorMessage}`, { err });
+        }
     }
     
     stopVisualInterval(): void {
-        if (this.intervalId) {
-            clearInterval(this.intervalId);
-            this.intervalId = null;
+        try {
+            if (this.intervalId) {
+                clearInterval(this.intervalId);
+                this.intervalId = null;
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error stopping visual interval: ${errorMessage}`, { err });
         }
     }
 
     updateDisplay(): void {
-        const minutes = Math.floor(this.timeRemaining / 60);
-        const seconds = this.timeRemaining % 60;
-        const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        try {
+            const minutes = Math.floor(this.timeRemaining / 60);
+            const seconds = this.timeRemaining % 60;
+            const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-        const timerTimeEl = document.getElementById('timer-time');
-        if (timerTimeEl) timerTimeEl.textContent = timeStr;
-        document.title = `${timeStr} — AlgoRecall Pomodoro`;
-        
-        const labels: Record<string, string> = { focus: 'Focus Time', shortBreak: 'Short Break', longBreak: 'Long Break' };
-        const phaseLabelEl = document.getElementById('timer-phase-label');
-        if (phaseLabelEl) phaseLabelEl.textContent = labels[this.phase] || 'Focus Time';
+            const timerTimeEl = document.getElementById('timer-time');
+            if (timerTimeEl) timerTimeEl.textContent = timeStr;
+            document.title = `${timeStr} — AlgoRecall Pomodoro`;
+            
+            const labels: Record<string, string> = { focus: 'Focus Time', shortBreak: 'Short Break', longBreak: 'Long Break' };
+            const phaseLabelEl = document.getElementById('timer-phase-label');
+            if (phaseLabelEl) phaseLabelEl.textContent = labels[this.phase] || 'Focus Time';
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error updating timer display: ${errorMessage}`, { timeRemaining: this.timeRemaining, err });
+        }
     }
 
     updateRing(): void {
-        const ring = document.getElementById('timer-ring-fill');
-        if (!ring) return;
+        try {
+            const ring = document.getElementById('timer-ring-fill');
+            if (!ring) return;
 
-        const circumference = 2 * Math.PI * 88;
-        const progress = this.totalTime > 0 ? (this.totalTime - this.timeRemaining) / this.totalTime : 0;
-        const offset = circumference - (progress * circumference);
+            const circumference = 2 * Math.PI * 88;
+            const progress = this.totalTime > 0 ? (this.totalTime - this.timeRemaining) / this.totalTime : 0;
+            const offset = circumference - (progress * circumference);
 
-        ring.setAttribute('stroke-dasharray', String(circumference));
-        ring.setAttribute('stroke-dashoffset', String(offset));
+            ring.setAttribute('stroke-dasharray', String(circumference));
+            ring.setAttribute('stroke-dashoffset', String(offset));
 
-        if (this.phase === 'focus') {
-            ring.classList.remove('break-ring');
-        } else {
-            ring.classList.add('break-ring');
+            if (this.phase === 'focus') {
+                ring.classList.remove('break-ring');
+            } else {
+                ring.classList.add('break-ring');
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error updating SVG progress ring: ${errorMessage}`, { err });
         }
     }
 
     updatePhaseIndicator(): void {
-        const pills: Record<string, HTMLElement | null> = {
-            'focus': document.getElementById('phase-focus'),
-            'shortBreak': document.getElementById('phase-short-break'),
-            'longBreak': document.getElementById('phase-long-break')
-        };
+        try {
+            const pills: Record<string, HTMLElement | null> = {
+                'focus': document.getElementById('phase-focus'),
+                'shortBreak': document.getElementById('phase-short-break'),
+                'longBreak': document.getElementById('phase-long-break')
+            };
 
-        Object.entries(pills).forEach(([phase, el]) => {
-            if (!el) return;
-            el.classList.remove('active', 'break-active');
-            if (phase === this.phase) {
-                el.classList.add('active');
-                if (phase !== 'focus') el.classList.add('break-active');
-            }
-        });
+            Object.entries(pills).forEach(([phase, el]) => {
+                if (!el) return;
+                el.classList.remove('active', 'break-active');
+                if (phase === this.phase) {
+                    el.classList.add('active');
+                    if (phase !== 'focus') el.classList.add('break-active');
+                }
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error updating phase indicator pills: ${errorMessage}`, { phase: this.phase, err });
+        }
     }
 
     updateSessionDots(): void {
-        const dotsContainer = document.getElementById('session-dots');
-        const sessionText = document.getElementById('session-text');
-        if (!dotsContainer) return;
+        try {
+            const dotsContainer = document.getElementById('session-dots');
+            const sessionText = document.getElementById('session-text');
+            if (!dotsContainer) return;
 
-        const total = this.settings.sessionsBeforeLongBreak;
-        let html = '';
-        for (let i = 1; i <= total; i++) {
-            let cls = 'session-dot';
-            if (i < this.currentSession) cls += ' complete';
-            else if (i === this.currentSession) cls += ' active';
-            html += `<div class="${cls}"></div>`;
-        }
-        dotsContainer.innerHTML = html;
+            const total = this.settings.sessionsBeforeLongBreak;
+            let html = '';
+            for (let i = 1; i <= total; i++) {
+                let cls = 'session-dot';
+                if (i < this.currentSession) cls += ' complete';
+                else if (i === this.currentSession) cls += ' active';
+                html += `<div class="${cls}"></div>`;
+            }
+            dotsContainer.innerHTML = html;
 
-        if (sessionText) {
-            sessionText.textContent = `${this.currentSession} of ${total}`;
+            if (sessionText) {
+                sessionText.textContent = `${this.currentSession} of ${total}`;
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error updating session dots: ${errorMessage}`, { currentSession: this.currentSession, err });
         }
     }
 
     updateTodayStats(): void {
-        const sessionsEl = document.getElementById('today-sessions');
-        const focusEl = document.getElementById('today-focus-time');
+        try {
+            const sessionsEl = document.getElementById('today-sessions');
+            const focusEl = document.getElementById('today-focus-time');
 
-        if (sessionsEl) sessionsEl.textContent = String(this.todaySessions);
-        if (focusEl) {
-            if (this.todayFocusMinutes >= 60) {
-                const hours = Math.floor(this.todayFocusMinutes / 60);
-                const mins = this.todayFocusMinutes % 60;
-                focusEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-            } else {
-                focusEl.textContent = `${this.todayFocusMinutes}m`;
+            if (sessionsEl) sessionsEl.textContent = String(this.todaySessions);
+            if (focusEl) {
+                if (this.todayFocusMinutes >= 60) {
+                    const hours = Math.floor(this.todayFocusMinutes / 60);
+                    const mins = this.todayFocusMinutes % 60;
+                    focusEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+                } else {
+                    focusEl.textContent = `${this.todayFocusMinutes}m`;
+                }
             }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('PomodoroTimer', `Error updating today stats UI: ${errorMessage}`, { todaySessions: this.todaySessions, todayFocusMinutes: this.todayFocusMinutes, err });
         }
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const win = window as unknown as { pomodoro?: PomodoroTimer };
-    win.pomodoro = new PomodoroTimer();
-    win.pomodoro.init();
+    try {
+        const win = window as unknown as { pomodoro?: PomodoroTimer };
+        win.pomodoro = new PomodoroTimer();
+        win.pomodoro.init();
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('PomodoroTimer', `Error instantiating PomodoroTimer on DOMContentLoaded: ${errorMessage}`, { err });
+    }
 });

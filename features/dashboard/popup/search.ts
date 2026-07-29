@@ -1,11 +1,12 @@
+/**
+ * @file features/dashboard/popup/search.ts
+ * @description Renders filtered card quick search items matching text query and topic tag fields.
+ */
+
+import { Logger } from '@common/logger';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { Card, StorageData } from '../../../types/domain';
 
-/**
- * @class QuickSearchComponent
- * @extends DashboardComponent
- * @description Renders filtered card quick search items matching text query and topic tag fields.
- */
 export class QuickSearchComponent extends DashboardComponent {
     quickSearchCards: Card[];
     quickSearchDebounce: ReturnType<typeof setTimeout> | null;
@@ -20,13 +21,13 @@ export class QuickSearchComponent extends DashboardComponent {
      * Initializes quick search input and tag selectors from the dashboard.
      */
     async load(): Promise<void> {
-        const searchInput = document.getElementById('popup-search-input') as HTMLInputElement | null;
-        const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement | null;
-        const resultsContainer = document.getElementById('popup-search-results');
-
-        if (!searchInput || !tagFilter || !resultsContainer) return;
-
         try {
+            const searchInput = document.getElementById('popup-search-input') as HTMLInputElement | null;
+            const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement | null;
+            const resultsContainer = document.getElementById('popup-search-results');
+
+            if (!searchInput || !tagFilter || !resultsContainer) return;
+
             // Load cards and populate tag filter
             const result = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
             this.quickSearchCards = result.fsrsCards || [];
@@ -49,7 +50,9 @@ export class QuickSearchComponent extends DashboardComponent {
                 tagFilter.appendChild(option);
             });
         } catch (error) {
-            console.error("Error loading quick search cards:", error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            Logger.error('QuickSearchComponent', `Error loading quick search cards: ${errorMessage}`, { error });
+            // Comment: Non-fatal search initialization catch
         }
     }
 
@@ -57,18 +60,43 @@ export class QuickSearchComponent extends DashboardComponent {
      * Binds input and selection events for quick search filters.
      */
     bindEvents(): void {
-        const searchInput = document.getElementById('popup-search-input');
-        const tagFilter = document.getElementById('popup-tag-filter');
+        try {
+            const searchInput = document.getElementById('popup-search-input');
+            const tagFilter = document.getElementById('popup-tag-filter');
 
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                if (this.quickSearchDebounce) clearTimeout(this.quickSearchDebounce);
-                this.quickSearchDebounce = setTimeout(() => this.renderQuickSearch(), 150);
-            });
-        }
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    try {
+                        if (this.quickSearchDebounce) clearTimeout(this.quickSearchDebounce);
+                        this.quickSearchDebounce = setTimeout(() => {
+                            try {
+                                this.renderQuickSearch();
+                            } catch (renderErr) {
+                                const errorMessage = renderErr instanceof Error ? renderErr.message : String(renderErr);
+                                Logger.error('QuickSearchComponent', `Error in debounced quick search render: ${errorMessage}`, { renderErr });
+                            }
+                        }, 150);
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('QuickSearchComponent', `Error in quick search input listener: ${errorMessage}`, { err });
+                    }
+                });
+            }
 
-        if (tagFilter) {
-            tagFilter.addEventListener('change', () => this.renderQuickSearch());
+            if (tagFilter) {
+                tagFilter.addEventListener('change', () => {
+                    try {
+                        this.renderQuickSearch();
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('QuickSearchComponent', `Error in tag filter change listener: ${errorMessage}`, { err });
+                    }
+                });
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('QuickSearchComponent', `Error binding quick search events: ${errorMessage}`, { err });
+            // Comment: Non-fatal event listener binding error
         }
     }
 
@@ -76,76 +104,82 @@ export class QuickSearchComponent extends DashboardComponent {
      * Renders filtered card quick search items matching text query and topic tag fields.
      */
     renderQuickSearch(): void {
-        const searchInput = document.getElementById('popup-search-input') as HTMLInputElement | null;
-        const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement | null;
-        const resultsContainer = document.getElementById('popup-search-results');
+        try {
+            const searchInput = document.getElementById('popup-search-input') as HTMLInputElement | null;
+            const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement | null;
+            const resultsContainer = document.getElementById('popup-search-results');
 
-        if (!searchInput || !resultsContainer) return;
+            if (!searchInput || !resultsContainer) return;
 
-        const query = searchInput.value.trim().toLowerCase();
-        const selectedTag = tagFilter ? tagFilter.value : 'all';
+            const query = searchInput.value.trim().toLowerCase();
+            const selectedTag = tagFilter ? tagFilter.value : 'all';
 
-        // Hide results if no query and no tag filter
-        if (!query && selectedTag === 'all') {
-            resultsContainer.innerHTML = '';
-            resultsContainer.style.display = 'none';
-            return;
-        }
-
-        const now = Date.now();
-        const filtered = this.quickSearchCards.filter(card => {
-            // Tag filter
-            if (selectedTag !== 'all' && !(card.tags && card.tags.includes(selectedTag))) return false;
-
-            // Search query
-            if (query) {
-                const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(query);
-                const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(query);
-                const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(query));
-                const approachMatch = card.approach && card.approach.toLowerCase().includes(query);
-                if (!titleMatch && !urlMatch && !tagMatch && !approachMatch) return false;
+            // Hide results if no query and no tag filter
+            if (!query && selectedTag === 'all') {
+                resultsContainer.innerHTML = '';
+                resultsContainer.style.display = 'none';
+                return;
             }
 
-            return true;
-        });
+            const now = Date.now();
+            const filtered = this.quickSearchCards.filter(card => {
+                // Tag filter
+                if (selectedTag !== 'all' && !(card.tags && card.tags.includes(selectedTag))) return false;
 
-        const totalMatches = filtered.length;
-        const maxDisplay = 5;
-        const displayCards = filtered.slice(0, maxDisplay);
+                // Search query
+                if (query) {
+                    const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(query);
+                    const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(query);
+                    const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(query));
+                    const approachMatch = card.approach && card.approach.toLowerCase().includes(query);
+                    if (!titleMatch && !urlMatch && !tagMatch && !approachMatch) return false;
+                }
 
-        if (displayCards.length === 0) {
+                return true;
+            });
+
+            const totalMatches = filtered.length;
+            const maxDisplay = 5;
+            const displayCards = filtered.slice(0, maxDisplay);
+
+            if (displayCards.length === 0) {
+                resultsContainer.style.display = 'block';
+                resultsContainer.innerHTML = `<div class="popup-search-empty">No matching patterns found.</div>`;
+                return;
+            }
+
+            let html = displayCards.map(card => {
+                const isDue = card.due <= now;
+                const statusBadge = isDue
+                    ? '<span class="popup-badge popup-badge-due">Due</span>'
+                    : '<span class="popup-badge popup-badge-safe">Safe</span>';
+                const tagsHtml = (card.tags || []).slice(0, 3).map((t: string) => `<span class="popup-tag">${t}</span>`).join('');
+                const title = card.problemTitle || 'Untitled';
+
+                return `<a href="${card.problemUrl}" target="_blank" class="popup-search-item" title="${title}" aria-label="${title}">
+                    <div class="popup-search-item-top">
+                        <span class="popup-search-title">${title}</span>
+                        ${statusBadge}
+                    </div>
+                    <div class="popup-search-item-tags">${tagsHtml}</div>
+                </a>`;
+            }).join('');
+
+            if (totalMatches > maxDisplay) {
+                const urlParams = new URLSearchParams();
+                urlParams.append('view', 'total');
+                if (query) urlParams.append('search', query);
+                if (selectedTag && selectedTag !== 'all') urlParams.append('tag', selectedTag);
+                const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?${urlParams.toString()}`);
+                html += `<a href="${dataUrl}" target="_blank" class="popup-search-view-all">View all ${totalMatches} results →</a>`;
+            }
+
             resultsContainer.style.display = 'block';
-            resultsContainer.innerHTML = `<div class="popup-search-empty">No matching patterns found.</div>`;
-            return;
+            resultsContainer.innerHTML = html;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('QuickSearchComponent', `Error rendering quick search results: ${errorMessage}`, { err });
+            // Comment: Non-fatal quick search rendering error
         }
-
-        let html = displayCards.map(card => {
-            const isDue = card.due <= now;
-            const statusBadge = isDue
-                ? '<span class="popup-badge popup-badge-due">Due</span>'
-                : '<span class="popup-badge popup-badge-safe">Safe</span>';
-            const tagsHtml = (card.tags || []).slice(0, 3).map((t: string) => `<span class="popup-tag">${t}</span>`).join('');
-            const title = card.problemTitle || 'Untitled';
-
-            return `<a href="${card.problemUrl}" target="_blank" class="popup-search-item" title="${title}" aria-label="${title}">
-                <div class="popup-search-item-top">
-                    <span class="popup-search-title">${title}</span>
-                    ${statusBadge}
-                </div>
-                <div class="popup-search-item-tags">${tagsHtml}</div>
-            </a>`;
-        }).join('');
-
-        if (totalMatches > maxDisplay) {
-            const urlParams = new URLSearchParams();
-            urlParams.append('view', 'total');
-            if (query) urlParams.append('search', query);
-            if (selectedTag && selectedTag !== 'all') urlParams.append('tag', selectedTag);
-            const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?${urlParams.toString()}`);
-            html += `<a href="${dataUrl}" target="_blank" class="popup-search-view-all">View all ${totalMatches} results →</a>`;
-        }
-
-        resultsContainer.style.display = 'block';
-        resultsContainer.innerHTML = html;
     }
 }

@@ -1,3 +1,5 @@
+import { Logger } from '@common/logger';
+
 /**
  * @interface DashboardCoordinator
  * @description Contract for popup dashboard navigation and panel lifecycle management.
@@ -31,8 +33,14 @@ export abstract class DashboardComponent {
      * Delegates toast feedback notifications to parent coordinator.
      */
     showStatus(message: string): void {
-        if (this.coordinator && typeof this.coordinator.showStatus === 'function') {
-            this.coordinator.showStatus(message);
+        try {
+            if (this.coordinator && typeof this.coordinator.showStatus === 'function') {
+                this.coordinator.showStatus(message);
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('DashboardComponent', `Error executing showStatus: ${errorMessage}`, { message, err });
+            // Comment: Catch notification delegation error gracefully
         }
     }
 }

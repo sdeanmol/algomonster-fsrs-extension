@@ -1,3 +1,4 @@
+import { Logger } from '@common/logger';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData } from '../../../types/domain';
 import { MS_PER_DAY, DAYS_PER_WEEK, HEATMAP_LEVEL_THRESHOLDS } from '../../common/constants';
@@ -75,10 +76,17 @@ export class HeatmapComponent extends DashboardComponent {
             }
 
             setTimeout(() => {
-                grid.scrollLeft = grid.scrollWidth;
+                try {
+                    grid.scrollLeft = grid.scrollWidth;
+                } catch (scrollErr) {
+                    const errorMessage = scrollErr instanceof Error ? scrollErr.message : String(scrollErr);
+                    Logger.error('HeatmapComponent', `Error scrolling heatmap grid: ${errorMessage}`, { scrollErr });
+                }
             }, 10);
         } catch (error) {
-            console.error("Error rendering heatmap:", error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            Logger.error('HeatmapComponent', `Error rendering heatmap: ${errorMessage}`, { lifetime, error });
+            // Comment: Non-fatal heatmap UI render catch
         }
     }
 
@@ -86,13 +94,24 @@ export class HeatmapComponent extends DashboardComponent {
      * Binds click events for lifetime view toggle interactions.
      */
     bindEvents(): void {
-        const toggleLifetimeBtn = document.getElementById('toggle-lifetime-btn');
-        if (toggleLifetimeBtn) {
-            toggleLifetimeBtn.addEventListener('click', () => {
-                this.isLifetimeView = !this.isLifetimeView;
-                toggleLifetimeBtn.innerText = this.isLifetimeView ? "Show Last 12 Weeks" : "Show Lifetime";
-                this.load(this.isLifetimeView);
-            });
+        try {
+            const toggleLifetimeBtn = document.getElementById('toggle-lifetime-btn');
+            if (toggleLifetimeBtn) {
+                toggleLifetimeBtn.addEventListener('click', () => {
+                    try {
+                        this.isLifetimeView = !this.isLifetimeView;
+                        toggleLifetimeBtn.innerText = this.isLifetimeView ? "Show Last 12 Weeks" : "Show Lifetime";
+                        this.load(this.isLifetimeView);
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('HeatmapComponent', `Error handling toggle lifetime button click: ${errorMessage}`, { err });
+                    }
+                });
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('HeatmapComponent', `Error binding heatmap events: ${errorMessage}`, { err });
+            // Comment: Non-fatal event listener binding error
         }
     }
 }

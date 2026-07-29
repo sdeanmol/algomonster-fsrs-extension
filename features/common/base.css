@@ -81,6 +81,23 @@
     --shadow-3: 0 10px 20px rgba(0, 0, 0, 0.1), 0 6px 6px rgba(0, 0, 0, 0.06);
 }
 
+/* Shared Retention & Performance Fill Utility Classes (Theme Aware) */
+.fill-good {
+    background-color: var(--md-success);
+}
+
+.fill-warning {
+    background-color: var(--md-warning);
+}
+
+.fill-danger {
+    background-color: var(--md-danger);
+}
+
+.fill-default {
+    background-color: var(--md-primary);
+}
+
 /* Global Transitions for smooth theme switching */
 body,
 .panel,

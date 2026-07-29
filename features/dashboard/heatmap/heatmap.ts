@@ -1,13 +1,15 @@
-import { HeatmapStats } from './heatmap-stats';
-import { StorageData } from '../../../types/domain';
-import { MS_PER_DAY, DAYS_PER_YEAR, HEATMAP_LEVEL_THRESHOLDS } from '../../common/constants';
-
 /**
- * @class HeatmapDashboard
+ * @file features/dashboard/heatmap/heatmap.ts
  * @description Main controller for the dedicated full-screen contribution heatmap page.
  * Manages calendar date cascades, filters (lifetime, yearly, monthly, weekly), SVG cell grids,
  * and handles click events to query historical reviews details for specific days.
  */
+
+import { Logger } from '@common/logger';
+import { HeatmapStats } from './heatmap-stats';
+import { StorageData } from '../../../types/domain';
+import { MS_PER_DAY, DAYS_PER_YEAR, HEATMAP_LEVEL_THRESHOLDS } from '../../common/constants';
+
 export class HeatmapDashboard {
     activityData: Record<string, number>;
     monthNames: string[];
@@ -21,12 +23,29 @@ export class HeatmapDashboard {
      * Initializes activity settings from storage and binds cascaded filter listeners.
      */
     init(): void {
-        chrome.storage.local.get(['fsrsActivity'], (result: StorageData) => {
-            this.activityData = result.fsrsActivity || {};
-            
-            this.setupFilters();
-            this.renderHeatmap();
-        });
+        try {
+            chrome.storage.local.get(['fsrsActivity'], (result: StorageData) => {
+                try {
+                    const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                    if (lastError) {
+                        const errorMessage = lastError.message || String(lastError);
+                        Logger.error('HeatmapDashboard', `Storage error fetching fsrsActivity: ${errorMessage}`, { error: lastError });
+                        return;
+                    }
+
+                    this.activityData = result.fsrsActivity || {};
+                    
+                    this.setupFilters();
+                    this.renderHeatmap();
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    Logger.error('HeatmapDashboard', `Error initializing heatmap dashboard: ${errorMessage}`, { innerErr });
+                }
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('HeatmapDashboard', `Failed to execute storage get in Heatmap init: ${errorMessage}`, { err });
+        }
     }
 
     /**
@@ -34,87 +53,124 @@ export class HeatmapDashboard {
      * dynamically based on years populated in activity data history.
      */
     setupFilters(): void {
-        const typeSelect = document.getElementById('filter-type') as HTMLSelectElement | null;
-        const yearSelect = document.getElementById('select-year') as HTMLSelectElement | null;
-        const monthSelect = document.getElementById('select-month') as HTMLSelectElement | null;
-        const daySelect = document.getElementById('select-day') as HTMLSelectElement | null;
+        try {
+            const typeSelect = document.getElementById('filter-type') as HTMLSelectElement | null;
+            const yearSelect = document.getElementById('select-year') as HTMLSelectElement | null;
+            const monthSelect = document.getElementById('select-month') as HTMLSelectElement | null;
+            const daySelect = document.getElementById('select-day') as HTMLSelectElement | null;
 
-        if (!typeSelect || !yearSelect || !monthSelect || !daySelect) return;
+            if (!typeSelect || !yearSelect || !monthSelect || !daySelect) return;
 
-        const today = new Date();
-        const currentYear = today.getFullYear().toString();
-        const currentMonth = (today.getMonth() + 1).toString().padStart(2, '0');
-        const currentDay = today.getDate().toString().padStart(2, '0');
+            const today = new Date();
+            const currentYear = today.getFullYear().toString();
+            const currentMonth = (today.getMonth() + 1).toString().padStart(2, '0');
+            const currentDay = today.getDate().toString().padStart(2, '0');
 
-        const years = new Set<string>([currentYear]); 
-        Object.keys(this.activityData).forEach(d => years.add(d.split('-')[0]));
-        
-        yearSelect.innerHTML = Array.from(years).sort().reverse().map(y => `<option value="${y}">${y}</option>`).join('');
-        yearSelect.value = currentYear;
+            const years = new Set<string>([currentYear]); 
+            Object.keys(this.activityData).forEach(d => years.add(d.split('-')[0]));
+            
+            yearSelect.innerHTML = Array.from(years).sort().reverse().map(y => `<option value="${y}">${y}</option>`).join('');
+            yearSelect.value = currentYear;
 
-        const updateMonthDropdown = () => {
-            const targetYear = yearSelect.value;
-            const activeMonths = new Set<string>();
-            
-            Object.keys(this.activityData).filter(d => d.startsWith(targetYear)).forEach(d => activeMonths.add(d.split('-')[1]));
-            
-            if (activeMonths.size === 0) {
-                for (let i = 1; i <= 12; i++) activeMonths.add(i.toString().padStart(2, '0'));
-            }
-            
-            monthSelect.innerHTML = Array.from(activeMonths).sort().map(m => `<option value="${m}">${this.monthNames[parseInt(m, 10) - 1]}</option>`).join('');
-            
-            if (targetYear === currentYear && activeMonths.has(currentMonth)) {
-                monthSelect.value = currentMonth;
-            } else if (monthSelect.options.length > 0) {
-                monthSelect.value = monthSelect.options[0].value;
-            }
-        };
+            const updateMonthDropdown = () => {
+                try {
+                    const targetYear = yearSelect.value;
+                    const activeMonths = new Set<string>();
+                    
+                    Object.keys(this.activityData).filter(d => d.startsWith(targetYear)).forEach(d => activeMonths.add(d.split('-')[1]));
+                    
+                    if (activeMonths.size === 0) {
+                        for (let i = 1; i <= 12; i++) activeMonths.add(i.toString().padStart(2, '0'));
+                    }
+                    
+                    monthSelect.innerHTML = Array.from(activeMonths).sort().map(m => `<option value="${m}">${this.monthNames[parseInt(m, 10) - 1]}</option>`).join('');
+                    
+                    if (targetYear === currentYear && activeMonths.has(currentMonth)) {
+                        monthSelect.value = currentMonth;
+                    } else if (monthSelect.options.length > 0) {
+                        monthSelect.value = monthSelect.options[0].value;
+                    }
+                } catch (mErr) {
+                    const errorMessage = mErr instanceof Error ? mErr.message : String(mErr);
+                    Logger.error('HeatmapDashboard', `Error updating month dropdown options: ${errorMessage}`, { mErr });
+                }
+            };
 
-        const updateDayDropdown = () => {
-            const targetYear = yearSelect.value;
-            const targetMonth = monthSelect.value;
-            const activeDays = new Set<string>();
-            
-            Object.keys(this.activityData).filter(d => d.startsWith(`${targetYear}-${targetMonth}`)).forEach(d => activeDays.add(d.split('-')[2]));
-            
-            if (activeDays.size === 0) {
-                const daysInMonth = new Date(parseInt(targetYear, 10), parseInt(targetMonth, 10), 0).getDate();
-                for (let i = 1; i <= daysInMonth; i++) activeDays.add(i.toString().padStart(2, '0'));
-            }
-            
-            daySelect.innerHTML = Array.from(activeDays).sort().map(d => `<option value="${d}">Day ${parseInt(d, 10)}</option>`).join('');
-            
-            if (targetYear === currentYear && targetMonth === currentMonth && activeDays.has(currentDay)) {
-                daySelect.value = currentDay;
-            } else if (daySelect.options.length > 0) {
-                daySelect.value = daySelect.options[0].value;
-            }
-        };
+            const updateDayDropdown = () => {
+                try {
+                    const targetYear = yearSelect.value;
+                    const targetMonth = monthSelect.value;
+                    const activeDays = new Set<string>();
+                    
+                    Object.keys(this.activityData).filter(d => d.startsWith(`${targetYear}-${targetMonth}`)).forEach(d => activeDays.add(d.split('-')[2]));
+                    
+                    if (activeDays.size === 0) {
+                        const daysInMonth = new Date(parseInt(targetYear, 10), parseInt(targetMonth, 10), 0).getDate();
+                        for (let i = 1; i <= daysInMonth; i++) activeDays.add(i.toString().padStart(2, '0'));
+                    }
+                    
+                    daySelect.innerHTML = Array.from(activeDays).sort().map(d => `<option value="${d}">Day ${parseInt(d, 10)}</option>`).join('');
+                    
+                    if (targetYear === currentYear && targetMonth === currentMonth && activeDays.has(currentDay)) {
+                        daySelect.value = currentDay;
+                    } else if (daySelect.options.length > 0) {
+                        daySelect.value = daySelect.options[0].value;
+                    }
+                } catch (dErr) {
+                    const errorMessage = dErr instanceof Error ? dErr.message : String(dErr);
+                    Logger.error('HeatmapDashboard', `Error updating day dropdown options: ${errorMessage}`, { dErr });
+                }
+            };
 
-        updateMonthDropdown();
-        updateDayDropdown();
-
-        typeSelect.addEventListener('change', () => {
-            const mode = typeSelect.value;
-            yearSelect.classList.toggle('hide-select', mode === 'lifetime');
-            monthSelect.classList.toggle('hide-select', mode !== 'month-wise' && mode !== 'day-wise');
-            daySelect.classList.toggle('hide-select', mode !== 'day-wise');
-            this.renderHeatmap();
-        });
-
-        yearSelect.addEventListener('change', () => {
             updateMonthDropdown();
             updateDayDropdown();
-            this.renderHeatmap();
-        });
 
-        monthSelect.addEventListener('change', () => {
-            updateDayDropdown();
-            this.renderHeatmap();
-        });
+            typeSelect.addEventListener('change', () => {
+                try {
+                    const mode = typeSelect.value;
+                    yearSelect.classList.toggle('hide-select', mode === 'lifetime');
+                    monthSelect.classList.toggle('hide-select', mode !== 'month-wise' && mode !== 'day-wise');
+                    daySelect.classList.toggle('hide-select', mode !== 'day-wise');
+                    this.renderHeatmap();
+                } catch (tErr) {
+                    const errorMessage = tErr instanceof Error ? tErr.message : String(tErr);
+                    Logger.error('HeatmapDashboard', `Error handling filter type change: ${errorMessage}`, { tErr });
+                }
+            });
 
-        daySelect.addEventListener('change', () => this.renderHeatmap());
+            yearSelect.addEventListener('change', () => {
+                try {
+                    updateMonthDropdown();
+                    updateDayDropdown();
+                    this.renderHeatmap();
+                } catch (yErr) {
+                    const errorMessage = yErr instanceof Error ? yErr.message : String(yErr);
+                    Logger.error('HeatmapDashboard', `Error handling year filter change: ${errorMessage}`, { yErr });
+                }
+            });
+
+            monthSelect.addEventListener('change', () => {
+                try {
+                    updateDayDropdown();
+                    this.renderHeatmap();
+                } catch (mErr) {
+                    const errorMessage = mErr instanceof Error ? mErr.message : String(mErr);
+                    Logger.error('HeatmapDashboard', `Error handling month filter change: ${errorMessage}`, { mErr });
+                }
+            });
+
+            daySelect.addEventListener('change', () => {
+                try {
+                    this.renderHeatmap();
+                } catch (dErr) {
+                    const errorMessage = dErr instanceof Error ? dErr.message : String(dErr);
+                    Logger.error('HeatmapDashboard', `Error handling day filter change: ${errorMessage}`, { dErr });
+                }
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('HeatmapDashboard', `Error setting up heatmap filters: ${errorMessage}`, { err });
+        }
     }
 
     /**
@@ -122,145 +178,177 @@ export class HeatmapDashboard {
      * and appends interactive cells with visual colors matching review activity levels.
      */
     renderHeatmap(): void {
-        const grid = document.getElementById('full-heatmap-grid');
-        const summaryText = document.getElementById('filter-summary-text');
-        if (!grid) return;
-        grid.innerHTML = '';
+        try {
+            const grid = document.getElementById('full-heatmap-grid');
+            const summaryText = document.getElementById('filter-summary-text');
+            if (!grid) return;
+            grid.innerHTML = '';
 
-        const typeSelect = document.getElementById('filter-type') as HTMLSelectElement | null;
-        const yearSelect = document.getElementById('select-year') as HTMLSelectElement | null;
-        const monthSelect = document.getElementById('select-month') as HTMLSelectElement | null;
-        const daySelect = document.getElementById('select-day') as HTMLSelectElement | null;
+            const typeSelect = document.getElementById('filter-type') as HTMLSelectElement | null;
+            const yearSelect = document.getElementById('select-year') as HTMLSelectElement | null;
+            const monthSelect = document.getElementById('select-month') as HTMLSelectElement | null;
+            const daySelect = document.getElementById('select-day') as HTMLSelectElement | null;
 
-        if (!typeSelect || !yearSelect || !monthSelect || !daySelect) return;
+            if (!typeSelect || !yearSelect || !monthSelect || !daySelect) return;
 
-        const mode = typeSelect.value;
-        const chosenYear = yearSelect.value;
-        const chosenMonth = monthSelect.value;
-        const chosenDay = daySelect.value;
+            const mode = typeSelect.value;
+            const chosenYear = yearSelect.value;
+            const chosenMonth = monthSelect.value;
+            const chosenDay = daySelect.value;
 
-        let startDate: Date;
-        let totalDays: number;
-        let totalReviewsCalculated = 0;
+            let startDate: Date;
+            let totalDays: number;
+            let totalReviewsCalculated = 0;
 
-        const y = parseInt(chosenYear, 10);
-        const m = parseInt(chosenMonth, 10) - 1; 
-        const d = parseInt(chosenDay, 10);
+            const y = parseInt(chosenYear, 10);
+            const m = parseInt(chosenMonth, 10) - 1; 
+            const d = parseInt(chosenDay, 10);
 
-        if (mode === 'lifetime') {
-            const today = new Date();
-            const activeDates = Object.keys(this.activityData).sort();
-            
-            if (activeDates.length > 0) {
-                const parts = activeDates[0].split('-');
-                const oldestDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-                oldestDate.setDate(oldestDate.getDate() - oldestDate.getDay()); 
+            if (mode === 'lifetime') {
+                const today = new Date();
+                const activeDates = Object.keys(this.activityData).sort();
                 
-                const diffTime = today.getTime() - oldestDate.getTime();
-                totalDays = Math.max(DAYS_PER_YEAR - 1, Math.floor(diffTime / MS_PER_DAY) + 1); 
-                startDate = oldestDate;
-            } else {
-                totalDays = DAYS_PER_YEAR - 1; 
-                startDate = new Date(today);
-                startDate.setDate(today.getDate() - totalDays + 1);
+                if (activeDates.length > 0) {
+                    const parts = activeDates[0].split('-');
+                    const oldestDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                    oldestDate.setDate(oldestDate.getDate() - oldestDate.getDay()); 
+                    
+                    const diffTime = today.getTime() - oldestDate.getTime();
+                    totalDays = Math.max(DAYS_PER_YEAR - 1, Math.floor(diffTime / MS_PER_DAY) + 1); 
+                    startDate = oldestDate;
+                } else {
+                    totalDays = DAYS_PER_YEAR - 1; 
+                    startDate = new Date(today);
+                    startDate.setDate(today.getDate() - totalDays + 1);
+                    startDate.setDate(startDate.getDate() - startDate.getDay()); 
+                }
+                if (summaryText) summaryText.innerText = "Showing: Full Academic History";
+            } 
+            else if (mode === 'year-wise') {
+                startDate = new Date(y, 0, 1);
                 startDate.setDate(startDate.getDate() - startDate.getDay()); 
-            }
-            if (summaryText) summaryText.innerText = "Showing: Full Academic History";
-        } 
-        else if (mode === 'year-wise') {
-            startDate = new Date(y, 0, 1);
-            startDate.setDate(startDate.getDate() - startDate.getDay()); 
-            
-            const endOfYear = new Date(y, 11, 31);
-            const diffTime = endOfYear.getTime() - startDate.getTime();
-            totalDays = Math.floor(diffTime / MS_PER_DAY) + 1;
-            if (summaryText) summaryText.innerText = `Showing: Full Year ${y}`;
-        } 
-        else if (mode === 'month-wise') {
-            startDate = new Date(y, m, 1);
-            startDate.setDate(startDate.getDate() - startDate.getDay()); 
-            
-            const lastDayOfMonth = new Date(y, m + 1, 0);
-            const diffTime = lastDayOfMonth.getTime() - startDate.getTime();
-            totalDays = Math.floor(diffTime / MS_PER_DAY) + 1;
-            if (summaryText) summaryText.innerText = `Showing: ${this.monthNames[m]} ${y}`;
-        } 
-        else {
-            startDate = new Date(y, m, d);
-            startDate.setDate(startDate.getDate() - startDate.getDay()); 
-            totalDays = 7; 
-            if (summaryText) summaryText.innerText = `Target: ${this.monthNames[m]} ${d}, ${y}`;
-        }
-
-        for (let i = 0; i < totalDays; i++) {
-            const cellDate = new Date(startDate);
-            cellDate.setDate(startDate.getDate() + i);
-            
-            const dateString = new Date(cellDate.getTime() - (cellDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            const currentYearString = cellDate.getFullYear().toString();
-            const currentMonthString = (cellDate.getMonth() + 1).toString().padStart(2, '0');
-            const currentDayString = cellDate.getDate().toString().padStart(2, '0');
-
-            const count = this.activityData[dateString] || 0;
-            
-            const cell = document.createElement('div');
-            cell.className = 'heatmap-cell';
-            cell.setAttribute('role', 'button');
-            cell.setAttribute('tabindex', '0');
-            
-            const displayDate = cellDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-            const ariaLabelText = count === 1 ? `1 review on ${displayDate}` : `${count} reviews on ${displayDate}`;
-            cell.title = ariaLabelText;
-            cell.setAttribute('aria-label', ariaLabelText);
-
-            let isOutsideFilterRange = false;
-            if (mode === 'year-wise' && currentYearString !== chosenYear) isOutsideFilterRange = true;
-            if (mode === 'month-wise' && (currentYearString !== chosenYear || currentMonthString !== chosenMonth)) isOutsideFilterRange = true;
-            if (mode === 'day-wise' && (currentYearString !== chosenYear || currentMonthString !== chosenMonth || currentDayString !== chosenDay)) isOutsideFilterRange = true;
-
-            if (isOutsideFilterRange) {
-                cell.style.opacity = "0.08"; 
-                cell.style.pointerEvents = "none";
-                cell.classList.add('level-0');
-            } else {
-                totalReviewsCalculated += count;
-                if (count === HEATMAP_LEVEL_THRESHOLDS[0]) cell.classList.add('level-0');
-                else if (count <= HEATMAP_LEVEL_THRESHOLDS[1]) cell.classList.add('level-1');
-                else if (count <= HEATMAP_LEVEL_THRESHOLDS[2]) cell.classList.add('level-2');
-                else if (count <= HEATMAP_LEVEL_THRESHOLDS[3]) cell.classList.add('level-3');
-                else cell.classList.add('level-4');
-
-                const handleCellClick = () => {
-                    chrome.tabs.create({ url: `features/common/data/data.html?view=history&date=${dateString}` });
-                };
-
-                cell.addEventListener('click', handleCellClick);
                 
-                cell.addEventListener('keydown', (e: KeyboardEvent) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleCellClick();
-                    }
-                });
+                const endOfYear = new Date(y, 11, 31);
+                const diffTime = endOfYear.getTime() - startDate.getTime();
+                totalDays = Math.floor(diffTime / MS_PER_DAY) + 1;
+                if (summaryText) summaryText.innerText = `Showing: Full Year ${y}`;
+            } 
+            else if (mode === 'month-wise') {
+                startDate = new Date(y, m, 1);
+                startDate.setDate(startDate.getDate() - startDate.getDay()); 
+                
+                const lastDayOfMonth = new Date(y, m + 1, 0);
+                const diffTime = lastDayOfMonth.getTime() - startDate.getTime();
+                totalDays = Math.floor(diffTime / MS_PER_DAY) + 1;
+                if (summaryText) summaryText.innerText = `Showing: ${this.monthNames[m]} ${y}`;
+            } 
+            else {
+                startDate = new Date(y, m, d);
+                startDate.setDate(startDate.getDate() - startDate.getDay()); 
+                totalDays = 7; 
+                if (summaryText) summaryText.innerText = `Target: ${this.monthNames[m]} ${d}, ${y}`;
             }
 
-            grid.appendChild(cell);
+            for (let i = 0; i < totalDays; i++) {
+                const cellDate = new Date(startDate);
+                cellDate.setDate(startDate.getDate() + i);
+                
+                const dateString = new Date(cellDate.getTime() - (cellDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                const currentYearString = cellDate.getFullYear().toString();
+                const currentMonthString = (cellDate.getMonth() + 1).toString().padStart(2, '0');
+                const currentDayString = cellDate.getDate().toString().padStart(2, '0');
+
+                const count = this.activityData[dateString] || 0;
+                
+                const cell = document.createElement('div');
+                cell.className = 'heatmap-cell';
+                cell.setAttribute('role', 'button');
+                cell.setAttribute('tabindex', '0');
+                
+                const displayDate = cellDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                const ariaLabelText = count === 1 ? `1 review on ${displayDate}` : `${count} reviews on ${displayDate}`;
+                cell.title = ariaLabelText;
+                cell.setAttribute('aria-label', ariaLabelText);
+
+                let isOutsideFilterRange = false;
+                if (mode === 'year-wise' && currentYearString !== chosenYear) isOutsideFilterRange = true;
+                if (mode === 'month-wise' && (currentYearString !== chosenYear || currentMonthString !== chosenMonth)) isOutsideFilterRange = true;
+                if (mode === 'day-wise' && (currentYearString !== chosenYear || currentMonthString !== chosenMonth || currentDayString !== chosenDay)) isOutsideFilterRange = true;
+
+                if (isOutsideFilterRange) {
+                    cell.style.opacity = "0.08"; 
+                    cell.style.pointerEvents = "none";
+                    cell.classList.add('level-0');
+                } else {
+                    totalReviewsCalculated += count;
+                    if (count === HEATMAP_LEVEL_THRESHOLDS[0]) cell.classList.add('level-0');
+                    else if (count <= HEATMAP_LEVEL_THRESHOLDS[1]) cell.classList.add('level-1');
+                    else if (count <= HEATMAP_LEVEL_THRESHOLDS[2]) cell.classList.add('level-2');
+                    else if (count <= HEATMAP_LEVEL_THRESHOLDS[3]) cell.classList.add('level-3');
+                    else cell.classList.add('level-4');
+
+                    const handleCellClick = () => {
+                        try {
+                            chrome.tabs.create({ url: `features/common/data/data.html?view=history&date=${dateString}` }, () => {
+                                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                                if (lastError) {
+                                    const errorMessage = lastError.message || String(lastError);
+                                    Logger.error('HeatmapDashboard', `Error creating tab on heatmap cell click: ${errorMessage}`, { dateString, error: lastError });
+                                }
+                            });
+                        } catch (tabErr) {
+                            const errorMessage = tabErr instanceof Error ? tabErr.message : String(tabErr);
+                            Logger.error('HeatmapDashboard', `Error executing handleCellClick: ${errorMessage}`, { dateString, tabErr });
+                        }
+                    };
+
+                    cell.addEventListener('click', handleCellClick);
+                    
+                    cell.addEventListener('keydown', (e: KeyboardEvent) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            try {
+                                e.preventDefault();
+                                handleCellClick();
+                            } catch (kErr) {
+                                const errorMessage = kErr instanceof Error ? kErr.message : String(kErr);
+                                Logger.error('HeatmapDashboard', `Error executing keydown cell handler: ${errorMessage}`, { kErr });
+                            }
+                        }
+                    });
+                }
+
+                grid.appendChild(cell);
+            }
+
+            if (summaryText && totalReviewsCalculated > 0) {
+                summaryText.innerText += ` (${totalReviewsCalculated} Total Reviews)`;
+            }
+
+            HeatmapStats.renderStatsDashboard(this.activityData);
+
+            setTimeout(() => {
+                try {
+                    const wrapper = document.querySelector('.heatmap-wrapper');
+                    if (wrapper && mode === 'lifetime') wrapper.scrollLeft = wrapper.scrollWidth;
+                } catch (sErr) {
+                    const errorMessage = sErr instanceof Error ? sErr.message : String(sErr);
+                    Logger.error('HeatmapDashboard', `Error scrolling heatmap wrapper: ${errorMessage}`, { sErr });
+                }
+            }, 50);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('HeatmapDashboard', `Error rendering heatmap grid: ${errorMessage}`, { err });
+            // Comment: Non-fatal heatmap render catch
         }
-
-        if (summaryText && totalReviewsCalculated > 0) {
-            summaryText.innerText += ` (${totalReviewsCalculated} Total Reviews)`;
-        }
-
-        HeatmapStats.renderStatsDashboard(this.activityData);
-
-        setTimeout(() => {
-            const wrapper = document.querySelector('.heatmap-wrapper');
-            if (wrapper && mode === 'lifetime') wrapper.scrollLeft = wrapper.scrollWidth;
-        }, 50);
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const dashboard = new HeatmapDashboard();
-    dashboard.init();
+    try {
+        const dashboard = new HeatmapDashboard();
+        dashboard.init();
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('HeatmapDashboard', `Error initializing HeatmapDashboard on DOMContentLoaded: ${errorMessage}`, { err });
+    }
 });
