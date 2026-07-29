@@ -1,7 +1,7 @@
-import { BackupManager } from './features/common/data/backupManager.js';
+import { BackupManager } from '../features/common/data/backupManager.js';
 
 // Mock global objects
-global.Logger = { time: () => {}, timeEnd: () => {}, info: () => {}, error: () => {} };
+global.Logger = { time: () => { }, timeEnd: () => { }, info: () => { }, error: () => { } };
 global.chrome = {
     storage: {
         local: {
@@ -9,7 +9,7 @@ global.chrome = {
             set: async (data) => {
                 global.chrome.storage.local._data = data;
             },
-            remove: async () => {},
+            remove: async () => { },
             _data: {}
         }
     }

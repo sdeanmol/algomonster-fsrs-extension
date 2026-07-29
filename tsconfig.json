@@ -42,6 +42,6 @@
     "coverage",
     "backup",
     "*.config.js",
-    "test_opt.js"
+    "tests/test_opt.js"
   ]
 }
