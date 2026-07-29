@@ -1,3 +1,4 @@
+import { Logger } from '@common/logger';
 import { AlgoRecallState } from './state';
 
 interface AlgoRecallGlobal {
@@ -6,9 +7,16 @@ interface AlgoRecallGlobal {
 }
 
 function getAlgoRecallGlobal(): AlgoRecallGlobal {
-    const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
-    win.AlgoRecall = win.AlgoRecall || {};
-    return win.AlgoRecall;
+    try {
+        const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
+        win.AlgoRecall = win.AlgoRecall || {};
+        return win.AlgoRecall;
+    } catch (err) {
+        // Comment: Safe recovery fallback if window global access fails
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('ContentUtils', `Failed to access window global in getAlgoRecallGlobal: ${errorMessage}`, { err });
+        return {};
+    }
 }
 
 export interface DOMMeta {
@@ -41,23 +49,35 @@ export class Utils {
      * @returns {DOMMeta} JSON meta coordinates schema.
      */
     static getDOMMeta(node: Node, offset: number): DOMMeta {
-        const parent = node.parentNode as HTMLElement;
-        const path: number[] = [];
-        let current: Node | null = parent;
-        while (current && current !== document.body && current !== document.documentElement) {
-            if (current.parentNode) {
-                const index = Array.from(current.parentNode.childNodes).indexOf(current as ChildNode);
-                path.unshift(index);
+        try {
+            const parent = node.parentNode as HTMLElement;
+            const path: number[] = [];
+            let current: Node | null = parent;
+            while (current && current !== document.body && current !== document.documentElement) {
+                if (current.parentNode) {
+                    const index = Array.from(current.parentNode.childNodes).indexOf(current as ChildNode);
+                    path.unshift(index);
+                }
+                current = current.parentNode;
             }
-            current = current.parentNode;
-        }
 
-        return {
-            parentTagName: parent ? parent.tagName.toLowerCase() : '',
-            parentIndex: parent ? Array.from(parent.childNodes).indexOf(node as ChildNode) : -1,
-            textOffset: offset,
-            parentDomPath: path
-        };
+            return {
+                parentTagName: parent ? parent.tagName.toLowerCase() : '',
+                parentIndex: parent ? Array.from(parent.childNodes).indexOf(node as ChildNode) : -1,
+                textOffset: offset,
+                parentDomPath: path
+            };
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('ContentUtils', `Error in getDOMMeta: ${errorMessage}`, { offset, err });
+            // Comment: Fallback default DOMMeta coordinates on node traversal error
+            return {
+                parentTagName: '',
+                parentIndex: -1,
+                textOffset: offset,
+                parentDomPath: []
+            };
+        }
     }
 
     /**
@@ -76,12 +96,17 @@ export class Utils {
 
             if (highlightSource.startMeta.parentDomPath && highlightSource.endMeta.parentDomPath) {
                 const resolvePath = (path: number[], childIndex: number): Node | null => {
-                    let current: Node | null = document.body;
-                    for (let i = 0; i < path.length; i++) {
-                        if (!current || !current.childNodes) return null;
-                        current = current.childNodes[path[i]] || null;
+                    try {
+                        let current: Node | null = document.body;
+                        for (let i = 0; i < path.length; i++) {
+                            if (!current || !current.childNodes) return null;
+                            current = current.childNodes[path[i]] || null;
+                        }
+                        return current ? (current.childNodes[childIndex] || null) : null;
+                    } catch {
+                        // Comment: Return null if DOM path index resolution fails
+                        return null;
                     }
-                    return current ? (current.childNodes[childIndex] || null) : null;
                 };
 
                 startNode = resolvePath(highlightSource.startMeta.parentDomPath, highlightSource.startMeta.parentIndex);
@@ -126,8 +151,7 @@ export class Utils {
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            const logger = (window as unknown as { Logger?: { error: (module: string, msg: string, data?: unknown) => void } }).Logger;
-            if (logger) logger.error('ContentUtils', `Failed to restore range from meta: ${errorMessage}`, { highlightSource, err });
+            Logger.error('ContentUtils', `Failed to restore range from meta: ${errorMessage}`, { highlightSource, err });
             // Comment: Return null so caller can drop invalid/outdated DOM mark gracefully
         }
         return null;
@@ -163,8 +187,7 @@ export class Utils {
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            const logger = (window as unknown as { Logger?: { error: (module: string, msg: string, data?: unknown) => void } }).Logger;
-            if (logger) logger.error('ContentUtils', `Failed ensuring highlight style '${colorName}': ${errorMessage}`, { color, type, err });
+            Logger.error('ContentUtils', `Failed ensuring highlight style '${colorName}': ${errorMessage}`, { color, type, err });
             // Comment: Catch style element injection failure gracefully
         }
         return colorName;
@@ -186,8 +209,7 @@ export class Utils {
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            const logger = (window as unknown as { Logger?: { warn: (module: string, msg: string, data?: unknown) => void } }).Logger;
-            if (logger) logger.warn('ContentUtils', `Error parsing auto tags from URL: ${errorMessage}`, { err });
+            Logger.warn('ContentUtils', `Error parsing auto tags from URL: ${errorMessage}`, { err });
             // Comment: Return default tag fallback on URL parsing error
         }
         return ["AlgoRecall"];
@@ -200,64 +222,77 @@ export class Utils {
      * @returns {string} Cleansed coding problem title.
      */
     static getExtractedProblemTitle(): string {
-        const url = window.location.href;
+        try {
+            const url = window.location.href;
 
-        // LeetCode Explore Cards
-        if (url.includes('leetcode.com/explore/')) {
-            const selectors = [
-                'h1', 'h2', 'h3',
-                '[class*="card-title"]',
-                '[class*="course-title"]',
-                '[class*="title-wrapper"]',
-                '.card-info-title',
-                '.title__3y75'
-            ];
-            for (const selector of selectors) {
+            // LeetCode Explore Cards
+            if (url.includes('leetcode.com/explore/')) {
+                const selectors = [
+                    'h1', 'h2', 'h3',
+                    '[class*="card-title"]',
+                    '[class*="course-title"]',
+                    '[class*="title-wrapper"]',
+                    '.card-info-title',
+                    '.title__3y75'
+                ];
+                for (const selector of selectors) {
+                    try {
+                        const el = document.querySelector(selector) as HTMLElement | null;
+                        if (el && el.innerText && el.innerText.trim().length > 0 && el.innerText.trim().length < 100) {
+                            const text = el.innerText.trim();
+                            if (!text.toLowerCase().includes('leetcode') || text.toLowerCase().includes('course') || text.toLowerCase().includes('crash')) {
+                                return text;
+                            }
+                        }
+                    } catch {
+                        // Comment: Ignore querySelector syntax errors for non-standard selectors
+                    }
+                }
+
+                // Fallback: parse URL
                 try {
-                    const el = document.querySelector(selector) as HTMLElement | null;
-                    if (el && el.innerText && el.innerText.trim().length > 0 && el.innerText.trim().length < 100) {
-                        const text = el.innerText.trim();
-                        if (!text.toLowerCase().includes('leetcode') || text.toLowerCase().includes('course') || text.toLowerCase().includes('crash')) {
-                            return text;
+                    const path = window.location.pathname;
+                    const segments = path.split('/').filter(p => p.length > 0);
+                    if (segments.length > 0) {
+                        let index = segments.length - 1;
+                        while (index >= 0 && (/^\d+$/.test(segments[index]) || segments[index] === 'card' || segments[index] === 'featured')) {
+                            index--;
+                        }
+                        if (index >= 0) {
+                            return segments[index]
+                                .split('-')
+                                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                                .join(' ');
                         }
                     }
-                } catch {
-                    // Ignore querySelector syntax errors for invalid selectors
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.warn('ContentUtils', `Error parsing title from URL: ${errorMessage}`, { url, err });
+                    // Comment: Non-fatal URL title segment parsing error
                 }
             }
 
-            // Fallback: parse URL
-            try {
-                const path = window.location.pathname;
-                const segments = path.split('/').filter(p => p.length > 0);
-                if (segments.length > 0) {
-                    let index = segments.length - 1;
-                    while (index >= 0 && (/^\d+$/.test(segments[index]) || segments[index] === 'card' || segments[index] === 'featured')) {
-                        index--;
-                    }
-                    if (index >= 0) {
-                        return segments[index]
-                            .split('-')
-                            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-                            .join(' ');
-                    }
-                }
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                const logger = (window as unknown as { Logger?: { warn: (module: string, msg: string, data?: unknown) => void } }).Logger;
-                if (logger) logger.warn('ContentUtils', `Error parsing title from URL: ${errorMessage}`, { url, err });
-            }
+            // General title fallback
+            let title = document.title || 'Untitled Problem';
+            title = title.replace(' - AlgoMonster', '');
+            title = title.replace(' - LeetCode', '');
+            title = title.replace(' - Codeforces', '');
+            title = title.replace(' - CodeChef', '');
+            title = title.replace(' - AtCoder', '');
+            return title.trim();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.warn('ContentUtils', `Error extracting problem title: ${errorMessage}`, { err });
+            // Comment: Return safe fallback title on parsing error
+            return document.title ? document.title.trim() : 'Untitled Problem';
         }
-
-        // General title fallback
-        let title = document.title;
-        title = title.replace(' - AlgoMonster', '');
-        title = title.replace(' - LeetCode', '');
-        title = title.replace(' - Codeforces', '');
-        title = title.replace(' - CodeChef', '');
-        title = title.replace(' - AtCoder', '');
-        return title.trim();
     }
 }
 
-getAlgoRecallGlobal().Utils = Utils;
+try {
+    getAlgoRecallGlobal().Utils = Utils;
+} catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    Logger.error('ContentUtils', `Failed to assign Utils on window global scope: ${errorMessage}`, { err });
+    // Comment: Non-fatal global scope registration error
+}

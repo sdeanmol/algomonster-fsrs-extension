@@ -1,3 +1,4 @@
+import { Logger } from '@common/logger';
 import { AlgoRecallState } from './state';
 import { MessageResponse } from '../types/domain';
 import { SNOOZE_DEFAULT_MINUTES } from '../features/common/constants';
@@ -14,9 +15,16 @@ interface AlgoRecallGlobal {
 }
 
 function getAlgoRecallGlobal(): AlgoRecallGlobal {
-    const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
-    win.AlgoRecall = win.AlgoRecall || {};
-    return win.AlgoRecall;
+    try {
+        const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
+        win.AlgoRecall = win.AlgoRecall || {};
+        return win.AlgoRecall;
+    } catch (err) {
+        // Comment: Safe recovery fallback if window global access fails
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('Notifier', `Failed to access window global in getAlgoRecallGlobal: ${errorMessage}`, { err });
+        return {};
+    }
 }
 
 /**
@@ -35,7 +43,6 @@ export class Notifier {
      * @param {number} [count] - Optional counter indicating total due review items.
      */
     static showPageNotification(title: string, message: string, type: string, count?: number): void {
-        const logger = (window as unknown as { Logger?: { error: (module: string, msg: string, data?: unknown) => void } }).Logger;
         try {
             // Prevent double notifications by removing the old one first
             const existing = document.getElementById('algo-custom-notification-el');
@@ -91,15 +98,32 @@ export class Notifier {
 
             // Force style recalculation for smooth transition
             requestAnimationFrame(() => {
-                notification.classList.add('show');
+                try {
+                    notification.classList.add('show');
+                } catch (animErr) {
+                    // Comment: Safe recovery in animation frame style update
+                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
+                    Logger.error('Notifier', `Error toggling notification show class: ${errorMessage}`, { animErr });
+                }
             });
 
             // Helper to dismiss
             const dismissNotification = () => {
-                notification.classList.remove('show');
-                notification.addEventListener('transitionend', () => {
-                    notification.remove();
-                }, { once: true });
+                try {
+                    notification.classList.remove('show');
+                    notification.addEventListener('transitionend', () => {
+                        try {
+                            notification.remove();
+                        } catch {
+                            // Comment: Ignore DOM removal error if element was already removed
+                        }
+                    }, { once: true });
+                } catch (dismissErr) {
+                    // Comment: Direct cleanup fallback if transition fails
+                    const errorMessage = dismissErr instanceof Error ? dismissErr.message : String(dismissErr);
+                    Logger.error('Notifier', `Error in dismissNotification helper: ${errorMessage}`, { dismissErr });
+                    try { notification.remove(); } catch { /* Ignore */ }
+                }
             };
 
             // Auto-dismiss after 6 seconds for test notifications, or keep review sticky if required
@@ -112,33 +136,49 @@ export class Notifier {
             const closeBtn = notification.querySelector('#algo-notif-btn-close');
             if (closeBtn) {
                 closeBtn.addEventListener('click', () => {
-                    if (autoDismissTimer) clearTimeout(autoDismissTimer);
-                    dismissNotification();
+                    try {
+                        if (autoDismissTimer) clearTimeout(autoDismissTimer);
+                        dismissNotification();
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('Notifier', `Error closing notification: ${errorMessage}`, { err });
+                    }
                 });
             }
 
             const dismissBtn = notification.querySelector('#algo-notif-btn-dismiss');
             if (dismissBtn) {
                 dismissBtn.addEventListener('click', () => {
-                    if (autoDismissTimer) clearTimeout(autoDismissTimer);
-                    dismissNotification();
+                    try {
+                        if (autoDismissTimer) clearTimeout(autoDismissTimer);
+                        dismissNotification();
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('Notifier', `Error dismissing notification: ${errorMessage}`, { err });
+                    }
                 });
             }
 
             const snoozeBtn = notification.querySelector('#algo-notif-btn-snooze');
             if (snoozeBtn) {
                 snoozeBtn.addEventListener('click', () => {
-                    if (autoDismissTimer) clearTimeout(autoDismissTimer);
-                    dismissNotification();
                     try {
+                        if (autoDismissTimer) clearTimeout(autoDismissTimer);
+                        dismissNotification();
                         chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: SNOOZE_DEFAULT_MINUTES }, (_response?: MessageResponse) => {
-                            if (chrome.runtime.lastError && logger) {
-                                logger.error('Notifier', 'Error sending snooze message', { error: chrome.runtime.lastError.message });
+                            try {
+                                if (chrome.runtime.lastError) {
+                                    const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                                    Logger.error('Notifier', `Error sending snooze message: ${errorMessage}`, { error: chrome.runtime.lastError });
+                                }
+                            } catch (msgErr) {
+                                const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
+                                Logger.error('Notifier', `Error handling snooze response callback: ${errorMessage}`, { msgErr });
                             }
                         });
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
-                        if (logger) logger.error('Notifier', `Context invalidation on snooze message: ${errorMessage}`, { err });
+                        Logger.error('Notifier', `Context invalidation on snooze message: ${errorMessage}`, { err });
                     }
                 });
             }
@@ -146,30 +186,41 @@ export class Notifier {
             const reviewBtn = notification.querySelector('#algo-notif-btn-review');
             if (reviewBtn) {
                 reviewBtn.addEventListener('click', () => {
-                    if (autoDismissTimer) clearTimeout(autoDismissTimer);
-                    dismissNotification();
-                    
-                    // Open/Show the scheduler container and start the review flow!
-                    const launcher = document.getElementById('algo-fsrs-launcher');
-                    const container = document.getElementById('algo-fsrs-container');
-                    
-                    if (launcher) launcher.style.display = 'none';
-                    if (container) {
-                        container.style.display = 'block';
-                        const orchestrator = getAlgoRecallGlobal().orchestrator;
-                        if (orchestrator && orchestrator.tracker) {
-                            orchestrator.tracker.refreshWidgetState();
-                            orchestrator.tracker.startReview();
+                    try {
+                        if (autoDismissTimer) clearTimeout(autoDismissTimer);
+                        dismissNotification();
+                        
+                        // Open/Show the scheduler container and start the review flow!
+                        const launcher = document.getElementById('algo-fsrs-launcher');
+                        const container = document.getElementById('algo-fsrs-container');
+                        
+                        if (launcher) launcher.style.display = 'none';
+                        if (container) {
+                            container.style.display = 'block';
+                            const orchestrator = getAlgoRecallGlobal().orchestrator;
+                            if (orchestrator && orchestrator.tracker) {
+                                orchestrator.tracker.refreshWidgetState();
+                                orchestrator.tracker.startReview();
+                            }
                         }
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('Notifier', `Error initiating review session from notification: ${errorMessage}`, { err });
                     }
                 });
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            if (logger) logger.error('Notifier', `Failed to render page notification: ${errorMessage}`, { title, type, err });
+            Logger.error('Notifier', `Failed to render page notification: ${errorMessage}`, { title, type, count, err });
             // Comment: Non-fatal page notification error, host page layout remains unaffected
         }
     }
 }
 
-getAlgoRecallGlobal().Notifier = Notifier;
+try {
+    getAlgoRecallGlobal().Notifier = Notifier;
+} catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    Logger.error('Notifier', `Failed to assign Notifier on window global scope: ${errorMessage}`, { err });
+    // Comment: Non-fatal global scope registration error
+}

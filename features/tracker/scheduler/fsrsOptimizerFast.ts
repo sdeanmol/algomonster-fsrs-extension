@@ -4,6 +4,7 @@
  */
 
 import { Card } from '../../../types/domain';
+import { Logger } from '@common/logger';
 import {
     OPTIMIZER_DEFAULT_THRESHOLD,
     OPTIMIZER_DEFAULT_EPOCHS,
@@ -70,7 +71,6 @@ export class FsrsOptimizerFast {
         targetRetention: number = DEFAULT_FSRS_REQUEST_RETENTION,
         onProgress: ((current: number, total: number) => void) | null = null
     ): Promise<number[]> {
-        const logger = (window as unknown as { Logger?: { info: (m: string, s: string, d?: unknown) => void; warn: (m: string, s: string, d?: unknown) => void; error: (m: string, s: string, d?: unknown) => void } }).Logger;
         try {
             const w = [...currentWeights];
 
@@ -85,10 +85,8 @@ export class FsrsOptimizerFast {
             });
 
             if (totalReps === 0) {
-                if (logger) {
-                    logger.warn('FSRS', 'Skipping optimization because there are 0 total reps across all cards.');
-                }
-                return w; // No data to learn from
+                Logger.warn('FSRS', 'Skipping optimization because there are 0 total reps across all cards.');
+                return w;
             }
 
             const empiricalRetention = (totalReps - totalLapses) / totalReps;
@@ -96,7 +94,7 @@ export class FsrsOptimizerFast {
             // Target retention is usually 0.90 (or specified by user). If user remembers more, increase initial stabilities.
             // If they forget more, decrease initial stabilities.
             const diff = empiricalRetention - targetRetention;
-            const adjustment = diff * this.learningRate * 10; // Simple scaling
+            const adjustment = diff * this.learningRate * 10;
 
             for (let i = 0; i < this.epochs; i++) {
                 // Simulated gradient descent step
@@ -115,13 +113,11 @@ export class FsrsOptimizerFast {
                 }
             }
             const optimizedWeights = w.map(weight => Math.round(weight * 10000) / 10000);
-            if (logger) {
-                logger.info('FSRS', `Fast Optimizer success. New weights:`, optimizedWeights);
-            }
+            Logger.info('FSRS', `Fast Optimizer success. New weights:`, optimizedWeights);
             return optimizedWeights;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            if (logger) logger.error('FSRS', `Error during fast FSRS optimization: ${errorMessage}`, { err });
+            Logger.error('FSRS', `Error during fast FSRS optimization: ${errorMessage}`, { err });
             // Comment: Re-throw error because caller expects optimizer failure to abort weight saving
             throw err;
         }

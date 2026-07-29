@@ -5,6 +5,7 @@
  * and updates review card approach files or fallback draft directories.
  */
 import { Markdown } from '@common/markdown';
+import { Logger } from '@common/logger';
 import { Card, StorageData } from '../../../types/domain';
 
 interface DraftEntry {
@@ -40,33 +41,38 @@ class EditorManager {
      * Initializes parameters and binds element events.
      */
     init(): void {
-        // 1. Parse URL Parameter
-        const params = new URLSearchParams(window.location.search);
-        this.problemUrl = params.get('url') || '';
-        this.cardId = params.get('cardId') || '';
-        this.cleanUrl = this.problemUrl.split('?')[0].split('#')[0];
+        try {
+            // 1. Parse URL Parameter
+            const params = new URLSearchParams(window.location.search);
+            this.problemUrl = params.get('url') || '';
+            this.cardId = params.get('cardId') || '';
+            this.cleanUrl = this.problemUrl.split('?')[0].split('#')[0];
 
-        const titleEl = document.getElementById('problem-title');
-        const statusEl = document.getElementById('save-status');
+            const titleEl = document.getElementById('problem-title');
+            const statusEl = document.getElementById('save-status');
 
-        if (!this.problemUrl) {
-            if (titleEl) titleEl.textContent = "Error: No URL provided";
-            if (statusEl) statusEl.textContent = "Failed to load";
-            return;
+            if (!this.problemUrl) {
+                if (titleEl) titleEl.textContent = "Error: No URL provided";
+                if (statusEl) statusEl.textContent = "Failed to load";
+                return;
+            }
+
+            // 2. Load Content
+            this.loadContent();
+
+            // 3. Register Event Listeners
+            this.bindEvents();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('EditorManager', `Failed to initialize EditorManager: ${errorMessage}`, { err });
+            // Comment: Non-fatal initialization error recovery
         }
-
-        // 2. Load Content
-        this.loadContent();
-
-        // 3. Register Event Listeners
-        this.bindEvents();
     }
 
     /**
      * Retrieves current FSRS cards, drafts, and bookmarks to fill editor textfields.
      */
     loadContent(): void {
-        const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
         try {
             chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: StorageData & { bookmarks?: BookmarkEntry[]; approachDrafts?: Record<string, DraftEntry | string> }) => {
                 try {
@@ -124,12 +130,12 @@ class EditorManager {
                     }
                 } catch (innerErr) {
                     const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    if (logger) logger.error('Editor', `Error populating editor content: ${errorMessage}`, { innerErr });
+                    Logger.error('Editor', `Error populating editor content: ${errorMessage}`, { innerErr });
                 }
             });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            if (logger) logger.error('Editor', `Failed to load storage in Editor loadContent: ${errorMessage}`, { err });
+            Logger.error('Editor', `Failed to load storage in Editor loadContent: ${errorMessage}`, { err });
         }
     }
 
@@ -221,49 +227,61 @@ class EditorManager {
      * Saves current text field content as card approach data or fallback drafts.
      */
     saveContent(callback?: () => void): void {
-        const text = (document.getElementById('editor-textarea') as HTMLTextAreaElement)?.value || '';
-        const tc = (document.getElementById('time-complexity-input') as HTMLInputElement)?.value.trim() || '';
-        const sc = (document.getElementById('space-complexity-input') as HTMLInputElement)?.value.trim() || '';
-        
-        chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
-            if (this.isCardExisting) {
-                const cards: Card[] = result.fsrsCards || [];
-                let index = -1;
-                if (this.cardId) {
-                    index = cards.findIndex((c: Card) => c.id === this.cardId);
-                }
-                if (index === -1 && this.cleanUrl) {
-                    index = cards.findIndex((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
-                }
-                if (index > -1) {
-                    cards[index].approach = text;
-                    cards[index].timeComplexity = tc;
-                    cards[index].spaceComplexity = sc;
-                    chrome.storage.local.set({ fsrsCards: cards }, () => {
-                        if (callback) callback();
-                    });
-                } else {
+        try {
+            const text = (document.getElementById('editor-textarea') as HTMLTextAreaElement)?.value || '';
+            const tc = (document.getElementById('time-complexity-input') as HTMLInputElement)?.value.trim() || '';
+            const sc = (document.getElementById('space-complexity-input') as HTMLInputElement)?.value.trim() || '';
+            
+            chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
+                try {
+                    if (this.isCardExisting) {
+                        const cards: Card[] = result.fsrsCards || [];
+                        let index = -1;
+                        if (this.cardId) {
+                            index = cards.findIndex((c: Card) => c.id === this.cardId);
+                        }
+                        if (index === -1 && this.cleanUrl) {
+                            index = cards.findIndex((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
+                        }
+                        if (index > -1) {
+                            cards[index].approach = text;
+                            cards[index].timeComplexity = tc;
+                            cards[index].spaceComplexity = sc;
+                            chrome.storage.local.set({ fsrsCards: cards }, () => {
+                                if (callback) callback();
+                            });
+                        } else {
+                            if (callback) callback();
+                        }
+                    } else {
+                        const drafts: Record<string, DraftEntry> = result.approachDrafts || {};
+                        const existingDraft = drafts[this.cleanUrl];
+                        if (existingDraft && typeof existingDraft === 'object') {
+                            existingDraft.approach = text;
+                            existingDraft.timeComplexity = tc;
+                            existingDraft.spaceComplexity = sc;
+                        } else {
+                            drafts[this.cleanUrl] = {
+                                approach: text,
+                                timeComplexity: tc,
+                                spaceComplexity: sc
+                            };
+                        }
+                        chrome.storage.local.set({ approachDrafts: drafts }, () => {
+                            if (callback) callback();
+                        });
+                    }
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    Logger.error('EditorManager', `Error writing saveContent payload to storage: ${errorMessage}`, { innerErr });
                     if (callback) callback();
                 }
-            } else {
-                const drafts: Record<string, DraftEntry> = result.approachDrafts || {};
-                const existingDraft = drafts[this.cleanUrl];
-                if (existingDraft && typeof existingDraft === 'object') {
-                    existingDraft.approach = text;
-                    existingDraft.timeComplexity = tc;
-                    existingDraft.spaceComplexity = sc;
-                } else {
-                    drafts[this.cleanUrl] = {
-                        approach: text,
-                        timeComplexity: tc,
-                        spaceComplexity: sc
-                    };
-                }
-                chrome.storage.local.set({ approachDrafts: drafts }, () => {
-                    if (callback) callback();
-                });
-            }
-        });
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('EditorManager', `Failed to execute saveContent: ${errorMessage}`, { err });
+            if (callback) callback();
+        }
     }
 
     /**
@@ -282,17 +300,27 @@ class EditorManager {
      * Renders status feedback messages using temporary toasts.
      */
     showToast(message: string): void {
-        const toast = document.getElementById('status-toast');
-        if (!toast) return;
-        toast.textContent = message;
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2000);
+        try {
+            const toast = document.getElementById('status-toast');
+            if (!toast) return;
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        } catch {
+            // Comment: Ignore toast DOM display errors
+        }
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const editor = new EditorManager();
-    editor.init();
+    try {
+        const editor = new EditorManager();
+        editor.init();
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('EditorManager', `DOMContentLoaded initialization failed: ${errorMessage}`, { err });
+        // Comment: Catch top-level DOM entrypoint failure
+    }
 });

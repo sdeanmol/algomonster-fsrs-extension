@@ -17,6 +17,7 @@ import {
     GRADUATED_STABILITY_THRESHOLD
 } from '../../common/constants';
 import AbstractScheduler from './scheduler';
+import { Logger } from '@common/logger';
 
 interface AppLogger {
     debug(category: string, message: string, data?: unknown): void;
@@ -24,11 +25,8 @@ interface AppLogger {
     error(category: string, message: string, data?: unknown): void;
 }
 
-function getLogger(): AppLogger | undefined {
-    if (typeof window !== 'undefined') {
-        return (window as unknown as { Logger?: AppLogger }).Logger;
-    }
-    return undefined;
+function getLogger(): AppLogger {
+    return Logger;
 }
 
 export class FsrsScheduler extends AbstractScheduler {

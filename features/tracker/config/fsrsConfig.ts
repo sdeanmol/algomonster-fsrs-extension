@@ -8,6 +8,7 @@
 import FsrsOptimizer from '../scheduler/fsrsOptimizer';
 import FsrsOptimizerFast from '../scheduler/fsrsOptimizerFast';
 import { Card, FSRSParameters, StorageData } from '../../../types/domain';
+import { Logger } from '@common/logger';
 
 export interface WeightHelpDetail {
     title: string;
@@ -131,65 +132,77 @@ export class FSRSConfigManager {
      * Initializes elements and binds click listeners.
      */
     init(): void {
-        this.loadFSRSConfig();
-        this.bindEvents();
+        try {
+            this.loadFSRSConfig();
+            this.bindEvents();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Failed to initialize FSRSConfigManager: ${errorMessage}`, { err });
+            // Comment: Catch top-level init failure gracefully
+        }
     }
 
     /**
      * Registers control listeners for UI inputs.
      */
     bindEvents(): void {
-        const backBtn = document.getElementById('back-to-popup-btn');
-        if (backBtn) {
-            backBtn.addEventListener('click', () => {
-                window.close();
-            });
-        }
+        try {
+            const backBtn = document.getElementById('back-to-popup-btn');
+            if (backBtn) {
+                backBtn.addEventListener('click', () => {
+                    window.close();
+                });
+            }
 
-        const slider = document.getElementById('retention-slider') as HTMLInputElement | null;
-        const badge = document.getElementById('retention-val');
-        if (slider && badge) {
-            slider.addEventListener('input', (e: Event) => {
-                const target = e.target as HTMLInputElement;
-                badge.textContent = `${Math.round(parseFloat(target.value) * 100)}%`;
-            });
-        }
+            const slider = document.getElementById('retention-slider') as HTMLInputElement | null;
+            const badge = document.getElementById('retention-val');
+            if (slider && badge) {
+                slider.addEventListener('input', (e: Event) => {
+                    const target = e.target as HTMLInputElement;
+                    badge.textContent = `${Math.round(parseFloat(target.value) * 100)}%`;
+                });
+            }
 
-        const saveGlobalBtn = document.getElementById('save-global-btn');
-        if (saveGlobalBtn) saveGlobalBtn.addEventListener('click', () => this.saveGlobalConfig());
+            const saveGlobalBtn = document.getElementById('save-global-btn');
+            if (saveGlobalBtn) saveGlobalBtn.addEventListener('click', () => this.saveGlobalConfig());
 
-        const resetGlobalBtn = document.getElementById('reset-global-btn');
-        if (resetGlobalBtn) resetGlobalBtn.addEventListener('click', () => this.restoreGlobalParameters());
+            const resetGlobalBtn = document.getElementById('reset-global-btn');
+            if (resetGlobalBtn) resetGlobalBtn.addEventListener('click', () => this.restoreGlobalParameters());
 
-        const resetOptBtn = document.getElementById('reset-opt-btn');
-        if (resetOptBtn) resetOptBtn.addEventListener('click', () => this.resetOptimization());
+            const resetOptBtn = document.getElementById('reset-opt-btn');
+            if (resetOptBtn) resetOptBtn.addEventListener('click', () => this.resetOptimization());
 
-        const resetWeightsBtn = document.getElementById('reset-weights-btn');
-        if (resetWeightsBtn) resetWeightsBtn.addEventListener('click', () => this.restoreWeights());
+            const resetWeightsBtn = document.getElementById('reset-weights-btn');
+            if (resetWeightsBtn) resetWeightsBtn.addEventListener('click', () => this.restoreWeights());
 
-        const resetAllBtn = document.getElementById('reset-all-btn');
-        if (resetAllBtn) resetAllBtn.addEventListener('click', () => this.restoreDefaults());
+            const resetAllBtn = document.getElementById('reset-all-btn');
+            if (resetAllBtn) resetAllBtn.addEventListener('click', () => this.restoreDefaults());
 
-        const addTagProfileBtn = document.getElementById('add-tag-profile-btn');
-        if (addTagProfileBtn) addTagProfileBtn.addEventListener('click', () => this.handleAddTagProfile());
+            const addTagProfileBtn = document.getElementById('add-tag-profile-btn');
+            if (addTagProfileBtn) addTagProfileBtn.addEventListener('click', () => this.handleAddTagProfile());
 
-        const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
-        if (thresholdInput) {
-            thresholdInput.addEventListener('change', () => {
-                const display = document.getElementById('opt-threshold-display');
-                if (display) display.textContent = thresholdInput.value;
-                this.checkOptimizationEligibility();
-            });
-        }
+            const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
+            if (thresholdInput) {
+                thresholdInput.addEventListener('change', () => {
+                    const display = document.getElementById('opt-threshold-display');
+                    if (display) display.textContent = thresholdInput.value;
+                    this.checkOptimizationEligibility();
+                });
+            }
 
-        const autoTrainBtn = document.getElementById('btn-auto-train');
-        if (autoTrainBtn) {
-            autoTrainBtn.addEventListener('click', () => this.handleAutoTrain());
-        }
+            const autoTrainBtn = document.getElementById('btn-auto-train');
+            if (autoTrainBtn) {
+                autoTrainBtn.addEventListener('click', () => this.handleAutoTrain());
+            }
 
-        const exportBtn = document.getElementById('btn-export-weights');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => this.handleExportWeights());
+            const exportBtn = document.getElementById('btn-export-weights');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => this.handleExportWeights());
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Failed to bind UI events: ${errorMessage}`, { err });
+            // Comment: Catch DOM event listener attachment errors
         }
     }
 
@@ -197,40 +210,46 @@ export class FSRSConfigManager {
      * Checks history to see if enough reviews exist to unlock optimization.
      */
     async checkOptimizationEligibility(): Promise<void> {
-        const result: { fsrsCards?: Card[] } = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
-        const historyArray = result.fsrsCards || [];
+        try {
+            const result: { fsrsCards?: Card[] } = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
+            const historyArray = result.fsrsCards || [];
 
-        const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
-        const threshold = parseInt(thresholdInput ? thresholdInput.value : '1000', 10) || 1000;
+            const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
+            const threshold = parseInt(thresholdInput ? thresholdInput.value : '1000', 10) || 1000;
 
-        const thresholdWarning = document.getElementById('opt-threshold-warning');
-        if (thresholdWarning) {
-            thresholdWarning.style.display = threshold < 1000 ? 'flex' : 'none';
-        }
-
-        const eligibility = this.computeEligibility(historyArray, threshold);
-
-        const progressFill = document.getElementById('opt-progress-fill');
-        const progressText = document.getElementById('opt-progress-text');
-        const statusMsg = document.getElementById('opt-status-msg');
-        const actionsSection = document.getElementById('opt-actions-section');
-
-        const percentage = Math.min(100, Math.round((eligibility.count / threshold) * 100));
-        if (progressFill) progressFill.style.width = `${percentage}%`;
-        if (progressText) progressText.textContent = `${eligibility.count} / ${threshold} Reviews`;
-
-        if (statusMsg && progressFill && actionsSection) {
-            if (eligibility.eligible) {
-                progressFill.style.backgroundColor = 'var(--md-primary)';
-                statusMsg.textContent = `Eligible! You have enough history to train personalized weights.`;
-                statusMsg.style.color = 'var(--md-primary)';
-                actionsSection.style.display = 'flex';
-            } else {
-                progressFill.style.backgroundColor = 'var(--md-primary-container)';
-                statusMsg.textContent = `Keep reviewing to unlock personalized optimization.`;
-                statusMsg.style.color = 'var(--md-text-low)';
-                actionsSection.style.display = 'none';
+            const thresholdWarning = document.getElementById('opt-threshold-warning');
+            if (thresholdWarning) {
+                thresholdWarning.style.display = threshold < 1000 ? 'flex' : 'none';
             }
+
+            const eligibility = this.computeEligibility(historyArray, threshold);
+
+            const progressFill = document.getElementById('opt-progress-fill');
+            const progressText = document.getElementById('opt-progress-text');
+            const statusMsg = document.getElementById('opt-status-msg');
+            const actionsSection = document.getElementById('opt-actions-section');
+
+            const percentage = Math.min(100, Math.round((eligibility.count / threshold) * 100));
+            if (progressFill) progressFill.style.width = `${percentage}%`;
+            if (progressText) progressText.textContent = `${eligibility.count} / ${threshold} Reviews`;
+
+            if (statusMsg && progressFill && actionsSection) {
+                if (eligibility.eligible) {
+                    progressFill.style.backgroundColor = 'var(--md-primary)';
+                    statusMsg.textContent = `Eligible! You have enough history to train personalized weights.`;
+                    statusMsg.style.color = 'var(--md-primary)';
+                    actionsSection.style.display = 'flex';
+                } else {
+                    progressFill.style.backgroundColor = 'var(--md-primary-container)';
+                    statusMsg.textContent = `Keep reviewing to unlock personalized optimization.`;
+                    statusMsg.style.color = 'var(--md-text-low)';
+                    actionsSection.style.display = 'none';
+                }
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Error checking optimization eligibility: ${errorMessage}`, { err });
+            // Comment: Non-fatal optimization check error
         }
     }
 
@@ -270,7 +289,7 @@ export class FSRSConfigManager {
 
             let optimizedWeights: number[];
             const onProgress = (current: number, total: number) => {
-                console.log(`[FSRS] Progress callback fired: ${current}/${total}`);
+                Logger.debug('FSRS', `Progress callback fired: ${current}/${total}`, { current, total });
             };
 
             try {
@@ -278,8 +297,7 @@ export class FSRSConfigManager {
                 optimizedWeights = await optimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress);
             } catch (wasmError) {
                 const wasmErrMsg = wasmError instanceof Error ? wasmError.message : String(wasmError);
-                const logger = (window as unknown as { Logger?: { warn: (m: string, s: string, d?: unknown) => void } }).Logger;
-                if (logger) logger.warn("FSRS", `WASM Optimizer failed (${wasmErrMsg}). Falling back to Fast JS Optimizer.`, { wasmError });
+                Logger.warn("FSRS", `WASM Optimizer failed (${wasmErrMsg}). Falling back to Fast JS Optimizer.`, { wasmError });
                 // Comment: Fallback gracefully to fast optimizer when WASM dynamic loading fails
                 const fastOptimizer = new FsrsOptimizerFast();
                 optimizedWeights = await fastOptimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress);
@@ -303,8 +321,7 @@ export class FSRSConfigManager {
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
-            if (logger) logger.error("FSRS", `Optimization failed: ${errorMessage}`, { err });
+            Logger.error("FSRS", `Optimization failed: ${errorMessage}`, { err });
             this.showToast("Optimization failed. See console.", true);
             statusMsg.textContent = "Optimization failed.";
             statusMsg.style.color = 'var(--md-error)';
@@ -317,96 +334,120 @@ export class FSRSConfigManager {
     }
 
     handleExportWeights(): void {
-        const weights: number[] = [];
-        for (let i = 0; i < 17; i++) {
-            const input = document.getElementById(`weight-input-${i}`) as HTMLInputElement | null;
-            weights.push(input ? parseFloat(input.value) : this.defaultWeights[i]);
-        }
+        try {
+            const weights: number[] = [];
+            for (let i = 0; i < 17; i++) {
+                const input = document.getElementById(`weight-input-${i}`) as HTMLInputElement | null;
+                weights.push(input ? parseFloat(input.value) : this.defaultWeights[i]);
+            }
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(weights));
-        const anchor = document.createElement('a');
-        anchor.setAttribute("href", dataStr);
-        anchor.setAttribute("download", "fsrs_weights_export.json");
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(weights));
+            const anchor = document.createElement('a');
+            anchor.setAttribute("href", dataStr);
+            anchor.setAttribute("download", "fsrs_weights_export.json");
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Failed to export weights: ${errorMessage}`, { err });
+            // Comment: Catch export failure gracefully
+        }
     }
 
     /**
      * Loads current settings from local storage and initiates rendering of panels.
      */
     loadFSRSConfig(): void {
-        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
-        chrome.storage.local.get(['fsrsGlobalParams', 'fsrsTopicWeights'], (result: { fsrsGlobalParams?: FSRSParameters; fsrsTopicWeights?: Record<string, number[]> }) => {
-            const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
-            const weights: number[] = params.w || [...this.defaultWeights];
-            const decay: number = params.decay !== undefined ? params.decay : this.defaultDecay;
-            const factor: number = params.factor !== undefined ? params.factor : this.defaultFactor;
-            const retention: number = params.requestRetention !== undefined ? params.requestRetention : this.defaultRetention;
+        try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+            chrome.storage.local.get(['fsrsGlobalParams', 'fsrsTopicWeights'], (result: { fsrsGlobalParams?: FSRSParameters; fsrsTopicWeights?: Record<string, number[]> }) => {
+                try {
+                    const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
+                    const weights: number[] = params.w || [...this.defaultWeights];
+                    const decay: number = params.decay !== undefined ? params.decay : this.defaultDecay;
+                    const factor: number = params.factor !== undefined ? params.factor : this.defaultFactor;
+                    const retention: number = params.requestRetention !== undefined ? params.requestRetention : this.defaultRetention;
 
-            const slider = document.getElementById('retention-slider') as HTMLInputElement | null;
-            const badge = document.getElementById('retention-val');
-            const decayInput = document.getElementById('decay-input') as HTMLInputElement | null;
-            const factorInput = document.getElementById('factor-input') as HTMLInputElement | null;
+                    const slider = document.getElementById('retention-slider') as HTMLInputElement | null;
+                    const badge = document.getElementById('retention-val');
+                    const decayInput = document.getElementById('decay-input') as HTMLInputElement | null;
+                    const factorInput = document.getElementById('factor-input') as HTMLInputElement | null;
 
-            if (slider) slider.value = retention.toString();
-            if (badge) badge.textContent = `${Math.round(retention * 100)}%`;
-            if (decayInput) decayInput.value = decay.toString();
-            if (factorInput) factorInput.value = factor.toString();
+                    if (slider) slider.value = retention.toString();
+                    if (badge) badge.textContent = `${Math.round(retention * 100)}%`;
+                    if (decayInput) decayInput.value = decay.toString();
+                    if (factorInput) factorInput.value = factor.toString();
 
-            this.injectWeightsInputs(weights);
-            this.renderTagProfiles(result.fsrsTopicWeights || {});
-            this.checkOptimizationEligibility();
-        });
+                    this.injectWeightsInputs(weights);
+                    this.renderTagProfiles(result.fsrsTopicWeights || {});
+                    this.checkOptimizationEligibility();
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    Logger.error('FSRSConfig', `Error parsing loaded FSRS config: ${errorMessage}`, { innerErr });
+                    // Comment: Non-fatal FSRS config panel rendering error
+                }
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Failed to load FSRS config from storage: ${errorMessage}`, { err });
+            // Comment: Catch storage retrieval failure gracefully
+        }
     }
 
     /**
      * Dynamically builds HTML number input fields for the 17 mathematical w-weights.
      */
     injectWeightsInputs(weightsArray: number[]): void {
-        const container = document.getElementById('weights-inputs-container');
-        if (!container) return;
-        container.innerHTML = '';
+        try {
+            const container = document.getElementById('weights-inputs-container');
+            if (!container) return;
+            container.innerHTML = '';
 
-        for (let i = 0; i < 17; i++) {
-            const val = weightsArray[i] !== undefined ? weightsArray[i] : this.defaultWeights[i];
-            const detail = this.weightsHelpDetails[i] || {
-                title: `Weight w${i}`,
-                purpose: this.weightsHelp[i] || `Coefficient w${i}`,
-                significance: "Scales memory stability update."
-            };
-            const div = document.createElement('div');
-            div.className = 'weight-input-container';
-            div.innerHTML = `
-                <div class="weight-label-wrapper">
-                    <span class="weight-index">w${i}</span>
-                    <div class="weight-info-trigger-wrapper" tabindex="0" aria-label="Information for w${i}">
-                        <svg class="svg-icon weight-info-trigger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="16" x2="12"></line>
-                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                        </svg>
-                        <div class="weight-tooltip" role="tooltip">
-                            <div class="weight-tooltip-header">
-                                <span class="weight-tooltip-badge">w${i}</span>
-                                <span class="weight-tooltip-title">${detail.title}</span>
-                            </div>
-                            <div class="weight-tooltip-body">
-                                <div class="weight-tooltip-section">
-                                    <span class="weight-tooltip-label">🎯 Purpose</span>
-                                    <p class="weight-tooltip-text">${detail.purpose}</p>
+            for (let i = 0; i < 17; i++) {
+                const val = weightsArray[i] !== undefined ? weightsArray[i] : this.defaultWeights[i];
+                const detail = this.weightsHelpDetails[i] || {
+                    title: `Weight w${i}`,
+                    purpose: this.weightsHelp[i] || `Coefficient w${i}`,
+                    significance: "Scales memory stability update."
+                };
+                const div = document.createElement('div');
+                div.className = 'weight-input-container';
+                div.innerHTML = `
+                    <div class="weight-label-wrapper">
+                        <span class="weight-index">w${i}</span>
+                        <div class="weight-info-trigger-wrapper" tabindex="0" aria-label="Information for w${i}">
+                            <svg class="svg-icon weight-info-trigger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            <div class="weight-tooltip" role="tooltip">
+                                <div class="weight-tooltip-header">
+                                    <span class="weight-tooltip-badge">w${i}</span>
+                                    <span class="weight-tooltip-title">${detail.title}</span>
                                 </div>
-                                <div class="weight-tooltip-section">
-                                    <span class="weight-tooltip-label">💡 Significance</span>
-                                    <p class="weight-tooltip-text">${detail.significance}</p>
+                                <div class="weight-tooltip-body">
+                                    <div class="weight-tooltip-section">
+                                        <span class="weight-tooltip-label">🎯 Purpose</span>
+                                        <p class="weight-tooltip-text">${detail.purpose}</p>
+                                    </div>
+                                    <div class="weight-tooltip-section">
+                                        <span class="weight-tooltip-label">💡 Significance</span>
+                                        <p class="weight-tooltip-text">${detail.significance}</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <input type="number" step="0.01" class="weight-num-input" id="weight-input-${i}" value="${val}">
-            `;
-            container.appendChild(div);
+                    <input type="number" step="0.01" class="weight-num-input" id="weight-input-${i}" value="${val}">
+                `;
+                container.appendChild(div);
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Failed to inject weight inputs: ${errorMessage}`, { err });
+            // Comment: Catch DOM generation error gracefully
         }
     }
 
@@ -414,103 +455,123 @@ export class FSRSConfigManager {
      * Checks if there's enough history to optimize.
      */
     computeEligibility(history: Card[], threshold: number = 1000): EligibilityResult {
-        if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
+        try {
+            if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
 
-        let reviewCount = 0;
-        const uniqueCards = new Set<string>();
+            let reviewCount = 0;
+            const uniqueCards = new Set<string>();
 
-        history.forEach(card => {
-            if (card.historyLog && card.historyLog.length > 1) {
-                reviewCount += (card.historyLog.length - 1);
-                uniqueCards.add(card.id);
-            }
-        });
+            history.forEach(card => {
+                if (card.historyLog && card.historyLog.length > 1) {
+                    reviewCount += (card.historyLog.length - 1);
+                    uniqueCards.add(card.id);
+                }
+            });
 
-        return {
-            eligible: reviewCount >= threshold,
-            count: reviewCount,
-            uniqueCards: uniqueCards.size,
-            threshold
-        };
+            return {
+                eligible: reviewCount >= threshold,
+                count: reviewCount,
+                uniqueCards: uniqueCards.size,
+                threshold
+            };
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Error computing eligibility: ${errorMessage}`, { err });
+            // Comment: Return safe ineligible fallback on error
+            return { eligible: false, count: 0, threshold };
+        }
     }
 
     /**
      * Renders lists of active custom topic/tag FSRS weights overrides.
      */
     renderTagProfiles(topicWeights: { [tag: string]: number[] }): void {
-        const list = document.getElementById('active-tag-profiles-list');
-        if (!list) return;
-        list.innerHTML = '';
+        try {
+            const list = document.getElementById('active-tag-profiles-list');
+            if (!list) return;
+            list.innerHTML = '';
 
-        if (Object.keys(topicWeights).length === 0) {
-            list.innerHTML = `<li style="justify-content: center; color: var(--md-text-low); font-style: italic;">No custom profiles saved yet.</li>`;
-            return;
-        }
+            if (Object.keys(topicWeights).length === 0) {
+                list.innerHTML = `<li style="justify-content: center; color: var(--md-text-low); font-style: italic;">No custom profiles saved yet.</li>`;
+                return;
+            }
 
-        for (const [tag, weights] of Object.entries(topicWeights)) {
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <div class="profile-details">
-                    <div>
-                        <span class="profile-tag-badge">${tag}</span>
+            for (const [tag, weights] of Object.entries(topicWeights)) {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div class="profile-details">
+                        <div>
+                            <span class="profile-tag-badge">${tag}</span>
+                        </div>
+                        <span class="profile-weights-text">w: [${weights.join(', ')}]</span>
                     </div>
-                    <span class="profile-weights-text">w: [${weights.join(', ')}]</span>
-                </div>
-                <button class="delete-profile-btn" data-tag="${tag}" title="Delete this tag weights profile" aria-label="Delete this tag weights profile">
-                    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                </button>
-            `;
-            list.appendChild(li);
-        }
+                    <button class="delete-profile-btn" data-tag="${tag}" title="Delete this tag weights profile" aria-label="Delete this tag weights profile">
+                        <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                `;
+                list.appendChild(li);
+            }
 
-        list.querySelectorAll('.delete-profile-btn').forEach(btn => {
-            btn.addEventListener('click', (e: Event) => {
-                const button = e.currentTarget as HTMLElement;
-                const tag = button.getAttribute('data-tag');
-                if (tag) this.handleDeleteTagProfile(tag);
+            list.querySelectorAll('.delete-profile-btn').forEach(btn => {
+                btn.addEventListener('click', (e: Event) => {
+                    const button = e.currentTarget as HTMLElement;
+                    const tag = button.getAttribute('data-tag');
+                    if (tag) this.handleDeleteTagProfile(tag);
+                });
             });
-        });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Failed to render tag profiles: ${errorMessage}`, { err });
+            // Comment: Catch DOM tag profile list rendering error
+        }
     }
 
     /**
      * Validates and saves global FSRS configuration parameters back to storage.
      */
     saveGlobalConfig(): void {
-        const slider = document.getElementById('retention-slider') as HTMLInputElement | null;
-        const decayInput = document.getElementById('decay-input') as HTMLInputElement | null;
-        const factorInput = document.getElementById('factor-input') as HTMLInputElement | null;
+        try {
+            const slider = document.getElementById('retention-slider') as HTMLInputElement | null;
+            const decayInput = document.getElementById('decay-input') as HTMLInputElement | null;
+            const factorInput = document.getElementById('factor-input') as HTMLInputElement | null;
 
-        const retention = slider ? parseFloat(slider.value) : this.defaultRetention;
-        const decay = decayInput ? parseFloat(decayInput.value) : this.defaultDecay;
-        const factor = factorInput ? parseFloat(factorInput.value) : this.defaultFactor;
+            const retention = slider ? parseFloat(slider.value) : this.defaultRetention;
+            const decay = decayInput ? parseFloat(decayInput.value) : this.defaultDecay;
+            const factor = factorInput ? parseFloat(factorInput.value) : this.defaultFactor;
 
-        if (isNaN(decay) || isNaN(factor)) {
-            this.showToast("Decay and Factor must be valid numbers.", true);
-            return;
-        }
-
-        const weights: number[] = [];
-        for (let i = 0; i < 17; i++) {
-            const input = document.getElementById(`weight-input-${i}`) as HTMLInputElement | null;
-            const val = input ? parseFloat(input.value) : NaN;
-            if (isNaN(val)) {
-                this.showToast(`w${i} must be a valid number.`, true);
+            if (isNaN(decay) || isNaN(factor)) {
+                this.showToast("Decay and Factor must be valid numbers.", true);
                 return;
             }
-            weights.push(val);
-        }
 
-        const newParams: FSRSParameters = {
-            w: weights,
-            decay,
-            factor,
-            requestRetention: retention
-        };
+            const weights: number[] = [];
+            for (let i = 0; i < 17; i++) {
+                const input = document.getElementById(`weight-input-${i}`) as HTMLInputElement | null;
+                const val = input ? parseFloat(input.value) : NaN;
+                if (isNaN(val)) {
+                    this.showToast(`w${i} must be a valid number.`, true);
+                    return;
+                }
+                weights.push(val);
+            }
 
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
-                this.showToast("FSRS global configurations saved!");
-            });
+            const newParams: FSRSParameters = {
+                w: weights,
+                decay,
+                factor,
+                requestRetention: retention
+            };
+
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
+                    this.showToast("FSRS global configurations saved!");
+                });
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Failed to save global config: ${errorMessage}`, { err });
+            // Comment: Recover gracefully by informing user via toast message
+            this.showToast("Failed to save global config.", true);
         }
     }
 
@@ -518,27 +579,33 @@ export class FSRSConfigManager {
      * Restores all global parameters to algorithmic baseline defaults.
      */
     restoreDefaults(): void {
-        if (confirm("Restore ALL parameters, optimization status, and coefficients to standard default values?")) {
-            const newParams: FSRSParameters = {
-                w: [...this.defaultWeights],
-                decay: this.defaultDecay,
-                factor: this.defaultFactor,
-                requestRetention: this.defaultRetention
-            };
+        try {
+            if (confirm("Restore ALL parameters, optimization status, and coefficients to standard default values?")) {
+                const newParams: FSRSParameters = {
+                    w: [...this.defaultWeights],
+                    decay: this.defaultDecay,
+                    factor: this.defaultFactor,
+                    requestRetention: this.defaultRetention
+                };
 
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
-                    const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
-                    if (thresholdInput) {
-                        thresholdInput.value = '1000';
-                        const display = document.getElementById('opt-threshold-display');
-                        if (display) display.textContent = '1000';
-                    }
+                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                    chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
+                        const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
+                        if (thresholdInput) {
+                            thresholdInput.value = '1000';
+                            const display = document.getElementById('opt-threshold-display');
+                            if (display) display.textContent = '1000';
+                        }
 
-                    this.loadFSRSConfig();
-                    this.showToast("Restored all FSRS defaults.");
-                });
+                        this.loadFSRSConfig();
+                        this.showToast("Restored all FSRS defaults.");
+                    });
+                }
             }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Error restoring defaults: ${errorMessage}`, { err });
+            // Comment: Catch default restoration error gracefully
         }
     }
 
@@ -546,19 +613,25 @@ export class FSRSConfigManager {
      * Restores only the global parameters (retention, decay, factor).
      */
     restoreGlobalParameters(): void {
-        if (confirm("Reset Global Parameters to standard defaults?")) {
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
-                    const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
-                    params.requestRetention = this.defaultRetention;
-                    params.decay = this.defaultDecay;
-                    params.factor = this.defaultFactor;
-                    chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
-                        this.loadFSRSConfig();
-                        this.showToast("Global parameters reset.");
+        try {
+            if (confirm("Reset Global Parameters to standard defaults?")) {
+                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                    chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
+                        const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
+                        params.requestRetention = this.defaultRetention;
+                        params.decay = this.defaultDecay;
+                        params.factor = this.defaultFactor;
+                        chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
+                            this.loadFSRSConfig();
+                            this.showToast("Global parameters reset.");
+                        });
                     });
-                });
+                }
             }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Error restoring global parameters: ${errorMessage}`, { err });
+            // Comment: Non-fatal error during global parameters reset
         }
     }
 
@@ -566,16 +639,22 @@ export class FSRSConfigManager {
      * Resets optimization status (removes personalized tag and timestamp).
      */
     resetOptimization(): void {
-        if (confirm("Reset Personal Memory Optimization status?")) {
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: StorageData['fsrsGlobalParams'] }) => {
-                    const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
-                    chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
-                        this.loadFSRSConfig();
-                        this.showToast("Optimization status reset.");
+        try {
+            if (confirm("Reset Personal Memory Optimization status?")) {
+                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                    chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: StorageData['fsrsGlobalParams'] }) => {
+                        const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
+                        chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
+                            this.loadFSRSConfig();
+                            this.showToast("Optimization status reset.");
+                        });
                     });
-                });
+                }
             }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Error resetting optimization: ${errorMessage}`, { err });
+            // Comment: Non-fatal error resetting optimization status
         }
     }
 
@@ -583,17 +662,23 @@ export class FSRSConfigManager {
      * Restores only the FSRS coefficients (w0-w16).
      */
     restoreWeights(): void {
-        if (confirm("Reset FSRS Coefficients to default weights?")) {
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
-                    const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
-                    params.w = [...this.defaultWeights];
-                    chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
-                        this.loadFSRSConfig();
-                        this.showToast("FSRS coefficients reset.");
+        try {
+            if (confirm("Reset FSRS Coefficients to default weights?")) {
+                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                    chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
+                        const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
+                        params.w = [...this.defaultWeights];
+                        chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
+                            this.loadFSRSConfig();
+                            this.showToast("FSRS coefficients reset.");
+                        });
                     });
-                });
+                }
             }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Error restoring weights: ${errorMessage}`, { err });
+            // Comment: Catch weights restoration failure gracefully
         }
     }
 
@@ -601,37 +686,43 @@ export class FSRSConfigManager {
      * Validates inputs and binds a new 17-coefficient custom profile to a specific tag filter.
      */
     handleAddTagProfile(): void {
-        const tagInput = document.getElementById('new-tag-name') as HTMLInputElement | null;
-        const weightsInput = document.getElementById('new-tag-weights') as HTMLInputElement | null;
+        try {
+            const tagInput = document.getElementById('new-tag-name') as HTMLInputElement | null;
+            const weightsInput = document.getElementById('new-tag-weights') as HTMLInputElement | null;
 
-        if (!tagInput || !weightsInput) return;
+            if (!tagInput || !weightsInput) return;
 
-        const tag = tagInput.value.trim();
-        const weightsStr = weightsInput.value.trim();
+            const tag = tagInput.value.trim();
+            const weightsStr = weightsInput.value.trim();
 
-        if (!tag || !weightsStr) {
-            this.showToast("Tag name and weights values are required.", true);
-            return;
-        }
+            if (!tag || !weightsStr) {
+                this.showToast("Tag name and weights values are required.", true);
+                return;
+            }
 
-        const weightsArray = weightsStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
-        if (weightsArray.length !== 17) {
-            this.showToast(`Weights must contain exactly 17 coefficients. Found ${weightsArray.length}.`, true);
-            return;
-        }
+            const weightsArray = weightsStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+            if (weightsArray.length !== 17) {
+                this.showToast(`Weights must contain exactly 17 coefficients. Found ${weightsArray.length}.`, true);
+                return;
+            }
 
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.get(['fsrsTopicWeights'], (result: { fsrsTopicWeights?: Record<string, number[]> }) => {
-                const topicWeights = result.fsrsTopicWeights || {};
-                topicWeights[tag] = weightsArray;
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.get(['fsrsTopicWeights'], (result: { fsrsTopicWeights?: Record<string, number[]> }) => {
+                    const topicWeights = result.fsrsTopicWeights || {};
+                    topicWeights[tag] = weightsArray;
 
-                chrome.storage.local.set({ fsrsTopicWeights: topicWeights }, () => {
-                    tagInput.value = '';
-                    weightsInput.value = '';
-                    this.loadFSRSConfig();
-                    this.showToast(`Custom profile saved for tag: ${tag}`);
+                    chrome.storage.local.set({ fsrsTopicWeights: topicWeights }, () => {
+                        tagInput.value = '';
+                        weightsInput.value = '';
+                        this.loadFSRSConfig();
+                        this.showToast(`Custom profile saved for tag: ${tag}`);
+                    });
                 });
-            });
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Failed to add tag profile: ${errorMessage}`, { err });
+            // Comment: Non-fatal error adding custom tag profile
         }
     }
 
@@ -639,16 +730,22 @@ export class FSRSConfigManager {
      * Deletes custom tag profile bindings from database storage.
      */
     handleDeleteTagProfile(tag: string): void {
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.get(['fsrsTopicWeights'], (result: { fsrsTopicWeights?: Record<string, number[]> }) => {
-                const topicWeights = result.fsrsTopicWeights || {};
-                delete topicWeights[tag];
+        try {
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.get(['fsrsTopicWeights'], (result: { fsrsTopicWeights?: Record<string, number[]> }) => {
+                    const topicWeights = result.fsrsTopicWeights || {};
+                    delete topicWeights[tag];
 
-                chrome.storage.local.set({ fsrsTopicWeights: topicWeights }, () => {
-                    this.loadFSRSConfig();
-                    this.showToast(`Deleted FSRS profile for tag: ${tag}`);
+                    chrome.storage.local.set({ fsrsTopicWeights: topicWeights }, () => {
+                        this.loadFSRSConfig();
+                        this.showToast(`Deleted FSRS profile for tag: ${tag}`);
+                    });
                 });
-            });
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Error deleting tag profile for '${tag}': ${errorMessage}`, { tag, err });
+            // Comment: Catch profile deletion failure gracefully
         }
     }
 
@@ -656,19 +753,29 @@ export class FSRSConfigManager {
      * Triggers a status toast element.
      */
     showToast(msg: string, isError: boolean = false): void {
-        const toast = document.getElementById('status-toast');
-        if (!toast) return;
-        toast.textContent = msg;
-        toast.className = 'toast show ' + (isError ? 'error' : 'success');
-        setTimeout(() => {
-            toast.className = 'toast';
-        }, 2500);
+        try {
+            const toast = document.getElementById('status-toast');
+            if (!toast) return;
+            toast.textContent = msg;
+            toast.className = 'toast show ' + (isError ? 'error' : 'success');
+            setTimeout(() => {
+                toast.className = 'toast';
+            }, 2500);
+        } catch {
+            // Comment: Ignore toast DOM display errors
+        }
     }
 }
 
 if (typeof document !== 'undefined') {
     document.addEventListener('DOMContentLoaded', () => {
-        const configManager = new FSRSConfigManager();
-        configManager.init();
+        try {
+            const configManager = new FSRSConfigManager();
+            configManager.init();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `DOMContentLoaded initialization failed: ${errorMessage}`, { err });
+            // Comment: Catch top-level DOM entrypoint failure
+        }
     });
 }

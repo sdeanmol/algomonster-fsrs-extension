@@ -7,6 +7,7 @@ import { initOptimizer } from '@open-spaced-repetition/binding/dynamic-wasi';
 import { Rating } from 'ts-fsrs';
 import { Card, ReviewLog } from '../../../types/domain';
 import { MS_PER_DAY, OPTIMIZER_DEFAULT_THRESHOLD, OPTIMIZER_MAX_TRAINING_CARDS, DEFAULT_FSRS_REQUEST_RETENTION } from '../../common/constants';
+import { Logger } from '@common/logger';
 
 interface WasmBinding {
     FSRSBindingReview: new (rating: number, deltaT: number) => unknown;
@@ -125,26 +126,18 @@ export class FsrsOptimizer {
                 }
             });
 
-            const logger = (window as unknown as { Logger?: { info: (m: string, s: string, d?: unknown) => void; warn: (m: string, s: string, d?: unknown) => void; error: (m: string, s: string, d?: unknown) => void } }).Logger;
-
             if (trainSet.length === 0) {
-                if (logger) {
-                    logger.warn('FSRS', 'Skipping WASM optimization because trainSet is empty (requires cards with deltaT > 0).');
-                }
+                Logger.warn('FSRS', 'Skipping WASM optimization because trainSet is empty (requires cards with deltaT > 0).');
                 return currentWeights;
             }
 
             // Cap the trainSet to a maximum limit to prevent WASM OOM or extreme timeouts
             if (trainSet.length > OPTIMIZER_MAX_TRAINING_CARDS) {
-                if (logger) {
-                    logger.info('FSRS', `Limiting train set from ${trainSet.length} to ${OPTIMIZER_MAX_TRAINING_CARDS} cards for stability.`);
-                }
+                Logger.info('FSRS', `Limiting train set from ${trainSet.length} to ${OPTIMIZER_MAX_TRAINING_CARDS} cards for stability.`);
                 trainSet = trainSet.slice(0, OPTIMIZER_MAX_TRAINING_CARDS);
             }
 
-            if (logger) {
-                logger.info('FSRS', `Training WASM optimizer on ${trainSet.length} cards...`);
-            }
+            Logger.info('FSRS', `Training WASM optimizer on ${trainSet.length} cards...`);
 
             const optimizedWeights = await binding.computeParameters(trainSet, {
                 enableShortTerm: false,
@@ -154,14 +147,11 @@ export class FsrsOptimizer {
                 }
             });
 
-            if (logger) {
-                logger.info('FSRS', 'WASM Optimizer success. New weights:', optimizedWeights);
-            }
+            Logger.info('FSRS', 'WASM Optimizer success. New weights:', optimizedWeights);
             return optimizedWeights;
         } catch (e) {
             const errorMessage = e instanceof Error ? e.message : String(e);
-            const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
-            if (logger) logger.error('FSRS', `WASM training failed: ${errorMessage}`, { error: e });
+            Logger.error('FSRS', `WASM training failed: ${errorMessage}`, { error: e });
             // Comment: Re-throw error so caller can trigger fallback fast optimizer
             throw e;
         }
