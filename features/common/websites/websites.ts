@@ -443,15 +443,23 @@ export class WhitelistedWebsitesManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initWebsitesManager(): void {
     try {
         const manager = new WhitelistedWebsitesManager();
         manager.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('WhitelistedWebsites', `Error instantiating WhitelistedWebsitesManager on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('WhitelistedWebsites', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWebsitesManager);
+    } else {
+        initWebsitesManager();
+    }
+}
 
 export default WhitelistedWebsitesManager;
 

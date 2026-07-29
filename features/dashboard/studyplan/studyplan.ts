@@ -445,12 +445,20 @@ export class StudyPlanController {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initStudyPlan(): void {
     try {
         const controller = new StudyPlanController();
         controller.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('StudyPlan', `Error instantiating StudyPlanController on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('StudyPlan', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initStudyPlan);
+    } else {
+        initStudyPlan();
+    }
+}

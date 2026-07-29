@@ -4,6 +4,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING, DUE_CARDS_THRESHOLD_WARNING } from '@common/constants';
 import { DataUtils, SummaryStats } from './utils/dataUtils';
 import { OverviewTab } from './overview/overview';
 import { MemoryTab } from './memory/memory';
@@ -168,15 +169,57 @@ class AnalyticsDashboardSPA {
             const dueElem = document.getElementById('global-kpi-due');
             const readinessElem = document.getElementById('global-kpi-readiness');
 
+            const pillRetention = document.getElementById('global-kpi-pill-retention');
+            const pillDue = document.getElementById('global-kpi-pill-due');
+            const pillReadiness = document.getElementById('global-kpi-pill-readiness');
+
             const dueCount = stats.dueToday !== undefined ? stats.dueToday : (stats.due || 0);
 
             if (cardsElem) cardsElem.textContent = String(stats.totalCards || 0);
-            if (retentionElem) retentionElem.textContent = `${stats.trueRetention || 0}%`;
-            if (dueElem) dueElem.textContent = String(dueCount);
 
+            // 1. Retention Rate KPI Pill
+            const retentionVal = stats.trueRetention !== undefined && stats.trueRetention > 0 ? stats.trueRetention : (stats.retention || 0);
+            if (retentionElem) retentionElem.textContent = `${retentionVal}%`;
+            if (pillRetention) {
+                pillRetention.classList.remove('success', 'warning', 'danger');
+                if (retentionVal >= RECALL_THRESHOLD_GOOD) {
+                    pillRetention.classList.add('success');
+                } else if (retentionVal >= RECALL_THRESHOLD_WARNING) {
+                    pillRetention.classList.add('warning');
+                } else {
+                    pillRetention.classList.add('danger');
+                }
+            }
+
+            // 2. Due Today Count KPI Pill
+            if (dueElem) dueElem.textContent = String(dueCount);
+            if (pillDue) {
+                pillDue.classList.remove('success', 'warning', 'danger');
+                if (dueCount === 0) {
+                    pillDue.classList.add('success');
+                } else if (dueCount <= DUE_CARDS_THRESHOLD_WARNING) {
+                    pillDue.classList.add('warning');
+                } else {
+                    pillDue.classList.add('danger');
+                }
+            }
+
+            // 3. Exam Recall / Overall Expected Recall KPI Pill
             if (readinessElem) {
                 const readinessData = this.dataUtils.getExamReadinessStats(12);
-                readinessElem.textContent = `${readinessData.overallRecall || 0}%`;
+                const recallVal = readinessData.overallRecall || 0;
+                readinessElem.textContent = `${recallVal}%`;
+
+                if (pillReadiness) {
+                    pillReadiness.classList.remove('success', 'warning', 'danger');
+                    if (recallVal >= RECALL_THRESHOLD_GOOD) {
+                        pillReadiness.classList.add('success');
+                    } else if (recallVal >= RECALL_THRESHOLD_WARNING) {
+                        pillReadiness.classList.add('warning');
+                    } else {
+                        pillReadiness.classList.add('danger');
+                    }
+                }
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);

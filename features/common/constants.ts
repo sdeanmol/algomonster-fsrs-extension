@@ -25,6 +25,13 @@ export const HIGH_DIFFICULTY_THRESHOLD = 7;
 export const GRADUATED_STABILITY_THRESHOLD = 7;
 export const RECOVERED_STABILITY_THRESHOLD = 14;
 
+// Recall & Retention Performance Thresholds (%)
+export const RECALL_THRESHOLD_GOOD = 90;
+export const RECALL_THRESHOLD_WARNING = 75;
+
+// Due Cards Thresholds
+export const DUE_CARDS_THRESHOLD_WARNING = 20;
+
 // Optimizer Defaults
 export const OPTIMIZER_DEFAULT_THRESHOLD = 1000;
 export const OPTIMIZER_MAX_TRAINING_CARDS = 2500;

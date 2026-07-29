@@ -314,13 +314,20 @@ class EditorManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initEditor(): void {
     try {
         const editor = new EditorManager();
         editor.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('EditorManager', `DOMContentLoaded initialization failed: ${errorMessage}`, { err });
-        // Comment: Catch top-level DOM entrypoint failure
+        Logger.error('EditorManager', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initEditor);
+    } else {
+        initEditor();
+    }
+}

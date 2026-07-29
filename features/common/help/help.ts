@@ -176,12 +176,20 @@ class HelpCenterSPA {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initHelpCenter(): void {
     try {
         const helpCenter = new HelpCenterSPA();
         helpCenter.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('HelpCenter', `Error instantiating HelpCenterSPA on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('HelpCenter', `Error instantiating HelpCenterSPA: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initHelpCenter);
+    } else {
+        initHelpCenter();
+    }
+}

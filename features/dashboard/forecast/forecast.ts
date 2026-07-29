@@ -348,12 +348,20 @@ export class ForecastDashboard {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initForecast(): void {
     try {
         const forecast = new ForecastDashboard();
         forecast.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('ForecastDashboard', `Error initializing ForecastDashboard on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('ForecastDashboard', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initForecast);
+    } else {
+        initForecast();
+    }
+}

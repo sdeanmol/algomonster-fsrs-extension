@@ -343,12 +343,20 @@ export class HeatmapDashboard {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initHeatmap(): void {
     try {
         const dashboard = new HeatmapDashboard();
         dashboard.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('HeatmapDashboard', `Error initializing HeatmapDashboard on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('HeatmapDashboard', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initHeatmap);
+    } else {
+        initHeatmap();
+    }
+}

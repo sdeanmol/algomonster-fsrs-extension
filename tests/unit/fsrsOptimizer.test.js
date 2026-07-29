@@ -1,23 +1,24 @@
-jest.mock('@open-spaced-repetition/binding/dynamic-wasi', () => {
-    const mockBinding = {
-        computeParameters: jest.fn(),
-        FSRSBindingReview: class {
-            constructor(rating, delta_t) {
-                this.rating = rating;
-                this.delta_t = delta_t;
-            }
-        },
-        FSRSBindingItem: class {
-            constructor(reviews) {
-                this.reviews = reviews;
-            }
+const mockBinding = {
+    computeParameters: jest.fn(),
+    FSRSBindingReview: class {
+        constructor(rating, delta_t) {
+            this.rating = rating;
+            this.delta_t = delta_t;
         }
-    };
-    global.__mockBinding = mockBinding;
-    return {
-        initOptimizer: jest.fn().mockResolvedValue(mockBinding)
-    };
-});
+    },
+    FSRSBindingItem: class {
+        constructor(reviews) {
+            this.reviews = reviews;
+        }
+    }
+};
+
+jest.mock('@open-spaced-repetition/binding', () => mockBinding);
+jest.mock('@open-spaced-repetition/binding/dynamic-wasi', () => ({
+    initOptimizer: jest.fn().mockImplementation(() => Promise.resolve(mockBinding))
+}));
+
+global.__mockBinding = mockBinding;
 
 const fs = require('fs');
 const path = require('path');
@@ -30,7 +31,7 @@ const jsCode = ts.transpileModule(optimizerCode, {
 
 const safeCode = jsCode
     .replace(/import\.meta\.url/g, "'http://localhost'")
-    .replace(/require\((['"])\.\.\/\.\.\/common\/constants\1\)/g, 'require("../../features/common/constants")');
+    .replace(/require\((['"])(?:\.\/)?\.\.\/\.\.\/common\/constants\1\)/g, 'require("../../features/common/constants")');
 
 const mockModule = { exports: {} };
 (function(module, exports, require) {
@@ -48,9 +49,7 @@ describe('FsrsOptimizer (WASM)', () => {
 
     beforeEach(async () => {
         jest.clearAllMocks();
-        const { initOptimizer } = require('@open-spaced-repetition/binding/dynamic-wasi');
-        initOptimizer.mockResolvedValue(global.__mockBinding);
-        global.__mockBinding.computeParameters.mockResolvedValue([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7]);
+        mockBinding.computeParameters.mockResolvedValue([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7]);
     });
 
     describe('trainWeights', () => {
@@ -68,7 +67,7 @@ describe('FsrsOptimizer (WASM)', () => {
             const newWeights = await optimizer.trainWeights(history, defaultWeights, 0.90);
             
             expect(newWeights).toEqual(defaultWeights);
-            expect(global.__mockBinding.computeParameters).not.toHaveBeenCalled();
+            expect(mockBinding.computeParameters).not.toHaveBeenCalled();
         });
 
         it('should call WASM computeParameters with mapped logs when valid intervals exist', async () => {
@@ -84,10 +83,10 @@ describe('FsrsOptimizer (WASM)', () => {
 
             const newWeights = await optimizer.trainWeights(history, defaultWeights, 0.90);
 
-            expect(global.__mockBinding.computeParameters).toHaveBeenCalled();
+            expect(mockBinding.computeParameters).toHaveBeenCalled();
             
             // Check args passed to computeParameters
-            const callArgs = global.__mockBinding.computeParameters.mock.calls[0];
+            const callArgs = mockBinding.computeParameters.mock.calls[0];
             const trainSet = callArgs[0];
             const options = callArgs[1];
             
@@ -116,14 +115,14 @@ describe('FsrsOptimizer (WASM)', () => {
 
             await optimizer.trainWeights(history, defaultWeights, 0.90);
             
-            const callArgs = global.__mockBinding.computeParameters.mock.calls[0];
+            const callArgs = mockBinding.computeParameters.mock.calls[0];
             const trainSet = callArgs[0];
             
             expect(trainSet).toHaveLength(2500); // Should be capped
         });
 
         it('should bubble up errors from WASM computeParameters when training fails', async () => {
-            global.__mockBinding.computeParameters.mockRejectedValueOnce(new Error('WASM Panic: Invalid Dataset'));
+            mockBinding.computeParameters.mockRejectedValueOnce(new Error('WASM Panic: Invalid Dataset'));
             
             const history = [
                 {

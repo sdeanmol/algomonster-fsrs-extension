@@ -5,6 +5,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { DataUtils } from '../utils/dataUtils';
 
 export class ReadinessTab {
@@ -111,7 +112,7 @@ export class ReadinessTab {
                         <div class="readiness-metric-card">
                             <span class="metric-title">Overall Expected Recall</span>
                             <div class="metric-val-wrap">
-                                <span class="metric-value ${stats.overallRecall >= 90 ? 'text-success' : (stats.overallRecall >= 75 ? 'text-warning' : 'text-danger')}">
+                                <span class="metric-value ${stats.overallRecall >= RECALL_THRESHOLD_GOOD ? 'text-success' : (stats.overallRecall >= RECALL_THRESHOLD_WARNING ? 'text-warning' : 'text-danger')}">
                                     ${stats.overallRecall}%
                                 </span>
                             </div>

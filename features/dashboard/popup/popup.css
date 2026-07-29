@@ -342,14 +342,34 @@ body {
     font-weight: 700;
 }
 
+.stat-box.success .stat-value {
+    color: var(--md-success);
+    text-shadow: 0 2px 4px rgba(129, 201, 149, 0.2);
+}
+.stat-box.success {
+    background: linear-gradient(135deg, var(--md-surface-variant), rgba(129, 201, 149, 0.08));
+    border-color: rgba(129, 201, 149, 0.2);
+}
+
+.stat-box.warning .stat-value {
+    color: var(--md-warning);
+    text-shadow: 0 2px 4px rgba(253, 226, 147, 0.2);
+}
+.stat-box.warning {
+    background: linear-gradient(135deg, var(--md-surface-variant), rgba(253, 226, 147, 0.08));
+    border-color: rgba(253, 226, 147, 0.2);
+}
+
+.stat-box.danger .stat-value,
 .stat-box.urgent .stat-value {
     color: var(--md-danger);
     text-shadow: 0 2px 4px rgba(242, 139, 130, 0.2);
 }
 
+.stat-box.danger,
 .stat-box.urgent {
-    background: linear-gradient(135deg, var(--md-surface-variant), rgba(242, 139, 130, 0.05));
-    border-color: rgba(242, 139, 130, 0.15);
+    background: linear-gradient(135deg, var(--md-surface-variant), rgba(242, 139, 130, 0.08));
+    border-color: rgba(242, 139, 130, 0.2);
 }
 
 /* Search Compact */

@@ -16,6 +16,8 @@ export interface FSRSParameters {
     decay: number;
     factor: number;
     requestRetention: number;
+    version?: string;
+    timestamp?: number;
 }
 
 /**

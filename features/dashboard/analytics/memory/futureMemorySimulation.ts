@@ -5,6 +5,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { DataUtils } from '../utils/dataUtils';
 
 export class FutureMemorySimulation {
@@ -54,11 +55,11 @@ export class FutureMemorySimulation {
                                 <span class="step-badge badge-today">Current</span>
                             </div>
                             <div class="step-value-wrap">
-                                <span class="step-value text-success">${data.today}%</span>
+                                <span class="step-value ${data.today >= RECALL_THRESHOLD_GOOD ? 'text-success' : (data.today >= RECALL_THRESHOLD_WARNING ? 'text-warning' : 'text-danger')}">${data.today}%</span>
                                 <span class="step-sub">Retention</span>
                             </div>
                             <div class="step-bar-bg">
-                                <div class="step-bar-fill fill-success" style="width: ${data.today}%;"></div>
+                                <div class="step-bar-fill ${data.today >= RECALL_THRESHOLD_GOOD ? 'fill-success' : (data.today >= RECALL_THRESHOLD_WARNING ? 'fill-warning' : 'fill-danger')}" style="width: ${data.today}%;"></div>
                             </div>
                         </div>
 
@@ -68,11 +69,11 @@ export class FutureMemorySimulation {
                                 <span class="step-badge badge-30d">+30d</span>
                             </div>
                             <div class="step-value-wrap">
-                                <span class="step-value ${data.d30 >= 75 ? 'text-success' : (data.d30 >= 50 ? 'text-warning' : 'text-danger')}">${data.d30}%</span>
+                                <span class="step-value ${data.d30 >= RECALL_THRESHOLD_GOOD ? 'text-success' : (data.d30 >= RECALL_THRESHOLD_WARNING ? 'text-warning' : 'text-danger')}">${data.d30}%</span>
                                 <span class="step-sub">Retention</span>
                             </div>
                             <div class="step-bar-bg">
-                                <div class="step-bar-fill ${data.d30 >= 75 ? 'fill-success' : (data.d30 >= 50 ? 'fill-warning' : 'fill-danger')}" style="width: ${data.d30}%;"></div>
+                                <div class="step-bar-fill ${data.d30 >= RECALL_THRESHOLD_GOOD ? 'fill-success' : (data.d30 >= RECALL_THRESHOLD_WARNING ? 'fill-warning' : 'fill-danger')}" style="width: ${data.d30}%;"></div>
                             </div>
                         </div>
 
@@ -82,11 +83,11 @@ export class FutureMemorySimulation {
                                 <span class="step-badge badge-90d">+90d</span>
                             </div>
                             <div class="step-value-wrap">
-                                <span class="step-value ${data.d90 >= 50 ? 'text-warning' : 'text-danger'}">${data.d90}%</span>
+                                <span class="step-value ${data.d90 >= RECALL_THRESHOLD_GOOD ? 'text-success' : (data.d90 >= RECALL_THRESHOLD_WARNING ? 'text-warning' : 'text-danger')}">${data.d90}%</span>
                                 <span class="step-sub">Retention</span>
                             </div>
                             <div class="step-bar-bg">
-                                <div class="step-bar-fill ${data.d90 >= 50 ? 'fill-warning' : 'fill-danger'}" style="width: ${data.d90}%;"></div>
+                                <div class="step-bar-fill ${data.d90 >= RECALL_THRESHOLD_GOOD ? 'fill-success' : (data.d90 >= RECALL_THRESHOLD_WARNING ? 'fill-warning' : 'fill-danger')}" style="width: ${data.d90}%;"></div>
                             </div>
                         </div>
 
@@ -96,11 +97,11 @@ export class FutureMemorySimulation {
                                 <span class="step-badge badge-180d">+180d</span>
                             </div>
                             <div class="step-value-wrap">
-                                <span class="step-value text-danger">${data.d180}%</span>
+                                <span class="step-value ${data.d180 >= RECALL_THRESHOLD_GOOD ? 'text-success' : (data.d180 >= RECALL_THRESHOLD_WARNING ? 'text-warning' : 'text-danger')}">${data.d180}%</span>
                                 <span class="step-sub">Retention</span>
                             </div>
                             <div class="step-bar-bg">
-                                <div class="step-bar-fill fill-danger" style="width: ${data.d180}%;"></div>
+                                <div class="step-bar-fill ${data.d180 >= RECALL_THRESHOLD_GOOD ? 'fill-success' : (data.d180 >= RECALL_THRESHOLD_WARNING ? 'fill-warning' : 'fill-danger')}" style="width: ${data.d180}%;"></div>
                             </div>
                         </div>
                     </div>
@@ -118,7 +119,7 @@ export class FutureMemorySimulation {
                         <div class="sim-output-row">
                             <div class="sim-stat-pill">
                                 <span class="stat-lbl">Projected Retention</span>
-                                <span class="stat-val ${data.custom.retention >= 75 ? 'text-success' : (data.custom.retention >= 50 ? 'text-warning' : 'text-danger')}">${data.custom.retention}%</span>
+                                <span class="stat-val ${data.custom.retention >= RECALL_THRESHOLD_GOOD ? 'text-success' : (data.custom.retention >= RECALL_THRESHOLD_WARNING ? 'text-warning' : 'text-danger')}">${data.custom.retention}%</span>
                             </div>
                             <div class="sim-stat-pill">
                                 <span class="stat-lbl">Patterns at High Risk (&lt;70%)</span>

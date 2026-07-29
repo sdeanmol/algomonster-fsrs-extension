@@ -780,12 +780,20 @@ export class AlgoRecallDashboard {
 }
 
 // Instantiate and initialize coordinator on DOM load
-document.addEventListener('DOMContentLoaded', () => {
+function initPopupDashboard(): void {
     try {
         const dashboard = new AlgoRecallDashboard();
         dashboard.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('Popup', `Error instantiating AlgoRecallDashboard on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('Popup', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPopupDashboard);
+    } else {
+        initPopupDashboard();
+    }
+}

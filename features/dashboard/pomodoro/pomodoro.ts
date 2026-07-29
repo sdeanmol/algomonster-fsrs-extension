@@ -590,13 +590,21 @@ export class PomodoroTimer {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initPomodoro(): void {
     try {
         const win = window as unknown as { pomodoro?: PomodoroTimer };
         win.pomodoro = new PomodoroTimer();
         win.pomodoro.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('PomodoroTimer', `Error instantiating PomodoroTimer on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('PomodoroTimer', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPomodoro);
+    } else {
+        initPomodoro();
+    }
+}

@@ -6,7 +6,7 @@
 import { Logger } from '@common/logger';
 import { getLastReviewDate } from '../../../common/utils/cardUtils';
 import { Card, ReviewLog } from '../../../../types/domain';
-import { MS_PER_DAY, MS_PER_WEEK, RECOVERED_STABILITY_THRESHOLD, GRADUATED_STABILITY_THRESHOLD } from '../../../common/constants';
+import { MS_PER_DAY, MS_PER_WEEK, RECOVERED_STABILITY_THRESHOLD, GRADUATED_STABILITY_THRESHOLD, RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '../../../common/constants';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
 export interface SummaryStats {
@@ -600,11 +600,11 @@ export class DataUtils {
                 let status = 'Ready';
                 let statusClass = 'ready-high';
                 
-                if (expectedRecall < 75) {
+                if (expectedRecall < RECALL_THRESHOLD_WARNING) {
                     status = 'At Risk';
                     statusClass = 'ready-critical';
                     atRiskCount++;
-                } else if (expectedRecall < 90) {
+                } else if (expectedRecall < RECALL_THRESHOLD_GOOD) {
                     status = 'Moderate';
                     statusClass = 'ready-medium';
                 }

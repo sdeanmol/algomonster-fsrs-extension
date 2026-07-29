@@ -148,17 +148,23 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-.kpi-pill.warning {
-    background: rgba(242, 139, 130, 0.08);
-    border-color: rgba(242, 139, 130, 0.2);
-}
-.kpi-pill.warning .kpi-val { color: var(--md-danger); }
-
 .kpi-pill.success {
-    background: rgba(129, 201, 149, 0.08);
-    border-color: rgba(129, 201, 149, 0.2);
+    background: rgba(129, 201, 149, 0.12);
+    border-color: rgba(129, 201, 149, 0.3);
 }
 .kpi-pill.success .kpi-val { color: var(--md-success); }
+
+.kpi-pill.warning {
+    background: rgba(253, 226, 147, 0.12);
+    border-color: rgba(253, 226, 147, 0.3);
+}
+.kpi-pill.warning .kpi-val { color: var(--md-warning); }
+
+.kpi-pill.danger {
+    background: rgba(242, 139, 130, 0.12);
+    border-color: rgba(242, 139, 130, 0.3);
+}
+.kpi-pill.danger .kpi-val { color: var(--md-danger); }
 
 .kpi-val {
     font-size: 14px;

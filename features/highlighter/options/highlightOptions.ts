@@ -482,12 +482,20 @@ class HighlightOptionsManager {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initHighlightOptions(): void {
     try {
         const manager = new HighlightOptionsManager();
         manager.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('HighlightOptions', `Error instantiating HighlightOptionsManager on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('HighlightOptions', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initHighlightOptions);
+    } else {
+        initHighlightOptions();
+    }
+}

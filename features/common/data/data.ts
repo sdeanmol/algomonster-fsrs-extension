@@ -1100,12 +1100,20 @@ class FSRSDataDashboard {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initDataDashboard(): void {
     try {
         const dashboard = new FSRSDataDashboard();
         dashboard.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('DataDashboard', `Error instantiating FSRSDataDashboard on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('DataDashboard', `Error instantiating FSRSDataDashboard: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDataDashboard);
+    } else {
+        initDataDashboard();
+    }
+}

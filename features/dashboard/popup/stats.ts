@@ -4,6 +4,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING, DUE_CARDS_THRESHOLD_WARNING } from '@common/constants';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
 import { Card, StorageData } from '../../../types/domain';
@@ -66,6 +67,18 @@ export class StatsComponent extends DashboardComponent {
 
             if (totalEl) totalEl.innerText = String(cards.length);
             if (dueEl) dueEl.innerText = String(dueToday);
+
+            const boxDue = document.getElementById('box-due');
+            if (boxDue) {
+                boxDue.classList.remove('success', 'warning', 'danger', 'urgent');
+                if (dueToday === 0) {
+                    boxDue.classList.add('success');
+                } else if (dueToday <= DUE_CARDS_THRESHOLD_WARNING) {
+                    boxDue.classList.add('warning');
+                } else {
+                    boxDue.classList.add('danger');
+                }
+            }
             
             // Calculate memory retention rate: True FSRS Retrievability
             let totalRetrievability = 0;
@@ -97,17 +110,30 @@ export class StatsComponent extends DashboardComponent {
                 totalActivityReviews += count;
             });
 
+            const boxRetention = document.getElementById('box-retention');
             if (retentionEl) {
+                let retentionVal = 0;
                 let retentionStr = "0%";
                 if (retrievabilityCount > 0) {
-                    const trueRetention = (totalRetrievability / retrievabilityCount) * 100;
-                    retentionStr = Math.round(trueRetention) + "%";
+                    retentionVal = (totalRetrievability / retrievabilityCount) * 100;
+                    retentionStr = Math.round(retentionVal) + "%";
                 } else if (totalReps > 0) {
                     // Fallback to historic if no FSRS data
-                    const rate = ((totalReps - totalLapses) / totalReps) * 100;
-                    retentionStr = Math.round(rate) + "%";
+                    retentionVal = ((totalReps - totalLapses) / totalReps) * 100;
+                    retentionStr = Math.round(retentionVal) + "%";
                 }
                 retentionEl.innerText = retentionStr;
+
+                if (boxRetention) {
+                    boxRetention.classList.remove('success', 'warning', 'danger');
+                    if (retentionVal >= RECALL_THRESHOLD_GOOD) {
+                        boxRetention.classList.add('success');
+                    } else if (retentionVal >= RECALL_THRESHOLD_WARNING) {
+                        boxRetention.classList.add('warning');
+                    } else {
+                        boxRetention.classList.add('danger');
+                    }
+                }
             }
 
             // 1. Level & XP Progression Logic

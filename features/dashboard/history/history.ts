@@ -568,12 +568,20 @@ export class FSRSHistoryDashboard {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initHistory(): void {
     try {
         const history = new FSRSHistoryDashboard();
         history.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('FSRSHistoryDashboard', `Error initializing FSRSHistoryDashboard on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('FSRSHistoryDashboard', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initHistory);
+    } else {
+        initHistory();
+    }
+}

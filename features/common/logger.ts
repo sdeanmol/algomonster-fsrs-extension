@@ -1,9 +1,8 @@
 /**
- * Centralized Extension & Application Logger powered by Winston.
- * Supports Chrome storage persistence, developer mode toggles, and safe metadata formatting.
+ * Centralized Extension & Application Logger.
+ * Supports Chrome storage persistence, developer mode toggles, in-memory ring buffer,
+ * safe metadata formatting, and rich DevTools console color-coding.
  */
-
-import winston from 'winston';
 
 export interface LogEntry {
     timestamp: string;
@@ -16,40 +15,6 @@ export interface LogEntry {
 // In-Memory Bounded Ring Buffer for rapid export / runtime inspection
 const MAX_BUFFER_SIZE = 1000;
 const memoryLogBuffer: LogEntry[] = [];
-
-/**
- * Winston Custom Formatter for Console and Extension Output
- */
-const customFormat = winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' }),
-    winston.format.errors({ stack: true }),
-    winston.format.printf(({ timestamp, level, message, module: moduleName, data }) => {
-        const mod = moduleName ? `[${moduleName}]` : '[Global]';
-        let dataStr = '';
-        if (data !== undefined && data !== null) {
-            try {
-                dataStr = typeof data === 'object' ? `\nData: ${JSON.stringify(data, null, 2)}` : `\nData: ${String(data)}`;
-            } catch {
-                dataStr = '\nData: [Circular/Unserializable]';
-            }
-        }
-        return `[${timestamp}] [${level.toUpperCase()}] ${mod} ${message}${dataStr}`.trim();
-    })
-);
-
-// Instantiate underlying Winston Logger instance
-const winstonInstance = winston.createLogger({
-    level: 'debug',
-    format: customFormat,
-    transports: [
-        new winston.transports.Console({
-            format: winston.format.combine(
-                winston.format.colorize({ all: true }),
-                customFormat
-            ),
-        }),
-    ],
-});
 
 export class LoggerClass {
     private devMode: boolean = false;
@@ -148,22 +113,75 @@ export class LoggerClass {
         this._flushLogs();
     }
 
+    private _formatMsg(moduleName: string, message: string): string {
+        const timestamp = new Date().toISOString();
+        return `[${timestamp}] [${moduleName}] ${message}`;
+    }
+
+    /**
+     * Generates DevTools console CSS styling parameters for color-coded log outputs.
+     */
+    private _getColoredConsoleArgs(level: string, moduleName: string, message: string): string[] {
+        const timestamp = new Date().toLocaleTimeString();
+        let levelStyle = '';
+
+        switch (level) {
+            case 'DEBUG':
+                levelStyle = 'color: #70c0e8; font-weight: bold; background: rgba(112, 192, 232, 0.15); padding: 1px 5px; border-radius: 3px;';
+                break;
+            case 'INFO':
+                levelStyle = 'color: #81c995; font-weight: bold; background: rgba(129, 201, 149, 0.15); padding: 1px 5px; border-radius: 3px;';
+                break;
+            case 'WARN':
+                levelStyle = 'color: #fde293; font-weight: bold; background: rgba(253, 226, 147, 0.15); padding: 1px 5px; border-radius: 3px;';
+                break;
+            case 'ERROR':
+            case 'FATAL':
+                levelStyle = 'color: #f28b82; font-weight: bold; background: rgba(242, 139, 130, 0.2); padding: 1px 5px; border-radius: 3px;';
+                break;
+            default:
+                levelStyle = 'color: #a8c7fa; font-weight: bold;';
+        }
+
+        const timestampStyle = 'color: #8e9099; font-weight: normal; font-size: 11px;';
+        const moduleStyle = 'color: #c4a8fa; font-weight: 600;';
+        const msgStyle = 'color: inherit; font-weight: normal;';
+
+        const formatStr = `%c[${timestamp}] %c${level} %c[${moduleName}] %c${message}`;
+        return [formatStr, timestampStyle, levelStyle, moduleStyle, msgStyle];
+    }
+
     debug(moduleName: string, message: string, data: unknown = null): void {
         if (!this._canLog('DEBUG')) return;
         this._persistLog('DEBUG', moduleName, message, data);
-        winstonInstance.debug(message, { module: moduleName, data });
+        const consoleArgs = this._getColoredConsoleArgs('DEBUG', moduleName, message);
+        if (data !== null && data !== undefined) {
+            console.debug(...consoleArgs, data);
+        } else {
+            console.debug(...consoleArgs);
+        }
     }
 
     info(moduleName: string, message: string, data: unknown = null): void {
         if (!this._canLog('INFO')) return;
         this._persistLog('INFO', moduleName, message, data);
-        winstonInstance.info(message, { module: moduleName, data });
+        const consoleArgs = this._getColoredConsoleArgs('INFO', moduleName, message);
+        if (data !== null && data !== undefined) {
+            console.info(...consoleArgs, data);
+        } else {
+            console.info(...consoleArgs);
+        }
     }
 
     warn(moduleName: string, message: string, data: unknown = null): void {
         if (!this._canLog('WARN')) return;
         this._persistLog('WARN', moduleName, message, data);
-        winstonInstance.warn(message, { module: moduleName, data });
+        const consoleArgs = this._getColoredConsoleArgs('WARN', moduleName, message);
+        if (data !== null && data !== undefined) {
+            console.warn(...consoleArgs, data);
+        } else {
+            console.warn(...consoleArgs);
+        }
     }
 
     error(moduleName: string, message: string, data: unknown = null): void {
@@ -178,12 +196,13 @@ export class LoggerClass {
         if (data instanceof Error) {
             errorData.error = data.message;
             errorData.stack = data.stack;
-        } else if (data) {
+        } else if (data !== null && data !== undefined) {
             errorData.metadata = data;
         }
 
         this._persistLog('ERROR', moduleName, message, data);
-        winstonInstance.error(message, { module: moduleName, data: errorData });
+        const consoleArgs = this._getColoredConsoleArgs('ERROR', moduleName, message);
+        console.error(...consoleArgs, errorData);
     }
 
     fatal(moduleName: string, message: string, data: unknown = null): void {
@@ -192,7 +211,7 @@ export class LoggerClass {
 
     group(moduleName: string, groupName: string): void {
         if (!this._canLog('DEBUG')) return;
-        console.group(`[${new Date().toISOString()}] [${moduleName}] ${groupName}`);
+        console.group(this._formatMsg(moduleName, groupName));
     }
 
     groupEnd(): void {

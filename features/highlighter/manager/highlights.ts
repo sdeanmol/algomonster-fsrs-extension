@@ -507,12 +507,20 @@ try {
     Logger.error('HighlightsManager', `Error attaching HighlightsManager to window.AlgoRecall: ${errorMessage}`, { err });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initHighlightsManager(): void {
     try {
         const manager = new HighlightsManager();
         manager.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('HighlightsManager', `Error instantiating HighlightsManager on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('HighlightsManager', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initHighlightsManager);
+    } else {
+        initHighlightsManager();
+    }
+}

@@ -283,12 +283,20 @@ class OnboardingWelcome {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initWelcome(): void {
     try {
         const welcome = new OnboardingWelcome();
         welcome.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('Onboarding', `Error instantiating OnboardingWelcome on DOMContentLoaded: ${errorMessage}`, { err });
+        Logger.error('Onboarding', `Initialization failed: ${errorMessage}`, { err });
     }
-});
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWelcome);
+    } else {
+        initWelcome();
+    }
+}
