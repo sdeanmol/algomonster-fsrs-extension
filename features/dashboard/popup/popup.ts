@@ -106,18 +106,25 @@ export class AlgoRecallDashboard {
             logger.info('Popup', 'Popup initialized.');
             logger.time('Popup', 'init');
         }
-        this.bindEvents();
+        try {
+            this.bindEvents();
 
-        // Boot component lifecycle steps
-        this.stats.bindEvents();
-        this.heatmap.bindEvents();
-        this.notifications.bindEvents();
-        this.rating.bindEvents();
-        this.search.bindEvents();
+            // Boot component lifecycle steps
+            this.stats.bindEvents();
+            this.heatmap.bindEvents();
+            this.notifications.bindEvents();
+            this.rating.bindEvents();
+            this.search.bindEvents();
 
-        // Perform initial loading from storage databases
-        await this.loadAll();
-        if (logger) logger.timeEnd('Popup', 'init');
+            // Perform initial loading from storage databases
+            await this.loadAll();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Popup', `Failed popup initialization: ${errorMessage}`, { err });
+            // Comment: Catch popup dashboard bootstrap failure gracefully
+        } finally {
+            if (logger) logger.timeEnd('Popup', 'init');
+        }
     }
 
     /**

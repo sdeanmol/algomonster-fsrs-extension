@@ -486,6 +486,7 @@ export class BackupManager {
      * ensuring formatting constraints and the checksum match.
      */
     static async validateStream(file: File, isGzip: boolean): Promise<{ isV2: boolean; header?: BackupHeaderRecord; counts?: BackupCounts }> {
+        const logger = getLogger();
         let stream: ReadableStream = file.stream();
         if (isGzip) {
             const windowWithDecompression = window as unknown as { DecompressionStream: new (format: string) => TransformStream };
@@ -504,11 +505,14 @@ export class BackupManager {
             let parsed: unknown;
             try {
                 parsed = JSON.parse(line);
-            } catch {
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                if (logger) logger.error('Backup', `JSON parse error in validateStream line ${lineCount + 1}: ${errorMessage}`, { lineContent: line, lineCount, err });
                 // If it fails on the first line, it's definitely not V2 JSONL
                 if (lineCount === 0) {
                     return { isV2: false };
                 }
+                // Comment: Re-throw validation error to abort corrupted backup validation
                 throw new Error(`Corrupted file: Invalid JSON structure at line ${lineCount + 1}`);
             }
 
@@ -516,11 +520,15 @@ export class BackupManager {
                 if (lineCount === 0) {
                     return { isV2: false };
                 }
+                if (logger) logger.error('Backup', `Misformed line record in validateStream line ${lineCount + 1}`, { parsed, lineCount });
+                // Comment: Re-throw validation error for misformed backup record type
                 throw new Error(`Corrupted file: Misformed line record at line ${lineCount + 1}`);
             }
 
             if (parsed.type === "header") {
                 if (lineCount !== 0) {
+                    if (logger) logger.error('Backup', 'Misplaced header record in backup file', { lineCount });
+                    // Comment: Re-throw error for misplaced header record
                     throw new Error("Corrupted file: Backup header misplaced");
                 }
                 header = parsed;

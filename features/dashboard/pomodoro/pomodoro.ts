@@ -60,66 +60,77 @@ export class PomodoroTimer {
     }
 
     init(): void {
-        chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result: StorageData & {
-            pomodoroSettings?: PomodoroSettings;
-            pomodoroStats?: PomodoroStats;
-            pomodoroState?: PomodoroState;
-        }) => {
-            if (result.pomodoroSettings) {
-                Object.assign(this.settings, result.pomodoroSettings);
-            }
+        const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+        try {
+            chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result: StorageData & {
+                pomodoroSettings?: PomodoroSettings;
+                pomodoroStats?: PomodoroStats;
+                pomodoroState?: PomodoroState;
+            }) => {
+                try {
+                    if (result.pomodoroSettings) {
+                        Object.assign(this.settings, result.pomodoroSettings);
+                    }
 
-            if (result.pomodoroState) {
-                this.state = result.pomodoroState.state;
-                this.phase = result.pomodoroState.phase;
-                this.currentSession = result.pomodoroState.currentSession;
-                this.timeRemaining = result.pomodoroState.timeRemaining;
-                this.totalTime = result.pomodoroState.totalTime;
-                this.targetEndTime = result.pomodoroState.targetEndTime;
-            } else {
-                this.resetState();
-            }
+                    if (result.pomodoroState) {
+                        this.state = result.pomodoroState.state;
+                        this.phase = result.pomodoroState.phase;
+                        this.currentSession = result.pomodoroState.currentSession;
+                        this.timeRemaining = result.pomodoroState.timeRemaining;
+                        this.totalTime = result.pomodoroState.totalTime;
+                        this.targetEndTime = result.pomodoroState.targetEndTime;
+                    } else {
+                        this.resetState();
+                    }
 
-            const stats = result.pomodoroStats || {};
-            if (stats.lastDate === new Date().toLocaleDateString()) {
-                this.todaySessions = stats.sessionsToday || 0;
-                this.todayFocusMinutes = stats.focusMinutesToday || 0;
-            }
+                    const stats = result.pomodoroStats || {};
+                    if (stats.lastDate === new Date().toLocaleDateString()) {
+                        this.todaySessions = stats.sessionsToday || 0;
+                        this.todayFocusMinutes = stats.focusMinutesToday || 0;
+                    }
 
-            this.loadSettingsUI();
-            this.updateTodayStats();
-            this.bindEvents();
-            
-            if (this.state === 'running') {
-                this.startVisualInterval();
-            } else {
-                this.updateDisplay();
-                this.updateRing();
-                this.updatePhaseIndicator();
-                this.updateSessionDots();
-                
-                const startBtn = document.getElementById('start-btn');
-                const pauseBtn = document.getElementById('pause-btn');
-                if (startBtn) startBtn.style.display = 'flex';
-                if (pauseBtn) pauseBtn.style.display = 'none';
-                document.querySelector('.timer-ring-svg')?.classList.remove('running');
-                document.body.className = '';
-            }
-        });
-        
-        chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
-            if (area === 'local' && changes.pomodoroState) {
-                this.syncState(changes.pomodoroState.newValue as PomodoroState | undefined);
-            }
-            if (area === 'local' && changes.pomodoroStats) {
-                const stats = changes.pomodoroStats.newValue as PomodoroStats | undefined;
-                if (stats && stats.lastDate === new Date().toLocaleDateString()) {
-                    this.todaySessions = stats.sessionsToday || 0;
-                    this.todayFocusMinutes = stats.focusMinutesToday || 0;
+                    this.loadSettingsUI();
                     this.updateTodayStats();
+                    this.bindEvents();
+                    
+                    if (this.state === 'running') {
+                        this.startVisualInterval();
+                    } else {
+                        this.updateDisplay();
+                        this.updateRing();
+                        this.updatePhaseIndicator();
+                        this.updateSessionDots();
+
+                        const startBtn = document.getElementById('start-btn');
+                        const pauseBtn = document.getElementById('pause-btn');
+                        if (startBtn) startBtn.style.display = 'flex';
+                        if (pauseBtn) pauseBtn.style.display = 'none';
+                        document.querySelector('.timer-ring-svg')?.classList.remove('running');
+                    }
+                    chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
+                        if (area === 'local' && changes.pomodoroState) {
+                            this.syncState(changes.pomodoroState.newValue as PomodoroState | undefined);
+                        }
+                        if (area === 'local' && changes.pomodoroStats) {
+                            const stats = changes.pomodoroStats.newValue as PomodoroStats | undefined;
+                            if (stats && stats.lastDate === new Date().toLocaleDateString()) {
+                                this.todaySessions = stats.sessionsToday || 0;
+                                this.todayFocusMinutes = stats.focusMinutesToday || 0;
+                                this.updateTodayStats();
+                            }
+                        }
+                    });
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    if (logger) logger.error('Pomodoro', `Error during pomodoro dashboard init: ${errorMessage}`, { innerErr });
+                    // Comment: Non-fatal initialization error
                 }
-            }
-        });
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Pomodoro', `Failed to fetch storage in Pomodoro init: ${errorMessage}`, { err });
+            // Comment: Catch storage retrieval error gracefully
+        }
     }
 
     resetState(): void {

@@ -24,43 +24,56 @@ export class FSRSHistoryDashboard {
     }
 
     init(): void {
-        chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'chromeSettings'], (result: StorageData) => {
-            let activityData: Record<string, number> = result.fsrsActivity || {};
-            const allCards: Card[] = result.fsrsCards || [];
+        const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+        try {
+            chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'chromeSettings'], (result: StorageData) => {
+                try {
+                    let activityData: Record<string, number> = result.fsrsActivity || {};
+                    const allCards: Card[] = result.fsrsCards || [];
 
-            const expectedActivity: Record<string, number> = {};
-            allCards.forEach((c: Card) => {
-                if (c.historyLog) {
-                    const uniqueDatesForCard = new Set<string>();
-                    c.historyLog.forEach((log: ReviewLog | number) => {
-                        const timestamp = (typeof log === 'object' && log !== null) ? log.date : log;
-                        const dateObj = new Date(timestamp);
-                        const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-                        uniqueDatesForCard.add(localDateStr);
+                    const expectedActivity: Record<string, number> = {};
+                    allCards.forEach((c: Card) => {
+                        if (c.historyLog) {
+                            const uniqueDatesForCard = new Set<string>();
+                            c.historyLog.forEach((log: ReviewLog | number) => {
+                                const timestamp = (typeof log === 'object' && log !== null) ? log.date : log;
+                                const dateObj = new Date(timestamp);
+                                const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                                uniqueDatesForCard.add(localDateStr);
+                            });
+                            uniqueDatesForCard.forEach(dateStr => {
+                                expectedActivity[dateStr] = (expectedActivity[dateStr] || 0) + 1;
+                            });
+                        }
                     });
-                    uniqueDatesForCard.forEach(dateStr => {
-                        expectedActivity[dateStr] = (expectedActivity[dateStr] || 0) + 1;
-                    });
+
+                    let needsUpdate = false;
+                    for (const key of new Set([...Object.keys(activityData), ...Object.keys(expectedActivity)])) {
+                        if (activityData[key] !== expectedActivity[key]) {
+                            needsUpdate = true;
+                            break;
+                        }
+                    }
+                    if (needsUpdate) {
+                        activityData = expectedActivity;
+                        chrome.storage.local.set({ fsrsActivity: activityData });
+                    }
+
+                    this.activityData = activityData;
+                    this.chromeSettings = result.chromeSettings || {};
+                    this.attachListeners();
+                    this.renderView();
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    if (logger) logger.error('History', `Error during history dashboard render: ${errorMessage}`, { innerErr });
+                    // Comment: Catch rendering error gracefully
                 }
             });
-
-            let needsUpdate = false;
-            for (const key of new Set([...Object.keys(activityData), ...Object.keys(expectedActivity)])) {
-                if (activityData[key] !== expectedActivity[key]) {
-                    needsUpdate = true;
-                    break;
-                }
-            }
-            if (needsUpdate) {
-                activityData = expectedActivity;
-                chrome.storage.local.set({ fsrsActivity: activityData });
-            }
-
-            this.activityData = activityData;
-            this.chromeSettings = result.chromeSettings || {};
-            this.attachListeners();
-            this.renderView();
-        });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('History', `Failed to fetch history storage: ${errorMessage}`, { err });
+            // Comment: Catch storage retrieval failure
+        }
     }
 
     attachListeners(): void {

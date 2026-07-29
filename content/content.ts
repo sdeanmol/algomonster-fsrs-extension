@@ -73,75 +73,87 @@ export class AlgoRecallOrchestrator {
     async init(): Promise<void> {
         const logger = getLogger();
         if (logger) logger.time('ContentScript', 'Init Storage Load');
-        chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result: StorageData & {
-            marks?: unknown[];
-            bookmarks?: unknown[];
-            pagecontents?: unknown[];
-            whitelistedWebsites?: Array<{ domain: string }>;
-        }) => {
-            if (logger) logger.timeEnd('ContentScript', 'Init Storage Load');
-            // Verify whitelisting
-            const whitelistedWebsites: Array<{ domain: string }> = result.whitelistedWebsites || [
-                { domain: "algo.monster" },
-                { domain: "systemdesignschool.io" },
-                { domain: "codeforces.com" },
-                { domain: "leetcode.com" },
-                { domain: "codechef.com" },
-                { domain: "atcoder.jp" },
-                { domain: "hackerrank.com" },
-                { domain: "hackerearth.com" },
-                { domain: "codewars.com" },
-                { domain: "codingame.com" }
-            ];
+        try {
+            chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result: StorageData & {
+                marks?: unknown[];
+                bookmarks?: unknown[];
+                pagecontents?: unknown[];
+                whitelistedWebsites?: Array<{ domain: string }>;
+            }) => {
+                if (logger) logger.timeEnd('ContentScript', 'Init Storage Load');
+                try {
+                    // Verify whitelisting
+                    const whitelistedWebsites: Array<{ domain: string }> = result.whitelistedWebsites || [
+                        { domain: "algo.monster" },
+                        { domain: "systemdesignschool.io" },
+                        { domain: "codeforces.com" },
+                        { domain: "leetcode.com" },
+                        { domain: "codechef.com" },
+                        { domain: "atcoder.jp" },
+                        { domain: "hackerrank.com" },
+                        { domain: "hackerearth.com" },
+                        { domain: "codewars.com" },
+                        { domain: "codingame.com" }
+                    ];
 
-            const currentDomain = window.location.hostname;
-            const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
-            if (!isWhitelisted) {
-                if (logger) logger.info('ContentScript', `Domain ${currentDomain} is not whitelisted. Exiting.`);
-                return; // Exit early, disabled by user
-            }
-            if (logger) logger.debug('ContentScript', `Domain ${currentDomain} is whitelisted. Proceeding with init.`);
+                    const currentDomain = window.location.hostname;
+                    const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
+                    if (!isWhitelisted) {
+                        if (logger) logger.info('ContentScript', `Domain ${currentDomain} is not whitelisted. Exiting.`);
+                        return; // Exit early, disabled by user
+                    }
+                    if (logger) logger.debug('ContentScript', `Domain ${currentDomain} is whitelisted. Proceeding with init.`);
 
-            if (result.fsrsGlobalParams) {
-                const params = result.fsrsGlobalParams as Partial<FSRSParameters>;
-                if (params.w && this.state.scheduler) (this.state.scheduler as unknown as { w: number[] }).w = params.w;
-                if (params.decay !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { decay: number }).decay = params.decay;
-                if (params.factor !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { factor: number }).factor = params.factor;
-                if (params.requestRetention !== undefined && this.state.scheduler) {
-                    (this.state.scheduler as unknown as { requestRetention: number }).requestRetention = params.requestRetention;
+                    if (result.fsrsGlobalParams) {
+                        const params = result.fsrsGlobalParams as Partial<FSRSParameters>;
+                        if (params.w && this.state.scheduler) (this.state.scheduler as unknown as { w: number[] }).w = params.w;
+                        if (params.decay !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { decay: number }).decay = params.decay;
+                        if (params.factor !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { factor: number }).factor = params.factor;
+                        if (params.requestRetention !== undefined && this.state.scheduler) {
+                            (this.state.scheduler as unknown as { requestRetention: number }).requestRetention = params.requestRetention;
+                        }
+                    }
+
+                    if (result.fsrsCards) this.state.cards = result.fsrsCards;
+                    if (result.fsrsTopicWeights) this.state.topicWeights = result.fsrsTopicWeights;
+
+                    if (result.marks) this.state.marks = result.marks;
+                    if (result.bookmarks) this.state.bookmarks = result.bookmarks;
+                    if (result.pagecontents) this.state.pagecontents = result.pagecontents;
+                    if (result.theme) this.state.currentTheme = result.theme;
+                    if (result.chromeSettings) {
+                        this.state.chromeSettings = { ...this.state.chromeSettings, ...result.chromeSettings };
+                    }
+                    // Ensure palettes are initialized
+                    if (!this.state.chromeSettings.palettes || this.state.chromeSettings.palettes.length === 0) {
+                        this.state.chromeSettings.palettes = [
+                            { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
+                            { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
+                            { name: 'Ocean Breeze', colors: ['#a8dadc', '#457b9d', '#1d3557', '#e63946', '#f1faee'] },
+                            { name: 'Forest Moss', colors: ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'] },
+                            { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
+                        ];
+                        this.state.chromeSettings.activePaletteIndex = 0;
+                    }
+
+                    // Create Highlighter & Tracker UI elements
+                    this.tracker.createUI();
+                    this.highlighter.createHighlighterUI();
+                    this.highlighter.applyHighlightsForCurrentPage();
+
+                    this.bindEvents();
+                    this.setupMutationObserver();
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    if (logger) logger.error('ContentScript', `Error processing storage data in init: ${errorMessage}`, { innerErr });
+                    // Comment: Recover gracefully so host page is not disrupted
                 }
-            }
-
-            if (result.fsrsCards) this.state.cards = result.fsrsCards;
-            if (result.fsrsTopicWeights) this.state.topicWeights = result.fsrsTopicWeights;
-
-            if (result.marks) this.state.marks = result.marks;
-            if (result.bookmarks) this.state.bookmarks = result.bookmarks;
-            if (result.pagecontents) this.state.pagecontents = result.pagecontents;
-            if (result.theme) this.state.currentTheme = result.theme;
-            if (result.chromeSettings) {
-                this.state.chromeSettings = { ...this.state.chromeSettings, ...result.chromeSettings };
-            }
-            // Ensure palettes are initialized
-            if (!this.state.chromeSettings.palettes || this.state.chromeSettings.palettes.length === 0) {
-                this.state.chromeSettings.palettes = [
-                    { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
-                    { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
-                    { name: 'Ocean Breeze', colors: ['#a8dadc', '#457b9d', '#1d3557', '#e63946', '#f1faee'] },
-                    { name: 'Forest Moss', colors: ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'] },
-                    { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
-                ];
-                this.state.chromeSettings.activePaletteIndex = 0;
-            }
-
-            // Create Highlighter & Tracker UI elements
-            this.tracker.createUI();
-            this.highlighter.createHighlighterUI();
-            this.highlighter.applyHighlightsForCurrentPage();
-
-            this.bindEvents();
-            this.setupMutationObserver();
-        });
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('ContentScript', `Error in orchestrator init: ${errorMessage}`, { err });
+            // Comment: Catch storage retrieval failure gracefully
+        }
     }
 
     /**

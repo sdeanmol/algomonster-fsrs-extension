@@ -17,11 +17,24 @@ export class ForecastDashboard {
      * Bootstraps forecast settings and triggers UI loads.
      */
     init(): void {
-        chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: StorageData) => {
-            const cards: Card[] = result.fsrsCards || [];
-            this.chromeSettings = result.chromeSettings || {};
-            this.renderForecast(cards);
-        });
+        const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+        try {
+            chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: StorageData) => {
+                try {
+                    const cards: Card[] = result.fsrsCards || [];
+                    this.chromeSettings = result.chromeSettings || {};
+                    this.renderForecast(cards);
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    if (logger) logger.error('Forecast', `Error rendering forecast: ${errorMessage}`, { innerErr });
+                    // Comment: Non-fatal chart rendering error
+                }
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Forecast', `Failed storage get in Forecast init: ${errorMessage}`, { err });
+            // Comment: Catch storage retrieval failure gracefully
+        }
     }
 
     /**

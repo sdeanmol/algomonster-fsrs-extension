@@ -44,44 +44,57 @@ class FSRSDataDashboard {
      * Bootstraps dashboard parameters and sets up storage variables.
      */
     init(): void {
-        const urlParams = new URLSearchParams(window.location.search);
-        this.currentView = urlParams.get('view') || 'total';
-        this.targetDate = urlParams.get('date');
+        const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            this.currentView = urlParams.get('view') || 'total';
+            this.targetDate = urlParams.get('date');
 
-        const urlSearch = urlParams.get('search') || urlParams.get('q') || urlParams.get('query');
-        if (urlSearch) {
-            this.searchQuery = urlSearch;
-        }
-
-        const urlTag = urlParams.get('tag');
-        if (urlTag) {
-            this.selectedTag = urlTag;
-        }
-
-        chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: StorageData) => {
-            this.allCards = ensureCardIds(result.fsrsCards || []);
-            this.chromeSettings = (result.chromeSettings || {}) as UserSettings & { showCharts?: boolean };
-
-            // Dynamic Filter Populators
-            this.populateTagsFilter();
-            this.populatePlatformFilter();
-
-            // Pre-select search input & tag filter from URL
+            const urlSearch = urlParams.get('search') || urlParams.get('q') || urlParams.get('query');
             if (urlSearch) {
-                const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
-                if (searchInput) searchInput.value = urlSearch;
+                this.searchQuery = urlSearch;
             }
+
+            const urlTag = urlParams.get('tag');
             if (urlTag) {
-                const tagSelect = document.getElementById('tag-select') as HTMLSelectElement | null;
-                if (tagSelect) tagSelect.value = urlTag;
+                this.selectedTag = urlTag;
             }
 
-            // Register Listeners
-            this.bindEvents();
+            chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: StorageData) => {
+                try {
+                    this.allCards = ensureCardIds(result.fsrsCards || []);
+                    this.chromeSettings = (result.chromeSettings || {}) as UserSettings & { showCharts?: boolean };
 
-            // Run initial render
-            this.filterAndRender();
-        });
+                    // Dynamic Filter Populators
+                    this.populateTagsFilter();
+                    this.populatePlatformFilter();
+
+                    // Pre-select search input & tag filter from URL
+                    if (urlSearch) {
+                        const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+                        if (searchInput) searchInput.value = urlSearch;
+                    }
+                    if (urlTag) {
+                        const tagSelect = document.getElementById('tag-select') as HTMLSelectElement | null;
+                        if (tagSelect) tagSelect.value = urlTag;
+                    }
+
+                    // Register Listeners
+                    this.bindEvents();
+
+                    // Run initial render
+                    this.filterAndRender();
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    if (logger) logger.error('DataDashboard', `Error rendering data dashboard: ${errorMessage}`, { innerErr });
+                    // Comment: Non-fatal dashboard render catch
+                }
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('DataDashboard', `Failed storage get in DataDashboard init: ${errorMessage}`, { err });
+            // Comment: Catch storage retrieval failure gracefully
+        }
     }
 
     /**

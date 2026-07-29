@@ -103,8 +103,14 @@ class Tracker {
      */
     saveCards(): void {
         const logger = getLogger();
-        if (logger) logger.info('Tracker', `Saving ${this.state.cards.length} FSRS cards to storage`);
-        chrome.storage.local.set({ fsrsCards: this.state.cards });
+        try {
+            if (logger) logger.info('Tracker', `Saving ${this.state.cards.length} FSRS cards to storage`);
+            chrome.storage.local.set({ fsrsCards: this.state.cards });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Tracker', `Failed to save FSRS cards to storage: ${errorMessage}`, { cardCount: this.state.cards.length, err });
+            // Comment: Non-fatal storage write catch
+        }
     }
 
     /**
@@ -112,15 +118,25 @@ class Tracker {
      * Records counts grouped by calendar date string in user's timezone.
      */
     logReviewActivity(): void {
-        chrome.storage.local.get(['fsrsActivity'], (result: StorageData & { fsrsActivity?: Record<string, number> }) => {
-            const activity = result.fsrsActivity || {};
-            const today = new Date();
-            const dateString = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            activity[dateString] = (activity[dateString] || 0) + 1;
-            chrome.storage.local.set({ fsrsActivity: activity });
-            const logger = getLogger();
-            if (logger) logger.debug('Tracker', `Logged review activity for ${dateString}: ${activity[dateString]} reviews`);
-        });
+        const logger = getLogger();
+        try {
+            chrome.storage.local.get(['fsrsActivity'], (result: StorageData & { fsrsActivity?: Record<string, number> }) => {
+                try {
+                    const activity = result.fsrsActivity || {};
+                    const today = new Date();
+                    const dateString = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                    activity[dateString] = (activity[dateString] || 0) + 1;
+                    chrome.storage.local.set({ fsrsActivity: activity });
+                    if (logger) logger.debug('Tracker', `Logged review activity for ${dateString}: ${activity[dateString]} reviews`);
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    if (logger) logger.error('Tracker', `Error in logReviewActivity callback: ${errorMessage}`, { innerErr });
+                }
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Tracker', `Failed to fetch activity storage: ${errorMessage}`, { err });
+        }
     }
 
     /**

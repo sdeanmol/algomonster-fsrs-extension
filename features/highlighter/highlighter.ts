@@ -560,83 +560,101 @@ export class Highlighter {
 
     saveHighlight(color: string, type: string = 'highlight'): void {
         const logger = getLogger();
-        const selection = window.getSelection();
-        if (!selection || selection.isCollapsed) return;
+        try {
+            const selection = window.getSelection();
+            if (!selection || selection.isCollapsed) return;
 
-        const range = selection.getRangeAt(0);
-        const text = selection.toString();
-        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
-        const timestamp = Date.now();
+            const range = selection.getRangeAt(0);
+            const text = selection.toString();
+            const cleanUrl = window.location.href.split('?')[0].split('#')[0];
+            const timestamp = Date.now();
 
-        const startMeta = this.utils.getDOMMeta ? this.utils.getDOMMeta(range.startContainer, range.startOffset) : undefined;
-        const endMeta = this.utils.getDOMMeta ? this.utils.getDOMMeta(range.endContainer, range.endOffset) : undefined;
+            const startMeta = this.utils.getDOMMeta ? this.utils.getDOMMeta(range.startContainer, range.startOffset) : undefined;
+            const endMeta = this.utils.getDOMMeta ? this.utils.getDOMMeta(range.endContainer, range.endOffset) : undefined;
 
-        const newMark: HighlightMark = {
-            id: `mark_${timestamp}_${Math.random().toString(36).substr(2, 5)}`,
-            createdAt: timestamp,
-            url: cleanUrl,
-            text: text,
-            color: color,
-            type: type,
-            note: '',
-            highlightSource: { startMeta, endMeta }
-        };
-
-        if (!this.state.marks) this.state.marks = [];
-        this.state.marks.push(newMark);
-
-        if (!this.state.bookmarks) this.state.bookmarks = [];
-        if (!this.state.bookmarks.find((b: BookmarkItem) => b.url === cleanUrl)) {
-            const problemTitle = this.utils.getExtractedProblemTitle ? this.utils.getExtractedProblemTitle() : document.title;
-            this.state.bookmarks.push({
+            const newMark: HighlightMark = {
+                id: `mark_${timestamp}_${Math.random().toString(36).substr(2, 5)}`,
+                createdAt: timestamp,
                 url: cleanUrl,
-                title: problemTitle,
-                meta: { favIconUrl: 'https://algo.monster/favicon.ico' }
+                text: text,
+                color: color,
+                type: type,
+                note: '',
+                highlightSource: { startMeta, endMeta }
+            };
+
+            if (!this.state.marks) this.state.marks = [];
+            this.state.marks.push(newMark);
+
+            if (!this.state.bookmarks) this.state.bookmarks = [];
+            if (!this.state.bookmarks.find((b: BookmarkItem) => b.url === cleanUrl)) {
+                const problemTitle = this.utils.getExtractedProblemTitle ? this.utils.getExtractedProblemTitle() : document.title;
+                this.state.bookmarks.push({
+                    url: cleanUrl,
+                    title: problemTitle,
+                    meta: { favIconUrl: 'https://algo.monster/favicon.ico' }
+                });
+            }
+
+            if (!this.state.pagecontents) this.state.pagecontents = [];
+            this.state.pagecontents = this.state.pagecontents.filter((p: { url: string }) => p.url !== cleanUrl);
+            this.state.pagecontents.push({
+                url: cleanUrl,
+                description: document.body.innerText ? document.body.innerText.substring(0, 100) : '',
+                length: document.body.innerText ? document.body.innerText.length : 0
             });
+
+            chrome.storage.local.set({
+                marks: this.state.marks,
+                bookmarks: this.state.bookmarks,
+                pagecontents: this.state.pagecontents
+            });
+
+            const tooltip = document.getElementById('algo-highlight-tooltip');
+            if (tooltip) tooltip.style.display = 'none';
+            selection.removeAllRanges();
+
+            this.applyHighlightsForCurrentPage();
+            if (logger) logger.info('Highlighter', `Created new highlight with color: ${color}`);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Highlighter', `Failed saving highlight: ${errorMessage}`, { color, type, err });
+            // Comment: Non-fatal highlight saving catch, host page interaction continues
         }
-
-        if (!this.state.pagecontents) this.state.pagecontents = [];
-        this.state.pagecontents = this.state.pagecontents.filter((p: { url: string }) => p.url !== cleanUrl);
-        this.state.pagecontents.push({
-            url: cleanUrl,
-            description: document.body.innerText ? document.body.innerText.substring(0, 100) : '',
-            length: document.body.innerText ? document.body.innerText.length : 0
-        });
-
-        chrome.storage.local.set({
-            marks: this.state.marks,
-            bookmarks: this.state.bookmarks,
-            pagecontents: this.state.pagecontents
-        });
-
-        const tooltip = document.getElementById('algo-highlight-tooltip');
-        if (tooltip) tooltip.style.display = 'none';
-        selection.removeAllRanges();
-
-        this.applyHighlightsForCurrentPage();
-        if (logger) logger.info('Highlighter', `Created new highlight with color: ${color}`);
     }
 
     updateHighlightColor(markId: string, newColor: string): void {
-        const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
-        if (markIndex > -1) {
-            this.state.marks[markIndex].color = newColor;
-            chrome.storage.local.set({ marks: this.state.marks });
-            this.applyHighlightsForCurrentPage();
-            this.renderTooltipColors(markId, newColor);
+        const logger = getLogger();
+        try {
+            const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
+            if (markIndex > -1) {
+                this.state.marks[markIndex].color = newColor;
+                chrome.storage.local.set({ marks: this.state.marks });
+                this.applyHighlightsForCurrentPage();
+                this.renderTooltipColors(markId, newColor);
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Highlighter', `Error updating highlight color for ${markId}: ${errorMessage}`, { markId, newColor, err });
         }
     }
 
     deleteHighlight(markId: string): void {
         const logger = getLogger();
-        if (logger) logger.debug('Highlighter', `Deleting highlight ID: ${markId}`);
-        this.state.marks = this.state.marks.filter((m: HighlightMark) => (m.id || m.createdAt.toString()) !== markId);
-        chrome.storage.local.set({ marks: this.state.marks });
+        try {
+            if (logger) logger.debug('Highlighter', `Deleting highlight ID: ${markId}`);
+            this.state.marks = this.state.marks.filter((m: HighlightMark) => (m.id || m.createdAt.toString()) !== markId);
+            chrome.storage.local.set({ marks: this.state.marks });
 
-        const tooltip = document.getElementById('algo-highlight-tooltip');
-        if (tooltip) tooltip.style.display = 'none';
-        this.state.hoveredMarkId = null;
-        this.applyHighlightsForCurrentPage();
+            const tooltip = document.getElementById('algo-highlight-tooltip');
+            if (tooltip) tooltip.style.display = 'none';
+            this.state.hoveredMarkId = null;
+            this.applyHighlightsForCurrentPage();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Highlighter', `Error deleting highlight ${markId}: ${errorMessage}`, { markId, err });
+            // Comment: Catch highlight deletion error gracefully
+        }
     }
 
     saveMarkNote(markId: string, noteText: string): void {

@@ -277,7 +277,10 @@ export class FSRSConfigManager {
                 const optimizer = new FsrsOptimizer();
                 optimizedWeights = await optimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress);
             } catch (wasmError) {
-                console.warn("WASM Optimizer failed. Falling back to Fast JS Optimizer.", wasmError);
+                const wasmErrMsg = wasmError instanceof Error ? wasmError.message : String(wasmError);
+                const logger = (window as unknown as { Logger?: { warn: (m: string, s: string, d?: unknown) => void } }).Logger;
+                if (logger) logger.warn("FSRS", `WASM Optimizer failed (${wasmErrMsg}). Falling back to Fast JS Optimizer.`, { wasmError });
+                // Comment: Fallback gracefully to fast optimizer when WASM dynamic loading fails
                 const fastOptimizer = new FsrsOptimizerFast();
                 optimizedWeights = await fastOptimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress);
             }
@@ -299,11 +302,14 @@ export class FSRSConfigManager {
                 });
             }
         } catch (err) {
-            console.error("Optimization failed:", err);
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+            if (logger) logger.error("FSRS", `Optimization failed: ${errorMessage}`, { err });
             this.showToast("Optimization failed. See console.", true);
             statusMsg.textContent = "Optimization failed.";
             statusMsg.style.color = 'var(--md-error)';
         } finally {
+            // Comment: Always clear progress dots interval and restore button state
             clearInterval(dotInterval);
             btn.textContent = 'Auto Train Weights';
             btn.disabled = false;

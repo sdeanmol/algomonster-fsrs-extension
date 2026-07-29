@@ -57,14 +57,26 @@ class OnboardingWelcome {
         const enableBtn = document.getElementById('welcome-enable-btn');
         enableBtn?.addEventListener('click', () => {
             if (typeof Notification !== 'undefined') {
-                Notification.requestPermission().then((permission) => {
-                    this.checkNotificationState();
-                    if (permission === 'granted') {
-                        this.showToast("Notification settings initialized successfully!");
-                    } else {
-                        this.showToast("Notifications were disabled.");
-                    }
-                });
+                try {
+                    Notification.requestPermission().then((permission) => {
+                        this.checkNotificationState();
+                        if (permission === 'granted') {
+                            this.showToast("Notification settings initialized successfully!");
+                        } else {
+                            this.showToast("Notifications were disabled.");
+                        }
+                    }).catch((err) => {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+                        if (logger) logger.error('Onboarding', `Notification permission request error: ${errorMessage}`, { err });
+                        // Comment: Catch rejected permission Promise gracefully
+                    });
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+                    if (logger) logger.error('Onboarding', `Error calling requestPermission: ${errorMessage}`, { err });
+                    // Comment: Catch browser notification API exception gracefully
+                }
             }
         });
     }
@@ -73,10 +85,17 @@ class OnboardingWelcome {
      * Fetches current theme selection and syncs button state.
      */
     syncThemePreference(): void {
-        chrome.storage.local.get(['theme'], (result: { theme?: string }) => {
-            const theme = result.theme || 'dark';
-            this.setActiveThemeButton(theme);
-        });
+        try {
+            chrome.storage.local.get(['theme'], (result: { theme?: string }) => {
+                const theme = result.theme || 'dark';
+                this.setActiveThemeButton(theme);
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+            if (logger) logger.error('Onboarding', `Failed to sync theme preference: ${errorMessage}`, { err });
+            // Comment: Non-fatal theme sync catch
+        }
     }
 
     /**

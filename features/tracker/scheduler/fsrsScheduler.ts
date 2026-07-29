@@ -139,52 +139,67 @@ export class FsrsScheduler extends AbstractScheduler {
             last_review: lastReview ? new Date(lastReview) : undefined
         };
 
-        // ts-fsrs ratings are: 1=Again, 2=Hard, 3=Good, 4=Easy
-        const result = scheduler.next(tsCard, new Date(now), rating as Grade);
+        try {
+            // ts-fsrs ratings are: 1=Again, 2=Hard, 3=Good, 4=Easy
+            const result = scheduler.next(tsCard, new Date(now), rating as Grade);
 
-        // Map back to JSON-serializable structure
-        newCard.due = result.card.due.getTime();
-        newCard.stability = result.card.stability;
-        newCard.difficulty = result.card.difficulty;
-        newCard.elapsed_days = result.card.elapsed_days;
-        newCard.scheduled_days = result.card.scheduled_days;
-        newCard.learning_steps = result.card.learning_steps;
-        newCard.reps = result.card.reps;
-        newCard.lapses = result.card.lapses;
-        newCard.state = result.card.state;
-        newCard.last_review = result.card.last_review ? result.card.last_review.getTime() : null;
+            // Map back to JSON-serializable structure
+            newCard.due = result.card.due.getTime();
+            newCard.stability = result.card.stability;
+            newCard.difficulty = result.card.difficulty;
+            newCard.elapsed_days = result.card.elapsed_days;
+            newCard.scheduled_days = result.card.scheduled_days;
+            newCard.learning_steps = result.card.learning_steps;
+            newCard.reps = result.card.reps;
+            newCard.lapses = result.card.lapses;
+            newCard.state = result.card.state;
+            newCard.last_review = result.card.last_review ? result.card.last_review.getTime() : null;
 
-        return newCard;
+            return newCard;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('FSRS', `Error reviewing card ${card.id}: ${errorMessage}`, { cardId: card.id, rating, err });
+            // Comment: Re-throw error because caller must abort card state mutation on calculation failure
+            throw err;
+        }
     }
 
     getRetrievability(card?: Card, now: number = Date.now()): number {
         if (!card) return 0;
-        const lastReview = getLastReviewDate(card);
+        const logger = getLogger();
+        try {
+            const lastReview = getLastReviewDate(card);
 
-        if (card.stability <= 0 || !lastReview) {
+            if (card.stability <= 0 || !lastReview) {
+                return 0;
+            }
+
+            const cardExt = card as Card & { elapsedDays?: number; scheduledDays?: number; learningSteps?: number };
+            const tsCard: TsFsrsCard = {
+                due: new Date(card.due),
+                stability: card.stability,
+                difficulty: card.difficulty,
+                elapsed_days: card.elapsed_days !== undefined ? card.elapsed_days : (cardExt.elapsedDays || 0),
+                scheduled_days: card.scheduled_days !== undefined ? card.scheduled_days : (cardExt.scheduledDays || 0),
+                learning_steps: card.learning_steps !== undefined ? card.learning_steps : (cardExt.learningSteps || 0),
+                reps: card.reps,
+                lapses: card.lapses,
+                state: card.state,
+                last_review: new Date(lastReview)
+            };
+
+            const scheduler = fsrs({
+                w: this.w,
+                request_retention: this.requestRetention
+            });
+
+            return scheduler.get_retrievability(tsCard, new Date(now), false) || 0;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('FSRS', `Error calculating retrievability for card ${card.id}: ${errorMessage}`, { cardId: card.id, err });
+            // Comment: Non-fatal calculation failure, return 0 fallback retrievability
             return 0;
         }
-
-        const cardExt = card as Card & { elapsedDays?: number; scheduledDays?: number; learningSteps?: number };
-        const tsCard: TsFsrsCard = {
-            due: new Date(card.due),
-            stability: card.stability,
-            difficulty: card.difficulty,
-            elapsed_days: card.elapsed_days !== undefined ? card.elapsed_days : (cardExt.elapsedDays || 0),
-            scheduled_days: card.scheduled_days !== undefined ? card.scheduled_days : (cardExt.scheduledDays || 0),
-            learning_steps: card.learning_steps !== undefined ? card.learning_steps : (cardExt.learningSteps || 0),
-            reps: card.reps,
-            lapses: card.lapses,
-            state: card.state,
-            last_review: new Date(lastReview)
-        };
-
-        const scheduler = fsrs({
-            w: this.w,
-            request_retention: this.requestRetention
-        });
-
-        return scheduler.get_retrievability(tsCard, new Date(now), false) || 0;
     }
 
     getProjectedRetrievability(stability: number = 0, elapsedDays: number = 0): number {

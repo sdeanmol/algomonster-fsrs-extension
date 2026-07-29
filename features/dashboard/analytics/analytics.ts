@@ -156,16 +156,38 @@ class AnalyticsDashboardSPA {
             targetPane.classList.add('active');
         }
         
-        // Lazy-render content
+        // Lazy-render content with graceful fallback
         if (this.tabs[tabId]) {
-            this.tabs[tabId]!.render(`tab-${tabId}`);
+            try {
+                this.tabs[tabId]!.render(`tab-${tabId}`);
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                const logger = (window as unknown as { Logger?: { error: (module: string, msg: string, data?: unknown) => void } }).Logger;
+                if (logger) logger.error('Analytics', `Failed to render tab '${tabId}': ${errorMessage}`, { tabId, err });
+                
+                const container = document.getElementById(`tab-${tabId}`);
+                if (container) {
+                    container.innerHTML = `<div class="error-card p-6 bg-red-900/20 border border-red-500/30 rounded-xl text-red-300">
+                        <h4 class="font-bold text-lg mb-2">Failed to render ${this.tabTitles[tabId] || tabId}</h4>
+                        <p class="text-sm opacity-80 mb-4">${errorMessage}</p>
+                        <button onclick="window.location.reload()" class="px-4 py-2 bg-red-600/40 hover:bg-red-600/60 text-white text-xs font-semibold rounded-lg transition-colors">Reload Page</button>
+                    </div>`;
+                }
+                // Comment: Catch UI rendering failure gracefully to keep remainder of Analytics SPA intact
+            }
         }
     }
 }
 
 function initSPA(): void {
-    const spa = new AnalyticsDashboardSPA();
-    spa.init();
+    try {
+        const spa = new AnalyticsDashboardSPA();
+        spa.init();
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error("Failed to initialize Analytics SPA:", errorMessage, err);
+        // Comment: Non-fatal global initialization catch
+    }
 }
 
 if (document.readyState === 'loading') {

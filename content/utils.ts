@@ -73,7 +73,7 @@ export class Utils {
         try {
             let startNode: Node | null = null;
             let endNode: Node | null = null;
-     
+
             if (highlightSource.startMeta.parentDomPath && highlightSource.endMeta.parentDomPath) {
                 const resolvePath = (path: number[], childIndex: number): Node | null => {
                     let current: Node | null = document.body;
@@ -124,7 +124,12 @@ export class Utils {
                 }
                 return range;
             }
-        } catch { }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            const logger = (window as unknown as { Logger?: { error: (module: string, msg: string, data?: unknown) => void } }).Logger;
+            if (logger) logger.error('ContentUtils', `Failed to restore range from meta: ${errorMessage}`, { highlightSource, err });
+            // Comment: Return null so caller can drop invalid/outdated DOM mark gracefully
+        }
         return null;
     }
 
@@ -149,11 +154,18 @@ export class Utils {
 
         const colorName = `${prefix}-${colorHash}`;
 
-        if (state && !state.activeHighlightStyles.has(colorName)) {
-            const style = document.createElement('style');
-            style.textContent = `::highlight(${colorName}) { ${cssRule} }`;
-            document.head.appendChild(style);
-            state.activeHighlightStyles.add(colorName);
+        try {
+            if (state && !state.activeHighlightStyles.has(colorName)) {
+                const style = document.createElement('style');
+                style.textContent = `::highlight(${colorName}) { ${cssRule} }`;
+                document.head.appendChild(style);
+                state.activeHighlightStyles.add(colorName);
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            const logger = (window as unknown as { Logger?: { error: (module: string, msg: string, data?: unknown) => void } }).Logger;
+            if (logger) logger.error('ContentUtils', `Failed ensuring highlight style '${colorName}': ${errorMessage}`, { color, type, err });
+            // Comment: Catch style element injection failure gracefully
         }
         return colorName;
     }
@@ -172,7 +184,12 @@ export class Utils {
                 const rawTopic = segments[segments.length - 1];
                 return [rawTopic.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')];
             }
-        } catch { }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            const logger = (window as unknown as { Logger?: { warn: (module: string, msg: string, data?: unknown) => void } }).Logger;
+            if (logger) logger.warn('ContentUtils', `Error parsing auto tags from URL: ${errorMessage}`, { err });
+            // Comment: Return default tag fallback on URL parsing error
+        }
         return ["AlgoRecall"];
     }
 
@@ -184,7 +201,7 @@ export class Utils {
      */
     static getExtractedProblemTitle(): string {
         const url = window.location.href;
-        
+
         // LeetCode Explore Cards
         if (url.includes('leetcode.com/explore/')) {
             const selectors = [
@@ -196,15 +213,19 @@ export class Utils {
                 '.title__3y75'
             ];
             for (const selector of selectors) {
-                const el = document.querySelector(selector) as HTMLElement | null;
-                if (el && el.innerText && el.innerText.trim().length > 0 && el.innerText.trim().length < 100) {
-                    const text = el.innerText.trim();
-                    if (!text.toLowerCase().includes('leetcode') || text.toLowerCase().includes('course') || text.toLowerCase().includes('crash')) {
-                        return text;
+                try {
+                    const el = document.querySelector(selector) as HTMLElement | null;
+                    if (el && el.innerText && el.innerText.trim().length > 0 && el.innerText.trim().length < 100) {
+                        const text = el.innerText.trim();
+                        if (!text.toLowerCase().includes('leetcode') || text.toLowerCase().includes('course') || text.toLowerCase().includes('crash')) {
+                            return text;
+                        }
                     }
+                } catch {
+                    // Ignore querySelector syntax errors for invalid selectors
                 }
             }
-            
+
             // Fallback: parse URL
             try {
                 const path = window.location.pathname;
@@ -221,9 +242,13 @@ export class Utils {
                             .join(' ');
                     }
                 }
-            } catch { }
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                const logger = (window as unknown as { Logger?: { warn: (module: string, msg: string, data?: unknown) => void } }).Logger;
+                if (logger) logger.warn('ContentUtils', `Error parsing title from URL: ${errorMessage}`, { url, err });
+            }
         }
-        
+
         // General title fallback
         let title = document.title;
         title = title.replace(' - AlgoMonster', '');

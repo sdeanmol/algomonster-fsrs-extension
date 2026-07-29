@@ -89,10 +89,18 @@ export class AlgoRecallBackground {
             logger.info('Background', 'Initializing background service worker...');
             logger.time('Background', 'Startup');
         }
-        this.bindEvents();
-        await this.resumePomodoroBackground();
-        if (logger) {
-            logger.timeEnd('Background', 'Startup');
+        try {
+            this.bindEvents();
+            await this.resumePomodoroBackground();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Background', `Failed background initialization: ${errorMessage}`, { err });
+            // Comment: Recover gracefully so service worker listeners remain attached
+        } finally {
+            // Comment: Always end startup timer regardless of init outcome
+            if (logger) {
+                logger.timeEnd('Background', 'Startup');
+            }
         }
     }
 
@@ -114,46 +122,52 @@ export class AlgoRecallBackground {
      */
     async handleInstalled(details?: chrome.runtime.InstalledDetails): Promise<void> {
         const logger = getLogger();
-        // Initialize default notification settings if they don't exist
-        const result = await chrome.storage.local.get(['notificationSettings']);
-        if (!result.notificationSettings) {
-            await chrome.storage.local.set({
-                notificationSettings: {
-                    enabled: true,
-                    frequency: '60',
-                    priority: '2',
-                    requireInteraction: true
-                }
-            });
-        }
+        try {
+            // Initialize default notification settings if they don't exist
+            const result = await chrome.storage.local.get(['notificationSettings']);
+            if (!result.notificationSettings) {
+                await chrome.storage.local.set({
+                    notificationSettings: {
+                        enabled: true,
+                        frequency: '60',
+                        priority: '2',
+                        requireInteraction: true
+                    }
+                });
+            }
 
-        await this.setupAlarm();
-        await this.setupWeeklySummaryAlarm();
-        await this.setupDailyNudgeAlarm();
-        if (logger) {
-            logger.debug('Background', `Extension installed/updated. Reason: ${details ? details.reason : 'unknown'}`);
-        }
-        
-        // Redirect to Onboarding Welcome page on initial install (and update for debugging)
-        if (details && (details.reason === 'install' || details.reason === 'update')) {
-            chrome.tabs.create({ url: chrome.runtime.getURL('features/common/welcome/welcome.html') });
-        } else {
-            chrome.notifications.create('test-install', {
-                type: 'basic',
-                iconUrl: '../icons/icon.png', // Relative path from service worker
-                title: 'AlgoRecall Active 🧠',
-                message: 'Notifications are working! You will be alerted when reviews are due.',
-                priority: 2
-            }, (id) => {
-                if (chrome.runtime.lastError) {
-                    if (logger) logger.error('Background', "Notification failed to send", chrome.runtime.lastError.message);
-                } else {
-                    if (logger) logger.debug('Background', `Test install notification sent with ID: ${id}`);
-                }
-            });
-        }
+            await this.setupAlarm();
+            await this.setupWeeklySummaryAlarm();
+            await this.setupDailyNudgeAlarm();
+            if (logger) {
+                logger.debug('Background', `Extension installed/updated. Reason: ${details ? details.reason : 'unknown'}`);
+            }
+            
+            // Redirect to Onboarding Welcome page on initial install (and update for debugging)
+            if (details && (details.reason === 'install' || details.reason === 'update')) {
+                chrome.tabs.create({ url: chrome.runtime.getURL('features/common/welcome/welcome.html') });
+            } else {
+                chrome.notifications.create('test-install', {
+                    type: 'basic',
+                    iconUrl: '../icons/icon.png', // Relative path from service worker
+                    title: 'AlgoRecall Active 🧠',
+                    message: 'Notifications are working! You will be alerted when reviews are due.',
+                    priority: 2
+                }, (id) => {
+                    if (chrome.runtime.lastError) {
+                        if (logger) logger.error('Background', "Notification failed to send", chrome.runtime.lastError.message);
+                    } else {
+                        if (logger) logger.debug('Background', `Test install notification sent with ID: ${id}`);
+                    }
+                });
+            }
 
-        await this.checkDueCards();
+            await this.checkDueCards();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Background', `Error in handleInstalled: ${errorMessage}`, { details, err });
+            // Comment: Non-fatal error during install setup, background worker remains active
+        }
     }
 
     /**
@@ -309,45 +323,91 @@ export class AlgoRecallBackground {
     handleMessage(message: ExtensionMessage, sender: chrome.runtime.MessageSender, sendResponse: (response?: MessageResponse) => void): boolean | void {
         const logger = getLogger();
         if (logger) logger.debug('Background', `Received message: ${message.action}`, { senderId: sender.id, tabId: sender.tab?.id });
+        
         if (message.action === 'test_notification') {
             (async () => {
+                let success = false;
+                let errorMessage: string | undefined;
                 try {
                     await this.showTestNotification();
-                    sendResponse({ success: true });
+                    success = true;
                 } catch (err) {
-                    const errorObj = err instanceof Error ? err : new Error(String(err));
-                    if (logger) logger.error('Background', `Error in test_notification`, errorObj);
-                    sendResponse({ success: false, error: errorObj.message });
+                    errorMessage = err instanceof Error ? err.message : String(err);
+                    if (logger) logger.error('Background', `Error processing test_notification: ${errorMessage}`, { message, err });
+                    // Comment: Recover gracefully by returning error response to client tab
+                } finally {
+                    // Comment: Guarantee sendResponse call to prevent hanging runtime messaging channel
+                    sendResponse(success ? { success: true } : { success: false, error: errorMessage });
                 }
             })();
             return true; // Keep message channel open for async response
         }
+
         if (message.action === 'open_fullscreen_editor') {
-            let targetUrl = 'features/tracker/editor/editor.html?url=' + encodeURIComponent((message.url as string) || '');
-            if (message.cardId) {
-                targetUrl += '&cardId=' + encodeURIComponent((message.cardId as string) || '');
+            try {
+                let targetUrl = 'features/tracker/editor/editor.html?url=' + encodeURIComponent((message.url as string) || '');
+                if (message.cardId) {
+                    targetUrl += '&cardId=' + encodeURIComponent((message.cardId as string) || '');
+                }
+                chrome.tabs.create({ url: chrome.runtime.getURL(targetUrl) });
+                sendResponse({ success: true });
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                if (logger) logger.error('Background', `Error in open_fullscreen_editor: ${errorMessage}`, { message, err });
+                sendResponse({ success: false, error: errorMessage });
             }
-            chrome.tabs.create({ url: chrome.runtime.getURL(targetUrl) });
-            sendResponse({ success: true });
             return true;
         }
+
         if (message.action === 'snooze_notification') {
-            const minutes = message.minutes || SNOOZE_DEFAULT_MINUTES;
-            chrome.alarms.create('snoozeFsrsReviews', { delayInMinutes: minutes });
-            sendResponse({ success: true });
+            try {
+                const minutes = message.minutes || SNOOZE_DEFAULT_MINUTES;
+                chrome.alarms.create('snoozeFsrsReviews', { delayInMinutes: minutes });
+                sendResponse({ success: true });
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                if (logger) logger.error('Background', `Error in snooze_notification: ${errorMessage}`, { message, err });
+                sendResponse({ success: false, error: errorMessage });
+            }
             return true;
         }
+
         // R3.6: Toggle weekly summary alarm
         if (message.action === 'toggle_weekly_summary') {
             (async () => {
-                await this.setupWeeklySummaryAlarm();
-                sendResponse({ success: true });
+                let success = false;
+                let errorMessage: string | undefined;
+                try {
+                    await this.setupWeeklySummaryAlarm();
+                    success = true;
+                } catch (err) {
+                    errorMessage = err instanceof Error ? err.message : String(err);
+                    if (logger) logger.error('Background', `Error toggling weekly summary: ${errorMessage}`, { message, err });
+                    // Comment: Return error payload to caller without failing SW execution
+                } finally {
+                    // Comment: Guarantee sendResponse execution in finally block
+                    sendResponse(success ? { success: true } : { success: false, error: errorMessage });
+                }
             })();
             return true;
         }
+
         if (message.action === 'pomodoro_action') {
-            this.handlePomodoroAction(message.payload as { command: string; state: PomodoroState });
-            sendResponse({ success: true });
+            (async () => {
+                let success = false;
+                let errorMessage: string | undefined;
+                try {
+                    await this.handlePomodoroAction(message.payload as { command: string; state: PomodoroState });
+                    success = true;
+                } catch (err) {
+                    errorMessage = err instanceof Error ? err.message : String(err);
+                    if (logger) logger.error('Background', `Error handling pomodoro_action: ${errorMessage}`, { message, err });
+                    // Comment: Return error status to pomodoro UI tab
+                } finally {
+                    // Comment: Always reply to caller to close messaging channel
+                    sendResponse(success ? { success: true } : { success: false, error: errorMessage });
+                }
+            })();
             return true;
         }
     }
