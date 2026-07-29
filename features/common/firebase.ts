@@ -12,9 +12,23 @@ const firebaseConfig: FirebaseOptions = {
   appId: "1:123456789012:web:abcdef1234567890"
 };
 
-// Initialize Firebase
-const app: FirebaseApp = initializeApp(firebaseConfig);
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
+// Initialize Firebase with exception handling
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+} catch (err) {
+  const errorMessage = err instanceof Error ? err.message : String(err);
+  const logger = (globalThis as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+  if (logger) logger.error('Firebase', `Failed to initialize Firebase app: ${errorMessage}`, { err });
+  // Comment: Non-fatal Firebase initialization fallback
+  app = {} as FirebaseApp;
+  auth = {} as Auth;
+  db = {} as Firestore;
+}
 
 export { app, auth, db };

@@ -66,60 +66,71 @@ class EditorManager {
      * Retrieves current FSRS cards, drafts, and bookmarks to fill editor textfields.
      */
     loadContent(): void {
-        chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: StorageData & { bookmarks?: BookmarkEntry[]; approachDrafts?: Record<string, DraftEntry | string> }) => {
-            const cards: Card[] = result.fsrsCards || [];
-            const bookmarks: BookmarkEntry[] = result.bookmarks || [];
-            const drafts: Record<string, DraftEntry | string> = result.approachDrafts || {};
+        const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+        try {
+            chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: StorageData & { bookmarks?: BookmarkEntry[]; approachDrafts?: Record<string, DraftEntry | string> }) => {
+                try {
+                    const cards: Card[] = result.fsrsCards || [];
+                    const bookmarks: BookmarkEntry[] = result.bookmarks || [];
+                    const drafts: Record<string, DraftEntry | string> = result.approachDrafts || {};
 
-            let card: Card | undefined;
-            if (this.cardId) {
-                card = cards.find((c: Card) => c.id === this.cardId);
-            }
-            if (!card && this.cleanUrl) {
-                card = cards.find((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
-            }
-
-            const urlEl = document.getElementById('problem-url');
-            const titleEl = document.getElementById('problem-title');
-            const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
-            const tcInput = document.getElementById('time-complexity-input') as HTMLInputElement | null;
-            const scInput = document.getElementById('space-complexity-input') as HTMLInputElement | null;
-            const statusEl = document.getElementById('save-status');
-
-            if (urlEl) urlEl.textContent = this.problemUrl;
-
-            if (card) {
-                this.isCardExisting = true;
-                if (!this.cardId && card.id) this.cardId = card.id;
-                if (titleEl) titleEl.textContent = card.problemTitle || (card as Card & { title?: string }).title || "FSRS Insights";
-                if (textarea) textarea.value = card.approach || "";
-                if (tcInput) tcInput.value = (card as Card & { timeComplexity?: string }).timeComplexity || "";
-                if (scInput) scInput.value = (card as Card & { spaceComplexity?: string }).spaceComplexity || "";
-                if (statusEl) statusEl.textContent = "Loaded FSRS card";
-            } else {
-                this.isCardExisting = false;
-                const bookmark = bookmarks.find((b: BookmarkEntry) => b.url.split('?')[0].split('#')[0] === this.cleanUrl);
-                if (titleEl) titleEl.textContent = (bookmark && bookmark.title) || this.getCleanDisplayUrl(this.problemUrl);
-                
-                const draftVal = drafts[this.cleanUrl];
-                let draftText = "";
-                let tc = "";
-                let sc = "";
-                if (draftVal) {
-                    if (typeof draftVal === 'object' && draftVal !== null) {
-                        draftText = draftVal.approach || "";
-                        tc = draftVal.timeComplexity || "";
-                        sc = draftVal.spaceComplexity || "";
-                    } else {
-                        draftText = draftVal;
+                    let card: Card | undefined;
+                    if (this.cardId) {
+                        card = cards.find((c: Card) => c.id === this.cardId);
                     }
+                    if (!card && this.cleanUrl) {
+                        card = cards.find((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
+                    }
+
+                    const urlEl = document.getElementById('problem-url');
+                    const titleEl = document.getElementById('problem-title');
+                    const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
+                    const tcInput = document.getElementById('time-complexity-input') as HTMLInputElement | null;
+                    const scInput = document.getElementById('space-complexity-input') as HTMLInputElement | null;
+                    const statusEl = document.getElementById('save-status');
+
+                    if (urlEl) urlEl.textContent = this.problemUrl;
+
+                    if (card) {
+                        this.isCardExisting = true;
+                        if (!this.cardId && card.id) this.cardId = card.id;
+                        if (titleEl) titleEl.textContent = card.problemTitle || (card as Card & { title?: string }).title || "FSRS Insights";
+                        if (textarea) textarea.value = card.approach || "";
+                        if (tcInput) tcInput.value = (card as Card & { timeComplexity?: string }).timeComplexity || "";
+                        if (scInput) scInput.value = (card as Card & { spaceComplexity?: string }).spaceComplexity || "";
+                        if (statusEl) statusEl.textContent = "Loaded FSRS card";
+                    } else {
+                        this.isCardExisting = false;
+                        const bookmark = bookmarks.find((b: BookmarkEntry) => b.url.split('?')[0].split('#')[0] === this.cleanUrl);
+                        if (titleEl) titleEl.textContent = (bookmark && bookmark.title) || this.getCleanDisplayUrl(this.problemUrl);
+                        
+                        const draftVal = drafts[this.cleanUrl];
+                        let draftText = "";
+                        let tc = "";
+                        let sc = "";
+                        if (draftVal) {
+                            if (typeof draftVal === 'object' && draftVal !== null) {
+                                draftText = draftVal.approach || "";
+                                tc = draftVal.timeComplexity || "";
+                                sc = draftVal.spaceComplexity || "";
+                            } else {
+                                draftText = draftVal;
+                            }
+                        }
+                        if (textarea) textarea.value = draftText;
+                        if (tcInput) tcInput.value = tc;
+                        if (scInput) scInput.value = sc;
+                        if (statusEl) statusEl.textContent = "Loaded draft notes";
+                    }
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    if (logger) logger.error('Editor', `Error populating editor content: ${errorMessage}`, { innerErr });
                 }
-                if (textarea) textarea.value = draftText;
-                if (tcInput) tcInput.value = tc;
-                if (scInput) scInput.value = sc;
-                if (statusEl) statusEl.textContent = "Loaded draft notes";
-            }
-        });
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('Editor', `Failed to load storage in Editor loadContent: ${errorMessage}`, { err });
+        }
     }
 
     /**

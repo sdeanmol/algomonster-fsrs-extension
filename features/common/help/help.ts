@@ -10,14 +10,21 @@ class HelpCenterSPA {
     }
 
     init(): void {
-        const urlParams = new URLSearchParams(window.location.search);
-        const tabParam = urlParams.get('tab');
-        if (tabParam) {
-            this.switchTab(tabParam);
+        const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabParam = urlParams.get('tab');
+            if (tabParam) {
+                this.switchTab(tabParam);
+            }
+            this.bindTabNavigation();
+            this.bindSearchFilter();
+            this.bindCloseButton();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('HelpCenter', `Error initializing Help Center: ${errorMessage}`, { err });
+            // Comment: Non-fatal Help Center setup catch
         }
-        this.bindTabNavigation();
-        this.bindSearchFilter();
-        this.bindCloseButton();
     }
 
     /**

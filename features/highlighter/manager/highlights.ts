@@ -91,15 +91,27 @@ export class HighlightsManager {
     }
 
     loadHighlights(): void {
-        chrome.storage.local.get(['marks', 'bookmarks'], (result: StorageData) => {
-            this.loadedMarks = result.marks || [];
-            this.loadedBookmarks = result.bookmarks || [];
-            
-            this.populateWebpageSelect();
-            this.renderColorFilters();
-            
-            this.filterAndRender();
-        });
+        const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+        try {
+            chrome.storage.local.get(['marks', 'bookmarks'], (result: StorageData) => {
+                try {
+                    this.loadedMarks = result.marks || [];
+                    this.loadedBookmarks = result.bookmarks || [];
+                    
+                    this.populateWebpageSelect();
+                    this.renderColorFilters();
+                    this.filterAndRender();
+                } catch (innerErr) {
+                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
+                    if (logger) logger.error('HighlightsManager', `Error rendering highlights manager: ${errorMessage}`, { innerErr });
+                    // Comment: Non-fatal UI rendering error
+                }
+            });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('HighlightsManager', `Failed to fetch highlights storage: ${errorMessage}`, { err });
+            // Comment: Catch storage retrieval failure gracefully
+        }
     }
 
     populateWebpageSelect(): void {

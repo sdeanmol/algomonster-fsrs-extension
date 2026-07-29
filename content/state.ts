@@ -59,9 +59,21 @@ function getAlgoRecallGlobal(): AlgoRecallGlobal {
 const algoGlobal = getAlgoRecallGlobal();
 
 // Instantiated state container
+let schedulerInstance: AbstractScheduler;
+try {
+    const SchedulerCtor = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
+    schedulerInstance = typeof SchedulerCtor === 'function' ? new SchedulerCtor() : ({} as AbstractScheduler);
+} catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+    if (logger) logger.error('State', `Failed to instantiate FsrsScheduler in content/state.ts: ${errorMessage}`, { err });
+    // Comment: Fallback to dummy scheduler instance if constructor fails
+    schedulerInstance = {} as AbstractScheduler;
+}
+
 algoGlobal.state = {
     // Instantiated scheduling algorithm controller (FSRS as default)
-    scheduler: typeof (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler === 'function' ? new (window as unknown as { FsrsScheduler: new () => AbstractScheduler }).FsrsScheduler() : ({} as AbstractScheduler),
+    scheduler: schedulerInstance,
 
     // Active collection of study cards/patterns loaded from storage
     cards: [],

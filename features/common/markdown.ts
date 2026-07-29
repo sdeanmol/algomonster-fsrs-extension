@@ -74,8 +74,11 @@ export class Markdown {
             html = html.replace(/javascript\s*:/gi, '');
             
             return html;
-        } catch {
-            // Fallback on parse error
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+            if (logger) logger.error('Markdown', `Markdown parsing failed: ${errorMessage}`, { err });
+            // Comment: Return safe escaped plain text HTML fallback when marked.js parsing fails
             return text
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')

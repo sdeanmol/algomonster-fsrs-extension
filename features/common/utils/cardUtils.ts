@@ -78,23 +78,31 @@ export function getCardsForUrl(cards: Card[], url: string): Card[] {
  */
 export function ensureCardIds(cards: Card[]): Card[] {
     if (!Array.isArray(cards)) return [];
-    const existingIds = new Set<string>();
-    cards.forEach(c => {
-        if (c && c.id) {
-            existingIds.add(String(c.id));
-        }
-    });
-
-    cards.forEach(c => {
-        if (c && !c.id) {
-            let newId = generateCardId();
-            while (existingIds.has(newId)) {
-                newId = generateCardId();
+    try {
+        const existingIds = new Set<string>();
+        cards.forEach(c => {
+            if (c && c.id) {
+                existingIds.add(String(c.id));
             }
-            c.id = newId;
-            existingIds.add(newId);
-        }
-    });
+        });
 
-    return cards;
+        cards.forEach(c => {
+            if (c && !c.id) {
+                let newId = generateCardId();
+                while (existingIds.has(newId)) {
+                    newId = generateCardId();
+                }
+                c.id = newId;
+                existingIds.add(newId);
+            }
+        });
+
+        return cards;
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const logger = (globalThis as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
+        if (logger) logger.error('CardUtils', `Error in ensureCardIds: ${errorMessage}`, { err });
+        // Comment: Return cards array safely even if ID generation encounters invalid objects
+        return cards;
+    }
 }
