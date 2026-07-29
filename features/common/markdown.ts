@@ -1,3 +1,10 @@
+/**
+ * @file features/common/markdown.ts
+ * @description Lightweight Markdown rendering wrapper utilizing the marked.js parser library.
+ */
+
+import { Logger } from '@common/logger';
+
 interface MarkedOptions {
     breaks?: boolean;
     gfm?: boolean;
@@ -17,9 +24,15 @@ interface AlgoRecallMarkdownGlobal {
 }
 
 function getAlgoRecallGlobal(): AlgoRecallMarkdownGlobal {
-    const win = window as unknown as { AlgoRecall: AlgoRecallMarkdownGlobal };
-    win.AlgoRecall = win.AlgoRecall || {};
-    return win.AlgoRecall;
+    try {
+        const win = window as unknown as { AlgoRecall: AlgoRecallMarkdownGlobal };
+        win.AlgoRecall = win.AlgoRecall || {};
+        return win.AlgoRecall;
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('Markdown', `Error accessing global AlgoRecall object: ${errorMessage}`, { err });
+        return {};
+    }
 }
 
 /**
@@ -33,13 +46,19 @@ export class Markdown {
      * Configures the marked options if loaded.
      */
     static init(): void {
-        if (typeof marked !== 'undefined' && marked && typeof marked.setOptions === 'function') {
-            marked.setOptions({
-                breaks: true,       // Convert \n to <br>
-                gfm: true,          // GitHub Flavored Markdown (tables, strikethrough)
-                headerIds: false,   // Don't generate id attributes on headings
-                mangle: false       // Don't mangle email addresses
-            });
+        try {
+            if (typeof marked !== 'undefined' && marked && typeof marked.setOptions === 'function') {
+                marked.setOptions({
+                    breaks: true,       // Convert \n to <br>
+                    gfm: true,          // GitHub Flavored Markdown (tables, strikethrough)
+                    headerIds: false,   // Don't generate id attributes on headings
+                    mangle: false       // Don't mangle email addresses
+                });
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Markdown', `Error initializing marked.js options: ${errorMessage}`, { err });
+            // Comment: Non-fatal marked options setup catch
         }
     }
 
@@ -76,8 +95,7 @@ export class Markdown {
             return html;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
-            if (logger) logger.error('Markdown', `Markdown parsing failed: ${errorMessage}`, { err });
+            Logger.error('Markdown', `Markdown parsing failed: ${errorMessage}`, { err });
             // Comment: Return safe escaped plain text HTML fallback when marked.js parsing fails
             return text
                 .replace(/&/g, '&amp;')
@@ -88,10 +106,15 @@ export class Markdown {
     }
 }
 
-getAlgoRecallGlobal().Markdown = Markdown;
+try {
+    getAlgoRecallGlobal().Markdown = Markdown;
 
-// Initialize configurations
-Markdown.init();
+    // Initialize configurations
+    Markdown.init();
 
-// Maintain legacy global binding for safety/backwards compatibility
-(window as unknown as { renderMarkdown?: typeof Markdown.render }).renderMarkdown = Markdown.render;
+    // Maintain legacy global binding for safety/backwards compatibility
+    (window as unknown as { renderMarkdown?: typeof Markdown.render }).renderMarkdown = Markdown.render;
+} catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    Logger.error('Markdown', `Error initializing Markdown global bindings: ${errorMessage}`, { err });
+}

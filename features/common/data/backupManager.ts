@@ -3,7 +3,7 @@
  * @description Highly optimized backup and restoration manager for AlgoRecall.
  * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
  */
-import '../logger';
+import { Logger } from '@common/logger';
 import { ensureCardIds } from '../utils/cardUtils';
 import { Card, StorageData, UserSettings, WhitelistedWebsite, HighlightMark, BookmarkItem } from '../../../types/domain';
 import {
@@ -18,11 +18,6 @@ import {
     SettingsData,
     FooterRecord
 } from '../../../types/backup';
-import { LoggerClass } from '../logger';
-
-function getLogger(): LoggerClass | undefined {
-    return (globalThis as unknown as { Logger?: LoggerClass }).Logger;
-}
 
 export type BackupPageData = PageRecord['data'];
 export type BackupCardData = CardRecordData;
@@ -51,12 +46,19 @@ const VALID_RECORD_TYPES: ReadonlySet<string> = new Set<BackupRecordType>([
  * Validates whether a parsed JSON object is a conforming BackupRecord line.
  */
 export function isValidBackupRecord(parsed: unknown): parsed is BackupRecord {
-    if (typeof parsed !== 'object' || parsed === null) return false;
-    const rec = parsed as { type?: unknown; data?: unknown };
-    if (typeof rec.type !== 'string' || !VALID_RECORD_TYPES.has(rec.type as BackupRecordType)) {
+    try {
+        if (typeof parsed !== 'object' || parsed === null) return false;
+        const rec = parsed as { type?: unknown; data?: unknown };
+        if (typeof rec.type !== 'string' || !VALID_RECORD_TYPES.has(rec.type as BackupRecordType)) {
+            return false;
+        }
+        return typeof rec.data === 'object' && rec.data !== null;
+    } catch (err) {
+        // Comment: Recover gracefully with false if property access throws
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.warn('Backup', `Validation error in isValidBackupRecord: ${errorMessage}`, { err });
         return false;
     }
-    return typeof rec.data === 'object' && rec.data !== null;
 }
 
 /**
@@ -73,9 +75,15 @@ export class Fnv1aHasher {
      * Feed a string into the hasher.
      */
     update(str: string): void {
-        for (let i = 0; i < str.length; i++) {
-            this.hash ^= str.charCodeAt(i);
-            this.hash = (this.hash * 0x01000193) >>> 0;
+        try {
+            for (let i = 0; i < str.length; i++) {
+                this.hash ^= str.charCodeAt(i);
+                this.hash = (this.hash * 0x01000193) >>> 0;
+            }
+        } catch (err) {
+            // Comment: Catch hasher string update error
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Backup', `Fnv1aHasher update failed: ${errorMessage}`, { err });
         }
     }
 
@@ -83,7 +91,14 @@ export class Fnv1aHasher {
      * Retrieve the final hex checksum digest.
      */
     digest(): string {
-        return this.hash.toString(16).padStart(8, '0');
+        try {
+            return this.hash.toString(16).padStart(8, '0');
+        } catch (err) {
+            // Comment: Return default empty digest on formatting error
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Backup', `Fnv1aHasher digest failed: ${errorMessage}`, { err });
+            return '00000000';
+        }
     }
 }
 
@@ -91,22 +106,39 @@ export class Fnv1aHasher {
  * Generator helper to read line-by-line from a stream of bytes.
  */
 export async function* readLines(stream: ReadableStream<Uint8Array>): AsyncGenerator<string, void, unknown> {
-    const reader = stream.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let { value, done } = await reader.read();
-    let buffer = "";
-    while (!done) {
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // keep last incomplete line in buffer
-        for (const line of lines) {
-            yield line;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+    try {
+        reader = stream.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let { value, done } = await reader.read();
+        let buffer = "";
+        while (!done) {
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || ""; // keep last incomplete line in buffer
+            for (const line of lines) {
+                yield line;
+            }
+            ({ value, done } = await reader.read());
         }
-        ({ value, done } = await reader.read());
-    }
-    buffer += decoder.decode(); // flush remaining
-    if (buffer) {
-        yield buffer;
+        buffer += decoder.decode(); // flush remaining
+        if (buffer) {
+            yield buffer;
+        }
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('Backup', `Error reading line stream: ${errorMessage}`, { err });
+        // Comment: Re-throw stream read error so stream consumers are notified of stream failure
+        throw err;
+    } finally {
+        // Comment: Release stream reader lock when line generator finishes or errors
+        try {
+            if (reader) {
+                reader.releaseLock();
+            }
+        } catch {
+            // Ignore releaseLock error if stream was already closed
+        }
     }
 }
 
@@ -116,187 +148,198 @@ export class BackupManager {
      * Yields output chunks using a ReadableStream and triggers a download.
      */
     static async exportBackup(): Promise<void> {
-        const logger = getLogger();
-        if (logger) {
-            logger.time('Backup', 'exportBackup');
-            logger.info('Backup', 'Starting backup export process...');
-        }
-        const raw = (await chrome.storage.local.get(null)) as StorageData & {
-            marks?: BackupMarkData[];
-            bookmarks?: BackupBookmarkData[];
-            pagecontents?: BackupPageContentData[];
-            ratingPromptState?: unknown;
-            dailyGoalTarget?: number | null;
-            longestStreak?: number;
-        };
+        Logger.time('Backup', 'exportBackup');
+        Logger.info('Backup', 'Starting backup export process...');
+        try {
+            const raw = (await chrome.storage.local.get(null)) as StorageData & {
+                marks?: BackupMarkData[];
+                bookmarks?: BackupBookmarkData[];
+                pagecontents?: BackupPageContentData[];
+                ratingPromptState?: unknown;
+                dailyGoalTarget?: number | null;
+                longestStreak?: number;
+            };
 
-        // Extract and deduplicate URLs across bookmarks, cards, marks, pagecontents
-        const pages: BackupPageData[] = [];
-        const urlToPageId = new Map<string, number>();
+            // Extract and deduplicate URLs across bookmarks, cards, marks, pagecontents
+            const pages: BackupPageData[] = [];
+            const urlToPageId = new Map<string, number>();
 
-        const getOrCreatePageId = (url: string | undefined, title: string = '', icon: string = ''): number | null => {
-            if (!url) return null;
-            let id = urlToPageId.get(url);
-            if (id === undefined) {
-                id = pages.length;
-                urlToPageId.set(url, id);
-                pages.push({ id, url, title, icon });
-            } else {
-                if (title && !pages[id].title) pages[id].title = title;
-                if (icon && !pages[id].icon) pages[id].icon = icon;
+            const getOrCreatePageId = (url: string | undefined, title: string = '', icon: string = ''): number | null => {
+                if (!url) return null;
+                let id = urlToPageId.get(url);
+                if (id === undefined) {
+                    id = pages.length;
+                    urlToPageId.set(url, id);
+                    pages.push({ id, url, title, icon });
+                } else {
+                    if (title && !pages[id].title) pages[id].title = title;
+                    if (icon && !pages[id].icon) pages[id].icon = icon;
+                }
+                return id;
+            };
+
+            // Populate URLs from bookmarks
+            for (const b of raw.bookmarks || []) {
+                getOrCreatePageId(b.url, b.title, b.meta?.favIconUrl);
             }
-            return id;
-        };
 
-        // Populate URLs from bookmarks
-        for (const b of raw.bookmarks || []) {
-            getOrCreatePageId(b.url, b.title, b.meta?.favIconUrl);
-        }
+            // Populate URLs from FSRS cards
+            for (const c of raw.fsrsCards || []) {
+                getOrCreatePageId(c.problemUrl, c.problemTitle);
+            }
 
-        // Populate URLs from FSRS cards
-        for (const c of raw.fsrsCards || []) {
-            getOrCreatePageId(c.problemUrl, c.problemTitle);
-        }
+            // Populate URLs from marks
+            for (const m of raw.marks || []) {
+                getOrCreatePageId(m.url);
+            }
 
-        // Populate URLs from marks
-        for (const m of raw.marks || []) {
-            getOrCreatePageId(m.url);
-        }
+            // Populate URLs from pagecontents
+            for (const pc of raw.pagecontents || []) {
+                getOrCreatePageId(pc.url);
+            }
 
-        // Populate URLs from pagecontents
-        for (const pc of raw.pagecontents || []) {
-            getOrCreatePageId(pc.url);
-        }
+            // Generate deduplicated structures
+            const dupBookmarks: BackupBookmarkData[] = (raw.bookmarks || []).map((b) => ({
+                u: b.url ? (urlToPageId.get(b.url) ?? undefined) : undefined,
+                meta: (b.meta as { favIconUrl?: string;[key: string]: unknown }) || undefined
+            }));
 
-        // Generate deduplicated structures
-        const dupBookmarks: BackupBookmarkData[] = (raw.bookmarks || []).map((b) => ({
-            u: b.url ? (urlToPageId.get(b.url) ?? undefined) : undefined,
-            meta: (b.meta as { favIconUrl?: string; [key: string]: unknown }) || undefined
-        }));
+            const dupCards: BackupCardData[] = (raw.fsrsCards || []).map((c) => {
+                const copy: BackupCardData = { ...(c as unknown as BackupCardData) };
+                if (c.problemUrl) copy.u = urlToPageId.get(c.problemUrl) ?? undefined;
+                delete copy.problemUrl;
+                delete copy.problemTitle;
+                return copy;
+            });
 
-        const dupCards: BackupCardData[] = (raw.fsrsCards || []).map((c) => {
-            const copy: BackupCardData = { ...(c as unknown as BackupCardData) };
-            if (c.problemUrl) copy.u = urlToPageId.get(c.problemUrl) ?? undefined;
-            delete copy.problemUrl;
-            delete copy.problemTitle;
-            return copy;
-        });
+            const dupMarks: BackupMarkData[] = (raw.marks || []).map((m) => {
+                const copy: BackupMarkData = { ...m };
+                if (m.url) copy.u = urlToPageId.get(m.url) ?? undefined;
+                delete copy.url;
+                return copy;
+            });
 
-        const dupMarks: BackupMarkData[] = (raw.marks || []).map((m) => {
-            const copy: BackupMarkData = { ...m };
-            if (m.url) copy.u = urlToPageId.get(m.url) ?? undefined;
-            delete copy.url;
-            return copy;
-        });
+            const dupPageContents: BackupPageContentData[] = (raw.pagecontents || []).map((pc) => {
+                const copy: BackupPageContentData = { ...pc };
+                if (pc.url) copy.u = urlToPageId.get(pc.url) ?? undefined;
+                delete copy.url;
+                return copy;
+            });
 
-        const dupPageContents: BackupPageContentData[] = (raw.pagecontents || []).map((pc) => {
-            const copy: BackupPageContentData = { ...pc };
-            if (pc.url) copy.u = urlToPageId.get(pc.url) ?? undefined;
-            delete copy.url;
-            return copy;
-        });
+            // Generator yielding each serialized line
+            function* generateLines(): Generator<string, void, unknown> {
+                const header: BackupHeaderRecord = {
+                    type: "header",
+                    data: {
+                        version: 2,
+                        timestamp: Date.now(),
+                        counts: {
+                            pages: pages.length,
+                            cards: dupCards.length,
+                            marks: dupMarks.length,
+                            bookmarks: dupBookmarks.length,
+                            pagecontents: dupPageContents.length
+                        }
+                    }
+                };
+                yield JSON.stringify(header);
 
-        // Generator yielding each serialized line
-        function* generateLines(): Generator<string, void, unknown> {
-            const header: BackupHeaderRecord = {
-                type: "header",
-                data: {
-                    version: 2,
-                    timestamp: Date.now(),
-                    counts: {
-                        pages: pages.length,
-                        cards: dupCards.length,
-                        marks: dupMarks.length,
-                        bookmarks: dupBookmarks.length,
-                        pagecontents: dupPageContents.length
+                for (const p of pages) {
+                    yield JSON.stringify({ type: "page", data: p });
+                }
+                for (const c of dupCards) {
+                    yield JSON.stringify({ type: "card", data: c });
+                }
+                for (const m of dupMarks) {
+                    yield JSON.stringify({ type: "mark", data: m });
+                }
+                for (const b of dupBookmarks) {
+                    yield JSON.stringify({ type: "bookmark", data: b });
+                }
+                for (const pc of dupPageContents) {
+                    yield JSON.stringify({ type: "pagecontent", data: pc });
+                }
+
+                if (raw.fsrsActivity) {
+                    yield JSON.stringify({ type: "activity", data: raw.fsrsActivity });
+                }
+
+                if (raw.fsrsTopicWeights) {
+                    yield JSON.stringify({ type: "weights", data: raw.fsrsTopicWeights });
+                }
+
+                // Export general user preferences and statistics
+                const settings: SettingsData = {
+                    chromeSettings: raw.chromeSettings || {},
+                    notificationSettings: raw.notificationSettings || {},
+                    theme: raw.theme || 'dark',
+                    fsrsGlobalParams: raw.fsrsGlobalParams || {},
+                    ratingPromptState: raw.ratingPromptState as { snoozedUntil?: number; status?: string } || {},
+                    dailyGoalTarget: raw.dailyGoalTarget || null,
+                    longestStreak: raw.longestStreak || 0
+                };
+                if (raw.whitelistedWebsites !== undefined) {
+                    settings.whitelistedWebsites = raw.whitelistedWebsites;
+                }
+                yield JSON.stringify({ type: "settings", data: settings });
+            }
+
+            const lineGenerator = generateLines();
+            const hasher = new Fnv1aHasher();
+            const encoder = new TextEncoder();
+            let totalCount = 0;
+
+            const stream = new ReadableStream({
+                pull(controller) {
+                    try {
+                        const { value, done } = lineGenerator.next();
+                        if (done) {
+                            const checksum = hasher.digest();
+                            const footerLine = JSON.stringify({ type: "footer", data: { checksum, count: totalCount } });
+                            controller.enqueue(encoder.encode(footerLine + "\n"));
+                            controller.close();
+                            return;
+                        }
+
+                        const lineWithNewline = value + "\n";
+                        hasher.update(lineWithNewline);
+                        totalCount++;
+
+                        controller.enqueue(encoder.encode(lineWithNewline));
+                    } catch (pullErr) {
+                        // Comment: Abort stream controller on line generation error
+                        const errorMessage = pullErr instanceof Error ? pullErr.message : String(pullErr);
+                        Logger.error('Backup', `Error in export stream pull: ${errorMessage}`, { pullErr });
+                        controller.error(pullErr);
                     }
                 }
-            };
-            yield JSON.stringify(header);
+            });
 
-            for (const p of pages) {
-                yield JSON.stringify({ type: "page", data: p });
-            }
-            for (const c of dupCards) {
-                yield JSON.stringify({ type: "card", data: c });
-            }
-            for (const m of dupMarks) {
-                yield JSON.stringify({ type: "mark", data: m });
-            }
-            for (const b of dupBookmarks) {
-                yield JSON.stringify({ type: "bookmark", data: b });
-            }
-            for (const pc of dupPageContents) {
-                yield JSON.stringify({ type: "pagecontent", data: pc });
-            }
+            // Native Compression Stream
+            const windowWithCompression = window as unknown as { CompressionStream: new (format: string) => TransformStream };
+            const compressedStream = stream.pipeThrough(new windowWithCompression.CompressionStream('gzip'));
+            const response = new Response(compressedStream, {
+                headers: { 'Content-Type': 'application/gzip' }
+            });
+            const rawBlob = await response.blob();
+            const blob = new Blob([rawBlob], { type: 'application/gzip' });
+            const blobUrl = URL.createObjectURL(blob);
 
-            if (raw.fsrsActivity) {
-                yield JSON.stringify({ type: "activity", data: raw.fsrsActivity });
-            }
-
-            if (raw.fsrsTopicWeights) {
-                yield JSON.stringify({ type: "weights", data: raw.fsrsTopicWeights });
-            }
-
-            // Export general user preferences and statistics
-            const settings: SettingsData = {
-                chromeSettings: raw.chromeSettings || {},
-                notificationSettings: raw.notificationSettings || {},
-                theme: raw.theme || 'dark',
-                fsrsGlobalParams: raw.fsrsGlobalParams || {},
-                ratingPromptState: raw.ratingPromptState as { snoozedUntil?: number; status?: string } || {},
-                dailyGoalTarget: raw.dailyGoalTarget || null,
-                longestStreak: raw.longestStreak || 0
-            };
-            if (raw.whitelistedWebsites !== undefined) {
-                settings.whitelistedWebsites = raw.whitelistedWebsites;
-            }
-            yield JSON.stringify({ type: "settings", data: settings });
-        }
-
-        const lineGenerator = generateLines();
-        const hasher = new Fnv1aHasher();
-        const encoder = new TextEncoder();
-        let totalCount = 0;
-
-        const stream = new ReadableStream({
-            pull(controller) {
-                const { value, done } = lineGenerator.next();
-                if (done) {
-                    const checksum = hasher.digest();
-                    const footerLine = JSON.stringify({ type: "footer", data: { checksum, count: totalCount } });
-                    controller.enqueue(encoder.encode(footerLine + "\n"));
-                    controller.close();
-                    return;
-                }
-
-                const lineWithNewline = value + "\n";
-                hasher.update(lineWithNewline);
-                totalCount++;
-
-                controller.enqueue(encoder.encode(lineWithNewline));
-            }
-        });
-
-        // Native Compression Stream
-        const windowWithCompression = window as unknown as { CompressionStream: new (format: string) => TransformStream };
-        const compressedStream = stream.pipeThrough(new windowWithCompression.CompressionStream('gzip'));
-        const response = new Response(compressedStream, {
-            headers: { 'Content-Type': 'application/gzip' }
-        });
-        const rawBlob = await response.blob();
-        const blob = new Blob([rawBlob], { type: 'application/gzip' });
-        const blobUrl = URL.createObjectURL(blob);
-
-        const filename = `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json.gz`;
-        chrome.downloads.download({
-            url: blobUrl,
-            filename: filename,
-            saveAs: true
-        });
-        if (logger) {
-            logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
-            logger.timeEnd('Backup', 'exportBackup');
+            const filename = `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json.gz`;
+            chrome.downloads.download({
+                url: blobUrl,
+                filename: filename,
+                saveAs: true
+            });
+            Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Backup', `Backup export failed: ${errorMessage}`, { err });
+            // Comment: Re-throw export error so calling UI component can show error notification
+            throw err;
+        } finally {
+            // Comment: Always end exportBackup performance timer regardless of success or failure
+            Logger.timeEnd('Backup', 'exportBackup');
         }
     }
 
@@ -305,11 +348,8 @@ export class BackupManager {
      * validates checksum, and hydrates local storage atomically.
      */
     static async importBackup(file: File, onStatus: (msg: string, isError?: boolean) => void): Promise<void> {
-        const logger = getLogger();
-        if (logger) {
-            logger.time('Backup', 'importBackup');
-            logger.info('Backup', `Starting backup import from file: ${file.name} (${file.size} bytes)`);
-        }
+        Logger.time('Backup', 'importBackup');
+        Logger.info('Backup', `Starting backup import from file: ${file.name} (${file.size} bytes)`);
         try {
             // 1. Detect format using magic bytes
             const headerBuffer = await file.slice(0, 2).arrayBuffer();
@@ -329,7 +369,7 @@ export class BackupManager {
                 prePassResult = await this.validateStream(file, isGzip);
             } catch (err) {
                 const errorObj = err instanceof Error ? err : new Error(String(err));
-                console.error("Integrity/Checksum error during pre-pass validation:", errorObj);
+                Logger.error('Backup', `Integrity/Checksum error during pre-pass validation: ${errorObj.message}`, { err: errorObj });
                 onStatus(errorObj.message, true);
                 return;
             }
@@ -468,16 +508,14 @@ export class BackupManager {
 
             await chrome.storage.local.set(storageUpdate);
             onStatus("Backup restored successfully!");
-            if (logger) {
-                logger.info('Backup', 'Backup restored successfully!');
-                logger.timeEnd('Backup', 'importBackup');
-            }
-
+            Logger.info('Backup', 'Backup restored successfully!');
         } catch (err) {
             const errorObj = err instanceof Error ? err : new Error(String(err));
-            if (logger) logger.error('Backup', 'Backup restoration failed', errorObj);
-            console.error("Backup restoration failed:", errorObj);
+            Logger.error('Backup', `Backup restoration failed: ${errorObj.message}`, { err: errorObj });
             onStatus("Restoration failed: " + errorObj.message, true);
+        } finally {
+            // Comment: Always end importBackup performance timer regardless of outcome
+            Logger.timeEnd('Backup', 'importBackup');
         }
     }
 
@@ -486,78 +524,84 @@ export class BackupManager {
      * ensuring formatting constraints and the checksum match.
      */
     static async validateStream(file: File, isGzip: boolean): Promise<{ isV2: boolean; header?: BackupHeaderRecord; counts?: BackupCounts }> {
-        const logger = getLogger();
-        let stream: ReadableStream = file.stream();
-        if (isGzip) {
-            const windowWithDecompression = window as unknown as { DecompressionStream: new (format: string) => TransformStream };
-            stream = stream.pipeThrough(new windowWithDecompression.DecompressionStream('gzip'));
-        }
-
-        const hasher = new Fnv1aHasher();
-        let lineCount = 0;
-        let header: BackupHeaderRecord | null = null;
-        let footer: FooterRecord | null = null;
-
-        const linesIterable = readLines(stream);
-        for await (const line of linesIterable) {
-            if (!line.trim()) continue;
-
-            let parsed: unknown;
-            try {
-                parsed = JSON.parse(line);
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                if (logger) logger.error('Backup', `JSON parse error in validateStream line ${lineCount + 1}: ${errorMessage}`, { lineContent: line, lineCount, err });
-                // If it fails on the first line, it's definitely not V2 JSONL
-                if (lineCount === 0) {
-                    return { isV2: false };
-                }
-                // Comment: Re-throw validation error to abort corrupted backup validation
-                throw new Error(`Corrupted file: Invalid JSON structure at line ${lineCount + 1}`);
+        try {
+            let stream: ReadableStream = file.stream();
+            if (isGzip) {
+                const windowWithDecompression = window as unknown as { DecompressionStream: new (format: string) => TransformStream };
+                stream = stream.pipeThrough(new windowWithDecompression.DecompressionStream('gzip'));
             }
 
-            if (!isValidBackupRecord(parsed)) {
-                if (lineCount === 0) {
-                    return { isV2: false };
+            const hasher = new Fnv1aHasher();
+            let lineCount = 0;
+            let header: BackupHeaderRecord | null = null;
+            let footer: FooterRecord | null = null;
+
+            const linesIterable = readLines(stream);
+            for await (const line of linesIterable) {
+                if (!line.trim()) continue;
+
+                let parsed: unknown;
+                try {
+                    parsed = JSON.parse(line);
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('Backup', `JSON parse error in validateStream line ${lineCount + 1}: ${errorMessage}`, { lineContent: line, lineCount, err });
+                    // If it fails on the first line, it's definitely not V2 JSONL
+                    if (lineCount === 0) {
+                        return { isV2: false };
+                    }
+                    // Comment: Re-throw validation error to abort corrupted backup validation
+                    throw new Error(`Corrupted file: Invalid JSON structure at line ${lineCount + 1}`);
                 }
-                if (logger) logger.error('Backup', `Misformed line record in validateStream line ${lineCount + 1}`, { parsed, lineCount });
-                // Comment: Re-throw validation error for misformed backup record type
-                throw new Error(`Corrupted file: Misformed line record at line ${lineCount + 1}`);
+
+                if (!isValidBackupRecord(parsed)) {
+                    if (lineCount === 0) {
+                        return { isV2: false };
+                    }
+                    Logger.error('Backup', `Misformed line record in validateStream line ${lineCount + 1}`, { parsed, lineCount });
+                    // Comment: Re-throw validation error for misformed backup record type
+                    throw new Error(`Corrupted file: Misformed line record at line ${lineCount + 1}`);
+                }
+
+                if (parsed.type === "header") {
+                    if (lineCount !== 0) {
+                        Logger.error('Backup', 'Misplaced header record in backup file', { lineCount });
+                        // Comment: Re-throw error for misplaced header record
+                        throw new Error("Corrupted file: Backup header misplaced");
+                    }
+                    header = parsed;
+                    const lineWithNewline = line + "\n";
+                    hasher.update(lineWithNewline);
+                } else if (parsed.type === "footer") {
+                    footer = parsed;
+                    break;
+                } else {
+                    const lineWithNewline = line + "\n";
+                    hasher.update(lineWithNewline);
+                }
+                lineCount++;
             }
 
-            if (parsed.type === "header") {
-                if (lineCount !== 0) {
-                    if (logger) logger.error('Backup', 'Misplaced header record in backup file', { lineCount });
-                    // Comment: Re-throw error for misplaced header record
-                    throw new Error("Corrupted file: Backup header misplaced");
-                }
-                header = parsed;
-                const lineWithNewline = line + "\n";
-                hasher.update(lineWithNewline);
-            } else if (parsed.type === "footer") {
-                footer = parsed;
-                break;
-            } else {
-                const lineWithNewline = line + "\n";
-                hasher.update(lineWithNewline);
+            if (!header) {
+                return { isV2: false };
             }
-            lineCount++;
-        }
 
-        if (!header) {
-            return { isV2: false };
-        }
+            if (!footer) {
+                throw new Error("Corrupted file: Missing checksum integrity footer");
+            }
 
-        if (!footer) {
-            throw new Error("Corrupted file: Missing checksum integrity footer");
-        }
+            const calculatedChecksum = hasher.digest();
+            if (calculatedChecksum !== footer.data.checksum) {
+                throw new Error(`Integrity check failed: Checksum mismatch (expected ${footer.data.checksum}, calculated ${calculatedChecksum})`);
+            }
 
-        const calculatedChecksum = hasher.digest();
-        if (calculatedChecksum !== footer.data.checksum) {
-            throw new Error(`Integrity check failed: Checksum mismatch (expected ${footer.data.checksum}, calculated ${calculatedChecksum})`);
+            return { isV2: true, header, counts: header.data.counts };
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Backup', `Error during validateStream: ${errorMessage}`, { err });
+            // Comment: Re-throw stream validation exception to notify importer caller
+            throw err;
         }
-
-        return { isV2: true, header, counts: header.data.counts };
     }
 
     /**
@@ -566,6 +610,14 @@ export class BackupManager {
     static importLegacy(file: File, onStatus: (msg: string, isError?: boolean) => void): Promise<void> {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
+
+            reader.onerror = () => {
+                const errorMsg = reader.error ? reader.error.message : 'File read error';
+                Logger.error('Backup', `FileReader error during legacy import: ${errorMsg}`, { error: reader.error });
+                onStatus("Failed to read legacy backup file: " + errorMsg, true);
+                reject(new Error(errorMsg));
+            };
+
             reader.onload = async (event: ProgressEvent<FileReader>) => {
                 try {
                     const text = event.target?.result as string;
@@ -628,7 +680,7 @@ export class BackupManager {
                     resolve();
                 } catch (err) {
                     const errorObj = err instanceof Error ? err : new Error(String(err));
-                    console.error("Error reading legacy file:", errorObj);
+                    Logger.error('Backup', `Error reading legacy file: ${errorObj.message}`, { err: errorObj });
                     onStatus("Failed to parse JSON: " + errorObj.message, true);
                     reject(errorObj);
                 }

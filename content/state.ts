@@ -7,6 +7,7 @@
 
 import { Card } from '../types/domain';
 import AbstractScheduler from '../features/tracker/scheduler/scheduler';
+import { Logger } from '@common/logger';
 
 export interface Palette {
     name: string;
@@ -65,8 +66,7 @@ try {
     schedulerInstance = typeof SchedulerCtor === 'function' ? new SchedulerCtor() : ({} as AbstractScheduler);
 } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    const logger = (window as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
-    if (logger) logger.error('State', `Failed to instantiate FsrsScheduler in content/state.ts: ${errorMessage}`, { err });
+    Logger.error('State', `Failed to instantiate FsrsScheduler in content/state.ts: ${errorMessage}`, { err });
     // Comment: Fallback to dummy scheduler instance if constructor fails
     schedulerInstance = {} as AbstractScheduler;
 }

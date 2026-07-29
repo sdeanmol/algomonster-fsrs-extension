@@ -3,6 +3,7 @@
  * @description Shared utilities for processing card objects safely across different module schemas.
  */
 
+import { Logger } from '@common/logger';
 import { Card } from '../../../types/domain';
 
 export interface CardHistoryLogEntry {
@@ -28,31 +29,44 @@ export interface CardLike {
  */
 export function getLastReviewDate(card?: CardLike | null): number | null {
     if (!card) return null;
+    try {
+        let lr = card.lastReview || card.last_review;
 
-    let lr = card.lastReview || card.last_review;
+        if (!lr && card.historyLog && card.historyLog.length > 0) {
+            const lastLog = card.historyLog[card.historyLog.length - 1];
+            lr = typeof lastLog === 'object' && lastLog !== null ? lastLog.date : lastLog;
+        }
 
-    if (!lr && card.historyLog && card.historyLog.length > 0) {
-        const lastLog = card.historyLog[card.historyLog.length - 1];
-        lr = typeof lastLog === 'object' && lastLog !== null ? lastLog.date : lastLog;
+        if (!lr) return null;
+
+        if (typeof lr === 'number') return lr;
+        if (typeof lr === 'string') {
+            const parsed = Date.parse(lr);
+            return isNaN(parsed) ? null : parsed;
+        }
+        if (lr instanceof Date) return lr.getTime();
+
+        return null;
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('CardUtils', `Error in getLastReviewDate: ${errorMessage}`, { card, err });
+        // Comment: Return null if card object parsing or date conversion throws
+        return null;
     }
-
-    if (!lr) return null;
-
-    if (typeof lr === 'number') return lr;
-    if (typeof lr === 'string') {
-        const parsed = Date.parse(lr);
-        return isNaN(parsed) ? null : parsed;
-    }
-    if (lr instanceof Date) return lr.getTime();
-
-    return null;
 }
 
 /**
  * Generates a unique string ID for a card.
  */
 export function generateCardId(): string {
-    return Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+    try {
+        return Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('CardUtils', `Error generating card ID: ${errorMessage}`, { err });
+        // Comment: Fallback random string generator on error
+        return `id_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+    }
 }
 
 /**
@@ -60,7 +74,14 @@ export function generateCardId(): string {
  */
 export function cleanUrl(url?: string | null): string {
     if (!url) return '';
-    return url.split('?')[0].split('#')[0];
+    try {
+        return url.split('?')[0].split('#')[0];
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('CardUtils', `Error cleaning URL '${url}': ${errorMessage}`, { url, err });
+        // Comment: Fallback return raw URL on string splitting error
+        return String(url);
+    }
 }
 
 /**
@@ -68,8 +89,15 @@ export function cleanUrl(url?: string | null): string {
  */
 export function getCardsForUrl(cards: Card[], url: string): Card[] {
     if (!Array.isArray(cards) || !url) return [];
-    const targetClean = cleanUrl(url);
-    return cards.filter(c => c && c.problemUrl && cleanUrl(c.problemUrl) === targetClean);
+    try {
+        const targetClean = cleanUrl(url);
+        return cards.filter(c => c && c.problemUrl && cleanUrl(c.problemUrl) === targetClean);
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('CardUtils', `Error filtering cards for URL '${url}': ${errorMessage}`, { url, err });
+        // Comment: Return empty array on card array filtering error
+        return [];
+    }
 }
 
 /**
@@ -100,8 +128,7 @@ export function ensureCardIds(cards: Card[]): Card[] {
         return cards;
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        const logger = (globalThis as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
-        if (logger) logger.error('CardUtils', `Error in ensureCardIds: ${errorMessage}`, { err });
+        Logger.error('CardUtils', `Error in ensureCardIds: ${errorMessage}`, { err });
         // Comment: Return cards array safely even if ID generation encounters invalid objects
         return cards;
     }

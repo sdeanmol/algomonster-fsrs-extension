@@ -1,6 +1,7 @@
 import { initializeApp, FirebaseApp, FirebaseOptions } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { Logger } from '@common/logger';
 
 // TODO: Replace with your actual Firebase config object from the Firebase Console
 const firebaseConfig: FirebaseOptions = {
@@ -23,8 +24,7 @@ try {
   db = getFirestore(app);
 } catch (err) {
   const errorMessage = err instanceof Error ? err.message : String(err);
-  const logger = (globalThis as unknown as { Logger?: { error: (m: string, s: string, d?: unknown) => void } }).Logger;
-  if (logger) logger.error('Firebase', `Failed to initialize Firebase app: ${errorMessage}`, { err });
+  Logger.error('Firebase', `Failed to initialize Firebase app: ${errorMessage}`, { err });
   // Comment: Non-fatal Firebase initialization fallback
   app = {} as FirebaseApp;
   auth = {} as Auth;

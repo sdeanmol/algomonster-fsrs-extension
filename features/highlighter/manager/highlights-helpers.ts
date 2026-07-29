@@ -1,3 +1,5 @@
+import { Logger } from '@common/logger';
+
 export interface AlgoRecallGlobal {
     Highlighter?: unknown;
     HighlightsHelpers?: typeof HighlightsHelpers;
@@ -17,7 +19,12 @@ declare global {
     }
 }
 
-window.AlgoRecall = window.AlgoRecall || {};
+try {
+    window.AlgoRecall = window.AlgoRecall || {};
+} catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    Logger.error('HighlightsHelpers', `Error initializing window.AlgoRecall global object: ${errorMessage}`, { err });
+}
 
 /**
  * @class HighlightsHelpers
@@ -33,8 +40,10 @@ export class HighlightsHelpers {
             await navigator.clipboard.writeText(text);
             this.showToast("Snippet copied to clipboard!");
         } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('HighlightsHelpers', `Clipboard Copy Error: ${errorMessage}`, { text, err });
+            // Comment: Non-fatal clipboard copy failure toast feedback
             this.showToast("Failed to copy text.");
-            console.error("Clipboard Copy Error: ", err);
         }
     }
 
@@ -42,21 +51,36 @@ export class HighlightsHelpers {
      * Escapes special HTML tag symbols from strings to mitigate injections.
      */
     static escapeHtml(text: string): string {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        try {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('HighlightsHelpers', `Error escaping HTML: ${errorMessage}`, { text, err });
+            // Comment: Basic string replacement fallback on DOM element creation failure
+            return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
     }
 
     /**
      * Wraps occurrences of the query pattern in the highlight text with HTML mark tags.
      */
     static highlightSearchMatch(text: string, query: string): string {
-        const escapedText = this.escapeHtml(text);
-        if (!query) return escapedText;
-        
-        const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const regex = new RegExp(`(${escapedQuery})`, 'gi');
-        return escapedText.replace(regex, '<mark>$1</mark>');
+        try {
+            const escapedText = this.escapeHtml(text);
+            if (!query) return escapedText;
+            
+            const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+            const regex = new RegExp(`(${escapedQuery})`, 'gi');
+            return escapedText.replace(regex, '<mark>$1</mark>');
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('HighlightsHelpers', `Error highlighting search match: ${errorMessage}`, { query, err });
+            // Comment: Safe fallback returning escaped text on regex match error
+            return this.escapeHtml(text);
+        }
     }
 
     /**
@@ -66,7 +90,10 @@ export class HighlightsHelpers {
         try {
             const u = new URL(url);
             return u.hostname + u.pathname;
-        } catch {
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('HighlightsHelpers', `Invalid URL for getCleanDisplayUrl '${url}': ${errorMessage}`, { url, err });
+            // Comment: Return raw URL string fallback when URL parsing fails
             return url;
         }
     }
@@ -75,20 +102,36 @@ export class HighlightsHelpers {
      * Renders temporary status feedback messages on manager layout panels.
      */
     static showToast(message: string): void {
-        const toast = document.getElementById('status-toast');
-        if (!toast) return;
-        toast.textContent = message;
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2000);
+        try {
+            const toast = document.getElementById('status-toast');
+            if (!toast) return;
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                try {
+                    toast.classList.remove('show');
+                } catch (animErr) {
+                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
+                    Logger.error('HighlightsHelpers', `Error removing toast show class: ${errorMessage}`, { animErr });
+                }
+            }, 2000);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('HighlightsHelpers', `Error showing toast message '${message}': ${errorMessage}`, { message, err });
+        }
     }
 }
 
-window.AlgoRecall.HighlightsHelpers = HighlightsHelpers;
-
-window.copyToClipboard = (text: string) => HighlightsHelpers.copyToClipboard(text);
-window.escapeHtml = (text: string) => HighlightsHelpers.escapeHtml(text);
-window.highlightSearchMatch = (text: string, query: string) => HighlightsHelpers.highlightSearchMatch(text, query);
-window.getCleanDisplayUrl = (url: string) => HighlightsHelpers.getCleanDisplayUrl(url);
-window.showToast = (message: string) => HighlightsHelpers.showToast(message);
+try {
+    if (typeof window !== 'undefined' && window.AlgoRecall) {
+        window.AlgoRecall.HighlightsHelpers = HighlightsHelpers;
+        window.copyToClipboard = (text: string) => HighlightsHelpers.copyToClipboard(text);
+        window.escapeHtml = (text: string) => HighlightsHelpers.escapeHtml(text);
+        window.highlightSearchMatch = (text: string, query: string) => HighlightsHelpers.highlightSearchMatch(text, query);
+        window.getCleanDisplayUrl = (url: string) => HighlightsHelpers.getCleanDisplayUrl(url);
+        window.showToast = (message: string) => HighlightsHelpers.showToast(message);
+    }
+} catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    Logger.error('HighlightsHelpers', `Error attaching global window helper functions: ${errorMessage}`, { err });
+}
