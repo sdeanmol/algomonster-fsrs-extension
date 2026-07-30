@@ -14,6 +14,7 @@ const mockBinding = {
 };
 
 jest.mock('@open-spaced-repetition/binding', () => mockBinding);
+jest.mock('@open-spaced-repetition/binding-wasm32-wasi', () => mockBinding);
 jest.mock('@open-spaced-repetition/binding/dynamic-wasi', () => ({
     initOptimizer: jest.fn().mockImplementation(() => Promise.resolve(mockBinding))
 }));

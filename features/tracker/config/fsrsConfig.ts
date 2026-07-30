@@ -298,13 +298,24 @@ export class FSRSConfigManager {
             } catch (wasmError) {
                 const wasmErrMsg = wasmError instanceof Error ? wasmError.message : String(wasmError);
                 Logger.warn("FSRS", `WASM Optimizer failed (${wasmErrMsg}). Falling back to Fast JS Optimizer.`, { wasmError });
-                // Comment: Fallback gracefully to fast optimizer when WASM dynamic loading fails
                 const fastOptimizer = new FsrsOptimizerFast();
                 optimizedWeights = await fastOptimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress);
             }
 
             this.injectWeightsInputs(optimizedWeights);
-            this.saveGlobalConfig();
+
+            const newParams: FSRSParameters = {
+                w: optimizedWeights,
+                decay: parseFloat((document.getElementById('decay-input') as HTMLInputElement)?.value) || this.defaultDecay,
+                factor: parseFloat((document.getElementById('factor-input') as HTMLInputElement)?.value) || this.defaultFactor,
+                requestRetention: targetRetention,
+                version: 'personalized',
+                timestamp: Date.now()
+            };
+
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                await new Promise<void>(r => chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => r()));
+            }
 
             this.showToast("Personal memory optimization successful!", false);
 
@@ -555,16 +566,20 @@ export class FSRSConfigManager {
                 weights.push(val);
             }
 
-            const newParams: FSRSParameters = {
-                w: weights,
-                decay,
-                factor,
-                requestRetention: retention
-            };
-
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
-                    this.showToast("FSRS global configurations saved!");
+                chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
+                    const existing = result.fsrsGlobalParams || {};
+                    const newParams: FSRSParameters = {
+                        ...existing,
+                        w: weights,
+                        decay,
+                        factor,
+                        requestRetention: retention
+                    };
+
+                    chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
+                        this.showToast("FSRS global configurations saved!");
+                    });
                 });
             }
         } catch (err) {
@@ -617,7 +632,7 @@ export class FSRSConfigManager {
             if (confirm("Reset Global Parameters to standard defaults?")) {
                 if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                     chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
-                        const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
+                        const params = result.fsrsGlobalParams || { w: [...this.defaultWeights], decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
                         params.requestRetention = this.defaultRetention;
                         params.decay = this.defaultDecay;
                         params.factor = this.defaultFactor;
@@ -642,8 +657,11 @@ export class FSRSConfigManager {
         try {
             if (confirm("Reset Personal Memory Optimization status?")) {
                 if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                    chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: StorageData['fsrsGlobalParams'] }) => {
-                        const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
+                    chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
+                        const params: FSRSParameters = result.fsrsGlobalParams || { w: [...this.defaultWeights], decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
+                        delete params.version;
+                        delete params.timestamp;
+                        params.w = [...this.defaultWeights];
                         chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
                             this.loadFSRSConfig();
                             this.showToast("Optimization status reset.");
@@ -666,7 +684,9 @@ export class FSRSConfigManager {
             if (confirm("Reset FSRS Coefficients to default weights?")) {
                 if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                     chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
-                        const params = result.fsrsGlobalParams || { w: this.defaultWeights, decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
+                        const params: FSRSParameters = result.fsrsGlobalParams || { w: [...this.defaultWeights], decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
+                        delete params.version;
+                        delete params.timestamp;
                         params.w = [...this.defaultWeights];
                         chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
                             this.loadFSRSConfig();
@@ -767,15 +787,20 @@ export class FSRSConfigManager {
     }
 }
 
+function initFSRSConfig(): void {
+    try {
+        const configManager = new FSRSConfigManager();
+        configManager.init();
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('FSRSConfig', `Initialization failed: ${errorMessage}`, { err });
+    }
+}
+
 if (typeof document !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', () => {
-        try {
-            const configManager = new FSRSConfigManager();
-            configManager.init();
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `DOMContentLoaded initialization failed: ${errorMessage}`, { err });
-            // Comment: Catch top-level DOM entrypoint failure
-        }
-    });
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initFSRSConfig);
+    } else {
+        initFSRSConfig();
+    }
 }

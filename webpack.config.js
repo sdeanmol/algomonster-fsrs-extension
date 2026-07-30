@@ -5,6 +5,7 @@ const CopyPlugin = require('copy-webpack-plugin');
 const ignorePatterns = ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'];
 
 module.exports = {
+  target: "web",
   mode: 'production',
   entry: {
     // Bundles
@@ -61,6 +62,18 @@ module.exports = {
           }
         },
         exclude: /node_modules/
+      },
+      {
+        test: /\.wasm$/,
+        type: "asset/resource",
+        generator: {
+          filename: 'dist/[name][ext]'
+        }
+      },
+
+      {
+        test: /\.mjs$/,
+        type: "javascript/auto"
       }
     ]
   },
@@ -72,8 +85,19 @@ module.exports = {
     alias: {
       '@common': path.resolve(__dirname, 'features/common'),
       '@tracker': path.resolve(__dirname, 'features/tracker'),
-      '@dashboard': path.resolve(__dirname, 'features/dashboard')
-    }
+      '@dashboard': path.resolve(__dirname, 'features/dashboard'),
+      '@open-spaced-repetition/binding/dynamic-wasi': path.resolve(
+        __dirname,
+        'node_modules/@open-spaced-repetition/binding/dist/dynamic-wasi-browser.js'
+      ),
+    },
+    fallback: {
+      fs: false,
+      path: false,
+      worker_threads: false,
+      module: false
+    },
+    conditionNames: ["browser", "import", "module", "default"]
   },
   plugins: [
     new CopyPlugin({

@@ -3,16 +3,17 @@
  * @description Lightweight JavaScript optimizer for personalized FSRS weights using WASM binding.
  */
 
+import type { FSRSBindingReview, FSRSBindingItem, computeParameters } from '@open-spaced-repetition/binding';
 import { initOptimizer } from '@open-spaced-repetition/binding/dynamic-wasi';
 import { Rating } from 'ts-fsrs';
 import { Card, ReviewLog } from '../../../types/domain';
 import { MS_PER_DAY, OPTIMIZER_DEFAULT_THRESHOLD, OPTIMIZER_MAX_TRAINING_CARDS, DEFAULT_FSRS_REQUEST_RETENTION } from '../../common/constants';
 import { Logger } from '@common/logger';
 
-interface WasmBinding {
-    FSRSBindingReview: new (rating: number, deltaT: number) => unknown;
-    FSRSBindingItem: new (reviews: unknown[]) => unknown;
-    computeParameters: (trainSet: unknown[], options: { enableShortTerm?: boolean; timeout?: number; progress?: (current: number, total: number) => void }) => Promise<number[]>;
+export interface WasmBinding {
+    FSRSBindingReview: new (rating: number, deltaT: number) => FSRSBindingReview;
+    FSRSBindingItem: new (reviews: FSRSBindingReview[]) => FSRSBindingItem;
+    computeParameters: typeof computeParameters;
 }
 
 let _bindingInstance: WasmBinding | null = null;
@@ -20,10 +21,10 @@ const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-bindin
 
 async function getBinding(): Promise<WasmBinding> {
     if (!_bindingInstance) {
-        _bindingInstance = (await initOptimizer({
-            wasm: wasmUrl as unknown as URL,
+        _bindingInstance = await initOptimizer({
+            wasm: wasmUrl as any,
             worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', import.meta.url))
-        })) as unknown as WasmBinding;
+        }) as WasmBinding;
     }
     return _bindingInstance;
 }
@@ -73,11 +74,12 @@ export class FsrsOptimizer {
 
         try {
             const binding = await getBinding();
-            let trainSet: unknown[] = [];
+            console.log(binding)
+            let trainSet: FSRSBindingItem[] = [];
 
             history.forEach((card: Card) => {
                 if (card.historyLog && card.historyLog.length > 0) {
-                    const reviews: unknown[] = [];
+                    const reviews: FSRSBindingReview[] = [];
 
                     let hasValidDeltaT = false;
                     card.historyLog.forEach((log: ReviewLog | number | { rating?: unknown; date?: unknown }, index: number) => {
@@ -114,14 +116,14 @@ export class FsrsOptimizer {
 
                             if (deltaT > 0) hasValidDeltaT = true;
 
-                            reviews.push(new binding.FSRSBindingReview(ratingNum, deltaT));
+                            reviews.push(new binding.FSRSBindingReview(ratingNum, deltaT) as FSRSBindingReview);
                         }
                     });
 
                     // We only want to train on cards that have actually been reviewed more than once
                     // (i.e. they have at least one follow-up review with deltaT > 0)
                     if (hasValidDeltaT && reviews.length > 1) {
-                        trainSet.push(new binding.FSRSBindingItem(reviews));
+                        trainSet.push(new binding.FSRSBindingItem(reviews) as FSRSBindingItem);
                     }
                 }
             });

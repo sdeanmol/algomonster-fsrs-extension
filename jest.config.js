@@ -12,6 +12,9 @@ module.exports = {
     '^.+\\.ts$': 'ts-jest',
     '^.+\\.js$': 'babel-jest'
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!(@napi-rs|@emnapi)/)'
+  ],
   moduleNameMapper: {
     '^@common/(.*)$': '<rootDir>/features/common/$1',
     '^@tracker/(.*)$': '<rootDir>/features/tracker/$1',

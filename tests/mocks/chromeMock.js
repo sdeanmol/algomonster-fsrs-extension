@@ -3,6 +3,12 @@ const listeners = {};
 global.mockStorage = {};
 
 // Mock for BackupManager ReadableStream
+if (typeof global.TextEncoder === 'undefined') {
+  const { TextEncoder, TextDecoder } = require('util');
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
+}
+
 if (typeof global.ReadableStream === 'undefined') {
   global.ReadableStream = class ReadableStream {
     constructor(underlyingSource) {
