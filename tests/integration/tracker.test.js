@@ -185,5 +185,28 @@ describe('Tracker Integration', () => {
             
             expect(document.getElementById('fsrs-approach-answer').style.display).toBe('none');
         });
+
+        it('debounces rapid UI rating keypresses within 400ms', () => {
+            tracker.createUI();
+            window.AlgoRecall.state.cards.forEach(c => c.due = Date.now() + 100000);
+            window.AlgoRecall.state.cards[0].due = Date.now() - 100000;
+            window.AlgoRecall.state.cards[0].tags = ["Array"];
+            tracker.startReview();
+            
+            // Hit Space to reveal answer
+            document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+            
+            const handleRatingSpy = jest.spyOn(tracker, 'handleRating').mockImplementation(() => {});
+            jest.spyOn(tracker, 'showCard').mockImplementation(() => {});
+
+            // First keypress 'Digit3'
+            document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit3' }));
+            expect(handleRatingSpy).toHaveBeenCalledTimes(1);
+
+            // Immediate second keypress 'Digit3' within debounce window (< 400ms)
+            document.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit3' }));
+            expect(handleRatingSpy).toHaveBeenCalledTimes(1); // Should still be 1 (debounced)
+        });
     });
 });
+

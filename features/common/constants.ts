@@ -46,3 +46,8 @@ export const ALARM_DEFAULT_CHECK_INTERVAL_MIN = 60;
 export const ALARM_DAILY_PERIOD_MIN = 1440;
 export const ALARM_WEEKLY_PERIOD_MIN = 10080;
 export const SNOOZE_DEFAULT_MINUTES = 15;
+
+// Rating Debounce Thresholds
+export const RATING_UI_DEBOUNCE_MS = 400;
+export const ALGORITHMIC_DEBOUNCE_WINDOW_MS = 60 * 1000; // 1 minute window
+

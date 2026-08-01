@@ -68,4 +68,32 @@ describe('FsrsScheduler functionality', () => {
         expect(fsrs.isGraduated({ state: 1, stability: 25 })).toBe(false); // Learning state
         expect(fsrs.isGraduated({ state: 2, stability: 5 })).toBe(false); // Too low stability
     });
+
+    it('suppresses duplicate rapid reviews within 1 minute window', () => {
+        let card = fsrs.createCard('Title', 'URL', '', '');
+        const startTime = Date.now();
+        card = fsrs.reviewCard(card, 3, null, startTime); // Initial review: Good
+        expect(card.historyLog.length).toBe(2);
+
+        // Submitting same rating 10 seconds later
+        const dupeCard = fsrs.reviewCard(card, 3, null, startTime + 10000);
+        expect(dupeCard.historyLog.length).toBe(2); // History log length should be unchanged
+        expect(dupeCard.stability).toBe(card.stability);
+    });
+
+    it('corrects rating within 1 minute window when rating changes', () => {
+        let card = fsrs.createCard('Title', 'URL', '', '');
+        const startTime = Date.now();
+        card = fsrs.reviewCard(card, 3, null, startTime); // Initial review: Good
+        expect(card.historyLog.length).toBe(2);
+        const goodStability = card.stability;
+
+        // Correcting rating to Again 15 seconds later
+        const correctedCard = fsrs.reviewCard(card, 1, null, startTime + 15000);
+        expect(correctedCard.historyLog.length).toBe(2); // Replaced review entry
+        const lastLog = correctedCard.historyLog[correctedCard.historyLog.length - 1];
+        expect(lastLog.rating).toBe(1);
+        expect(correctedCard.stability).not.toBe(goodStability);
+    });
 });
+

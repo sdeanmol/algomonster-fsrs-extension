@@ -1,5 +1,6 @@
 import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
 import { Card, StorageData } from '../../types/domain';
+import { RATING_UI_DEBOUNCE_MS } from '../common/constants';
 import FsrsScheduler from './scheduler/fsrsScheduler';
 import { Logger } from '@common/logger';
 
@@ -70,6 +71,7 @@ function getRenderMarkdown(): ((text: string) => string) | undefined {
     }
 }
 
+
 /**
  * @class FSRSTracker
  * @description Main Spaced Repetition floating widget interface injected inside target domains.
@@ -84,6 +86,7 @@ class Tracker {
     isListenersBound: boolean;
     cardStartTime?: number;
     activeCardId: string | null;
+    isRatingDebounced: boolean;
 
     constructor() {
         this.activeReviewFilter = null;
@@ -92,6 +95,7 @@ class Tracker {
         this._reviewKeyHandler = null;
         this.isListenersBound = false;
         this.activeCardId = null;
+        this.isRatingDebounced = false;
 
         // Bind functions to avoid lexical context issues
         this.saveDraft = this.saveDraft.bind(this);
@@ -1037,6 +1041,7 @@ class Tracker {
      */
     showCard(): void {
         try {
+            this.isRatingDebounced = false;
             const remaining = this.getDueCards(this.activeReviewFilter);
             const reviewUi = document.getElementById('fsrs-review-ui');
             const fsrsBody = document.getElementById('fsrs-body');
@@ -1161,6 +1166,10 @@ class Tracker {
             reviewUi.querySelectorAll('.fsrs-rating-buttons button[data-rating]').forEach(btn => {
                 btn.addEventListener('click', (e: Event) => {
                     try {
+                        if (this.isRatingDebounced) return;
+                        this.isRatingDebounced = true;
+                        setTimeout(() => { this.isRatingDebounced = false; }, RATING_UI_DEBOUNCE_MS);
+
                         const target = e.currentTarget as HTMLElement;
                         const timeTaken = this.cardStartTime ? Date.now() - this.cardStartTime : 0;
                         this.handleRating(currentCard, parseInt(target.getAttribute('data-rating') || '1', 10), timeTaken);
@@ -1198,6 +1207,10 @@ class Tracker {
                         const rating = ratingMap[e.code];
                         if (rating) {
                             e.preventDefault();
+                            if (this.isRatingDebounced) return;
+                            this.isRatingDebounced = true;
+                            setTimeout(() => { this.isRatingDebounced = false; }, RATING_UI_DEBOUNCE_MS);
+
                             const timeTaken = this.cardStartTime ? Date.now() - this.cardStartTime : 0;
                             this.handleRating(currentCard, rating, timeTaken);
                             this.showCard();

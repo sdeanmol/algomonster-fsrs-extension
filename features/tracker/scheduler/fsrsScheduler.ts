@@ -7,14 +7,15 @@
 
 import { fsrs, createEmptyCard, Rating, State, Card as TsFsrsCard, Grade } from 'ts-fsrs';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
-import { Card, FSRSParameters } from '../../../types/domain';
+import { Card, FSRSParameters, ReviewLog } from '../../../types/domain';
 import {
     DEFAULT_FSRS_W,
     DEFAULT_FSRS_DECAY,
     DEFAULT_FSRS_FACTOR,
     DEFAULT_FSRS_REQUEST_RETENTION,
     HIGH_DIFFICULTY_THRESHOLD,
-    GRADUATED_STABILITY_THRESHOLD
+    GRADUATED_STABILITY_THRESHOLD,
+    ALGORITHMIC_DEBOUNCE_WINDOW_MS
 } from '../../common/constants';
 import AbstractScheduler from './scheduler';
 import { Logger } from '@common/logger';
@@ -94,6 +95,10 @@ export class FsrsScheduler extends AbstractScheduler {
         };
     }
 
+    /**
+     * Primary entry point for reviewing a card. Coordinates rapid re-review debouncing,
+     * historical logging with pre-state snapshots, and ts-fsrs mathematical calculation.
+     */
     reviewCard(card?: Card, rating: Rating | number = Rating.Good, customWeights: number[] | null = null, now: number = Date.now(), timeTaken: number | null = null): Card {
         if (!card) {
             throw new Error("Card is required for reviewCard");
@@ -102,65 +107,216 @@ export class FsrsScheduler extends AbstractScheduler {
         if (logger) {
             logger.debug('FSRS', `Reviewing card: ${card.problemTitle} with rating ${rating}`);
         }
-        const newCard: Card = { ...card };
 
+        // Step 1: Retrieve the timestamp of the last actual review (ignoring creation events)
+        const lastReview = getLastReviewDate(card);
+
+        // Step 2: Check for rapid re-review algorithmic debouncing (< 1 minute window).
+        // If debounced or corrected within 1 minute, _handleAlgorithmicDebounce returns the updated card directly.
+        const debouncedCard = this._handleAlgorithmicDebounce(card, rating, customWeights, now, timeTaken, lastReview);
+        if (debouncedCard) {
+            return debouncedCard;
+        }
+
+        // Step 3: Prepare a new card instance and record the review entry with pre-state metrics in historyLog
+        const newCard: Card = { ...card };
         newCard.previousDue = card.due;
         newCard.historyLog = newCard.historyLog ? [...newCard.historyLog] : [];
+        newCard.historyLog.push(this._createReviewLogEntry(card, rating, now, timeTaken));
 
-        const logEntry: { rating: Rating | number; date: number; duration?: number } = { rating, date: now };
+        // Step 4: Compute next FSRS state metrics (stability, difficulty, reps, lapses, due date) using ts-fsrs
+        try {
+            const nextFsrsMetrics = this._computeNextFsrsState(card, rating, customWeights, now, lastReview);
+            Object.assign(newCard, nextFsrsMetrics);
+            return newCard;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (logger) logger.error('FSRS', `Error reviewing card ${card.id}: ${errorMessage}`, { cardId: card.id, rating, err });
+            throw err;
+        }
+    }
+
+    /**
+     * Handles algorithmic debouncing if a card is reviewed repeatedly within the debounce window (< 1 min).
+     * 
+     * - Case 1 (Duplicate Rating): If the user submits the exact same rating within 1 minute (e.g. key mashing),
+     *   the duplicate calculation is suppressed and historyLog length remains unchanged (duration is accumulated).
+     * - Case 2 (Corrected Rating): If the user changes their rating within 1 minute (e.g. Good -> Again),
+     *   the previous review log entry is popped, card state is restored from its preState snapshot, and FSRS is
+     *   recalculated using the updated rating choice.
+     * 
+     * Returns a new Card instance if handled by debouncing, or null if standard review execution should continue.
+     */
+    private _handleAlgorithmicDebounce(
+        card: Card,
+        rating: Rating | number,
+        customWeights: number[] | null,
+        now: number,
+        timeTaken: number | null,
+        lastReview: number | null
+    ): Card | null {
+        // Step 2a: Bypass debouncing if card has never been reviewed or review occurred outside the 1-minute window
+        if (lastReview === null || (now - lastReview) >= ALGORITHMIC_DEBOUNCE_WINDOW_MS) {
+            return null;
+        }
+
+        if (!card.historyLog || card.historyLog.length === 0) {
+            return null;
+        }
+
+        // Step 2b: Inspect the most recent history log entry
+        const lastLog = card.historyLog[card.historyLog.length - 1];
+        let lastRating: number | null = null;
+        if (typeof lastLog === 'object' && lastLog !== null && 'rating' in lastLog) {
+            lastRating = Number(lastLog.rating);
+        } else if (typeof lastLog === 'number') {
+            lastRating = lastLog;
+        }
+
+        // Step 2c: Ensure debouncing ONLY applies to actual reviews (ratings 1..4), NOT card creation (rating 0 / Rating.Manual)
+        if (lastRating === null || lastRating < Rating.Again || lastRating > Rating.Easy) {
+            return null;
+        }
+
+        const logger = getLogger();
+
+        // Step 2d: Case 1 - Identical rating submitted within 1 minute (rapid button/key mashing).
+        // Suppress duplicate FSRS state calculation and append timeTaken duration to existing log entry if applicable.
+        if (lastRating === rating) {
+            if (logger) {
+                logger.debug('FSRS', `Algorithmic Debounce: Suppressing duplicate rapid review rating (${rating}) for card ${card.id}`);
+            }
+            if (timeTaken !== null && typeof lastLog === 'object' && lastLog !== null) {
+                const updatedCard = { ...card };
+                const updatedLog = { ...lastLog, duration: ((lastLog.duration as number) || 0) + timeTaken };
+                updatedCard.historyLog = [...(card.historyLog.slice(0, -1)), updatedLog];
+                return updatedCard;
+            }
+            return card;
+        }
+
+        // Step 2e: Case 2 - Corrected rating within 1 minute (e.g. user mis-clicked Good and changes to Again).
+        // Remove the temporary review log entry, revert card metrics to preState, and re-run reviewCard with new rating.
+        if (logger) {
+            logger.debug('FSRS', `Algorithmic Debounce: Correcting rating from ${lastRating} to ${rating} for card ${card.id}`);
+        }
+
+        const historyLogWithoutLast = card.historyLog.slice(0, -1);
+        const baseCard: Card = {
+            ...card,
+            historyLog: historyLogWithoutLast
+        };
+
+        // Restore exact preState snapshot metrics if available on the last log entry
+        if (typeof lastLog === 'object' && lastLog !== null && 'preState' in lastLog && lastLog.preState) {
+            const ps = lastLog.preState as Record<string, unknown>;
+            if (typeof ps.stability === 'number') baseCard.stability = ps.stability;
+            if (typeof ps.difficulty === 'number') baseCard.difficulty = ps.difficulty;
+            if (typeof ps.reps === 'number') baseCard.reps = ps.reps;
+            if (typeof ps.lapses === 'number') baseCard.lapses = ps.lapses;
+            if (typeof ps.state === 'number') baseCard.state = ps.state;
+            if (typeof ps.due === 'number') baseCard.due = ps.due;
+            baseCard.last_review = typeof ps.last_review === 'number' ? ps.last_review : null;
+            if (typeof ps.elapsed_days === 'number') baseCard.elapsed_days = ps.elapsed_days;
+            if (typeof ps.scheduled_days === 'number') baseCard.scheduled_days = ps.scheduled_days;
+            if (typeof ps.learning_steps === 'number') baseCard.learning_steps = ps.learning_steps;
+        } else {
+            // Fallback for legacy logs without preState: resolve last review date from previous history entry
+            let priorReviewDate: number | null = null;
+            if (historyLogWithoutLast.length > 0) {
+                const priorLog = historyLogWithoutLast[historyLogWithoutLast.length - 1];
+                priorReviewDate = typeof priorLog === 'object' && priorLog !== null ? (priorLog.date as number) : (typeof priorLog === 'number' ? priorLog : null);
+            }
+            baseCard.last_review = priorReviewDate;
+        }
+
+        // Re-execute reviewCard starting from restored baseCard state with the newly selected rating
+        return this.reviewCard(baseCard, rating, customWeights, now, timeTaken);
+    }
+
+    /**
+     * Constructs a review history log entry containing rating, date, duration, and preState snapshot.
+     * Storing preState allows seamless rollbacks/corrections if a user changes their rating within 1 minute.
+     */
+    private _createReviewLogEntry(
+        card: Card,
+        rating: Rating | number,
+        now: number,
+        timeTaken: number | null
+    ): ReviewLog {
+        const logEntry: ReviewLog = {
+            rating,
+            date: now,
+            preState: {
+                stability: card.stability,
+                difficulty: card.difficulty,
+                reps: card.reps,
+                lapses: card.lapses,
+                state: card.state,
+                due: card.due,
+                last_review: card.last_review ?? null,
+                elapsed_days: card.elapsed_days ?? 0,
+                scheduled_days: card.scheduled_days ?? 0,
+                learning_steps: card.learning_steps ?? 0
+            }
+        };
         if (timeTaken !== null) {
             logEntry.duration = timeTaken;
         }
-        newCard.historyLog.push(logEntry);
+        return logEntry;
+    }
 
-        const lastReview = getLastReviewDate(card);
-
+    /**
+     * Executes ts-fsrs calculation to determine updated stability, difficulty, retrievability, and due date.
+     */
+    private _computeNextFsrsState(
+        card: Card,
+        rating: Rating | number,
+        customWeights: number[] | null,
+        now: number,
+        lastReview: number | null
+    ): Partial<Card> {
+        // Use custom tag/topic weights if provided, otherwise default to scheduler weights
         const w = (customWeights && customWeights.length === 17) ? customWeights : this.w;
-
-        // Initialize ts-fsrs scheduler with standard or custom weights
         const scheduler = fsrs({
             w: w,
             request_retention: this.requestRetention
         });
 
-        const cardExt = newCard as Card & { elapsedDays?: number; scheduledDays?: number; learningSteps?: number };
+        // Convert stored card state into ts-fsrs TsFsrsCard interface
+        const cardExt = card as Card & { elapsedDays?: number; scheduledDays?: number; learningSteps?: number };
         const tsCard: TsFsrsCard = {
-            due: new Date(newCard.due),
-            stability: newCard.stability,
-            difficulty: newCard.difficulty,
-            elapsed_days: newCard.elapsed_days !== undefined ? newCard.elapsed_days : (cardExt.elapsedDays || 0),
-            scheduled_days: newCard.scheduled_days !== undefined ? newCard.scheduled_days : (cardExt.scheduledDays || 0),
-            learning_steps: newCard.learning_steps !== undefined ? newCard.learning_steps : (cardExt.learningSteps || 0),
-            reps: newCard.reps,
-            lapses: newCard.lapses,
-            state: newCard.state,
+            due: new Date(card.due),
+            stability: card.stability,
+            difficulty: card.difficulty,
+            elapsed_days: card.elapsed_days !== undefined ? card.elapsed_days : (cardExt.elapsedDays || 0),
+            scheduled_days: card.scheduled_days !== undefined ? card.scheduled_days : (cardExt.scheduledDays || 0),
+            learning_steps: card.learning_steps !== undefined ? card.learning_steps : (cardExt.learningSteps || 0),
+            reps: card.reps,
+            lapses: card.lapses,
+            state: card.state,
             last_review: lastReview ? new Date(lastReview) : undefined
         };
 
-        try {
-            // ts-fsrs ratings are: 1=Again, 2=Hard, 3=Good, 4=Easy
-            const result = scheduler.next(tsCard, new Date(now), rating as Grade);
+        // Invoke ts-fsrs next() algorithm
+        const result = scheduler.next(tsCard, new Date(now), rating as Grade);
 
-            // Map back to JSON-serializable structure
-            newCard.due = result.card.due.getTime();
-            newCard.stability = result.card.stability;
-            newCard.difficulty = result.card.difficulty;
-            newCard.elapsed_days = result.card.elapsed_days;
-            newCard.scheduled_days = result.card.scheduled_days;
-            newCard.learning_steps = result.card.learning_steps;
-            newCard.reps = result.card.reps;
-            newCard.lapses = result.card.lapses;
-            newCard.state = result.card.state;
-            newCard.last_review = result.card.last_review ? result.card.last_review.getTime() : null;
-
-            return newCard;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            if (logger) logger.error('FSRS', `Error reviewing card ${card.id}: ${errorMessage}`, { cardId: card.id, rating, err });
-            // Comment: Re-throw error because caller must abort card state mutation on calculation failure
-            throw err;
-        }
+        // Map computed ts-fsrs output card metrics back to serializable partial Card fields
+        return {
+            due: result.card.due.getTime(),
+            stability: result.card.stability,
+            difficulty: result.card.difficulty,
+            elapsed_days: result.card.elapsed_days,
+            scheduled_days: result.card.scheduled_days,
+            learning_steps: result.card.learning_steps,
+            reps: result.card.reps,
+            lapses: result.card.lapses,
+            state: result.card.state,
+            last_review: result.card.last_review ? result.card.last_review.getTime() : null
+        };
     }
+
+
 
     getRetrievability(card?: Card, now: number = Date.now()): number {
         if (!card) return 0;
