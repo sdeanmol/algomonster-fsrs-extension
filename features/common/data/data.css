@@ -430,8 +430,8 @@ td a:hover {
     border-radius: 16px;
     width: 100%;
     max-width: 560px;
-    max-height: 90vh;
-    overflow-y: auto;
+    position: relative;
+    overflow: visible;
     box-shadow: var(--shadow-3);
     animation: modalSlideUp 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
@@ -481,12 +481,16 @@ td a:hover {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    position: relative;
+    overflow: visible;
 }
 
 .edit-field {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    position: relative;
+    overflow: visible;
 }
 
 .edit-field label {
@@ -723,4 +727,110 @@ td a:hover {
     .data-table-container {
         overflow: visible;
     }
+}
+
+/* Dashboard Edit Modal Tag Chips Styling */
+.edit-modal-body .tag-input-wrapper,
+.edit-field .tag-input-wrapper {
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    min-height: 42px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.edit-modal-body .tag-input-wrapper:focus-within,
+.edit-field .tag-input-wrapper:focus-within {
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+.edit-modal-body .tag-chip,
+.edit-field .tag-chip {
+    background: var(--md-primary-container, rgba(26, 115, 232, 0.15));
+    color: var(--md-primary, #1a73e8);
+    border: 1px solid rgba(26, 115, 232, 0.3);
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 14px;
+}
+
+.edit-modal-body .tag-chip-remove,
+.edit-field .tag-chip-remove {
+    font-size: 14px;
+    color: var(--md-primary, #1a73e8);
+}
+
+.edit-modal-body input.tag-inline-input,
+.edit-field input.tag-inline-input {
+    color: var(--md-text-high) !important;
+    font-size: 13px !important;
+    padding: 4px 0 !important;
+    min-width: 100px !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+}
+
+.edit-modal-body input.tag-inline-input::placeholder,
+.edit-field input.tag-inline-input::placeholder {
+    color: var(--md-text-low) !important;
+}
+
+.edit-modal-body .tag-autocomplete-dropdown,
+.edit-field .tag-autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 140px;
+    overflow-y: auto;
+    margin-top: 4px;
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-2, 0 8px 24px rgba(0,0,0,0.3));
+    z-index: 1050;
+}
+
+.edit-modal-body .tag-suggestion-item,
+.edit-field .tag-suggestion-item {
+    color: var(--md-text-high);
+    font-size: 13px;
+    padding: 8px 14px;
+}
+
+.edit-modal-body .tag-suggestion-item:hover,
+.edit-modal-body .tag-suggestion-item.highlighted,
+.edit-field .tag-suggestion-item:hover,
+.edit-field .tag-suggestion-item.highlighted {
+    background: rgba(26, 115, 232, 0.15);
+    color: var(--md-primary);
+}
+
+:root.light-theme .edit-modal-body .tag-chip,
+:root.light-theme .edit-field .tag-chip {
+    background: rgba(26, 115, 232, 0.1) !important;
+    color: #1a73e8 !important;
+    border-color: rgba(26, 115, 232, 0.3) !important;
+}
+
+:root.light-theme .edit-modal-body .tag-autocomplete-dropdown,
+:root.light-theme .edit-field .tag-autocomplete-dropdown {
+    background: #ffffff !important;
+    border-color: #dadce0 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+}
+
+:root.light-theme .edit-modal-body .tag-suggestion-item,
+:root.light-theme .edit-field .tag-suggestion-item {
+    color: #202124 !important;
 }

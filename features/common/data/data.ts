@@ -1,5 +1,6 @@
 import { Logger } from '@common/logger';
 import { ensureCardIds } from '../utils/cardUtils';
+import { TagInputControl } from '../utils/tagInput';
 import { Card, StorageData, UserSettings } from '../../../types/domain';
 
 /**
@@ -915,6 +916,16 @@ class FSRSDataDashboard {
         }
     }
 
+    getDatabaseTags(): string[] {
+        const tagsSet = new Set<string>();
+        (this.allCards || []).forEach((c: Card) => {
+            if (c.tags && Array.isArray(c.tags)) {
+                c.tags.forEach(t => tagsSet.add(t));
+            }
+        });
+        return Array.from(tagsSet).sort();
+    }
+
     /**
      * Opens the inline edit modal for a specific card.
      */
@@ -925,7 +936,13 @@ class FSRSDataDashboard {
 
             (document.getElementById('edit-card-id') as HTMLInputElement).value = cardId;
             (document.getElementById('edit-title') as HTMLInputElement).value = card.problemTitle || '';
-            (document.getElementById('edit-tags') as HTMLInputElement).value = (card.tags || []).join(', ');
+            const editTagsInput = document.getElementById('edit-tags') as HTMLInputElement | null;
+            if (editTagsInput) {
+                TagInputControl.attach(editTagsInput, {
+                    getSuggestions: () => this.getDatabaseTags()
+                });
+                editTagsInput.value = (card.tags || []).join(', ');
+            }
             (document.getElementById('edit-approach') as HTMLTextAreaElement).value = card.approach || '';
             (document.getElementById('edit-time-complexity') as HTMLInputElement).value = card.timeComplexity || '';
             (document.getElementById('edit-space-complexity') as HTMLInputElement).value = card.spaceComplexity || '';

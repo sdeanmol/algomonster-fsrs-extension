@@ -1,4 +1,5 @@
 import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
+import { TagInputControl } from '../common/utils/tagInput';
 import { Card, StorageData } from '../../types/domain';
 import { RATING_UI_DEBOUNCE_MS } from '../common/constants';
 import FsrsScheduler from './scheduler/fsrsScheduler';
@@ -298,6 +299,11 @@ class Tracker {
 
             const approachArea = document.getElementById('fsrs-approach') as HTMLTextAreaElement | null;
             const tagsInput = document.getElementById('fsrs-tags-input') as HTMLInputElement | null;
+            if (tagsInput) {
+                TagInputControl.attach(tagsInput, {
+                    getSuggestions: () => this.getDatabaseTags()
+                });
+            }
             const actionLabel = document.getElementById('fsrs-action-label');
             const saveRatingsContainer = document.getElementById('fsrs-save-ratings');
             const ratingBtns = saveRatingsContainer ? saveRatingsContainer.querySelectorAll('button') : [];
@@ -1016,6 +1022,16 @@ class Tracker {
     /**
      * Launches the review queue display sequence, looping cards in the due stack.
      */
+    private getDatabaseTags(): string[] {
+        const tagsSet = new Set<string>();
+        (this.state.cards || []).forEach((c: Card) => {
+            if (c.tags && Array.isArray(c.tags)) {
+                c.tags.forEach(t => tagsSet.add(t));
+            }
+        });
+        return Array.from(tagsSet).sort();
+    }
+
     private _startReviewSession(): void {
         try {
             const dueCards = this.getDueCards(this.activeReviewFilter);
