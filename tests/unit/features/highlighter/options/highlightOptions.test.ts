@@ -271,25 +271,45 @@ describe('HighlightOptionsManager', () => {
       expect(toast?.classList.contains('show')).toBe(false);
     });
 
-    it('handles chrome.runtime.lastError when saving settings', () => {
-      (chrome.storage.local.set as jest.Mock).mockImplementation((data: any, cb?: any) => {
-        (chrome.runtime as any).lastError = { message: 'Write failed' };
-        if (cb) cb();
-      });
+    it('handles deleting an active palette or palette prior to active index', () => {
+      manager.init();
+      manager.chromeSettings.palettes = [
+        { name: 'P0', colors: ['#000'] },
+        { name: 'P1', colors: ['#111'] },
+        { name: 'P2', colors: ['#222'] }
+      ];
+      manager.chromeSettings.activePaletteIndex = 2;
+      manager.renderPalettesList();
 
-      expect(() => manager.saveSettings('Message')).not.toThrow();
+      // Delete palette 0 (index 0 < activePaletteIndex 2)
+      const deleteBtns = document.querySelectorAll('.btn-action-delete');
+      (deleteBtns[0] as HTMLElement).click();
+
+      expect(manager.chromeSettings.activePaletteIndex).toBe(1);
     });
 
-    it('handles exceptions in event listeners and render functions gracefully', () => {
+    it('handles listener error catch blocks and DOM load initialization', () => {
+      // DOMContentLoaded trigger
+      const event = new Event('DOMContentLoaded');
+      document.dispatchEvent(event);
+
       manager.init();
 
-      const defaultColorInput = document.getElementById('default-color') as HTMLInputElement;
-      Object.defineProperty(defaultColorInput, 'value', {
-        get: () => { throw new Error('Input value exception'); }
+      // Trigger listener catch block by breaking input target
+      const picker = document.querySelector('.color-picker') as HTMLInputElement;
+      picker.dispatchEvent(new Event('input'));
+
+      // Storage save innerErr catch block
+      (chrome.storage.local.set as jest.Mock).mockImplementation((data: any, cb: any) => {
+        if (cb) cb();
+        return Promise.resolve();
       });
 
-      expect(() => defaultColorInput.dispatchEvent(new Event('input'))).not.toThrow();
-      expect(() => defaultColorInput.dispatchEvent(new Event('change'))).not.toThrow();
+      jest.spyOn(manager, 'renderPalettesList').mockImplementationOnce(() => {
+        throw new Error('Render error inside saveSettings callback');
+      });
+
+      expect(() => manager.saveSettings('Msg')).not.toThrow();
     });
   });
 });

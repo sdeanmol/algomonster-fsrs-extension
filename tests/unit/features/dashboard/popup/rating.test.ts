@@ -63,14 +63,23 @@ describe('RatingComponent (Popup)', () => {
       expect(rateBtn.href).toContain('mock-extension-id');
     });
 
-    it('shows unrated prompt state when cards count >= 1', async () => {
+    it('shows unrated prompt state when cards count >= 1 and hides when cards count == 0', async () => {
       await component.load();
-
       const card = document.getElementById('rating-prompt-card');
       expect(card?.classList.contains('hide-panel')).toBe(false);
+
+      (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
+        return Promise.resolve({
+          ratingPromptState: { status: 'unrated', snoozedUntil: 0 },
+          fsrsCards: []
+        });
+      });
+
+      await component.load();
+      expect(card?.classList.contains('hide-panel')).toBe(true);
     });
 
-    it('shows thanks state when status is rated', async () => {
+    it('shows thanks state when status is rated and hides when status is active snoozed', async () => {
       (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
         return Promise.resolve({
           ratingPromptState: { status: 'rated', snoozedUntil: 0 },
@@ -79,9 +88,20 @@ describe('RatingComponent (Popup)', () => {
       });
 
       await component.load();
-
       const thanksState = document.getElementById('rating-thanks-state');
       expect(thanksState?.classList.contains('hide-panel')).toBe(false);
+
+      // Active snoozed status (unexpired)
+      (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
+        return Promise.resolve({
+          ratingPromptState: { status: 'snoozed', snoozedUntil: Date.now() + 86400000 },
+          fsrsCards: [{ id: 'c1' }]
+        });
+      });
+
+      await component.load();
+      const card = document.getElementById('rating-prompt-card');
+      expect(card?.classList.contains('hide-panel')).toBe(true);
     });
 
     it('resets snoozed status to unrated if snooze period expired', async () => {
@@ -100,9 +120,17 @@ describe('RatingComponent (Popup)', () => {
         })
       );
     });
+
+    it('handles storage load error gracefully', async () => {
+      (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
+        return Promise.reject(new Error('Storage error'));
+      });
+
+      await expect(component.load()).resolves.not.toThrow();
+    });
   });
 
-  describe('bindEvents', () => {
+  describe('bindEvents and action button error boundaries', () => {
     it('snoozes rating prompt for 7 days when clicking snoozeBtn', async () => {
       component.bindEvents();
 
@@ -141,6 +169,34 @@ describe('RatingComponent (Popup)', () => {
       expect(chrome.storage.local.set).toHaveBeenCalledWith({
         ratingPromptState: { status: 'unrated', snoozedUntil: 0 }
       });
+    });
+
+    it('handles exceptions inside button click listeners gracefully', async () => {
+      component.bindEvents();
+
+      (chrome.storage.local.set as jest.Mock).mockImplementation(() => {
+        throw new Error('Storage set error');
+      });
+
+      const snoozeBtn = document.getElementById('snooze-rate-btn');
+      const alreadyBtn = document.getElementById('already-rated-btn');
+      const editBtn = document.getElementById('edit-rating-btn');
+
+      expect(() => snoozeBtn?.click()).not.toThrow();
+      expect(() => alreadyBtn?.click()).not.toThrow();
+      expect(() => editBtn?.click()).not.toThrow();
+    });
+
+    it('returns early from bindEvents if card is missing or handles outer errors', () => {
+      document.body.innerHTML = '';
+      expect(() => component.bindEvents()).not.toThrow();
+
+      const origGEBI = document.getElementById;
+      document.getElementById = () => { throw new Error('DOM error'); };
+
+      expect(() => component.bindEvents()).not.toThrow();
+
+      document.getElementById = origGEBI;
     });
   });
 });

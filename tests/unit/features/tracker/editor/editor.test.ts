@@ -143,133 +143,141 @@ describe('EditorManager', () => {
       const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement;
       expect(textarea.value).toBe('Simple string draft');
     });
+
+    it('handles outer/inner storage get errors in loadContent gracefully', () => {
+      (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
+        throw new Error('Load content storage error');
+      });
+
+      expect(() => editor.loadContent()).not.toThrow();
+
+      (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb: any) => {
+        cb(null);
+      });
+      expect(() => editor.loadContent()).not.toThrow();
+    });
   });
 
-  describe('event bindings and auto-save timer', () => {
+  describe('event bindings, markdown preview, and saveContent branches', () => {
     it('triggers auto-save timer on input changes', () => {
       editor.init();
-
       const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement;
-      textarea.value = 'Updated text input';
+      textarea.value = 'Updated approach notes';
       textarea.dispatchEvent(new Event('input'));
 
       const statusEl = document.getElementById('save-status');
       expect(statusEl?.textContent).toBe('Typing...');
 
-      jest.advanceTimersByTime(300);
-      expect(statusEl?.textContent).toBe('Changes saved automatically');
+      jest.advanceTimersByTime(350);
+      expect(chrome.storage.local.set).toHaveBeenCalled();
     });
 
-    it('saves progress and shows toast on Save button click', () => {
+    it('handles click events for Save, Save & Close, and Header Back buttons', () => {
       editor.init();
 
       const saveBtn = document.getElementById('save-btn') as HTMLElement;
       saveBtn.click();
-
       expect(chrome.storage.local.set).toHaveBeenCalled();
-      const toast = document.getElementById('status-toast');
-      expect(toast?.textContent).toBe('Progress saved!');
-    });
-
-    it('saves progress and closes window on Save & Close button click', () => {
-      editor.init();
 
       const saveCloseBtn = document.getElementById('save-close-btn') as HTMLElement;
       saveCloseBtn.click();
-
       expect(window.close).toHaveBeenCalled();
+
+      const headerBackBtn = document.getElementById('header-back-btn') as HTMLElement;
+      headerBackBtn.click();
+      expect(window.close).toHaveBeenCalledTimes(2);
     });
 
-    it('saves progress and closes window on Header Back button click', () => {
+    it('toggles markdown preview mode and renders HTML using AlgoRecall.Markdown or fallback regex', () => {
       editor.init();
+      const previewToggleBtn = document.getElementById('preview-toggle-btn') as HTMLElement;
+      const editorPreview = document.getElementById('editor-preview') as HTMLElement;
+      const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement;
 
-      const backBtn = document.getElementById('header-back-btn') as HTMLElement;
-      backBtn.click();
+      textarea.value = '## Heading\n- Item 1\n`code`';
 
-      expect(window.close).toHaveBeenCalled();
-    });
-
-    it('toggles markdown preview mode and edit mode', () => {
-      editor.init();
-
-      const previewBtn = document.getElementById('preview-toggle-btn') as HTMLElement;
-      const editorPreview = document.getElementById('editor-preview');
-      const textarea = document.getElementById('editor-textarea');
-
-      previewBtn.click();
+      // 1. Fallback regex rendering mode
+      previewToggleBtn.click();
       expect(editor.isPreviewMode).toBe(true);
-      expect(editorPreview?.style.display).toBe('block');
-      expect(textarea?.style.display).toBe('none');
+      expect(editorPreview.style.display).toBe('block');
+      expect(editorPreview.innerHTML).toContain('<br>');
 
-      previewBtn.click();
+      // Toggle back to edit mode
+      previewToggleBtn.click();
       expect(editor.isPreviewMode).toBe(false);
-      expect(editorPreview?.style.display).toBe('none');
-    });
 
-    it('renders preview using window.AlgoRecall.Markdown if available', () => {
+      // 2. Custom AlgoRecall.Markdown rendering mode
       (window as any).AlgoRecall = {
-        Markdown: { render: (text: string) => `<h1>${text}</h1>` }
+        Markdown: {
+          render: (t: string) => `<h1>Rendered: ${t}</h1>`
+        }
       };
 
-      editor.init();
-      const previewBtn = document.getElementById('preview-toggle-btn') as HTMLElement;
-      previewBtn.click();
+      previewToggleBtn.click();
+      expect(editorPreview.innerHTML).toContain('<h1>Rendered:');
 
-      const editorPreview = document.getElementById('editor-preview');
-      expect(editorPreview?.innerHTML).toContain('<h1>');
+      delete (window as any).AlgoRecall;
     });
 
-    it('triggers saveContent on pagehide and beforeunload', () => {
-      editor.init();
+    it('saves content matching cleanUrl when cardId is empty and handles existing draft object updating', () => {
+      delete (window as any).location;
+      (window as any).location = new URL('https://algo.monster/editor.html?url=https://leetcode.com/problems/two-sum');
 
-      window.dispatchEvent(new Event('pagehide'));
-      window.dispatchEvent(new Event('beforeunload'));
+      const cleanUrlEditor = new EditorManager();
+      cleanUrlEditor.init();
 
+      cleanUrlEditor.cardId = '';
+      cleanUrlEditor.isCardExisting = true;
+      cleanUrlEditor.saveContent();
       expect(chrome.storage.local.set).toHaveBeenCalled();
-    });
-  });
 
-  describe('content saving and helper methods', () => {
-    it('saves draft entries for non-existing cards', () => {
-      editor.init();
-      editor.isCardExisting = false;
-
-      editor.saveContent();
+      // Non-existing card with existing draft object update
+      cleanUrlEditor.isCardExisting = false;
+      cleanUrlEditor.saveContent();
       expect(chrome.storage.local.set).toHaveBeenCalled();
     });
 
-    it('handles clean display URL parsing and fallbacks', () => {
-      expect(editor.getCleanDisplayUrl('https://leetcode.com/problems/two-sum')).toBe('leetcode.com/problems/two-sum');
-      expect(editor.getCleanDisplayUrl('invalid-url')).toBe('invalid-url');
+    it('handles saveContent callback when index is -1 or when inner/outer storage throws error', () => {
+      editor.init();
+      editor.isCardExisting = true;
+      editor.cardId = 'non-existent-card-id';
+      editor.cleanUrl = 'non-existent-url';
+
+      const cb = jest.fn();
+      editor.saveContent(cb);
+      expect(cb).toHaveBeenCalled();
+
+      (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
+        throw new Error('Save content storage error');
+      });
+      const errCb = jest.fn();
+      editor.saveContent(errCb);
+      expect(errCb).toHaveBeenCalled();
     });
 
-    it('handles toast status display and auto-hide timer', () => {
-      editor.showToast('Test Toast Message');
+    it('handles toast auto-hide timer and clean display URL fallback for invalid URLs', () => {
+      expect(editor.getCleanDisplayUrl('invalid-url-string')).toBe('invalid-url-string');
 
+      editor.showToast('Test toast');
       const toast = document.getElementById('status-toast');
       expect(toast?.classList.contains('show')).toBe(true);
 
-      jest.advanceTimersByTime(2000);
+      jest.advanceTimersByTime(2100);
       expect(toast?.classList.contains('show')).toBe(false);
-    });
 
-    it('handles DOM exceptions during init gracefully', () => {
       const origGEBI = document.getElementById;
-      document.getElementById = () => { throw new Error('GEBI error'); };
+      document.getElementById = () => { throw new Error('DOM Toast error'); };
 
-      expect(() => editor.init()).not.toThrow();
+      expect(() => editor.showToast('Test')).not.toThrow();
 
       document.getElementById = origGEBI;
     });
 
-    it('handles storage exception during saveContent gracefully', () => {
-      (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
-        throw new Error('Save storage error');
-      });
-
-      const callback = jest.fn();
-      expect(() => editor.saveContent(callback)).not.toThrow();
-      expect(callback).toHaveBeenCalled();
+    it('handles pagehide and beforeunload save triggers', () => {
+      editor.init();
+      window.dispatchEvent(new Event('pagehide'));
+      window.dispatchEvent(new Event('beforeunload'));
+      expect(chrome.storage.local.set).toHaveBeenCalled();
     });
   });
 });

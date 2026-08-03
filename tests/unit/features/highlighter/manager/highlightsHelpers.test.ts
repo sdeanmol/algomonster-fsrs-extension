@@ -108,7 +108,40 @@ describe('HighlightsHelpers', () => {
     });
   });
 
-  describe('Global window bindings', () => {
+  describe('Error boundaries in escapeHtml, highlightSearchMatch, and showToast', () => {
+    it('handles document.createElement throwing in escapeHtml fallback', () => {
+      const origCreate = document.createElement;
+      document.createElement = () => { throw new Error('DOM Error'); };
+
+      const escaped = HighlightsHelpers.escapeHtml('<script>alert(1)</script>');
+      expect(escaped).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
+
+      document.createElement = origCreate;
+    });
+
+    it('handles regex error fallback in highlightSearchMatch', () => {
+      jest.spyOn(HighlightsHelpers, 'escapeHtml').mockImplementationOnce(() => {
+        throw new Error('Escape error');
+      });
+
+      expect(() => HighlightsHelpers.highlightSearchMatch('Text', 'query')).not.toThrow();
+    });
+
+    it('handles toast class removal exception in showToast timeout', () => {
+      jest.useFakeTimers();
+      const toast = document.createElement('div');
+      toast.id = 'status-toast';
+      document.body.appendChild(toast);
+
+      HighlightsHelpers.showToast('Test Toast');
+      Object.defineProperty(toast.classList, 'remove', {
+        value: () => { throw new Error('Class remove error'); }
+      });
+
+      expect(() => jest.advanceTimersByTime(2100)).not.toThrow();
+      jest.useRealTimers();
+    });
+
     it('executes global window helper functions', async () => {
       expect(typeof window.escapeHtml).toBe('function');
       expect(window.escapeHtml('<b>hi</b>')).toContain('&lt;b&gt;');

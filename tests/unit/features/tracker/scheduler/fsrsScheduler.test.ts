@@ -91,9 +91,23 @@ describe('FsrsScheduler', () => {
       customFsrs.resetConfiguration();
       expect(customFsrs.requestRetention).toBe(0.90);
 
-      // Import configuration
-      customFsrs.importConfiguration({ requestRetention: 0.95 });
+      // Import configuration with partial options and invalid w length
+      customFsrs.importConfiguration({ requestRetention: 0.95, w: [1, 2, 3] });
       expect(customFsrs.requestRetention).toBe(0.95);
+      expect(customFsrs.w.length).toBe(17);
+
+      customFsrs.importConfiguration(undefined);
+    });
+
+    it('handles numeric string conversion in constructor parameters', () => {
+      const paramsFsrs = new FsrsScheduler({
+        decay: '-0.7' as any,
+        factor: '0.3' as any,
+        requestRetention: '0.88' as any
+      });
+      expect(paramsFsrs.decay).toBe(-0.7);
+      expect(paramsFsrs.factor).toBe(0.3);
+      expect(paramsFsrs.requestRetention).toBe(0.88);
     });
   });
 
@@ -128,9 +142,19 @@ describe('FsrsScheduler', () => {
       const cardEasy = fsrs.reviewCard(baseCard, Rating.Easy, null, now);
       expect(cardEasy.stability).toBeGreaterThan(cardGood.stability);
     });
+
+    it('catches and rethrows computation errors during reviewCard', () => {
+      const invalidCard = {
+        id: 'errCard',
+        due: NaN,
+        historyLog: [{ rating: 3, date: Date.now() - 3600000 }]
+      } as unknown as Card;
+
+      expect(() => fsrs.reviewCard(invalidCard, Rating.Good)).toThrow();
+    });
   });
 
-  describe('Algorithmic Debouncing', () => {
+  describe('Algorithmic Debouncing & History Edge Cases', () => {
     it('suppresses duplicate identical rating within 1 minute and accumulates duration', () => {
       const baseCard = fsrs.createCard('Test Debounce');
       const now = Date.now();
@@ -138,11 +162,67 @@ describe('FsrsScheduler', () => {
       const reviewedCard = fsrs.reviewCard(baseCard, Rating.Good, null, now, 2000);
       expect(reviewedCard.historyLog!.length).toBe(2);
 
-      // Rapid re-submit 10 seconds later with same rating
+      // Rapid re-submit 10 seconds later with same rating and duration
       const dupeCard = fsrs.reviewCard(reviewedCard, Rating.Good, null, now + 10000, 3000);
       expect(dupeCard.historyLog!.length).toBe(2);
       const lastLog = dupeCard.historyLog![dupeCard.historyLog!.length - 1] as any;
       expect(lastLog.duration).toBe(5000);
+
+      // Rapid re-submit with timeTaken = null
+      const dupeCardNullTime = fsrs.reviewCard(reviewedCard, Rating.Good, null, now + 10000, null);
+      expect(dupeCardNullTime).toBe(reviewedCard);
+    });
+
+    it('handles legacy historyLog items (number ratings and logs without preState)', () => {
+      const reviewTime = Date.now() - 5000;
+      const legacyCard: Card = {
+        id: 'legacy',
+        due: reviewTime,
+        stability: 5,
+        difficulty: 5,
+        reps: 1,
+        lapses: 0,
+        state: State.Review,
+        historyLog: [{ rating: 3, date: reviewTime - 1000 }, 3 as any]
+      } as unknown as Card;
+
+      // Duplicate rating submit within 10s
+      const dupe = fsrs.reviewCard(legacyCard, Rating.Good, null, reviewTime + 2000, 1000);
+      expect(dupe.id).toBe('legacy');
+
+      // Corrected rating submit within 10s
+      const corrected = fsrs.reviewCard(legacyCard, Rating.Again, null, reviewTime + 2000, 1000);
+      expect(corrected.historyLog!.length).toBe(3);
+    });
+
+    it('returns null debouncedCard when historyLog is undefined, empty, or last review was manual creation', () => {
+      const now = Date.now();
+      const cardNoLog: Card = {
+        id: 'nolog',
+        due: now,
+        stability: 5,
+        difficulty: 5,
+        reps: 1,
+        lapses: 0,
+        state: State.Review,
+        historyLog: []
+      } as unknown as Card;
+
+      const reviewed = fsrs.reviewCard(cardNoLog, Rating.Good, null, now);
+      expect(reviewed.historyLog!.length).toBe(1);
+
+      const cardUndefinedLog: Card = {
+        id: 'undeflog',
+        due: now,
+        stability: 5,
+        difficulty: 5,
+        reps: 1,
+        lapses: 0,
+        state: State.Review
+      } as unknown as Card;
+
+      const reviewedUndef = fsrs.reviewCard(cardUndefinedLog, Rating.Good, null, now);
+      expect(reviewedUndef.historyLog!.length).toBe(1);
     });
 
     it('corrects rating within 1 minute when user changes rating choice', () => {
@@ -165,7 +245,7 @@ describe('FsrsScheduler', () => {
       const now = Date.now();
 
       const reviewed1 = fsrs.reviewCard(baseCard, Rating.Good, null, now);
-      const reviewed2 = fsrs.reviewCard(reviewed1, Rating.Good, null, now + 120000); // 2 mins later
+      const reviewed2 = fsrs.reviewCard(reviewed1, Rating.Good, null, now + 120000);
       expect(reviewed2.historyLog!.length).toBe(3);
     });
   });
@@ -186,9 +266,18 @@ describe('FsrsScheduler', () => {
       expect(r10).toBeLessThan(0.95);
     });
 
-    it('returns 0 retrievability for cards with zero or negative stability', () => {
+    it('returns 0 retrievability for cards with zero or negative stability or when calculation throws', () => {
       expect(fsrs.getRetrievability(null as any)).toBe(0);
       expect(fsrs.getRetrievability({ stability: 0 } as any)).toBe(0);
+
+      const invalidCard = {
+        id: 'err',
+        stability: 10,
+        due: NaN,
+        historyLog: [{ rating: 3, date: Date.now() }]
+      } as unknown as Card;
+
+      expect(fsrs.getRetrievability(invalidCard)).toBe(0);
     });
 
     it('calculates projected retrievability using formula', () => {

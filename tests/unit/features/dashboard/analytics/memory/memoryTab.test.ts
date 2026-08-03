@@ -170,6 +170,81 @@ describe('MemoryTab and PredictionComparison', () => {
       expect(() => memoryTab.renderNextAction('non-existent')).not.toThrow();
       expect(() => memoryTab.renderPersonalMemoryStatus('non-existent')).not.toThrow();
     });
+
+    it('handles constructor exception fallback gracefully', () => {
+      const origRC = (dataUtils as any).RetentionChart;
+      // Force RetentionChart constructor inside MemoryTab constructor to throw
+      jest.mock('../../../../../../features/dashboard/analytics/memory/retentionChart', () => ({
+        RetentionChart: jest.fn().mockImplementationOnce(() => {
+          throw new Error('Constructor Error');
+        })
+      }));
+
+      expect(() => new MemoryTab(dataUtils)).not.toThrow();
+    });
+
+    it('handles error catch blocks in event listeners and render methods', () => {
+      const memoryTab = new MemoryTab(dataUtils);
+      memoryTab.render('memory-tab-container');
+
+      // 1. Group By listener exception
+      jest.spyOn(memoryTab.retentionChart, 'setGroupBy').mockImplementationOnce(() => {
+        throw new Error('GroupBy Error');
+      });
+      const groupBySelect = container.querySelector('#retention-group-by') as HTMLSelectElement;
+      expect(() => groupBySelect.dispatchEvent(new Event('change'))).not.toThrow();
+
+      // 2. Tag Filter listener exception
+      jest.spyOn(memoryTab.retentionChart, 'setFilterTag').mockImplementationOnce(() => {
+        throw new Error('TagFilter Error');
+      });
+      const tagFilterInput = container.querySelector('#retention-tag-filter') as HTMLInputElement;
+      expect(() => tagFilterInput.dispatchEvent(new Event('input'))).not.toThrow();
+
+      // 3. Confidence Toggle listener exception
+      jest.spyOn(memoryTab.retentionChart, 'setShowConfidence').mockImplementationOnce(() => {
+        throw new Error('Confidence Error');
+      });
+      const confidenceToggle = container.querySelector('#toggle-confidence-bands') as HTMLInputElement;
+      expect(() => confidenceToggle.dispatchEvent(new Event('change'))).not.toThrow();
+
+      // 4. Render exception
+      jest.spyOn(memoryTab.retentionChart, 'render').mockImplementationOnce(() => {
+        throw new Error('Render Error');
+      });
+      expect(() => memoryTab.render('memory-tab-container')).not.toThrow();
+
+      // 5. Next action render exception
+      jest.spyOn(dataUtils, 'getSummaryStats').mockImplementationOnce(() => {
+        throw new Error('SummaryStats Error');
+      });
+      expect(() => memoryTab.renderNextAction('memory-tab-container')).not.toThrow();
+    });
+
+    it('handles chrome.runtime.lastError and storage callback exception in renderPersonalMemoryStatus', () => {
+      (global as any).chrome = {
+        runtime: { lastError: { message: 'Storage Error' } },
+        storage: {
+          local: {
+            get: jest.fn().mockImplementation((keys: any, cb?: any) => {
+              if (cb) cb(null);
+              return Promise.resolve();
+            })
+          }
+        }
+      };
+
+      const memoryTab = new MemoryTab(dataUtils);
+      expect(() => memoryTab.renderPersonalMemoryStatus('memory-tab-container')).not.toThrow();
+
+      // Outer method exception (e.g. document.getElementById throws)
+      const origGEBI = document.getElementById;
+      document.getElementById = () => { throw new Error('GEBI error'); };
+
+      expect(() => memoryTab.renderPersonalMemoryStatus('memory-tab-container')).not.toThrow();
+
+      document.getElementById = origGEBI;
+    });
   });
 });
 

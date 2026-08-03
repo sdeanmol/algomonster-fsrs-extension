@@ -133,6 +133,15 @@ describe('FSRSConfigManager', () => {
 
       document.getElementById = origGEBI;
     });
+
+    it('handles storage lastError in loadFSRSConfig gracefully', () => {
+      (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb: any) => {
+        (chrome.runtime as any).lastError = { message: 'Load error' };
+        if (cb) cb({});
+      });
+
+      expect(() => manager.loadFSRSConfig()).not.toThrow();
+    });
   });
 
   describe('eligibility and optimization checking', () => {
@@ -245,19 +254,31 @@ describe('FSRSConfigManager', () => {
       expect(chrome.storage.local.set).toHaveBeenCalled();
     });
 
-    it('shows error toast when adding tag profile with invalid weight count', () => {
+    it('shows error toast when adding tag profile with invalid weight count or empty tag', () => {
       manager.init();
 
       const tagInput = document.getElementById('new-tag-name') as HTMLInputElement;
       const weightsInput = document.getElementById('new-tag-weights') as HTMLInputElement;
 
+      // Empty tag name
+      tagInput.value = '';
+      weightsInput.value = '1, 2';
+      manager.handleAddTagProfile();
+
+      // Invalid weight count
       tagInput.value = 'graph';
       weightsInput.value = '1, 2, 3';
-
       manager.handleAddTagProfile();
 
       const toast = document.getElementById('status-toast');
       expect(toast?.textContent).toContain('Weights must contain exactly 17 coefficients');
+    });
+
+    it('handles confirm false during handleDeleteTagProfile', () => {
+      (window as any).confirm.mockReturnValue(false);
+      manager.init();
+
+      expect(() => manager.handleDeleteTagProfile('dp')).not.toThrow();
     });
   });
 
@@ -288,7 +309,17 @@ describe('FSRSConfigManager', () => {
       expect(chrome.storage.local.set).toHaveBeenCalled();
     });
 
-    it('resets global parameters, optimization status, and weights', () => {
+    it('handles confirm false during restoreDefaults, restoreGlobalParameters, resetOptimization, restoreWeights', () => {
+      (window as any).confirm.mockReturnValue(false);
+      manager.init();
+
+      manager.restoreDefaults();
+      manager.restoreGlobalParameters();
+      manager.resetOptimization();
+      manager.restoreWeights();
+    });
+
+    it('resets global parameters, optimization status, and weights when confirmed', () => {
       manager.init();
 
       manager.restoreGlobalParameters();
@@ -306,6 +337,27 @@ describe('FSRSConfigManager', () => {
 
       jest.advanceTimersByTime(2500);
       expect(toast?.classList.contains('show')).toBe(false);
+    });
+
+    it('handles internal method errors gracefully across all config methods', () => {
+      const origGEBI = document.getElementById;
+      document.getElementById = () => null;
+
+      expect(() => manager.bindEvents()).not.toThrow();
+      expect(() => manager.saveGlobalConfig()).not.toThrow();
+      expect(() => manager.restoreGlobalParameters()).not.toThrow();
+      expect(() => manager.restoreDefaults()).not.toThrow();
+      expect(() => manager.restoreWeights()).not.toThrow();
+      expect(() => manager.resetOptimization()).not.toThrow();
+      expect(() => manager.renderTagProfiles(null as any)).not.toThrow();
+      expect(() => manager.handleAddTagProfile()).not.toThrow();
+      expect(() => manager.handleDeleteTagProfile('tag')).not.toThrow();
+      expect(() => manager.handleExportWeights()).not.toThrow();
+      expect(() => manager.computeEligibility(null as any, 10)).not.toThrow();
+      expect(() => manager.checkOptimizationEligibility()).not.toThrow();
+      expect(() => manager.showToast('err', true)).not.toThrow();
+
+      document.getElementById = origGEBI;
     });
   });
 });

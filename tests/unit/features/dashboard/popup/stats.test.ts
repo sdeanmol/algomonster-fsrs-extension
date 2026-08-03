@@ -58,12 +58,17 @@ describe('StatsComponent (Popup)', () => {
 
       <div id="milestone-toast"><span id="milestone-toast-text"></span></div>
       <canvas id="confetti-canvas" style="width: 100px; height: 100px;"></canvas>
-      <div id="level-badge"></div>
+      <div id="user-level-badge"></div>
       <span id="level-num"></span>
       <span id="level-title"></span>
       <div id="xp-bar-fill"></div>
       <span id="xp-text"></span>
     `;
+
+    // Mock global FsrsScheduler class on window
+    (window as any).FsrsScheduler = jest.fn().mockImplementation(() => ({
+      getRetrievability: jest.fn().mockReturnValue(0.92)
+    }));
 
     // Canvas 2d context mock
     HTMLCanvasElement.prototype.getContext = jest.fn().mockReturnValue({
@@ -113,8 +118,9 @@ describe('StatsComponent (Popup)', () => {
       expect(dueEl?.innerText).toBe('1');
     });
 
-    it('handles warning and danger thresholds for due card box styling', async () => {
-      const manyDueCards = Array.from({ length: 25 }, (_, i) => ({
+    it('handles warning (1-20 cards due) and danger (>20 due) box styling', async () => {
+      // 5 due cards (warning)
+      const warningDueCards = Array.from({ length: 5 }, (_, i) => ({
         id: `c${i}`,
         due: Date.now() - 1000,
         stability: 5,
@@ -122,20 +128,87 @@ describe('StatsComponent (Popup)', () => {
       })) as unknown as Card[];
 
       (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
-        return Promise.resolve({ fsrsCards: manyDueCards });
+        return Promise.resolve({ fsrsCards: warningDueCards });
       });
 
       await component.load();
-
       const boxDue = document.getElementById('box-due');
+      expect(boxDue?.classList.contains('warning')).toBe(true);
+
+      // 25 due cards (danger)
+      const dangerDueCards = Array.from({ length: 25 }, (_, i) => ({
+        id: `c${i}`,
+        due: Date.now() - 1000,
+        stability: 5,
+        historyLog: []
+      })) as unknown as Card[];
+
+      (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
+        return Promise.resolve({ fsrsCards: dangerDueCards });
+      });
+
+      await component.load();
       expect(boxDue?.classList.contains('danger')).toBe(true);
     });
 
-    it('triggers milestone celebration toast and confetti when reaching review threshold', async () => {
+    it('renders empty card list gamification panel state when no cards exist', async () => {
+      (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
+        return Promise.resolve({ fsrsCards: [] });
+      });
+
+      await component.load();
+      const panel = document.getElementById('gamification-panel');
+      expect(panel?.innerHTML).toContain('Welcome to Spaced Repetitions!');
+    });
+
+    it('renders level titles across Apprentice, Specialist, Expert, Grandmaster thresholds', async () => {
+      const testLevels = [
+        { reviews: 50, title: 'Apprentice' },
+        { reviews: 300, title: 'Specialist' },
+        { reviews: 1200, title: 'Expert' },
+        { reviews: 3600, title: 'Grandmaster' }
+      ];
+
+      for (const t of testLevels) {
+        (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
+          return Promise.resolve({
+            fsrsCards: getFreshCards(),
+            fsrsActivity: { '2026-08-03': t.reviews }
+          });
+        });
+
+        await component.load();
+        const badge = document.getElementById('user-level-badge');
+        expect(badge?.title).toContain(t.title);
+      }
+    });
+
+    it('renders exam countdown pill when studyPlanSettings is active', async () => {
       (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
         return Promise.resolve({
           fsrsCards: getFreshCards(),
-          fsrsActivity: { '2026-08-03': 100 },
+          studyPlanSettings: { isActive: true, examDate: '2026-08-10' }
+        });
+      });
+
+      await component.load();
+      const panel = document.getElementById('gamification-panel');
+      expect(panel?.innerHTML).toContain('exam');
+    });
+
+    it('triggers streak milestone celebration toast and confetti when reaching streak threshold', async () => {
+      const today = new Date();
+      const activity: Record<string, number> = {};
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        activity[component.formatDateKey(d)] = 5;
+      }
+
+      (chrome.storage.local.get as jest.Mock).mockImplementation(() => {
+        return Promise.resolve({
+          fsrsCards: getFreshCards(),
+          fsrsActivity: activity,
           lastCelebratedMilestone: 0
         });
       });
@@ -144,7 +217,7 @@ describe('StatsComponent (Popup)', () => {
 
       jest.advanceTimersByTime(500);
       expect(chrome.storage.local.set).toHaveBeenCalledWith(
-        expect.objectContaining({ lastCelebratedMilestone: 100 })
+        expect.objectContaining({ lastCelebratedMilestone: 7 })
       );
     });
 
@@ -175,9 +248,10 @@ describe('StatsComponent (Popup)', () => {
       expect(chrome.storage.local.set).toHaveBeenCalled();
     });
 
-    it('handles exceptions inside bindEditorEvents callbacks', () => {
+    it('handles bindEvents and exceptions inside bindEditorEvents callbacks', () => {
       const gamificationPanel = document.getElementById('gamification-panel') as HTMLElement;
       component.bindEditorEvents(gamificationPanel);
+      component.bindEvents();
 
       const goalInput = document.getElementById('goal-input') as HTMLInputElement;
       Object.defineProperty(goalInput, 'value', {
@@ -191,15 +265,24 @@ describe('StatsComponent (Popup)', () => {
   });
 
   describe('direct UI helper methods', () => {
-    it('renders goal complete and streak badges correctly', () => {
+    it('renders goal complete, motivation messages, and streak badges correctly', () => {
       const goalHtml = component.renderGoalComplete(10, 10, 5, 10);
       expect(goalHtml).toContain('Goal Complete!');
 
+      const goalProgressPartial = component.renderGoalProgress(5, 10, 2, 3, 5);
+      expect(goalProgressPartial).toContain('Keep going!');
+
+      const goalProgressComplete = component.renderGoalProgress(10, 10, 0, 3, 5);
+      expect(goalProgressComplete).toContain('Daily goal reached!');
+
       const streakHtml = component.renderStreakBadge(5, 10);
       expect(streakHtml).toContain('5-day streak');
+
+      const streakEmpty = component.renderStreakBadge(0, 0);
+      expect(streakEmpty).toBe('');
     });
 
-    it('shows milestone toast', () => {
+    it('shows milestone toast and handles timer callback errors', () => {
       component.showMilestoneToast('Test Toast');
       const toastText = document.getElementById('milestone-toast-text');
       expect(toastText?.textContent).toBe('Test Toast');
@@ -207,24 +290,43 @@ describe('StatsComponent (Popup)', () => {
       jest.advanceTimersByTime(4000);
       const toast = document.getElementById('milestone-toast');
       expect(toast?.classList.contains('show')).toBe(false);
+
+      const origGEBI = document.getElementById;
+      document.getElementById = () => { throw new Error('Toast error'); };
+      expect(() => component.showMilestoneToast('Err')).not.toThrow();
+      document.getElementById = origGEBI;
+    });
+
+    it('handles errors inside renderGoalProgress, renderGoalComplete, and renderStreakBadge gracefully', () => {
+      const throwingObj = {
+        toString() { throw new Error('Eval error'); },
+        valueOf() { throw new Error('Eval error'); }
+      } as any;
+
+      expect(component.renderGoalProgress(throwingObj, 10, 0, 0, 0)).toBe('');
+      expect(component.renderGoalComplete(throwingObj, 10, 0, 0)).toBe('');
+      expect(component.renderStreakBadge(throwingObj, 0)).toBe('');
     });
   });
 
   describe('showConfetti animation', () => {
-    it('animates confetti particles on canvas', () => {
+    it('animates confetti particles on canvas across full animation loop', () => {
       component.showConfetti();
-      jest.advanceTimersByTime(2000);
+      // Advance timers to trigger animation loop frames
+      for (let i = 0; i < 160; i++) {
+        jest.advanceTimersByTime(16);
+      }
       expect(HTMLCanvasElement.prototype.getContext).toHaveBeenCalled();
     });
 
-    it('returns early if confetti canvas is missing', () => {
+    it('returns early if confetti canvas is missing or context is null', () => {
       document.getElementById('confetti-canvas')?.remove();
       expect(() => component.showConfetti()).not.toThrow();
     });
   });
 
-  describe('calculateStreaks helper method', () => {
-    it('calculates current and longest streaks correctly', () => {
+  describe('calculateStreaks and formatDateKey helper methods', () => {
+    it('calculates current and longest streaks correctly with consecutive review days', () => {
       const activity = {
         '2026-08-01': 5,
         '2026-08-02': 3,
@@ -236,9 +338,16 @@ describe('StatsComponent (Popup)', () => {
       expect(result.longest).toBeGreaterThan(0);
     });
 
-    it('returns 0 streaks for empty activity payload', () => {
+    it('returns 0 streaks for empty activity payload or when error is thrown', () => {
       const result = component.calculateStreaks({});
       expect(result).toEqual({ current: 0, longest: 0 });
+
+      expect(component.calculateStreaks(null as any)).toEqual({ current: 0, longest: 0 });
+    });
+
+    it('handles formatDateKey errors gracefully', () => {
+      expect(component.formatDateKey(new Date())).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(component.formatDateKey(new Date('invalid-date'))).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
   });
 });

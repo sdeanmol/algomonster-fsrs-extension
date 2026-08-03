@@ -3,26 +3,29 @@ import { BackupManager, Fnv1aHasher, readLines, isValidBackupRecord } from '../.
 
 describe('backupManager', () => {
   beforeEach(() => {
+    jest.restoreAllMocks();
     jest.clearAllMocks();
     (global as any).mockStorage = {
       fsrsCards: [{ id: '1', problemTitle: 'Mock Card', problemUrl: 'https://test.com', tags: [] }],
       bookmarks: [{ id: '2', url: 'https://test.com', title: 'Mock Bookmark' }],
       theme: 'dark'
     };
-    (global as any).chrome.downloads = { download: jest.fn() };
-    (global as any).chrome.storage.local.get = jest.fn(async () => (global as any).mockStorage);
-    (global as any).chrome.storage.local.set = jest.fn(async () => {});
-    (global as any).chrome.storage.local.remove = jest.fn(async () => {});
+    (global as any).chrome = {
+      downloads: { download: jest.fn() },
+      storage: {
+        local: {
+          get: jest.fn(async () => (global as any).mockStorage),
+          set: jest.fn(async () => {}),
+          remove: jest.fn(async () => {})
+        }
+      }
+    };
 
-    // Mock CompressionStream / DecompressionStream if needed
-    (global as any).CompressionStream = class {
+    (global as any).TransformStream = class {
       readable = new ReadableStream();
       writable = new WritableStream();
     };
-    (global as any).DecompressionStream = class {
-      readable = new ReadableStream();
-      writable = new WritableStream();
-    };
+
     (global as any).URL = { createObjectURL: jest.fn(() => 'blob:mock-url') };
     (global as any).Blob = class MockBlob {
       content: any;
@@ -75,10 +78,8 @@ describe('backupManager', () => {
 
     it('handles exceptions in update and digest gracefully', () => {
       const hasher = new Fnv1aHasher();
-      // Force error in update
       hasher.update(null as any);
 
-      // Force error in digest by breaking hash value
       (hasher as any).hash = { toString: () => { throw new Error('Format error'); } };
       expect(hasher.digest()).toBe('00000000');
     });
@@ -131,7 +132,7 @@ describe('backupManager', () => {
   });
 
   describe('BackupManager.exportBackup', () => {
-    it('fetches storage and triggers browser download for backup', async () => {
+    it('fetches storage and triggers browser download for backup without CompressionStream', async () => {
       (global as any).mockStorage = {
         fsrsCards: [{ id: 'c1', problemTitle: 'Two Sum', problemUrl: 'https://leetcode.com/problems/two-sum' }],
         bookmarks: [{ id: 'b1', url: 'https://leetcode.com/problems/two-sum', title: 'Two Sum' }],
@@ -140,14 +141,36 @@ describe('backupManager', () => {
         fsrsActivity: { '2026-08-01': 3 },
         fsrsTopicWeights: { Array: [0.1, 0.2] },
         theme: 'dark',
-        whitelistedWebsites: [{ domain: 'leetcode.com', enabled: true }]
+        whitelistedWebsites: [{ domain: 'leetcode.com', enabled: true }],
+        ratingPromptState: { snoozedUntil: 1000 },
+        dailyGoalTarget: 10,
+        longestStreak: 5
       };
 
+      // Mock CompressionStream transform stream that reads controller enqueue
+      (global as any).CompressionStream = jest.fn().mockImplementation(() => {
+        return new TransformStream({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          }
+        });
+      });
+
       (global as any).Response = class {
-        blob() { return Promise.resolve(new (global as any).Blob(['mock compressed data'])); }
+        constructor(public stream: any, public opts?: any) {}
+        async blob() {
+          const reader = this.stream.getReader();
+          let done = false;
+          while (!done) {
+            const res = await reader.read();
+            done = res.done;
+          }
+          return new (global as any).Blob(['mock compressed data']);
+        }
       };
 
       await BackupManager.exportBackup();
+
       expect((global as any).chrome.storage.local.get).toHaveBeenCalledWith(null);
       expect((global as any).chrome.downloads.download).toHaveBeenCalled();
     });
@@ -214,6 +237,111 @@ describe('backupManager', () => {
       expect(res.isV2).toBe(false);
     });
 
+    it('throws error when JSON parse fails after line 1', async () => {
+      const headerStr = JSON.stringify({ type: 'header', data: { version: 2 } }) + '\n';
+      const mockFile = {
+        stream: () => ({
+          getReader: () => {
+            const lines = [headerStr, '{INVALID_JSON'];
+            let idx = 0;
+            return {
+              read: async () => {
+                if (idx < lines.length) return { done: false, value: new TextEncoder().encode(lines[idx++]) };
+                return { done: true, value: undefined };
+              },
+              releaseLock: jest.fn()
+            };
+          }
+        })
+      } as any;
+
+      await expect(BackupManager.validateStream(mockFile, false)).rejects.toThrow(/Corrupted file: Invalid JSON structure/);
+    });
+
+    it('throws error on misformed line record after line 1', async () => {
+      const headerStr = JSON.stringify({ type: 'header', data: { version: 2 } }) + '\n';
+      const mockFile = {
+        stream: () => ({
+          getReader: () => {
+            const lines = [headerStr, JSON.stringify({ type: 'invalid_type', data: {} })];
+            let idx = 0;
+            return {
+              read: async () => {
+                if (idx < lines.length) return { done: false, value: new TextEncoder().encode(lines[idx++]) };
+                return { done: true, value: undefined };
+              },
+              releaseLock: jest.fn()
+            };
+          }
+        })
+      } as any;
+
+      await expect(BackupManager.validateStream(mockFile, false)).rejects.toThrow(/Corrupted file: Misformed line record/);
+    });
+
+    it('throws error on misplaced header record on non-zero line', async () => {
+      const headerStr = JSON.stringify({ type: 'header', data: { version: 2 } }) + '\n';
+      const mockFile = {
+        stream: () => ({
+          getReader: () => {
+            const lines = [headerStr, headerStr];
+            let idx = 0;
+            return {
+              read: async () => {
+                if (idx < lines.length) return { done: false, value: new TextEncoder().encode(lines[idx++]) };
+                return { done: true, value: undefined };
+              },
+              releaseLock: jest.fn()
+            };
+          }
+        })
+      } as any;
+
+      await expect(BackupManager.validateStream(mockFile, false)).rejects.toThrow(/Corrupted file: Backup header misplaced/);
+    });
+
+    it('returns isV2 false if line 1 record type is invalid', async () => {
+      const mockFile = {
+        stream: () => ({
+          getReader: () => {
+            const lines = [JSON.stringify({ type: 'unknown_type', data: {} })];
+            let idx = 0;
+            return {
+              read: async () => {
+                if (idx < lines.length) return { done: false, value: new TextEncoder().encode(lines[idx++]) };
+                return { done: true, value: undefined };
+              },
+              releaseLock: jest.fn()
+            };
+          }
+        })
+      } as any;
+
+      const res = await BackupManager.validateStream(mockFile, false);
+      expect(res.isV2).toBe(false);
+    });
+
+    it('throws error when footer record is missing', async () => {
+      const headerStr = JSON.stringify({ type: 'header', data: { version: 2 } }) + '\n';
+      const mockFile = {
+        stream: () => ({
+          getReader: () => {
+            const lines = [headerStr];
+            let idx = 0;
+            return {
+              read: async () => {
+                if (idx < lines.length) return { done: false, value: new TextEncoder().encode(lines[idx++]) };
+                return { done: true, value: undefined };
+              },
+              releaseLock: jest.fn()
+            };
+          }
+        })
+      } as any;
+
+      await expect(BackupManager.validateStream(mockFile, false)).rejects.toThrow(/Missing checksum integrity footer/);
+    });
+
     it('throws error on checksum mismatch', async () => {
       const headerStr = JSON.stringify({ type: 'header', data: { version: 2, counts: { cards: 1 } } }) + '\n';
       const footerStr = JSON.stringify({ type: 'footer', data: { checksum: 'badchecksum' } });
@@ -239,25 +367,65 @@ describe('backupManager', () => {
   });
 
   describe('BackupManager.importBackup & importLegacy', () => {
-    it('restores full V2 backup stream records into local storage', async () => {
+    it('handles legacy backup detection on importBackup', async () => {
       const mockFile = {
-        name: 'full_backup.jsonl',
+        name: 'legacy.json',
+        size: 50,
+        slice: () => ({
+          arrayBuffer: async () => new Uint8Array([0x7b, 0x22]).buffer // '{'
+        })
+      };
+
+      const spyLegacy = jest.spyOn(BackupManager, 'importLegacy').mockResolvedValue();
+      const onStatus = jest.fn();
+
+      await BackupManager.importBackup(mockFile as any, onStatus);
+
+      expect(spyLegacy).toHaveBeenCalledWith(mockFile, onStatus);
+    });
+
+    it('handles validateStream exception in importBackup', async () => {
+      const mockFile = {
+        name: 'bad.json',
+        size: 50,
+        slice: () => ({
+          arrayBuffer: async () => new Uint8Array([0x00, 0x00]).buffer
+        })
+      };
+
+      jest.spyOn(BackupManager, 'validateStream').mockRejectedValue(new Error('Pre-pass failure'));
+      const onStatus = jest.fn();
+
+      await BackupManager.importBackup(mockFile as any, onStatus);
+      expect(onStatus).toHaveBeenCalledWith('Pre-pass failure', true);
+    });
+
+    it('handles pre-pass isV2 false in importBackup', async () => {
+      const mockFile = {
+        name: 'not_v2.json',
+        size: 50,
+        slice: () => ({
+          arrayBuffer: async () => new Uint8Array([0x00, 0x00]).buffer
+        })
+      };
+
+      jest.spyOn(BackupManager, 'validateStream').mockResolvedValue({ isV2: false });
+      const onStatus = jest.fn();
+
+      await BackupManager.importBackup(mockFile as any, onStatus);
+      expect(onStatus).toHaveBeenCalledWith('Corrupted file format', true);
+    });
+
+    it('handles invalid line JSON or invalid record in second pass of importBackup', async () => {
+      const mockFile = {
+        name: 'bad_line.jsonl',
         size: 200,
         slice: () => ({
           arrayBuffer: async () => new Uint8Array([0x00, 0x00]).buffer
         }),
         stream: () => ({
           getReader: () => {
-            const lines = [
-              JSON.stringify({ type: 'page', data: { id: 0, url: 'https://test.com', title: 'Test' } }) + '\n',
-              JSON.stringify({ type: 'card', data: { u: 0, stability: 10 } }) + '\n',
-              JSON.stringify({ type: 'bookmark', data: { u: 0 } }) + '\n',
-              JSON.stringify({ type: 'mark', data: { u: 0 } }) + '\n',
-              JSON.stringify({ type: 'pagecontent', data: { u: 0 } }) + '\n',
-              JSON.stringify({ type: 'activity', data: { '2026-08-01': 5 } }) + '\n',
-              JSON.stringify({ type: 'weights', data: { Array: [0.1] } }) + '\n',
-              JSON.stringify({ type: 'settings', data: { theme: 'light', whitelistedWebsites: [{ domain: 'test.com' }] } }) + '\n'
-            ];
+            const lines = ['{INVALID_JSON_LINE\n'];
             let idx = 0;
             return {
               read: async () => {
@@ -270,6 +438,56 @@ describe('backupManager', () => {
         })
       };
 
+      jest.spyOn(BackupManager, 'validateStream').mockResolvedValue({ isV2: true });
+      const onStatus = jest.fn();
+
+      await BackupManager.importBackup(mockFile as any, onStatus);
+      expect(onStatus).toHaveBeenCalledWith(expect.stringContaining('Corrupted file: Invalid JSON line format'), true);
+    });
+
+    it('restores full V2 backup stream records into local storage and removes whitelistedWebsites if empty', async () => {
+      (global as any).DecompressionStream = jest.fn().mockImplementation(() => {
+        return new TransformStream({
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          }
+        });
+      });
+
+      const mockFile = {
+        name: 'full_backup.jsonl.gz',
+        size: 200,
+        slice: () => ({
+          arrayBuffer: async () => new Uint8Array([0x1f, 0x8b]).buffer // Gzip magic bytes
+        }),
+        stream: () => {
+          const s = {
+            pipeThrough: () => s,
+            getReader: () => {
+              const lines = [
+                JSON.stringify({ type: 'page', data: { id: 0, url: 'https://test.com', title: 'Test' } }) + '\n',
+                JSON.stringify({ type: 'card', data: { u: 0, stability: 10 } }) + '\n',
+                JSON.stringify({ type: 'bookmark', data: { u: 0 } }) + '\n',
+                JSON.stringify({ type: 'mark', data: { u: 0 } }) + '\n',
+                JSON.stringify({ type: 'pagecontent', data: { u: 0 } }) + '\n',
+                JSON.stringify({ type: 'activity', data: { '2026-08-01': 5 } }) + '\n',
+                JSON.stringify({ type: 'weights', data: { Array: [0.1] } }) + '\n',
+                JSON.stringify({ type: 'settings', data: { theme: 'light' } }) + '\n'
+              ];
+              let idx = 0;
+              return {
+                read: async () => {
+                  if (idx < lines.length) return { done: false, value: new TextEncoder().encode(lines[idx++]) };
+                  return { done: true, value: undefined };
+                },
+                releaseLock: jest.fn()
+              };
+            }
+          };
+          return s;
+        }
+      };
+
       jest.spyOn(BackupManager, 'validateStream').mockResolvedValue({
         isV2: true,
         counts: { pages: 1, cards: 1, marks: 1, bookmarks: 1, pagecontents: 1 }
@@ -279,56 +497,80 @@ describe('backupManager', () => {
       await BackupManager.importBackup(mockFile as any, onStatus);
 
       expect((global as any).chrome.storage.local.set).toHaveBeenCalled();
+      expect((global as any).chrome.storage.local.remove).toHaveBeenCalledWith('whitelistedWebsites');
       const setArg = (global as any).chrome.storage.local.set.mock.calls[0][0];
       expect(setArg.fsrsCards[0].problemUrl).toBe('https://test.com');
       expect(setArg.theme).toBe('light');
       expect(onStatus).toHaveBeenCalledWith('Backup restored successfully!');
     });
 
-    it('imports legacy backup format successfully', async () => {
-      const mockFile = { name: 'legacy.json', size: 50 };
+    it('imports legacy backup format with full object settings', async () => {
+      const mockFile = new File([], 'legacy.json', { type: 'application/json' });
       const onStatus = jest.fn();
 
-      const mockReadAsText = jest.fn(function (this: any) {
-        if (this.onload) {
-          this.onload({
-            target: {
-              result: JSON.stringify({
-                cards: [{ id: 'card1', problemTitle: 'Two Sum' }],
-                marks: [{ url: 'https://test.com', type: 'highlight' }],
-                theme: 'dark'
-              })
+      const origFileReader = (global as any).FileReader;
+      (global as any).FileReader = class {
+        onload: any;
+        onerror: any;
+        readAsText() {
+          const self = this;
+          setTimeout(() => {
+            if (self.onload) {
+              self.onload({
+                target: {
+                  result: JSON.stringify({
+                    cards: [{ id: 'card1', problemTitle: 'Two Sum' }],
+                    marks: [{ url: 'https://test.com', type: 'highlight' }],
+                    bookmarks: [{ url: 'https://test.com' }],
+                    pagecontents: [{ url: 'https://test.com' }],
+                    chromeSettings: { showMarkerPopup: true },
+                    notificationSettings: { enabled: true },
+                    theme: 'dark',
+                    whitelistedWebsites: [{ domain: 'algo.monster' }],
+                    fsrsGlobalParams: { version: 'v1' },
+                    ratingPromptState: { snoozed: false },
+                    dailyGoalTarget: 5,
+                    longestStreak: 12
+                  })
+                }
+              });
             }
-          });
+          }, 0);
         }
-      });
+      };
 
-      jest.spyOn(global as any, 'FileReader').mockImplementation(function (this: any) {
-        this.readAsText = mockReadAsText;
-      });
-
-      await BackupManager.importLegacy(mockFile as any, onStatus);
-      expect((global as any).chrome.storage.local.set).toHaveBeenCalled();
-      expect(onStatus).toHaveBeenCalledWith('Legacy backup imported successfully!');
+      try {
+        await BackupManager.importLegacy(mockFile, onStatus);
+        expect((global as any).chrome.storage.local.set).toHaveBeenCalled();
+        expect(onStatus).toHaveBeenCalledWith('Legacy backup imported successfully!');
+      } finally {
+        (global as any).FileReader = origFileReader;
+      }
     });
 
     it('handles legacy file read error gracefully', async () => {
-      const mockFile = { name: 'corrupted.json', size: 50 };
+      const mockFile = new File([], 'corrupted.json', { type: 'application/json' });
       const onStatus = jest.fn();
 
-      const mockReadAsText = jest.fn(function (this: any) {
-        this.error = new Error('File read failure');
-        if (this.onerror) {
-          this.onerror();
+      const origFileReader = (global as any).FileReader;
+      (global as any).FileReader = class {
+        onload: any;
+        onerror: any;
+        error = new Error('File read failure');
+        readAsText() {
+          const self = this;
+          setTimeout(() => {
+            if (self.onerror) self.onerror();
+          }, 0);
         }
-      });
+      };
 
-      jest.spyOn(global as any, 'FileReader').mockImplementation(function (this: any) {
-        this.readAsText = mockReadAsText;
-      });
-
-      await expect(BackupManager.importLegacy(mockFile as any, onStatus)).rejects.toThrow('File read failure');
-      expect(onStatus).toHaveBeenCalledWith(expect.stringContaining('Failed to read legacy backup file'), true);
+      try {
+        await expect(BackupManager.importLegacy(mockFile, onStatus)).rejects.toThrow('File read failure');
+        expect(onStatus).toHaveBeenCalledWith(expect.stringContaining('Failed to read legacy backup file'), true);
+      } finally {
+        (global as any).FileReader = origFileReader;
+      }
     });
   });
 });

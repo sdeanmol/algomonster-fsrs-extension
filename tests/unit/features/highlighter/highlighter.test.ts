@@ -147,6 +147,99 @@ describe('Highlighter Component', () => {
     expect(tooltip.style.display).toBe('none');
   });
 
+  // ─── linkHighlightToCard ──────────────────────────────────────────────
+  it('links highlight to card approach when card exists', () => {
+    highlighter.state.marks = [
+      {
+        id: 'm1',
+        createdAt: 1000,
+        url: window.location.href.split('?')[0].split('#')[0],
+        text: 'Selected text for FSRS',
+        color: '#f1c40f',
+        type: 'highlight',
+        category: 'Approach'
+      }
+    ];
+
+    document.body.innerHTML += `<textarea id="fsrs-approach"></textarea><button id="fsrs-save-ratings" data-existing-id="c1"></button>`;
+
+    (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb: any) => {
+      if (cb) cb({
+        fsrsCards: [{ id: 'c1', problemUrl: window.location.href.split('?')[0].split('#')[0], approach: 'Existing solution' }],
+        approachDrafts: {}
+      });
+      return Promise.resolve();
+    });
+
+    (chrome.storage.local.set as jest.Mock).mockImplementation((data: any, cb: any) => {
+      if (cb) cb();
+      return Promise.resolve();
+    });
+
+    highlighter.linkHighlightToCard('m1');
+    expect(chrome.storage.local.set).toHaveBeenCalled();
+  });
+
+  it('links highlight to new draft when activeId is __new__', () => {
+    highlighter.state.marks = [
+      {
+        id: 'm2',
+        createdAt: 1000,
+        url: window.location.href.split('?')[0].split('#')[0],
+        text: 'Draft text',
+        color: '#f1c40f',
+        type: 'highlight'
+      }
+    ];
+
+    document.body.innerHTML += `<button id="fsrs-save-ratings" data-existing-id="__new__"></button>`;
+
+    (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb: any) => {
+      if (cb) cb({
+        fsrsCards: [],
+        approachDrafts: {}
+      });
+      return Promise.resolve();
+    });
+
+    highlighter.linkHighlightToCard('m2');
+    expect(chrome.storage.local.set).toHaveBeenCalled();
+  });
+
+  it('handles saveMarkCategory and saveMarkNote', () => {
+    highlighter.state.marks = [
+      { id: 'm10', createdAt: 100, url: 'http://test.com', text: 'Text', color: '#f1c40f', type: 'highlight' }
+    ];
+
+    highlighter.saveMarkCategory('m10', 'Key Takeaway');
+    expect(highlighter.state.marks[0].category).toBe('Key Takeaway');
+
+    highlighter.saveMarkNote('m10', 'Important note');
+    expect(highlighter.state.marks[0].note).toBe('Important note');
+  });
+
+  it('handles pointerup and mousemove DOM event listeners with active ranges', () => {
+    highlighter.createHighlighterUI();
+    const tooltip = document.getElementById('algo-highlight-tooltip')!;
+
+    // 1. Mousemove over activeMarkRanges
+    const range = document.createRange();
+    const textNode = document.createTextNode('Hovered highlight text');
+    document.body.appendChild(textNode);
+    range.selectNodeContents(textNode);
+
+    highlighter.state.activeMarkRanges = [
+      { markId: 'm1', range: range, color: '#f1c40f' }
+    ];
+
+    const mouseMoveEvt = new MouseEvent('mousemove', { bubbles: true, clientX: 20, clientY: 20 });
+    expect(() => document.dispatchEvent(mouseMoveEvt)).not.toThrow();
+
+    // 2. Pointerup event
+    const pointerUpEvt = new MouseEvent('pointerup', { bubbles: true });
+    expect(() => document.dispatchEvent(pointerUpEvt)).not.toThrow();
+  });
+
   it('keeps tooltip visible in handleTextSelection when hoveredMarkId is set', () => {
     highlighter.createHighlighterUI();
     const tooltip = document.getElementById('algo-highlight-tooltip')!;
