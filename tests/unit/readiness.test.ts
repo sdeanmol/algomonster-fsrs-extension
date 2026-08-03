@@ -83,4 +83,47 @@ describe('ReadinessTab', () => {
 
     expect(mockDataUtils.getExamReadinessStats).toHaveBeenCalledWith(60);
   });
+
+  it('does not throw when container does not exist', () => {
+    const tab = new ReadinessTab(mockDataUtils);
+    expect(() => tab.render('nonexistent')).not.toThrow();
+  });
+
+  it('renders empty state when no tags available', () => {
+    mockDataUtils.getExamReadinessStats.mockReturnValue({
+      daysAhead: 12,
+      targetDate: new Date('2026-08-04T00:00:00Z'),
+      overallRecall: 0,
+      totalCards: 0,
+      reviewedCards: 0,
+      atRiskCount: 0,
+      tags: []
+    });
+
+    const tab = new ReadinessTab(mockDataUtils);
+    tab.render('tab-readiness');
+
+    const container = document.getElementById('tab-readiness')!;
+    expect(container.innerHTML).toContain('No Card History Available');
+  });
+
+  it('escapes HTML special characters in tag names', () => {
+    const tab = new ReadinessTab(mockDataUtils);
+    expect(tab.escapeHtml('<script>')).toBe('&lt;script&gt;');
+    expect(tab.escapeHtml('a&b')).toBe('a&amp;b');
+    expect(tab.escapeHtml('"quoted"')).toBe('&quot;quoted&quot;');
+    expect(tab.escapeHtml('')).toBe('');
+  });
+
+  it('ignores invalid days input values', () => {
+    const tab = new ReadinessTab(mockDataUtils);
+    tab.render('tab-readiness');
+
+    const daysInput = document.getElementById('readiness-days-input') as HTMLInputElement;
+    daysInput.value = 'abc';
+    daysInput.dispatchEvent(new Event('input'));
+
+    // Should not re-render with NaN
+    expect(tab.daysAhead).toBe(12);
+  });
 });

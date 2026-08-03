@@ -53,9 +53,27 @@ describe('FutureMemorySimulation Component', () => {
     slider.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(simComponent.sliderDays).toBe(90);
+
+    slider.value = 'invalid';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(simComponent.sliderDays).toBe(90); // unchanged
+  });
+
+  it('handles empty curve points in generateCurveSvgPath', () => {
+    const result = simComponent.generateCurveSvgPath([], 50);
+    expect(result.svgPathD).toContain('M');
+    expect(result.areaPathD).toContain('Z');
+    expect(result.currentX).toBeGreaterThan(0);
+  });
+
+  it('handles error in generateCurveSvgPath with fallback return', () => {
+    const result = simComponent.generateCurveSvgPath(null as any, 50);
+    expect(result.svgPathD).toBe('M50,39 L880,191');
+    expect(result.areaPathD).toContain('Z');
   });
 
   it('returns gracefully if container is missing or errors occur', () => {
     expect(() => simComponent.render('non-existent-container')).not.toThrow();
   });
 });
+

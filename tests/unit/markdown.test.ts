@@ -61,4 +61,46 @@ describe('Markdown Component', () => {
 
     delete (global as any).marked;
   });
+
+  it('strips inline event handlers with single quotes', () => {
+    (global as any).marked = {
+      setOptions: jest.fn(),
+      parse: (str: string) => `<button onload='alert(1)'>Click</button>`
+    };
+
+    const rendered = Markdown.render('button');
+    expect(rendered).not.toContain("onload=");
+
+    delete (global as any).marked;
+  });
+
+  it('initializes marked setOptions when marked is present', () => {
+    const setOptions = jest.fn();
+    (global as any).marked = {
+      setOptions,
+      parse: jest.fn()
+    };
+
+    Markdown.init();
+    expect(setOptions).toHaveBeenCalledWith(expect.objectContaining({
+      breaks: true,
+      gfm: true
+    }));
+
+    delete (global as any).marked;
+  });
+
+  it('handles errors inside Markdown.init gracefully', () => {
+    (global as any).marked = {
+      setOptions: () => {
+        throw new Error('Init error');
+      },
+      parse: jest.fn()
+    };
+
+    expect(() => Markdown.init()).not.toThrow();
+
+    delete (global as any).marked;
+  });
 });
+

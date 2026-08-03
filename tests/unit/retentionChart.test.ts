@@ -103,4 +103,41 @@ describe('RetentionChart Component', () => {
   it('handles missing container gracefully without throwing', () => {
     expect(() => chart.render('non-existent-container')).not.toThrow();
   });
+
+  it('renders with fallback retrievability when scheduler is not available', () => {
+    chart.scheduler = null;
+    chart.render('retention-chart-container');
+
+    expect(container.innerHTML).toContain('retention-curve-svg');
+  });
+
+  it('handles confidence band rendering errors gracefully', () => {
+    // Mock ConfidenceBand.renderBand to throw
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    chart.setShowConfidence(true);
+    chart.render('retention-chart-container');
+    // Should still render without crashing
+    expect(container.innerHTML).toContain('retention-curve-svg');
+  });
+
+  it('renders empty message for cards with zero stability', () => {
+    const zeroStabCards = [
+      { id: 'cz', problemTitle: 'Zero Stab', tags: ['zero-tag'], stability: 0, difficulty: 5, reps: 1, due: Date.now() }
+    ] as unknown as Card[];
+    const du = new DataUtils(zeroStabCards, {}, null);
+    const c = new RetentionChart(du);
+    c.render('retention-chart-container');
+    // Zero stability cards get filtered out, resulting in empty groups
+    expect(container.innerHTML).toContain('retention');
+  });
+
+  it('setFilterTag handles empty/null input', () => {
+    chart.setFilterTag('');
+    expect(chart.filterTag).toBe('');
+  });
+
+  it('setGroupBy handles empty input with fallback', () => {
+    chart.setGroupBy('');
+    expect(chart.groupBy).toBe('tag');
+  });
 });

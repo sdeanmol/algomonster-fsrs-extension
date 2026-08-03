@@ -288,4 +288,117 @@ describe('Tracker Floating Widget', () => {
     tracker.saveDraft();
     expect(chrome.storage.local.get).toHaveBeenCalled();
   });
+
+  it('handles keyboard shortcuts in review mode (Space to show answer, 1-4 for ratings)', () => {
+    tracker.createUI();
+    const testCard = {
+      id: 'c1',
+      problemTitle: 'Two Sum',
+      problemUrl: 'https://algo.monster/problems/two_sum',
+      approach: '**Hash Map** approach',
+      tags: ['array'],
+      due: Date.now() - 1000,
+      stability: 1,
+      difficulty: 5,
+      elapsedDays: 1,
+      scheduledDays: 1,
+      reps: 1,
+      lapses: 0,
+      state: 1,
+      lastReview: Date.now() - 86400000
+    } as unknown as Card;
+
+    tracker.state.cards = [testCard];
+    tracker.startReview();
+
+    const spaceEvent = new KeyboardEvent('keydown', { code: 'Space' });
+    Object.defineProperty(spaceEvent, 'code', { value: 'Space' });
+    document.dispatchEvent(spaceEvent);
+
+    const answerDiv = document.getElementById('fsrs-approach-answer');
+    expect(answerDiv?.style.display).toBe('block');
+
+    const digit3Event = new KeyboardEvent('keydown', { code: 'Digit3' });
+    Object.defineProperty(digit3Event, 'code', { value: 'Digit3' });
+    expect(() => document.dispatchEvent(digit3Event)).not.toThrow();
+  });
+
+
+  it('ignores review keyboard shortcuts when input element is focused', () => {
+    tracker.createUI();
+    const testCard = {
+      id: 'c1',
+      problemTitle: 'Two Sum',
+      problemUrl: 'https://algo.monster/problems/two_sum',
+      approach: 'Approach text',
+      tags: ['array'],
+      due: Date.now() - 1000,
+      stability: 1,
+      difficulty: 5,
+      elapsedDays: 1,
+      scheduledDays: 1,
+      reps: 1,
+      lapses: 0,
+      state: 1,
+      lastReview: Date.now() - 86400000
+    } as unknown as Card;
+
+    tracker.state.cards = [testCard];
+    tracker.startReview();
+
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+
+    const spaceEvent = new KeyboardEvent('keydown', { code: 'Space' });
+    Object.defineProperty(spaceEvent, 'code', { value: 'Space' });
+    document.dispatchEvent(spaceEvent);
+
+    const answerDiv = document.getElementById('fsrs-approach-answer');
+    expect(answerDiv?.style.display).not.toBe('block');
+  });
+
+  it('handles fullscreen editor button click for existing card', () => {
+    tracker.createUI();
+    tracker.state.cards = [
+      {
+        id: 'c1',
+        problemTitle: 'Two Sum',
+        problemUrl: 'https://algo.monster/problems/two_sum',
+        approach: 'Old text',
+        tags: ['array'],
+        due: Date.now() - 1000,
+        stability: 2,
+        difficulty: 4,
+        elapsedDays: 1,
+        scheduledDays: 1,
+        reps: 1,
+        lapses: 0,
+        state: 1,
+        lastReview: Date.now() - 86400000
+      } as unknown as Card
+    ];
+
+    tracker.refreshWidgetState();
+    const fsBtn = document.getElementById('fsrs-fullscreen-btn') as HTMLElement;
+    fsBtn.click();
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'open_fullscreen_editor',
+        cardId: 'c1'
+      }),
+      expect.any(Function)
+    );
+  });
+
+  it('handles fullscreen editor button click for new card draft', () => {
+    tracker.createUI();
+    const fsBtn = document.getElementById('fsrs-fullscreen-btn') as HTMLElement;
+    fsBtn.click();
+
+    expect(chrome.storage.local.get).toHaveBeenCalled();
+  });
 });
+
+

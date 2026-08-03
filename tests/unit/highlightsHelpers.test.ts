@@ -86,4 +86,48 @@ describe('HighlightsHelpers', () => {
       expect(toast.textContent).toBe('Failed to copy text.');
     });
   });
+
+  describe('showToast', () => {
+    it('removes show class after timeout', () => {
+      jest.useFakeTimers();
+      const toast = document.createElement('div');
+      toast.id = 'status-toast';
+      document.body.appendChild(toast);
+
+      HighlightsHelpers.showToast('Test Message');
+      expect(toast.textContent).toBe('Test Message');
+      expect(toast.classList.contains('show')).toBe(true);
+
+      jest.advanceTimersByTime(2100);
+      expect(toast.classList.contains('show')).toBe(false);
+      jest.useRealTimers();
+    });
+
+    it('returns early when status-toast element is missing', () => {
+      expect(() => HighlightsHelpers.showToast('Missing Toast')).not.toThrow();
+    });
+  });
+
+  describe('Global window bindings', () => {
+    it('executes global window helper functions', async () => {
+      expect(typeof window.escapeHtml).toBe('function');
+      expect(window.escapeHtml('<b>hi</b>')).toContain('&lt;b&gt;');
+
+      expect(typeof window.highlightSearchMatch).toBe('function');
+      expect(window.highlightSearchMatch('hello world', 'world')).toContain('<mark>world</mark>');
+
+      expect(typeof window.getCleanDisplayUrl).toBe('function');
+      expect(window.getCleanDisplayUrl('https://example.com/test')).toBe('example.com/test');
+
+      expect(typeof window.showToast).toBe('function');
+      expect(() => window.showToast('Global Toast')).not.toThrow();
+
+      const writeTextMock = jest.fn().mockImplementation(() => Promise.resolve());
+      Object.assign(navigator, { clipboard: { writeText: writeTextMock } });
+      await window.copyToClipboard('Global Copy');
+      expect(writeTextMock).toHaveBeenCalledWith('Global Copy');
+    });
+  });
 });
+
+

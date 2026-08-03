@@ -79,4 +79,81 @@ describe('Logger', () => {
     expect(console.timeEnd).not.toHaveBeenCalled();
     expect(console.groupEnd).not.toHaveBeenCalled();
   });
+
+  it('logs info messages with data', () => {
+    Logger.info('TestModule', 'info message', { key: 'value' });
+    expect(console.info).toHaveBeenCalled();
+    expect((Logger as any).logQueue.length).toBe(1);
+  });
+
+  it('logs info messages without data', () => {
+    Logger.info('TestModule', 'info no data');
+    expect(console.info).toHaveBeenCalled();
+  });
+
+  it('logs warn messages with data', () => {
+    Logger.warn('TestModule', 'warn message', { extra: 42 });
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('logs warn messages without data', () => {
+    Logger.warn('TestModule', 'warn no data');
+    expect(console.warn).toHaveBeenCalled();
+  });
+
+  it('does not log warn messages when devMode is false', () => {
+    (Logger as any).devMode = false;
+    Logger.warn('TestModule', 'hidden warn');
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it('does not log info messages when devMode is false', () => {
+    (Logger as any).devMode = false;
+    Logger.info('TestModule', 'hidden info');
+    expect(console.info).not.toHaveBeenCalled();
+  });
+
+  it('logs error with Error instance properly', () => {
+    (Logger as any).devMode = false;
+    Logger.error('TestModule', 'error occurred', new Error('fail'));
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it('logs error with plain object data', () => {
+    (Logger as any).devMode = false;
+    Logger.error('TestModule', 'error with data', { detail: 123 });
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it('logs debug messages without data', () => {
+    Logger.debug('TestModule', 'debug no data');
+    expect(console.debug).toHaveBeenCalled();
+  });
+
+  it('getBufferedLogs returns accumulated logs', () => {
+    Logger.debug('TestModule', 'buffered log');
+    const logs = Logger.getBufferedLogs();
+    expect(Array.isArray(logs)).toBe(true);
+  });
+
+  it('clearBufferedLogs empties the buffer', () => {
+    Logger.debug('TestModule', 'to be cleared');
+    Logger.clearBufferedLogs();
+    const logs = Logger.getBufferedLogs();
+    expect(logs.length).toBe(0);
+  });
+
+  it('timer tracks duration and cleans up', () => {
+    Logger.time('TestModule', 'perfTimer');
+    Logger.timeEnd('TestModule', 'perfTimer');
+    expect(console.time).toHaveBeenCalled();
+    expect(console.timeEnd).toHaveBeenCalled();
+    expect(console.debug).toHaveBeenCalled(); // debug for completion log
+  });
+
+  it('timeEnd does nothing for unknown timer', () => {
+    Logger.timeEnd('TestModule', 'unknownTimer');
+    // Should not throw, just returns early
+    expect(console.timeEnd).not.toHaveBeenCalled();
+  });
 });

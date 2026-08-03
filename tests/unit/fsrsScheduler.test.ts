@@ -17,6 +17,41 @@ describe('Scheduler Abstract Base Class', () => {
     expect(() => scheduler.isHighDifficulty({} as Card)).toThrow(/must be implemented/);
     expect(() => scheduler.isGraduated({} as Card)).toThrow(/must be implemented/);
   });
+
+  it('throws TypeError when instantiated directly', () => {
+    expect(() => new Scheduler()).toThrow(TypeError);
+    expect(() => new Scheduler()).toThrow('Cannot construct AbstractScheduler instances directly.');
+  });
+
+  it('supportsOptimization returns false by default', () => {
+    class ConcreteScheduler extends Scheduler {}
+    const scheduler = new ConcreteScheduler();
+    expect(scheduler.supportsOptimization()).toBe(false);
+  });
+
+  it('optimize throws not supported', async () => {
+    class ConcreteScheduler extends Scheduler {}
+    const scheduler = new ConcreteScheduler();
+    await expect(scheduler.optimize()).rejects.toThrow(/not supported/);
+  });
+
+  it('resetConfiguration throws not supported', () => {
+    class ConcreteScheduler extends Scheduler {}
+    const scheduler = new ConcreteScheduler();
+    expect(() => scheduler.resetConfiguration()).toThrow(/not supported/);
+  });
+
+  it('exportConfiguration throws not supported', () => {
+    class ConcreteScheduler extends Scheduler {}
+    const scheduler = new ConcreteScheduler();
+    expect(() => scheduler.exportConfiguration()).toThrow(/not supported/);
+  });
+
+  it('importConfiguration throws not supported', () => {
+    class ConcreteScheduler extends Scheduler {}
+    const scheduler = new ConcreteScheduler();
+    expect(() => scheduler.importConfiguration()).toThrow(/not supported/);
+  });
 });
 
 describe('FsrsScheduler', () => {
