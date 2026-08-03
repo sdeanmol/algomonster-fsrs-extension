@@ -82,7 +82,7 @@ Choosing the correct rating ensures FSRS builds an accurate mathematical model o
   * The recall felt normal—neither surprisingly hard nor trivially easy.
   * You solved the problem correctly without needing hints or looking at solution notes.
 
-### 🔵 `Easy` (Rating 4)
+### 2.1 `Easy` (Rating 4)
 * **Definition**: Trivial, instantaneous recall with zero mental effort.
 * **When to select**:
   * The solution felt completely obvious or intuitive.
@@ -114,23 +114,6 @@ Did you remember the CORE ALGORITHMIC LOGIC & PATTERN?
                   +---> NO  --> [ Press GOOD (3) ]
 ```
 
-### Specific Scenarios & Recommendations
-
-#### Scenario A: Forgot a Critical Step or Core Invariant $\rightarrow$ Press `Again`
-* *Example*: On "3Sum", you remembered sorting the array and using two pointers, but forgot how to skip duplicate elements to avoid duplicate triplets.
-* *Why `Again`?*: Missing duplicate handling breaks the solution completely. Rating it `Hard` would prematurely push out the review interval, leaving a weak link in your memory.
-
-#### Scenario B: Derived Complete Approach, but Stumbled on Minor Syntax $\rightarrow$ Press `Hard`
-* *Example*: On "Binary Tree Level Order Traversal", you knew to use BFS with a Queue and track level sizes, but hesitated briefly on language-specific queue method names (`shift()` vs `pop()`).
-* *Why `Hard`?*: Your algorithmic memory is intact. The minor hesitation warrants a slightly shorter next interval (`Hard`), but not a complete reset (`Again`).
-
-#### Scenario C: Card Contains Too Much Information (Atomic Card Principle)
-* If you consistently experience partial recall on a specific card, **the card itself may be overloaded**.
-* **Best Practice**: Split the overloaded card into 2–3 smaller, atomic cards:
-  * **Card 1**: High-level pattern & optimal time/space complexity.
-  * **Card 2**: Key invariant & state transitions / subproblems.
-  * **Card 3**: Critical edge cases & boundary conditions.
-
 ---
 
 ## 5. Summary Cheat Sheet
@@ -143,3 +126,11 @@ Did you remember the CORE ALGORITHMIC LOGIC & PATTERN?
 | Minor syntax hesitation, core logic solid | **`Hard` (2)** |
 | Solved smoothly with normal effort | **`Good` (3)** |
 | Effortless / Obvious / Trivial | **`Easy` (4)** |
+
+---
+
+## 🔗 Related Documentation
+* 🧮 [FSRS Algorithm & Math Formulas](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/fsrs-algorithm.md)
+* ⚡ [WASM Parameter Optimizer Runtime](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/optimizer-wasm.md)
+* 🎯 [Tracker Overlay Feature](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/tracker.md)
+* ⚙️ [Developer & Customization Guide](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/customization.md)
