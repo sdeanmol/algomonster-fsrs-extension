@@ -17,13 +17,14 @@ export interface WasmBinding {
 }
 
 let _bindingInstance: WasmBinding | null = null;
-const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-binding.wasm32-wasi.wasm', import.meta.url);
+const metaUrl = (typeof globalThis !== 'undefined' && (globalThis as any).__WASM_BASE_URL__) || 'http://localhost';
+const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-binding.wasm32-wasi.wasm', metaUrl);
 
 async function getBinding(): Promise<WasmBinding> {
     if (!_bindingInstance) {
         _bindingInstance = await initOptimizer({
             wasm: wasmUrl as any,
-            worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', import.meta.url))
+            worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', metaUrl))
         }) as WasmBinding;
     }
     return _bindingInstance;

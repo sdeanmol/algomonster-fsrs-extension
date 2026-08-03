@@ -5,6 +5,42 @@ module.exports = {
   collectCoverage: true,
   coverageDirectory: 'coverage',
   coverageProvider: 'v8',
+  collectCoverageFrom: [
+    'features/**/*.{ts,js}',
+    'content/**/*.{ts,js}',
+    'background/**/*.{ts,js}',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+    '!features/common/marked.min.js'
+  ],
+  coverageThreshold: {
+    global: {
+      statements: 65,
+      branches: 55,
+      functions: 65,
+      lines: 65
+    },
+    './features/tracker/scheduler/fsrsScheduler.ts': {
+      lines: 90,
+      statements: 90
+    },
+    './features/tracker/scheduler/fsrsOptimizerFast.ts': {
+      lines: 95,
+      statements: 95
+    },
+    './features/dashboard/analytics/memory/confidenceBand.ts': {
+      lines: 90,
+      statements: 90
+    },
+    './features/dashboard/analytics/memory/predictionComparison.ts': {
+      lines: 90,
+      statements: 90
+    },
+    './features/dashboard/analytics/memory/futureMemorySimulation.ts': {
+      lines: 90,
+      statements: 90
+    }
+  },
   roots: ['<rootDir>/tests/unit', '<rootDir>/tests/integration'],
   setupFilesAfterEnv: ['<rootDir>/tests/mocks/chromeMock.js'],
   testMatch: ['**/?(*.)+(spec|test).[tj]s?(x)'],
