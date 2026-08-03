@@ -45,7 +45,17 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/tests/mocks/chromeMock.js'],
   testMatch: ['**/?(*.)+(spec|test).[tj]s?(x)'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', {
+      tsconfig: {
+        module: 'esnext'
+      },
+      diagnostics: {
+        ignoreCodes: [1343]
+      },
+      babelConfig: {
+        plugins: [require.resolve('./tests/mocks/importMetaPlugin.js')]
+      }
+    }],
     '^.+\\.js$': 'babel-jest'
   },
   transformIgnorePatterns: [
