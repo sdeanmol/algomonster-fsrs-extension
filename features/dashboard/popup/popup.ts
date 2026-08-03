@@ -331,6 +331,75 @@ export class AlgoRecallDashboard {
                 }
             }
 
+            // Remote Cloud Auto-Backup setup
+            const toggleRemoteBackup = document.getElementById('toggle-remote-backup') as HTMLInputElement | null;
+            const remoteBackupPanel = document.getElementById('remote-backup-panel');
+            const remoteProviderSelect = document.getElementById('remote-provider-select') as HTMLSelectElement | null;
+            const remoteBackupNowBtn = document.getElementById('remote-backup-now-btn');
+            const remoteBackupStatus = document.getElementById('remote-backup-status');
+
+            if (toggleRemoteBackup) {
+                chrome.storage.local.get(['remoteBackupSettings'], (res: { remoteBackupSettings?: { enabled?: boolean; providerId?: string; lastBackupTimestamp?: number; lastBackupStatus?: string } }) => {
+                    const settings = res.remoteBackupSettings || {};
+                    const isEnabled = settings.enabled === true;
+                    toggleRemoteBackup.checked = isEnabled;
+                    if (remoteBackupPanel) remoteBackupPanel.style.display = isEnabled ? 'block' : 'none';
+                    if (remoteProviderSelect && settings.providerId) remoteProviderSelect.value = settings.providerId;
+                    if (remoteBackupStatus) {
+                        if (settings.lastBackupTimestamp) {
+                            const d = new Date(settings.lastBackupTimestamp);
+                            remoteBackupStatus.textContent = `Last sync: ${d.toLocaleDateString()} ${d.toLocaleTimeString()} (${settings.lastBackupStatus || 'success'})`;
+                        } else {
+                            remoteBackupStatus.textContent = 'Not synced yet';
+                        }
+                    }
+                });
+
+                toggleRemoteBackup.addEventListener('change', () => {
+                    const isChecked = toggleRemoteBackup.checked;
+                    const providerId = remoteProviderSelect ? remoteProviderSelect.value : 'gdrive';
+
+                    if (isChecked) {
+                        if (remoteBackupStatus) remoteBackupStatus.textContent = 'Connecting to cloud provider...';
+                        chrome.runtime.sendMessage({ action: 'connect_remote_provider', providerId }, (response?: { success?: boolean; error?: string }) => {
+                            if (response && response.success) {
+                                if (remoteBackupPanel) remoteBackupPanel.style.display = 'block';
+                                this.showStatus('Connected to Cloud Storage!');
+                                if (remoteBackupStatus) remoteBackupStatus.textContent = 'Connected. Ready to sync.';
+                            } else {
+                                toggleRemoteBackup.checked = false;
+                                if (remoteBackupPanel) remoteBackupPanel.style.display = 'none';
+                                const errMsg = response?.error || 'Authentication failed';
+                                this.showStatus(errMsg, true);
+                                if (remoteBackupStatus) remoteBackupStatus.textContent = `Error: ${errMsg}`;
+                            }
+                        });
+                    } else {
+                        chrome.runtime.sendMessage({ action: 'disconnect_remote_provider', providerId }, () => {
+                            if (remoteBackupPanel) remoteBackupPanel.style.display = 'none';
+                            this.showStatus('Disconnected Cloud Storage.');
+                        });
+                    }
+                });
+
+                if (remoteBackupNowBtn) {
+                    remoteBackupNowBtn.addEventListener('click', () => {
+                        if (remoteBackupStatus) remoteBackupStatus.textContent = 'Syncing cloud backup...';
+                        chrome.runtime.sendMessage({ action: 'trigger_remote_backup' }, (response?: { success?: boolean; error?: string }) => {
+                            if (response && response.success) {
+                                this.showStatus('Cloud backup complete!');
+                                const d = new Date();
+                                if (remoteBackupStatus) remoteBackupStatus.textContent = `Last sync: ${d.toLocaleDateString()} ${d.toLocaleTimeString()} (success)`;
+                            } else {
+                                const errMsg = response?.error || 'Backup failed';
+                                this.showStatus(`Cloud backup error: ${errMsg}`, true);
+                                if (remoteBackupStatus) remoteBackupStatus.textContent = `Sync error: ${errMsg}`;
+                            }
+                        });
+                    });
+                }
+            }
+
             // Webpage page redirection setups
             if (this.dom.managePlatformsBtn) {
                 this.dom.managePlatformsBtn.addEventListener('click', () => {

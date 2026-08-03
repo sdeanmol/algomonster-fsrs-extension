@@ -440,6 +440,32 @@
                     </button>
                 </div>
 
+                <!-- Remote Auto-Backup Settings -->
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--md-border);">
+                    <div class="setting-row">
+                        <span class="setting-label">Remote Cloud Auto-Backup</span>
+                        <label class="switch" role="switch" tabindex="0">
+                            <input type="checkbox" id="toggle-remote-backup">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div id="remote-backup-panel" style="display: none; margin-top: 8px;">
+                        <div class="setting-row" style="margin-top: 4px;">
+                            <label for="remote-provider-select" class="setting-label">Storage Provider</label>
+                            <select id="remote-provider-select" class="modern-input" style="width: auto; padding: 2px 6px;">
+                                <option value="gdrive">Google Drive (AppData)</option>
+                            </select>
+                        </div>
+                        <div class="button-row" style="margin-top: 8px; display: flex; gap: 8px;">
+                            <button id="remote-backup-now-btn" class="btn btn-secondary flex-1" style="font-size: 0.8rem;">
+                                Sync Cloud Backup Now
+                            </button>
+                        </div>
+                        <div id="remote-backup-status" style="font-size: 0.75rem; color: var(--md-text-subtle); margin-top: 6px; text-align: center;">
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Export / Import Grid with Original Icons -->
                 <div class="data-actions-grid mt-3">
                     <button id="export-btn" class="data-btn success">

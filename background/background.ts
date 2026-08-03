@@ -7,6 +7,7 @@
  */
 import { Logger } from '@common/logger';
 import { Card, StorageData, ExtensionMessage, MessageResponse } from '../types/domain';
+import { RemoteBackupService } from '../features/common/data/remote/remoteBackupService';
 import {
     MS_PER_MINUTE,
     MS_PER_WEEK,
@@ -186,6 +187,8 @@ export class AlgoRecallBackground {
                 this.handleDailyNudge();
             } else if (alarm.name === 'pomodoroEnd') {
                 this.handlePomodoroEnd();
+            } else if (alarm.name === 'remoteAutoBackup') {
+                RemoteBackupService.getInstance().performBackup(false);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
@@ -458,6 +461,59 @@ export class AlgoRecallBackground {
                 } finally {
                     // Comment: Always reply to caller to close messaging channel
                     sendResponse(success ? { success: true } : { success: false, error: errorMessage });
+                }
+            })();
+            return true;
+        }
+
+        if (message.action === 'trigger_remote_backup') {
+            (async () => {
+                try {
+                    const result = await RemoteBackupService.getInstance().performBackup(true);
+                    sendResponse({ success: result.success, error: result.error });
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    sendResponse({ success: false, error: errorMessage });
+                }
+            })();
+            return true;
+        }
+
+        if (message.action === 'connect_remote_provider') {
+            (async () => {
+                try {
+                    const providerId = (message.providerId as string) || 'gdrive';
+                    const provider = RemoteBackupService.getInstance().getProvider(providerId);
+                    if (!provider) {
+                        sendResponse({ success: false, error: 'Provider not found' });
+                        return;
+                    }
+                    const authenticated = await provider.authenticate(true);
+                    if (authenticated) {
+                        await RemoteBackupService.getInstance().saveSettings({ enabled: true, providerId: provider.id });
+                    }
+                    sendResponse({ success: authenticated });
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    sendResponse({ success: false, error: errorMessage });
+                }
+            })();
+            return true;
+        }
+
+        if (message.action === 'disconnect_remote_provider') {
+            (async () => {
+                try {
+                    const providerId = (message.providerId as string) || 'gdrive';
+                    const provider = RemoteBackupService.getInstance().getProvider(providerId);
+                    if (provider) {
+                        await provider.disconnect();
+                    }
+                    await RemoteBackupService.getInstance().saveSettings({ enabled: false });
+                    sendResponse({ success: true });
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    sendResponse({ success: false, error: errorMessage });
                 }
             })();
             return true;

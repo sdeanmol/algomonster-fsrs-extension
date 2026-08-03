@@ -11,8 +11,15 @@
     "alarms",
     "downloads",
     "webNavigation",
-    "scripting"
+    "scripting",
+    "identity"
   ],
+  "oauth2": {
+    "client_id": "837482928374-exampleclientid.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.appdata"
+    ]
+  },
   "host_permissions": [
     "*://*.algo.monster/*",
     "*://*.systemdesignschool.io/*",

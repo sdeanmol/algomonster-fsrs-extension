@@ -344,6 +344,146 @@ export class BackupManager {
     }
 
     /**
+     * Exports all user data into a Gzip-compressed byte array (Uint8Array).
+     */
+    static async exportDataGzip(): Promise<Uint8Array> {
+        const raw = (await chrome.storage.local.get(null)) as StorageData & {
+            marks?: BackupMarkData[];
+            bookmarks?: BackupBookmarkData[];
+            pagecontents?: BackupPageContentData[];
+            ratingPromptState?: unknown;
+            dailyGoalTarget?: number | null;
+            longestStreak?: number;
+        };
+
+        const pages: BackupPageData[] = [];
+        const urlToPageId = new Map<string, number>();
+
+        const getOrCreatePageId = (url: string | undefined, title: string = '', icon: string = ''): number | null => {
+            if (!url) return null;
+            let id = urlToPageId.get(url);
+            if (id === undefined) {
+                id = pages.length;
+                urlToPageId.set(url, id);
+                pages.push({ id, url, title, icon });
+            } else {
+                if (title && !pages[id].title) pages[id].title = title;
+                if (icon && !pages[id].icon) pages[id].icon = icon;
+            }
+            return id;
+        };
+
+        for (const b of raw.bookmarks || []) getOrCreatePageId(b.url, b.title, b.meta?.favIconUrl);
+        for (const c of raw.fsrsCards || []) getOrCreatePageId(c.problemUrl, c.problemTitle);
+        for (const m of raw.marks || []) getOrCreatePageId(m.url);
+        for (const pc of raw.pagecontents || []) getOrCreatePageId(pc.url);
+
+        const dupBookmarks: BackupBookmarkData[] = (raw.bookmarks || []).map((b) => ({
+            u: b.url ? (urlToPageId.get(b.url) ?? undefined) : undefined,
+            meta: (b.meta as { favIconUrl?: string; [key: string]: unknown }) || undefined
+        }));
+
+        const dupCards: BackupCardData[] = (raw.fsrsCards || []).map((c) => {
+            const copy: BackupCardData = { ...(c as unknown as BackupCardData) };
+            if (c.problemUrl) copy.u = urlToPageId.get(c.problemUrl) ?? undefined;
+            delete copy.problemUrl;
+            delete copy.problemTitle;
+            return copy;
+        });
+
+        const dupMarks: BackupMarkData[] = (raw.marks || []).map((m) => {
+            const copy: BackupMarkData = { ...m };
+            if (m.url) copy.u = urlToPageId.get(m.url) ?? undefined;
+            delete copy.url;
+            return copy;
+        });
+
+        const dupPageContents: BackupPageContentData[] = (raw.pagecontents || []).map((pc) => {
+            const copy: BackupPageContentData = { ...pc };
+            if (pc.url) copy.u = urlToPageId.get(pc.url) ?? undefined;
+            delete copy.url;
+            return copy;
+        });
+
+        function* generateLines(): Generator<string, void, unknown> {
+            const header: BackupHeaderRecord = {
+                type: "header",
+                data: {
+                    version: 2,
+                    timestamp: Date.now(),
+                    counts: {
+                        pages: pages.length,
+                        cards: dupCards.length,
+                        marks: dupMarks.length,
+                        bookmarks: dupBookmarks.length,
+                        pagecontents: dupPageContents.length
+                    }
+                }
+            };
+            yield JSON.stringify(header);
+
+            for (const p of pages) yield JSON.stringify({ type: "page", data: p });
+            for (const c of dupCards) yield JSON.stringify({ type: "card", data: c });
+            for (const m of dupMarks) yield JSON.stringify({ type: "mark", data: m });
+            for (const b of dupBookmarks) yield JSON.stringify({ type: "bookmark", data: b });
+            for (const pc of dupPageContents) yield JSON.stringify({ type: "pagecontent", data: pc });
+
+            if (raw.fsrsActivity) yield JSON.stringify({ type: "activity", data: raw.fsrsActivity });
+            if (raw.fsrsTopicWeights) yield JSON.stringify({ type: "weights", data: raw.fsrsTopicWeights });
+
+            const settings: SettingsData = {
+                chromeSettings: raw.chromeSettings || {},
+                notificationSettings: raw.notificationSettings || {},
+                theme: raw.theme || 'dark',
+                fsrsGlobalParams: raw.fsrsGlobalParams || {},
+                ratingPromptState: raw.ratingPromptState as { snoozedUntil?: number; status?: string } || {},
+                dailyGoalTarget: raw.dailyGoalTarget || null,
+                longestStreak: raw.longestStreak || 0
+            };
+            if (raw.whitelistedWebsites !== undefined) {
+                settings.whitelistedWebsites = raw.whitelistedWebsites;
+            }
+            yield JSON.stringify({ type: "settings", data: settings });
+        }
+
+        const lineGenerator = generateLines();
+        const hasher = new Fnv1aHasher();
+        const encoder = new TextEncoder();
+        let totalCount = 0;
+
+        const stream = new ReadableStream({
+            pull(controller) {
+                try {
+                    const { value, done } = lineGenerator.next();
+                    if (done) {
+                        const checksum = hasher.digest();
+                        const footerLine = JSON.stringify({ type: "footer", data: { checksum, count: totalCount } });
+                        controller.enqueue(encoder.encode(footerLine + "\n"));
+                        controller.close();
+                        return;
+                    }
+
+                    const lineWithNewline = value + "\n";
+                    hasher.update(lineWithNewline);
+                    totalCount++;
+
+                    controller.enqueue(encoder.encode(lineWithNewline));
+                } catch (pullErr) {
+                    controller.error(pullErr);
+                }
+            }
+        });
+
+        const windowWithCompression = (typeof window !== 'undefined' ? window : self) as unknown as { CompressionStream: new (format: string) => TransformStream };
+        const compressedStream = stream.pipeThrough(new windowWithCompression.CompressionStream('gzip'));
+        const response = new Response(compressedStream, {
+            headers: { 'Content-Type': 'application/gzip' }
+        });
+        const rawBuffer = await response.arrayBuffer();
+        return new Uint8Array(rawBuffer);
+    }
+
+    /**
      * Imports a backup file. Auto-detects Gzip/Text, performs schema version checks,
      * validates checksum, and hydrates local storage atomically.
      */
