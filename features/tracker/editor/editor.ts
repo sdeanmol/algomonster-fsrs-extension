@@ -20,7 +20,7 @@ interface BookmarkEntry {
     title?: string;
 }
 
-class EditorManager {
+export class EditorManager {
     problemUrl: string;
     cleanUrl: string;
     cardId: string;
