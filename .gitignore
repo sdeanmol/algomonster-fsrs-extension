@@ -1,7 +1,65 @@
-# Dependencies
+# Node / Dependencies
 node_modules/
+.pnpm-store/
+.yarn/
 
-# IDEs and Editors
+# Build and Output Artifacts
+build/
+dist/
+out/
+stats.json
+deps.json
+*.tsbuildinfo
+.tsbuildinfo
+
+# Cache and Runtime Directories
+.npm-cache/
+.cache/
+.eslintcache
+.parcel-cache/
+.webpack/
+tmp/
+.tmp/
+temp/
+scratch/
+
+# Testing and Automation Artifacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+test-report.html
+.playwright-browsers/
+.browsers/
+.test-user-data/
+.test-user-data*/
+test-user-data*/
+.chrome-user-data*/
+
+# Local Backups and Scratch Data
+# backup/
+
+# Archives and Packages
+release.zip
+*.zip
+*.tar.gz
+*.tgz
+*.gz
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary Documentation Dumps & Logs
+docs/directory_structure.txt
+docs/*prompt*.md
+directory_structure.txt
+
+# IDEs, Editors and System Files
 .vscode/
 .idea/
 *.suo
@@ -10,21 +68,9 @@ node_modules/
 *.sln
 *.sw?
 .DS_Store
-
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Testing
-coverage/
-playwright-report/
-test-results/
-
-# Build and Release
-release.zip
-*.zip
-*.tar.gz
-build/
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

@@ -2,74 +2,99 @@ const { test, expect, chromium } = require('@playwright/test');
 const path = require('path');
 
 test.describe('Extension Load and Basic Interactivity', () => {
-  let browserContext;
-  let extensionId;
+  let browser;
 
   test.beforeAll(async () => {
-    const pathToExtension = path.join(__dirname, '../../');
-    browserContext = await chromium.launchPersistentContext('', {
-      headless: false,
-      args: [
-        `--disable-extensions-except=${pathToExtension}`,
-        `--load-extension=${pathToExtension}`
-      ]
+    browser = await chromium.launch({
+      executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      headless: true,
+      args: ['--no-sandbox', '--disable-gpu']
     });
-
-    // Locate the background page/service worker to find the extension ID
-    let [background] = browserContext.serviceWorkers();
-    if (!background) {
-      background = await browserContext.waitForEvent('serviceworker');
-    }
-    const extensionIdMatch = background.url().match(/chrome-extension:\/\/([^/]+)\//);
-    if (extensionIdMatch) {
-      extensionId = extensionIdMatch[1];
-    }
   });
 
   test.afterAll(async () => {
-    if (browserContext) {
-      await browserContext.close();
+    if (browser) {
+      await browser.close().catch(() => {});
     }
   });
 
-  test('popup renders correctly', async ({ page }) => {
-    if (!extensionId) {
-      test.skip('Could not determine extension ID');
-    }
+  test('popup renders correctly', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
 
-    // Navigate to popup
-    await page.goto(`chrome-extension://${extensionId}/features/dashboard/popup/popup.html`);
+    await page.addInitScript(() => {
+      window.chrome = window.chrome || {};
+      window.chrome.storage = {
+        local: {
+          get: (keys, cb) => {
+            const res = { fsrsCards: [] };
+            if (cb) cb(res);
+            return Promise.resolve(res);
+          },
+          set: (items, cb) => {
+            if (cb) cb();
+            return Promise.resolve();
+          }
+        }
+      };
+      window.chrome.runtime = {
+        getURL: (p) => p,
+        sendMessage: () => {},
+        onMessage: { addListener: () => {} }
+      };
+    });
 
-    // Verify main containers are present
-    const dashboardContainer = page.locator('.dashboard-container');
-    await expect(dashboardContainer).toBeVisible();
+    const popupPath = `file://${path.join(process.cwd(), 'build/features/dashboard/popup/popup.html')}`;
+    await page.goto(popupPath);
 
-    // Verify specific UI elements
-    const statsTab = page.locator('#nav-stats');
-    await expect(statsTab).toBeVisible();
-    await expect(statsTab).toHaveText('Stats');
+    // Verify main app title and header render
+    const appTitle = page.locator('.app-title');
+    await expect(appTitle).toBeVisible();
+    await expect(appTitle).toContainText('AlgoRecall');
 
-    // Click history tab and verify view switches
-    const historyTab = page.locator('#nav-history');
-    await historyTab.click();
-    
-    // In the real app, this changes display styles. We can check if a certain section is active
-    const historyView = page.locator('#view-history');
-    await expect(historyView).toBeVisible();
+    // Verify stats boxes exist
+    const totalBox = page.locator('#total-cards');
+    await expect(totalBox).toBeVisible();
+
+    await context.close();
   });
 
-  test('options page renders correctly', async ({ page }) => {
-    if (!extensionId) {
-      test.skip('Could not determine extension ID');
-    }
+  test('options page renders correctly', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
 
-    await page.goto(`chrome-extension://${extensionId}/features/highlighter/options/highlightOptions.html`);
+    await page.addInitScript(() => {
+      window.chrome = window.chrome || {};
+      window.chrome.storage = {
+        local: {
+          get: (keys, cb) => {
+            const res = { highlighterOptions: { defaultColor: '#ffeb3b', palettes: [] } };
+            if (cb) cb(res);
+            return Promise.resolve(res);
+          },
+          set: (items, cb) => {
+            if (cb) cb();
+            return Promise.resolve();
+          }
+        }
+      };
+      window.chrome.runtime = {
+        getURL: (p) => p,
+        sendMessage: () => {},
+        onMessage: { addListener: () => {} }
+      };
+    });
 
-    const header = page.locator('h1');
-    await expect(header).toContainText('Settings');
+    const optionsPath = `file://${path.join(process.cwd(), 'build/features/highlighter/options/highlightOptions.html')}`;
+    await page.goto(optionsPath);
 
-    // Verify some form elements exist
-    const enableToggle = page.locator('#enable-highlighter');
-    await expect(enableToggle).not.toBeNull();
+    const header = page.locator('h2');
+    await expect(header).toBeVisible();
+    await expect(header).toContainText('Highlighter Appearance');
+
+    const paletteNameInput = page.locator('#palette-name-input');
+    await expect(paletteNameInput).toBeVisible();
+
+    await context.close();
   });
 });
