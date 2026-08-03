@@ -35,7 +35,8 @@ module.exports = {
     'features/dashboard/pomodoro/pomodoro': './features/dashboard/pomodoro/pomodoro.ts',
     'features/dashboard/history/history': './features/dashboard/history/history.ts',
     'features/dashboard/forecast/forecast': './features/dashboard/forecast/forecast.ts',
-    'features/dashboard/studyplan/studyplan': './features/dashboard/studyplan/studyplan.ts'
+    'features/dashboard/studyplan/studyplan': './features/dashboard/studyplan/studyplan.ts',
+    'features/dashboard/summary/summary': './features/dashboard/summary/summary.ts'
   },
   output: {
     path: path.resolve(__dirname, 'build'),

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>AlgoRecall — Performance & Notification Summary</title>
+    <script src="../../common/theme-sync.js"></script>
+    <link rel="stylesheet" href="../../common/base.css">
+    <link rel="stylesheet" href="summary.css">
+</head>
+
+<body>
+    <div class="summary-container">
+        <!-- Top Navigation Header -->
+        <header class="summary-header">
+            <div class="header-left">
+                <h1 class="summary-app-title">
+                    <svg class="svg-icon logo-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>Notification & Digest Summary</span>
+                </h1>
+                <p id="summary-date-subtitle" class="subtitle">Generated on the fly from current study activity</p>
+            </div>
+            <div class="header-right">
+                <!-- Period Selector Toggle -->
+                <div class="period-toggle-group" role="tablist">
+                    <button id="period-weekly-btn" class="period-tab active" role="tab" aria-selected="true">
+                        Weekly (7 Days)
+                    </button>
+                    <button id="period-monthly-btn" class="period-tab" role="tab" aria-selected="false">
+                        Monthly (30 Days)
+                    </button>
+                </div>
+                <a href="../popup/popup.html" class="btn btn-secondary nav-back-btn" title="Back to Dashboard">
+                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    Dashboard
+                </a>
+            </div>
+        </header>
+
+        <!-- KPI Hero Cards Grid -->
+        <section class="kpi-grid">
+            <div class="card kpi-card">
+                <div class="kpi-icon-wrapper blue">
+                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                </div>
+                <div class="kpi-details">
+                    <span class="kpi-label">Total Reviews</span>
+                    <div class="kpi-val-group">
+                        <span id="kpi-reviews" class="kpi-val">-</span>
+                        <span id="kpi-reviews-trend" class="kpi-badge neutral">0%</span>
+                    </div>
+                    <span class="kpi-subtext" id="kpi-reviews-sub">vs previous period</span>
+                </div>
+            </div>
+
+            <div class="card kpi-card">
+                <div class="kpi-icon-wrapper green">
+                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <div class="kpi-details">
+                    <span class="kpi-label">Recall Retention</span>
+                    <div class="kpi-val-group">
+                        <span id="kpi-retention" class="kpi-val">-%</span>
+                        <span id="kpi-retention-trend" class="kpi-badge neutral">0%</span>
+                    </div>
+                    <span class="kpi-subtext" id="kpi-retention-sub">target: 85%+</span>
+                </div>
+            </div>
+
+            <div class="card kpi-card">
+                <div class="kpi-icon-wrapper purple">
+                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="11" x2="12" y2="17"></line>
+                        <line x1="9" y1="14" x2="15" y2="14"></line>
+                    </svg>
+                </div>
+                <div class="kpi-details">
+                    <span class="kpi-label">New Patterns</span>
+                    <div class="kpi-val-group">
+                        <span id="kpi-new-cards" class="kpi-val">-</span>
+                    </div>
+                    <span class="kpi-subtext">patterns added to review loop</span>
+                </div>
+            </div>
+
+            <div class="card kpi-card">
+                <div class="kpi-icon-wrapper orange">
+                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                </div>
+                <div class="kpi-details">
+                    <span class="kpi-label">Study Consistency</span>
+                    <div class="kpi-val-group">
+                        <span id="kpi-active-days" class="kpi-val">-</span>
+                    </div>
+                    <span class="kpi-subtext" id="kpi-active-days-sub">active days</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Smart Recommendations & Insights Section -->
+        <section class="card section-card">
+            <h2 class="section-title">
+                <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-warning);" aria-hidden="true">
+                    <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
+                </svg>
+                Smart Learning Advisor & Insights
+            </h2>
+            <div id="insights-container" class="insights-grid">
+                <!-- Injected dynamically -->
+            </div>
+        </section>
+
+        <!-- Detailed Breakdown Grid (Charts + Topic Breakdown) -->
+        <div class="details-grid">
+            <!-- Left Column: Activity Chart & Memory Stability -->
+            <div class="column-main">
+                <div class="card section-card">
+                    <h3 class="section-title">
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary);" aria-hidden="true">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                        Daily Review Activity Breakdown
+                    </h3>
+                    <div id="activity-chart-container" class="chart-container">
+                        <!-- Custom CSS/HTML bar chart injected here -->
+                    </div>
+                </div>
+
+                <div class="card section-card">
+                    <h3 class="section-title">
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-secondary);" aria-hidden="true">
+                            <path d="M12 4.5a2.5 2.5 0 0 0-4.96.44 2.5 2.5 0 0 0-2.96 3.08 3 3 0 0 0-.34 5.58 2.5 2.5 0 0 0 1.32 4.24 2.5 2.5 0 0 0 4.44 2.04"></path>
+                            <path d="M12 4.5a2.5 2.5 0 0 1 4.96.44 2.5 2.5 0 0 1 2.96 3.08 3 3 0 0 1 .34 5.58 2.5 2.5 0 0 1-1.32 4.24 2.5 2.5 0 0 1-4.44 2.04"></path>
+                            <path d="M12 3v18"></path>
+                        </svg>
+                        FSRS Memory Health Metrics
+                    </h3>
+                    <div class="health-metrics-grid">
+                        <div class="health-metric-item">
+                            <span class="metric-val" id="metric-avg-stability">0d</span>
+                            <span class="metric-lbl">Avg Card Stability</span>
+                        </div>
+                        <div class="health-metric-item">
+                            <span class="metric-val" id="metric-leeches">0</span>
+                            <span class="metric-lbl">Leech Cards (3+ Lapses)</span>
+                        </div>
+                        <div class="health-metric-item">
+                            <span class="metric-val" id="metric-streak">0 days</span>
+                            <span class="metric-lbl">Period Max Streak</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Topic Mastery & Attention Needed -->
+            <div class="column-side">
+                <div class="card section-card">
+                    <h3 class="section-title">
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-success);" aria-hidden="true">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        Top Topics Mastered
+                    </h3>
+                    <div id="top-topics-container" class="topics-list">
+                        <!-- Injected dynamically -->
+                    </div>
+                </div>
+
+                <div class="card section-card">
+                    <h3 class="section-title">
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-danger);" aria-hidden="true">
+                            <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        Topics Needing Focus
+                    </h3>
+                    <div id="weak-topics-container" class="topics-list">
+                        <!-- Injected dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script entry point compiled via Webpack -->
+    <script type="module" src="summary.js"></script>
+</body>
+
+</html>

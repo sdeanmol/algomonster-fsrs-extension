@@ -427,6 +427,23 @@ export class AlgoRecallBackground {
             return true;
         }
 
+        if (message.action === 'test_summary_notification') {
+            (async () => {
+                let success = false;
+                let errorMessage: string | undefined;
+                try {
+                    await this.handleWeeklySummary(true);
+                    success = true;
+                } catch (err) {
+                    errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('Background', `Error processing test_summary_notification: ${errorMessage}`, { message, err });
+                } finally {
+                    sendResponse(success ? { success: true } : { success: false, error: errorMessage });
+                }
+            })();
+            return true;
+        }
+
         if (message.action === 'pomodoro_action') {
             (async () => {
                 let success = false;
@@ -749,14 +766,14 @@ export class AlgoRecallBackground {
      * Computes weekly review statistics and fires a digest notification.
      * Summarizes: reviews this week, active days, current streak, upcoming load.
      */
-    async handleWeeklySummary(): Promise<void> {
+    async handleWeeklySummary(ignoreEnabledCheck: boolean = false): Promise<void> {
         try {
             const result = (await chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'weeklySummaryEnabled'])) as StorageData & {
                 weeklySummaryEnabled?: boolean;
             };
             
             // Check if still enabled
-            if (result.weeklySummaryEnabled === false) return;
+            if (!ignoreEnabledCheck && result.weeklySummaryEnabled === false) return;
 
             const activity = result.fsrsActivity || {};
             const cards = result.fsrsCards || [];
@@ -803,26 +820,28 @@ export class AlgoRecallBackground {
 
             const message = `This week: ${weekReviews} reviews across ${activeDays} day(s).${trendText} Upcoming: ${upcomingDue} cards due next week${currentlyDue > 0 ? `, ${currentlyDue} overdue now` : ''}.`;
 
-            chrome.notifications.create('algo-weekly-summary', {
-                type: 'basic',
-                iconUrl: '../icons/icon.png',
-                title: '📊 AlgoRecall Weekly Summary',
-                message: message,
-                priority: 1,
-                requireInteraction: false
-            }, (id) => {
-                try {
-                    if (chrome.runtime.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Background', `Weekly Summary Notification Error: ${errorMessage}`, { error: chrome.runtime.lastError });
-                    } else {
-                        Logger.debug('Background', `Weekly summary notification sent with ID: ${id}`);
+            chrome.notifications.clear('algo-weekly-summary', () => {
+                chrome.notifications.create('algo-weekly-summary', {
+                    type: 'basic',
+                    iconUrl: '../icons/icon.png',
+                    title: '📊 AlgoRecall Weekly Summary',
+                    message: message,
+                    priority: 2,
+                    requireInteraction: true
+                }, (id) => {
+                    try {
+                        if (chrome.runtime.lastError) {
+                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                            Logger.error('Background', `Weekly Summary Notification Error: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        } else {
+                            Logger.debug('Background', `Weekly summary notification sent with ID: ${id}`);
+                        }
+                    } catch (createErr) {
+                        // Comment: Safe recovery inside weekly summary creation callback
+                        const errorMessage = createErr instanceof Error ? createErr.message : String(createErr);
+                        Logger.error('Background', `Error in weekly summary notification callback: ${errorMessage}`, { createErr });
                     }
-                } catch (createErr) {
-                    // Comment: Safe recovery inside weekly summary creation callback
-                    const errorMessage = createErr instanceof Error ? createErr.message : String(createErr);
-                    Logger.error('Background', `Error in weekly summary notification callback: ${errorMessage}`, { createErr });
-                }
+                });
             });
 
         } catch (error) {
@@ -886,6 +905,8 @@ export class AlgoRecallBackground {
         try {
             if (notificationId === 'pomodoro-complete') {
                 chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/pomodoro/pomodoro.html') });
+            } else if (notificationId === 'algo-weekly-summary') {
+                chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/summary/summary.html') });
             } else {
                 chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/popup/popup.html') });
             }

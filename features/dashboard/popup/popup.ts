@@ -31,10 +31,12 @@ export interface PopupDOM {
     ankiImportFile: HTMLInputElement | null;
     studyplanBtn: HTMLElement | null;
     pomodoroBtn: HTMLElement | null;
+    openSummaryPageBtn: HTMLElement | null;
     weeklyDigestToggle: HTMLInputElement | null;
     statusMsg: HTMLElement | null;
     devModeActions: HTMLElement | null;
     exportDebugLogsBtn: HTMLElement | null;
+    testNotificationsContainer: HTMLElement | null;
 }
 
 /**
@@ -79,10 +81,12 @@ export class AlgoRecallDashboard {
                 ankiImportFile: document.getElementById('anki-import-file') as HTMLInputElement | null,
                 studyplanBtn: document.getElementById('studyplan-btn'),
                 pomodoroBtn: document.getElementById('pomodoro-btn'),
+                openSummaryPageBtn: document.getElementById('open-summary-page-btn'),
                 weeklyDigestToggle: document.getElementById('toggle-weekly-digest') as HTMLInputElement | null,
                 statusMsg: document.getElementById('status-msg'),
                 devModeActions: document.getElementById('dev-mode-actions'),
                 exportDebugLogsBtn: document.getElementById('export-debug-logs-btn'),
+                testNotificationsContainer: document.getElementById('test-notifications-container'),
             };
 
             // Subclass Components instantiation
@@ -259,6 +263,9 @@ export class AlgoRecallDashboard {
                         if (this.dom.devModeActions) {
                             this.dom.devModeActions.style.display = devMode ? 'block' : 'none';
                         }
+                        if (this.dom.testNotificationsContainer) {
+                            this.dom.testNotificationsContainer.style.display = devMode ? 'flex' : 'none';
+                        }
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('Popup', `Error rendering dev mode toggle setting: ${errorMessage}`, { err });
@@ -273,6 +280,9 @@ export class AlgoRecallDashboard {
                         await chrome.storage.local.set({ chromeSettings: settings });
                         if (this.dom.devModeActions) {
                             this.dom.devModeActions.style.display = target.checked ? 'block' : 'none';
+                        }
+                        if (this.dom.testNotificationsContainer) {
+                            this.dom.testNotificationsContainer.style.display = target.checked ? 'flex' : 'none';
                         }
                         this.showStatus(`Developer mode ${target.checked ? 'enabled' : 'disabled'}!`);
                     } catch (error) {
@@ -442,6 +452,14 @@ export class AlgoRecallDashboard {
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Popup', `Error navigating to pomodoro.html: ${errorMessage}`, { err });
+                }
+            });
+            this.dom.openSummaryPageBtn?.addEventListener('click', () => {
+                try {
+                    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/summary/summary.html') });
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('Popup', `Error navigating to summary.html: ${errorMessage}`, { err });
                 }
             });
 

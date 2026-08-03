@@ -1,0 +1,457 @@
+/**
+ * @file features/dashboard/summary/summary.css
+ * @description Theme-consistent styling for weekly and monthly digest dashboard summary.
+ * Uses standard Material Design 3 variables from base.css for complete visual harmony across pages.
+ */
+
+html, body {
+    width: 100%;
+    overflow-x: hidden;
+}
+
+body {
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
+    font-family: var(--font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+    margin: 0;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.summary-container {
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* Header */
+.summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--md-border);
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.summary-app-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--md-text-high);
+}
+
+.summary-app-title .logo-icon {
+    width: 26px;
+    height: 26px;
+    stroke: var(--md-primary);
+}
+
+.subtitle {
+    font-size: 0.85rem;
+    color: var(--md-text-low);
+    margin: 0;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+/* Period Tab Toggle */
+.period-toggle-group {
+    display: inline-flex;
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 20px;
+    padding: 3px;
+}
+
+.period-tab {
+    background: transparent;
+    border: none;
+    color: var(--md-text-med);
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.period-tab:hover {
+    color: var(--md-text-high);
+}
+
+.period-tab.active {
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    border: 1px solid rgba(168, 199, 250, 0.2);
+    box-shadow: var(--shadow-1);
+}
+
+.nav-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* KPI Hero Cards Grid */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 16px;
+    width: 100%;
+}
+
+.kpi-card {
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-1);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+    border-color: var(--md-border-hover);
+    box-shadow: var(--shadow-2);
+}
+
+.kpi-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.kpi-icon-wrapper svg {
+    width: 22px;
+    height: 22px;
+}
+
+.kpi-icon-wrapper.blue { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+.kpi-icon-wrapper.blue svg { stroke: #38bdf8; }
+
+.kpi-icon-wrapper.green { background: var(--md-success-container); color: var(--md-success); }
+.kpi-icon-wrapper.green svg { stroke: var(--md-success); }
+
+.kpi-icon-wrapper.purple { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.kpi-icon-wrapper.purple svg { stroke: #a855f7; }
+
+.kpi-icon-wrapper.orange { background: var(--md-warning-container); color: var(--md-warning); }
+.kpi-icon-wrapper.orange svg { stroke: var(--md-warning); }
+
+.kpi-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.kpi-label {
+    font-size: 0.75rem;
+    color: var(--md-text-low);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kpi-val-group {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.kpi-val {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--md-text-high);
+}
+
+.kpi-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.kpi-badge.up { background: var(--md-success-container); color: var(--md-success); }
+.kpi-badge.down { background: var(--md-danger-container); color: var(--md-danger); }
+.kpi-badge.neutral { background: var(--md-surface-variant); color: var(--md-text-med); }
+
+.kpi-subtext {
+    font-size: 0.75rem;
+    color: var(--md-text-low);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Section Cards */
+.card.section-card, .section-card {
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: var(--shadow-1);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.section-card:hover {
+    border-color: var(--md-border-hover);
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    color: var(--md-text-high);
+}
+
+.section-title svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Smart Insights Grid */
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 12px;
+}
+
+.insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+}
+
+.insight-item.positive {
+    background: var(--md-success-container);
+    border-color: rgba(129, 201, 149, 0.3);
+}
+
+.insight-item.warning {
+    background: var(--md-warning-container);
+    border-color: rgba(253, 226, 147, 0.3);
+}
+
+.insight-item.info {
+    background: var(--md-primary-container);
+    border-color: rgba(168, 199, 250, 0.3);
+}
+
+.insight-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+}
+
+.insight-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.insight-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--md-text-high);
+}
+
+.insight-desc {
+    font-size: 0.8rem;
+    color: var(--md-text-med);
+    line-height: 1.4;
+}
+
+/* Detailed Grid Layout */
+.details-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    width: 100%;
+}
+
+@media (max-width: 900px) {
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.column-main, .column-side {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    min-width: 0;
+}
+
+/* Activity Chart Bar Visualization - Fits 100% width with NO horizontal scroll */
+.chart-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 140px;
+    padding-top: 16px;
+    width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+.chart-bar-wrapper {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.chart-bar {
+    width: 100%;
+    max-width: 24px;
+    background: linear-gradient(180deg, var(--md-primary) 0%, #1a73e8 100%);
+    border-radius: 4px 4px 0 0;
+    transition: height 0.3s ease;
+    min-height: 4px;
+}
+
+.chart-bar.zero {
+    background: var(--md-border);
+    height: 4px !important;
+}
+
+.chart-label {
+    font-size: 0.65rem;
+    color: var(--md-text-low);
+    white-space: nowrap;
+    text-align: center;
+    overflow: hidden;
+}
+
+.chart-label.hidden-label {
+    visibility: hidden;
+}
+
+/* Health Metrics Items */
+.health-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+    gap: 16px;
+}
+
+.health-metric-item {
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.metric-val {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--md-text-high);
+}
+
+.metric-lbl {
+    font-size: 0.75rem;
+    color: var(--md-text-low);
+    text-align: center;
+}
+
+/* Topic Lists */
+.topics-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.topic-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.topic-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.825rem;
+}
+
+.topic-name {
+    font-weight: 600;
+    color: var(--md-text-high);
+}
+
+.topic-stats {
+    color: var(--md-text-low);
+    font-size: 0.75rem;
+}
+
+.topic-bar-bg {
+    width: 100%;
+    height: 6px;
+    background: var(--md-border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.topic-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.topic-bar-fill.high { background: var(--md-success); }
+.topic-bar-fill.medium { background: var(--md-warning); }
+.topic-bar-fill.low { background: var(--md-danger); }
+
+.empty-state {
+    color: var(--md-text-low);
+    font-size: 0.85rem;
+    font-style: italic;
+    padding: 12px 0;
+}

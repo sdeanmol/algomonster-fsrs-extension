@@ -263,7 +263,8 @@
 
                 <!-- Notification Settings -->
                 <div class="card notification-card">
-                    <div class="card-header">
+                    <div class="card-header"
+                        style="display: flex; justify-content: space-between; align-items: center;">
                         <h3 class="card-title" style="color: var(--md-danger);">
                             <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
                                 style="stroke: var(--md-danger); margin-right: 6px; width: 16px; height: 16px;"
@@ -273,6 +274,19 @@
                             </svg>
                             Notification Settings
                         </h3>
+                        <button id="open-summary-page-btn" class="btn-icon-text"
+                            title="Open Weekly & Monthly Digest Summary"
+                            aria-label="Open Weekly & Monthly Digest Summary">
+                            <svg class="svg-icon" viewBox="0 0 24 24"
+                                style="width: 14px; height: 14px; stroke: var(--md-danger);" aria-hidden="true">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                            Summary
+                        </button>
                     </div>
                     <div class="setting-row">
                         <label for="toggle-notifications" class="setting-label">Review Reminders</label>
@@ -329,7 +343,8 @@
                             <span class="slider"></span>
                         </label>
                     </div>
-                    <div class="button-row">
+                    <div id="test-notifications-container" class="button-row"
+                        style="display: none; flex-direction: column; gap: 8px;">
                         <button id="test-notification-btn" class="btn btn-secondary flex-1">
                             <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"
                                 aria-hidden="true">
@@ -337,6 +352,17 @@
                                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                             </svg>
                             Send Test Notification
+                        </button>
+                        <button id="test-summary-notification-btn" class="btn btn-secondary flex-1">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"
+                                aria-hidden="true">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                            Send Test Summary Notification
                         </button>
                     </div>
                 </div>
@@ -370,7 +396,7 @@
                 </div>
 
                 <div class="setting-row" style="margin-top: 8px;">
-                    <label for="toggle-dev-mode" class="setting-label">Developer Mode (Logging)</label>
+                    <label for="toggle-dev-mode" class="setting-label">Developer Mode</label>
                     <label class="switch" role="switch" tabindex="0">
                         <input type="checkbox" id="toggle-dev-mode">
                         <span class="slider"></span>

@@ -310,6 +310,34 @@ export class NotificationsComponent extends DashboardComponent {
                 });
             }
 
+            const testSummaryNotifBtn = document.getElementById('test-summary-notification-btn');
+            if (testSummaryNotifBtn) {
+                testSummaryNotifBtn.addEventListener('click', () => {
+                    try {
+                        chrome.runtime.sendMessage({ action: 'test_summary_notification' }, (response?: MessageResponse) => {
+                            try {
+                                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                                if (lastError) {
+                                    const errorMessage = lastError.message || String(lastError);
+                                    Logger.error('NotificationsComponent', `Error sending test summary message: ${errorMessage}`, { error: lastError });
+                                    this.showStatus("Error triggering summary notification.");
+                                } else if (response && response.success) {
+                                    this.showStatus("Test weekly summary notification sent!");
+                                } else {
+                                    this.showStatus("Failed to send test summary notification.");
+                                }
+                            } catch (respErr) {
+                                const errorMessage = respErr instanceof Error ? respErr.message : String(respErr);
+                                Logger.error('NotificationsComponent', `Error in test summary notification response callback: ${errorMessage}`, { respErr });
+                            }
+                        });
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('NotificationsComponent', `Error in test summary notification button click handler: ${errorMessage}`, { err });
+                    }
+                });
+            }
+
             // R3.6: Weekly Digest Toggle
             const weeklyDigestToggle = document.getElementById('toggle-weekly-digest') as HTMLInputElement | null;
             if (weeklyDigestToggle) {
