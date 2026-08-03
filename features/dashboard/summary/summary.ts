@@ -7,7 +7,7 @@ import { Logger } from '@common/logger';
 import { StorageData, Card } from '../../../types/domain';
 import { generateSummaryReport, SummaryReport, TopicMastery, SummaryInsight } from './summaryGenerator';
 
-class SummaryDashboard {
+export class SummaryDashboard {
     private currentPeriod: 'weekly' | 'monthly' = 'weekly';
     private allCards: Card[] = [];
     private fsrsActivity: { [date: string]: number } = {};

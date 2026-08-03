@@ -13,7 +13,7 @@ export interface Palette {
 
 export { ChromeSettings };
 
-class HighlightOptionsManager {
+export class HighlightOptionsManager {
     DEFAULT_PALETTES: Palette[];
     chromeSettings: ChromeSettings;
     editorColors: string[];
