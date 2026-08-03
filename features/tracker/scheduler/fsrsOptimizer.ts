@@ -18,27 +18,13 @@ export interface WasmBinding {
 
 let _bindingInstance: WasmBinding | null = null;
 
-function getWasmBaseUrl(): string {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).__WASM_BASE_URL__) {
-        return (globalThis as any).__WASM_BASE_URL__;
-    }
-    if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
-        return chrome.runtime.getURL('');
-    }
-    if (typeof location !== 'undefined' && location.origin && location.origin !== 'null') {
-        return location.origin;
-    }
-    return 'http://localhost';
-}
-
-const metaUrl = getWasmBaseUrl();
-const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-binding.wasm32-wasi.wasm', metaUrl);
+const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-binding.wasm32-wasi.wasm', import.meta.url);
 
 async function getBinding(): Promise<WasmBinding> {
     if (!_bindingInstance) {
         _bindingInstance = await initOptimizer({
             wasm: wasmUrl as any,
-            worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', metaUrl))
+            worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', import.meta.url))
         }) as WasmBinding;
     }
     return _bindingInstance;
