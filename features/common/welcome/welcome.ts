@@ -6,7 +6,7 @@
 
 import { Logger } from '@common/logger';
 
-class OnboardingWelcome {
+export class OnboardingWelcome {
     currentStep: number;
     totalSteps: number;
 

@@ -10,7 +10,7 @@ import { Card, StorageData, UserSettings } from '../../../types/domain';
  * sorting, bulk actions (R2.7), inline card editing (R2.9),
  * overall memory retention rates calculations, stacked distribution bars, and card deletion events.
  */
-class FSRSDataDashboard {
+export class FSRSDataDashboard {
     allCards: Card[];
     currentView: string;
     targetDate: string | null;

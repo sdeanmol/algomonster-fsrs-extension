@@ -4,7 +4,7 @@ import { Logger } from '@common/logger';
  * @file features/common/help/help.ts
  * @description Controller for AlgoRecall interactive Help Center, tab navigation, and live search.
  */
-class HelpCenterSPA {
+export class HelpCenterSPA {
     currentTab: string;
 
     constructor() {
