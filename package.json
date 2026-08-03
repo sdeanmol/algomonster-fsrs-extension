@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run build && playwright test",
     "build": "npx tsc && rm -rf build && webpack --mode production && cd build && rm -f ../release.zip && zip -r ../release.zip .",
     "dev": "rm -rf build && webpack --mode development --watch"
   },

@@ -28,6 +28,8 @@ export class StudyPlanController {
 
     init(): void {
         try {
+            this.bindEvents();
+
             chrome.storage.local.get(['fsrsCards', 'studyPlanSettings'], (result: StorageData & { studyPlanSettings?: StudyPlanSettings }) => {
                 try {
                     const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
@@ -45,8 +47,6 @@ export class StudyPlanController {
                     } else {
                         this.renderSetupPanel();
                     }
-
-                    this.bindEvents();
                 } catch (innerErr) {
                     const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
                     Logger.error('StudyPlan', `Error initializing study plan UI from storage: ${errorMessage}`, { innerErr });
@@ -71,14 +71,17 @@ export class StudyPlanController {
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 examDateInput.min = this.formatDate(tomorrow);
 
-                examDateInput.addEventListener('change', () => {
+                const handleDateUpdate = () => {
                     try {
                         this.updatePreview();
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('StudyPlan', `Error in exam date input listener: ${errorMessage}`, { err });
                     }
-                });
+                };
+
+                examDateInput.addEventListener('change', handleDateUpdate);
+                examDateInput.addEventListener('input', handleDateUpdate);
             }
 
             if (dailyLimitInput) {
@@ -316,6 +319,8 @@ export class StudyPlanController {
             const activePanel = document.getElementById('active-panel');
             if (setupPanel) setupPanel.style.display = 'block';
             if (activePanel) activePanel.style.display = 'none';
+
+            this.updatePreview();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('StudyPlan', `Error rendering setup panel: ${errorMessage}`, { err });

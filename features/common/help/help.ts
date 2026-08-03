@@ -60,6 +60,15 @@ export class HelpCenterSPA {
             this.currentTab = tabId;
             const tabButtons = document.querySelectorAll('.tab-btn');
             const tabPanes = document.querySelectorAll('.tab-pane');
+            const allCards = document.querySelectorAll('.card, .gamify-card, .strategy-card');
+
+            // Reset card inline displays
+            allCards.forEach((card: Element) => (card as HTMLElement).style.display = '');
+
+            const searchInput = document.getElementById('help-search-input') as HTMLInputElement | null;
+            if (searchInput) {
+                searchInput.value = '';
+            }
 
             tabButtons.forEach(btn => {
                 const isTarget = btn.getAttribute('data-tab') === tabId;
@@ -70,13 +79,6 @@ export class HelpCenterSPA {
             tabPanes.forEach(pane => {
                 pane.classList.toggle('active', pane.id === `tab-${tabId}`);
             });
-
-            // Reset search field if switching manually
-            const searchInput = document.getElementById('help-search-input') as HTMLInputElement | null;
-            if (searchInput && searchInput.value.trim() !== '') {
-                searchInput.value = '';
-                this.filterContent('');
-            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HelpCenter', `Error switching tab to '${tabId}': ${errorMessage}`, { tabId, err });
@@ -118,6 +120,11 @@ export class HelpCenterSPA {
                 // Restore normal tab mode
                 allCards.forEach((card: Element) => (card as HTMLElement).style.display = '');
                 tabPanes.forEach(pane => pane.classList.toggle('active', pane.id === `tab-${this.currentTab}`));
+                tabButtons.forEach(btn => {
+                    const isTarget = btn.getAttribute('data-tab') === this.currentTab;
+                    btn.classList.toggle('active', isTarget);
+                    btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
+                });
                 return;
             }
 

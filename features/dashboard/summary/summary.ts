@@ -234,8 +234,20 @@ export class SummaryDashboard {
     }
 }
 
-// Bootstrap on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-    const summaryApp = new SummaryDashboard();
-    summaryApp.init();
-});
+function initSummaryDashboard(): void {
+    try {
+        const summaryApp = new SummaryDashboard();
+        summaryApp.init();
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('SummaryDashboard', `Initialization failed: ${errorMessage}`, { err });
+    }
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSummaryDashboard);
+    } else {
+        initSummaryDashboard();
+    }
+}
