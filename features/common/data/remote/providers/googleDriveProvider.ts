@@ -21,17 +21,23 @@ export class GoogleDriveBackupProvider implements RemoteBackupProvider {
             }
 
             return new Promise<boolean>((resolve) => {
-                chrome.identity.getAuthToken({ interactive }, (token?: string) => {
-                    const lastError = chrome.runtime?.lastError;
-                    if (lastError || !token) {
-                        const msg = lastError ? (lastError.message || String(lastError)) : 'No token received';
-                        Logger.warn('GoogleDriveProvider', `Authentication check failed: ${msg}`);
-                        resolve(false);
-                    } else {
-                        Logger.info('GoogleDriveProvider', 'Successfully authenticated with Google Drive.');
-                        resolve(true);
-                    }
-                });
+                try {
+                    chrome.identity.getAuthToken({ interactive }, (token?: string) => {
+                        const lastError = chrome.runtime?.lastError;
+                        if (lastError || !token) {
+                            const msg = lastError ? (lastError.message || String(lastError)) : 'No token received';
+                            Logger.warn('GoogleDriveProvider', `Authentication check failed: ${msg}`);
+                            resolve(false);
+                        } else {
+                            Logger.info('GoogleDriveProvider', 'Successfully authenticated with Google Drive.');
+                            resolve(true);
+                        }
+                    });
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.warn('GoogleDriveProvider', `Authentication check exception: ${errorMessage}`);
+                    resolve(false);
+                }
             });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
