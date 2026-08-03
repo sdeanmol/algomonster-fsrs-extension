@@ -17,7 +17,21 @@ export interface WasmBinding {
 }
 
 let _bindingInstance: WasmBinding | null = null;
-const metaUrl = (typeof globalThis !== 'undefined' && (globalThis as any).__WASM_BASE_URL__) || 'http://localhost';
+
+function getWasmBaseUrl(): string {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).__WASM_BASE_URL__) {
+        return (globalThis as any).__WASM_BASE_URL__;
+    }
+    if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
+        return chrome.runtime.getURL('');
+    }
+    if (typeof location !== 'undefined' && location.origin && location.origin !== 'null') {
+        return location.origin;
+    }
+    return 'http://localhost';
+}
+
+const metaUrl = getWasmBaseUrl();
 const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-binding.wasm32-wasi.wasm', metaUrl);
 
 async function getBinding(): Promise<WasmBinding> {
