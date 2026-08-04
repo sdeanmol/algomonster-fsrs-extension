@@ -319,8 +319,9 @@ export class AlgoRecallDashboard {
                                     }, () => {
                                         try {
                                             URL.revokeObjectURL(url);
-                                        } catch {
-                                            // Ignore revokeObjectURL error
+                                        } catch (revokeErr) {
+                                            const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
+                                            Logger.debug('Popup', `Ignore revokeObjectURL error: ${errorMessage}`, { revokeErr });
                                         }
                                     });
                                     this.showStatus(`Exported ${logs.length} debug logs!`);
@@ -565,8 +566,9 @@ export class AlgoRecallDashboard {
                                 }, () => {
                                     try {
                                         URL.revokeObjectURL(url);
-                                    } catch {
-                                        // Ignore revokeObjectURL error
+                                    } catch (revokeErr) {
+                                        const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
+                                        Logger.debug('Popup', `Ignore revokeObjectURL error: ${errorMessage}`, { revokeErr });
                                     }
                                 });
                                 this.showStatus(`Exported ${cards.length} cards for Anki!`);

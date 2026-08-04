@@ -4,7 +4,7 @@
  */
 
 import { Card } from '../../../types/domain';
-import { Logger } from '@common/logger';
+import { Logger } from '../../common/logger';
 import {
     OPTIMIZER_DEFAULT_THRESHOLD,
     OPTIMIZER_DEFAULT_EPOCHS,
@@ -130,7 +130,8 @@ if (typeof window !== 'undefined') {
     try {
         window.FsrsOptimizer = FsrsOptimizerFast;
         window.FsrsOptimizerFast = FsrsOptimizerFast;
-    } catch {
-        // Comment: Safe recovery fallback for window global export
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.debug('FSRSOptimizerFast', `Safe recovery fallback for window global export: ${errorMessage}`, { err });
     }
 }

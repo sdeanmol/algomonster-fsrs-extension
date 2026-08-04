@@ -5,6 +5,7 @@
  * pluggable within the extension architecture.
  */
 
+import { Logger } from '../../common/logger';
 import { Card, Rating, FSRSParameters } from '../../../types/domain';
 
 export class AbstractScheduler {
@@ -105,8 +106,9 @@ export default AbstractScheduler;
 if (typeof window !== 'undefined') {
     try {
         (window as unknown as { AbstractScheduler?: typeof AbstractScheduler }).AbstractScheduler = AbstractScheduler;
-    } catch {
-        // Comment: Safe recovery fallback for window global export
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.debug('Scheduler', `Safe recovery fallback for window global export: ${errorMessage}`, { err });
     }
 }
 

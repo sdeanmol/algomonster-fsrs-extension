@@ -18,7 +18,7 @@ import {
     ALGORITHMIC_DEBOUNCE_WINDOW_MS
 } from '../../common/constants';
 import AbstractScheduler from './scheduler';
-import { Logger } from '@common/logger';
+import { Logger } from '../../common/logger';
 
 interface AppLogger {
     debug(category: string, message: string, data?: unknown): void;
@@ -407,8 +407,9 @@ export default FsrsScheduler;
 if (typeof window !== 'undefined') {
     try {
         (window as unknown as { FsrsScheduler?: typeof FsrsScheduler }).FsrsScheduler = FsrsScheduler;
-    } catch {
-        // Comment: Safe recovery fallback for window global export
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.debug('FsrsScheduler', `Safe recovery fallback for window global export: ${errorMessage}`, { err });
     }
 }
 

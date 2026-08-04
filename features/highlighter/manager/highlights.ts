@@ -491,8 +491,9 @@ export class HighlightsManager {
             }, (downloadId) => {
                 try {
                     URL.revokeObjectURL(url);
-                } catch {
-                    // Ignore revokeObjectURL error if URL was already revoked
+                } catch (revokeErr) {
+                    const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
+                    Logger.debug('HighlightsManager', `Ignore revokeObjectURL error if URL was already revoked: ${errorMessage}`, { revokeErr });
                 }
                 if (chrome.runtime?.lastError) {
                     const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);

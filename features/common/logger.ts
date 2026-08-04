@@ -77,8 +77,9 @@ export class LoggerClass {
 
                 await chrome.storage.local.set({ debugLogs: logs });
             }
-        } catch {
-            // Silently fail to prevent recursive error loops during storage failure
+        } catch (flushErr) {
+            // Silently handle to prevent recursive error loops during storage failure
+            console.warn('[AlgoRecall Logger] Log flush storage failure:', flushErr);
         } finally {
             this.isFlushing = false;
             if (this.logQueue.length > 0) {
@@ -99,8 +100,9 @@ export class LoggerClass {
             } else if (data !== undefined && data !== null) {
                 safeData = JSON.parse(JSON.stringify(data));
             }
-        } catch {
-            safeData = '[Unserializable Data]';
+        } catch (serializeErr) {
+            const errorMessage = serializeErr instanceof Error ? serializeErr.message : String(serializeErr);
+            safeData = `[Unserializable Data: ${errorMessage}]`;
         }
 
         const entry: LogEntry = { timestamp, level, module: moduleName, message, data: safeData };

@@ -366,8 +366,9 @@ export class FSRSDataDashboard {
                 return parts.slice(-2).join('.');
             }
             return hostname;
-        } catch {
-            // Comment: Return null on invalid URL parsing
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.debug('DataDashboard', `Return null on invalid URL parsing: ${errorMessage}`, { url, err });
             return null;
         }
     }
@@ -379,7 +380,9 @@ export class FSRSDataDashboard {
         try {
             const labels: Record<number, string> = { 0: 'New', 1: 'Learning', 2: 'Review', 3: 'Relearning' };
             return labels[state] || 'Unknown';
-        } catch {
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.debug('DataDashboard', `Error getting state label for state ${state}: ${errorMessage}`, { state, err });
             return 'Unknown';
         }
     }

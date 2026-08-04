@@ -225,8 +225,9 @@ export class AlgoRecallOrchestrator {
             if (this.domObserver) {
                 try {
                     this.domObserver.disconnect();
-                } catch {
-                    // Comment: Safe disconnect cleanup if observer was already stopped
+                } catch (disconnectErr) {
+                    const errorMessage = disconnectErr instanceof Error ? disconnectErr.message : String(disconnectErr);
+                    Logger.debug('ContentScript', `Safe disconnect cleanup if observer was already stopped: ${errorMessage}`, { disconnectErr });
                 }
                 this.domObserver = null;
             }
@@ -509,15 +510,17 @@ window.addEventListener('error', function (event: ErrorEvent) {
         if (event.filename && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id && event.filename.includes(chrome.runtime.id)) {
             Logger.error('ContentScript', 'Unhandled runtime error', { message: event.message, filename: event.filename, lineno: event.lineno, colno: event.colno, error: event.error });
         }
-    } catch {
+    } catch (err) {
         // Comment: Suppress recursive logging error during window error handler
+        console.warn('[AlgoRecall] Suppressed error in window error handler:', err);
     }
 });
 
 window.addEventListener('unhandledrejection', function (event: PromiseRejectionEvent) {
     try {
         Logger.error('ContentScript', 'Unhandled promise rejection', { reason: event?.reason });
-    } catch {
+    } catch (err) {
         // Comment: Suppress recursive logging error during window unhandled rejection handler
+        console.warn('[AlgoRecall] Suppressed error in window unhandledrejection handler:', err);
     }
 });

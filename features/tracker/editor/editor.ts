@@ -317,7 +317,9 @@ export class EditorManager {
         try {
             const u = new URL(url);
             return u.hostname + u.pathname;
-        } catch {
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.debug('EditorManager', `Fallback clean display URL on invalid URL: ${errorMessage}`, { url, err });
             return url;
         }
     }
@@ -334,8 +336,9 @@ export class EditorManager {
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 2000);
-        } catch {
-            // Comment: Ignore toast DOM display errors
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.debug('EditorManager', `Ignore toast DOM display error: ${errorMessage}`, { message, err });
         }
     }
 }

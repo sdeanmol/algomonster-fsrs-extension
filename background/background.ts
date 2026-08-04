@@ -29,8 +29,9 @@ import {
 (self as unknown as { onerror: (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) => boolean }).onerror = function(message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) {
     try {
         Logger.error('Background', 'Unhandled runtime error', { message, source, lineno, colno, error });
-    } catch {
+    } catch (err) {
         // Comment: Suppress recursive logging failures during global onerror handler
+        console.warn('[AlgoRecall Background] Suppressed error in onerror handler:', err);
     }
     return false;
 };
@@ -38,8 +39,9 @@ import {
 (self as unknown as { onunhandledrejection: (event: PromiseRejectionEvent) => void }).onunhandledrejection = function(event: PromiseRejectionEvent) {
     try {
         Logger.error('Background', 'Unhandled promise rejection', { reason: event?.reason });
-    } catch {
+    } catch (err) {
         // Comment: Suppress recursive logging failures during unhandled promise rejection handler
+        console.warn('[AlgoRecall Background] Suppressed error in onunhandledrejection handler:', err);
     }
 };
 

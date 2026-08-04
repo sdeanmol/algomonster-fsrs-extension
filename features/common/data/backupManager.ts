@@ -136,8 +136,9 @@ export async function* readLines(stream: ReadableStream<Uint8Array>): AsyncGener
             if (reader) {
                 reader.releaseLock();
             }
-        } catch {
-            // Ignore releaseLock error if stream was already closed
+        } catch (releaseErr) {
+            const errorMessage = releaseErr instanceof Error ? releaseErr.message : String(releaseErr);
+            Logger.debug('Backup', `Ignore releaseLock error if stream was already closed: ${errorMessage}`, { releaseErr });
         }
     }
 }
@@ -333,8 +334,9 @@ export class BackupManager {
             }, () => {
                 try {
                     URL.revokeObjectURL(blobUrl);
-                } catch {
-                    // Ignore revokeObjectURL error if URL was already revoked
+                } catch (revokeErr) {
+                    const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
+                    Logger.debug('Backup', `Ignore revokeObjectURL error if URL was already revoked: ${errorMessage}`, { revokeErr });
                 }
             });
             Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
@@ -409,7 +411,9 @@ export class BackupManager {
                 let parsed: unknown;
                 try {
                     parsed = JSON.parse(line);
-                } catch {
+                } catch (jsonErr) {
+                    const jsonErrMsg = jsonErr instanceof Error ? jsonErr.message : String(jsonErr);
+                    Logger.error('Backup', `Invalid JSON line format during backup parsing: ${jsonErrMsg}`, { line, jsonErr });
                     throw new Error("Corrupted file: Invalid JSON line format");
                 }
 

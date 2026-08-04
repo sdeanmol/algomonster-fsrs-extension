@@ -788,8 +788,9 @@ export class FSRSConfigManager {
             setTimeout(() => {
                 toast.className = 'toast';
             }, 2500);
-        } catch {
-            // Comment: Ignore toast DOM display errors
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.debug('FSRSConfig', `Ignore toast DOM display errors: ${errorMessage}`, { msg, err });
         }
     }
 }

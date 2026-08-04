@@ -114,15 +114,21 @@ export class Notifier {
                     notification.addEventListener('transitionend', () => {
                         try {
                             notification.remove();
-                        } catch {
-                            // Comment: Ignore DOM removal error if element was already removed
+                        } catch (removeErr) {
+                            const errorMessage = removeErr instanceof Error ? removeErr.message : String(removeErr);
+                            Logger.debug('Notifier', `Ignore DOM removal error if element was already removed: ${errorMessage}`, { removeErr });
                         }
                     }, { once: true });
                 } catch (dismissErr) {
                     // Comment: Direct cleanup fallback if transition fails
                     const errorMessage = dismissErr instanceof Error ? dismissErr.message : String(dismissErr);
                     Logger.error('Notifier', `Error in dismissNotification helper: ${errorMessage}`, { dismissErr });
-                    try { notification.remove(); } catch { /* Ignore */ }
+                    try {
+                        notification.remove();
+                    } catch (cleanupErr) {
+                        const cleanupMsg = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+                        Logger.debug('Notifier', `Ignore notification cleanup removal error: ${cleanupMsg}`, { cleanupErr });
+                    }
                 }
             };
 

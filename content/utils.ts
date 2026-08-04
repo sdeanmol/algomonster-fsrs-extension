@@ -107,8 +107,9 @@ export class Utils {
                             current = current.childNodes[path[i]] || null;
                         }
                         return current ? (current.childNodes[childIndex] || null) : null;
-                    } catch {
-                        // Comment: Return null if DOM path index resolution fails
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.debug('ContentUtils', `Return null if DOM path index resolution fails: ${errorMessage}`, { err });
                         return null;
                     }
                 };
@@ -250,8 +251,9 @@ export class Utils {
                                 return text;
                             }
                         }
-                    } catch {
-                        // Comment: Ignore querySelector syntax errors for non-standard selectors
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.debug('ContentUtils', `Ignore querySelector syntax errors for non-standard selectors: ${errorMessage}`, { selector, err });
                     }
                 }
 
