@@ -126,7 +126,7 @@ export class OnboardingWelcome {
         try {
             chrome.storage.local.get(['theme'], (result: { theme?: string }) => {
                 try {
-                    if (chrome.runtime.lastError) {
+                    if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                         Logger.error('Onboarding', `Storage error fetching theme: ${errorMessage}`, { error: chrome.runtime.lastError });
                         return;
@@ -214,7 +214,7 @@ export class OnboardingWelcome {
         try {
             chrome.storage.local.set({ theme: theme }, () => {
                 try {
-                    if (chrome.runtime.lastError) {
+                    if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                         Logger.error('Onboarding', `Storage set error saving theme: ${errorMessage}`, { theme, error: chrome.runtime.lastError });
                         return;

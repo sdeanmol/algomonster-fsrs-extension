@@ -108,7 +108,7 @@ export class WhitelistedWebsitesManager {
 
             chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
                 try {
-                    if (chrome.runtime.lastError) {
+                    if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                         Logger.error('WhitelistedWebsites', `Storage error loading websites: ${errorMessage}`, { error: chrome.runtime.lastError });
                         return;
@@ -118,7 +118,7 @@ export class WhitelistedWebsitesManager {
                         // First time: initialize storage with default list
                         sites = [...this.defaultSitesList.map(s => ({ ...s }))];
                         chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
-                            if (chrome.runtime.lastError) {
+                            if (chrome.runtime?.lastError) {
                                 const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                                 Logger.error('WhitelistedWebsites', `Error saving default websites to storage: ${errorMessage}`, { error: chrome.runtime.lastError });
                             }

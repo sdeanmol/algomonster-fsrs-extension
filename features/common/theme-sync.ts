@@ -55,7 +55,7 @@ export class ThemeSync {
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                 chrome.storage.local.get(['theme'], (result: { theme?: string }) => {
                     try {
-                        if (chrome.runtime.lastError) {
+                        if (chrome.runtime?.lastError) {
                             const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                             Logger.error('ThemeSync', `Error fetching theme from storage: ${errorMessage}`, { error: chrome.runtime.lastError });
                             return;

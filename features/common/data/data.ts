@@ -63,7 +63,7 @@ export class FSRSDataDashboard {
 
             chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: StorageData) => {
                 try {
-                    if (chrome.runtime.lastError) {
+                    if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                         Logger.error('DataDashboard', `Storage error in init: ${errorMessage}`, { error: chrome.runtime.lastError });
                         return;
@@ -669,7 +669,7 @@ export class FSRSDataDashboard {
                             this.selectedCardIds.delete(cardId);
                             chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
                                 try {
-                                    if (chrome.runtime.lastError) {
+                                    if (chrome.runtime?.lastError) {
                                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                                         Logger.error('DataDashboard', `Error deleting card from storage: ${errorMessage}`, { cardId, error: chrome.runtime.lastError });
                                         return;
@@ -793,7 +793,7 @@ export class FSRSDataDashboard {
                 this.selectedCardIds.clear();
                 chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
                     try {
-                        if (chrome.runtime.lastError) {
+                        if (chrome.runtime?.lastError) {
                             const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                             Logger.error('DataDashboard', `Error in bulk delete storage set: ${errorMessage}`, { error: chrome.runtime.lastError });
                             return;
@@ -836,7 +836,7 @@ export class FSRSDataDashboard {
             this.selectedCardIds.clear();
             chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
                 try {
-                    if (chrome.runtime.lastError) {
+                    if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                         Logger.error('DataDashboard', `Error in bulk retag storage set: ${errorMessage}`, { error: chrome.runtime.lastError });
                         return;
@@ -874,7 +874,7 @@ export class FSRSDataDashboard {
                 this.selectedCardIds.clear();
                 chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
                     try {
-                        if (chrome.runtime.lastError) {
+                        if (chrome.runtime?.lastError) {
                             const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                             Logger.error('DataDashboard', `Error in bulk reschedule storage set: ${errorMessage}`, { error: chrome.runtime.lastError });
                             return;
@@ -985,7 +985,7 @@ export class FSRSDataDashboard {
 
             chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
                 try {
-                    if (chrome.runtime.lastError) {
+                    if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                         Logger.error('DataDashboard', `Error saving card edit to storage: ${errorMessage}`, { cardId, error: chrome.runtime.lastError });
                         return;

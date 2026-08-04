@@ -40,6 +40,9 @@ export class LoggerClass {
     private _initDevMode(): void {
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
             chrome.storage.local.get(['chromeSettings'], (result: { chromeSettings?: { developerMode?: boolean } }) => {
+                if (chrome.runtime?.lastError) {
+                    return;
+                }
                 const settings = result.chromeSettings || {};
                 this.devMode = !!settings.developerMode;
             });
