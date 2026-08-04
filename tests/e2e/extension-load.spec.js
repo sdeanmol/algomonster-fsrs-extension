@@ -1,51 +1,36 @@
-const { test, expect, chromium } = require('@playwright/test');
-const path = require('path');
+/**
+ * @file tests/e2e/extension-load.spec.js
+ * @description End-to-End (E2E) test suite for basic extension loading and page rendering.
+ * Verifies that the popup dashboard and highlighter options page render correctly
+ * with expected DOM elements using the shared Chrome API polyfill.
+ *
+ * Refactored to use shared helpers from tests/e2e/helpers/.
+ */
+
+const { test, expect } = require('@playwright/test');
+const { injectChromePolyfill } = require('./helpers/chrome-polyfill');
+const { launchBrowser, closeBrowser, buildFileUrl } = require('./helpers/browser-setup');
+const { mockChromeSettings } = require('./helpers/fixtures');
 
 test.describe('Extension Load and Basic Interactivity', () => {
   let browser;
 
   test.beforeAll(async () => {
-    browser = await chromium.launch({
-      executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      headless: true,
-      args: ['--no-sandbox', '--disable-gpu']
-    });
+    browser = await launchBrowser();
   });
 
   test.afterAll(async () => {
-    if (browser) {
-      await browser.close().catch(() => {});
-    }
+    await closeBrowser(browser);
   });
 
   test('popup renders correctly', async () => {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    await page.addInitScript(() => {
-      window.chrome = window.chrome || {};
-      window.chrome.storage = {
-        local: {
-          get: (keys, cb) => {
-            const res = { fsrsCards: [] };
-            if (cb) cb(res);
-            return Promise.resolve(res);
-          },
-          set: (items, cb) => {
-            if (cb) cb();
-            return Promise.resolve();
-          }
-        }
-      };
-      window.chrome.runtime = {
-        getURL: (p) => p,
-        sendMessage: () => {},
-        onMessage: { addListener: () => {} }
-      };
-    });
+    await page.addInitScript(injectChromePolyfill, { fsrsCards: [] });
 
-    const popupPath = `file://${path.join(process.cwd(), 'build/features/dashboard/popup/popup.html')}`;
-    await page.goto(popupPath);
+    const popupUrl = buildFileUrl('features/dashboard/popup/popup.html');
+    await page.goto(popupUrl);
 
     // Verify main app title and header render
     const appTitle = page.locator('.app-title');
@@ -63,30 +48,12 @@ test.describe('Extension Load and Basic Interactivity', () => {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    await page.addInitScript(() => {
-      window.chrome = window.chrome || {};
-      window.chrome.storage = {
-        local: {
-          get: (keys, cb) => {
-            const res = { highlighterOptions: { defaultColor: '#ffeb3b', palettes: [] } };
-            if (cb) cb(res);
-            return Promise.resolve(res);
-          },
-          set: (items, cb) => {
-            if (cb) cb();
-            return Promise.resolve();
-          }
-        }
-      };
-      window.chrome.runtime = {
-        getURL: (p) => p,
-        sendMessage: () => {},
-        onMessage: { addListener: () => {} }
-      };
+    await page.addInitScript(injectChromePolyfill, {
+      highlighterOptions: { defaultColor: '#ffeb3b', palettes: [] }
     });
 
-    const optionsPath = `file://${path.join(process.cwd(), 'build/features/highlighter/options/highlightOptions.html')}`;
-    await page.goto(optionsPath);
+    const optionsUrl = buildFileUrl('features/highlighter/options/highlightOptions.html');
+    await page.goto(optionsUrl);
 
     const header = page.locator('h2');
     await expect(header).toBeVisible();

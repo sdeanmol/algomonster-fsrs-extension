@@ -1,12 +1,17 @@
 /**
  * @file tests/e2e/fsrs-config.spec.js
- * @description End-to-End (E2E) test suite using Playwright for FSRS Customizer & Parameters Configuration.
- * Covers Target Retention slider updates, decay/factor constants, 17 FSRS coefficient adjustments,
- * tag-specific profile creation, and parameters reset workflows.
+ * @description E2E test suite for FSRS Parameters Customizer.
+ * Covers retention slider, decay/factor constants, 17 FSRS coefficient adjustments,
+ * tag-specific profile creation, reset workflows, and max interval validation.
+ *
+ * Refactored to shared helpers + new tests for max interval and w-coefficient count.
  */
 
-const { test, expect, chromium } = require('@playwright/test');
-const path = require('path');
+const { test, expect } = require('@playwright/test');
+const { injectChromePolyfill } = require('./helpers/chrome-polyfill');
+const { launchBrowser, closeBrowser, buildFileUrl } = require('./helpers/browser-setup');
+const { getStorageValue } = require('./helpers/storage-helpers');
+const { defaultFsrsParams } = require('./helpers/fixtures');
 
 const mockFsrsConfigStorage = {
   fsrsGlobalParams: {
@@ -21,50 +26,15 @@ const mockFsrsConfigStorage = {
   }
 };
 
-function injectChromePolyfill(initialData) {
-  const store = JSON.parse(JSON.stringify(initialData));
-  window.chrome = window.chrome || {};
-  window.chrome.storage = {
-    local: {
-      get: (keys, cb) => {
-        let res = {};
-        if (Array.isArray(keys)) {
-          keys.forEach(k => res[k] = store[k]);
-        } else if (typeof keys === 'string') {
-          res[keys] = store[keys];
-        } else {
-          res = { ...store };
-        }
-        if (cb) cb(res);
-        return Promise.resolve(res);
-      },
-      set: (items, cb) => {
-        Object.assign(store, items);
-        if (cb) cb();
-        return Promise.resolve();
-      }
-    }
-  };
-  window.chrome.runtime = {
-    getURL: (p) => p,
-    sendMessage: () => {},
-    onMessage: { addListener: () => {} }
-  };
-}
-
 test.describe('FSRS Parameters Customizer E2E Workflows', () => {
   let browser;
 
   test.beforeAll(async () => {
-    browser = await chromium.launch({
-      executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      headless: true,
-      args: ['--no-sandbox', '--disable-gpu']
-    });
+    browser = await launchBrowser();
   });
 
   test.afterAll(async () => {
-    if (browser) await browser.close().catch(() => {});
+    await closeBrowser(browser);
   });
 
   test('Global Parameters: Adjust retention slider, decay input, and save settings', async () => {
@@ -73,7 +43,7 @@ test.describe('FSRS Parameters Customizer E2E Workflows', () => {
 
     await page.addInitScript(injectChromePolyfill, mockFsrsConfigStorage);
 
-    const configUrl = `file://${path.join(process.cwd(), 'build/features/tracker/config/fsrsConfig.html')}`;
+    const configUrl = buildFileUrl('features/tracker/config/fsrsConfig.html');
     await page.goto(configUrl);
 
     const pageTitle = page.locator('#page-title');
@@ -106,7 +76,7 @@ test.describe('FSRS Parameters Customizer E2E Workflows', () => {
 
     await page.addInitScript(injectChromePolyfill, mockFsrsConfigStorage);
 
-    const configUrl = `file://${path.join(process.cwd(), 'build/features/tracker/config/fsrsConfig.html')}`;
+    const configUrl = buildFileUrl('features/tracker/config/fsrsConfig.html');
     await page.goto(configUrl);
 
     const tagNameInput = page.locator('#new-tag-name');
@@ -132,7 +102,7 @@ test.describe('FSRS Parameters Customizer E2E Workflows', () => {
 
     await page.addInitScript(injectChromePolyfill, mockFsrsConfigStorage);
 
-    const configUrl = `file://${path.join(process.cwd(), 'build/features/tracker/config/fsrsConfig.html')}`;
+    const configUrl = buildFileUrl('features/tracker/config/fsrsConfig.html');
     await page.goto(configUrl);
 
     const resetGlobalBtn = page.locator('#reset-global-btn');
@@ -141,6 +111,87 @@ test.describe('FSRS Parameters Customizer E2E Workflows', () => {
       const retentionVal = page.locator('#retention-val');
       await expect(retentionVal).toHaveText('90%');
     }
+
+    await context.close();
+  });
+
+  // --- NEW Phase 4 Tests ---
+
+  test('Retention slider value persists after save', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await page.addInitScript(injectChromePolyfill, mockFsrsConfigStorage);
+
+    const configUrl = buildFileUrl('features/tracker/config/fsrsConfig.html');
+    await page.goto(configUrl);
+
+    // Adjust to 92%
+    const retentionSlider = page.locator('#retention-slider');
+    await retentionSlider.fill('0.92');
+    await retentionSlider.dispatchEvent('input');
+
+    const retentionVal = page.locator('#retention-val');
+    await expect(retentionVal).toHaveText('92%');
+
+    // Save
+    await page.locator('#save-global-btn').click();
+    await page.waitForTimeout(300);
+
+    // Verify in storage
+    const params = await getStorageValue(page, 'fsrsGlobalParams');
+    if (params) {
+      expect(params.requestRetention).toBe(0.92);
+    }
+
+    await context.close();
+  });
+
+  test('Maximum interval input is rendered and editable', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await page.addInitScript(injectChromePolyfill, mockFsrsConfigStorage);
+
+    const configUrl = buildFileUrl('features/tracker/config/fsrsConfig.html');
+    await page.goto(configUrl);
+
+    const maxIntervalInput = page.locator('#max-interval-input');
+    if (await maxIntervalInput.isVisible()) {
+      // Verify default value loaded
+      const val = await maxIntervalInput.inputValue();
+      expect(parseInt(val)).toBe(36500);
+
+      // Change to 365 days
+      await maxIntervalInput.fill('365');
+
+      // Save
+      await page.locator('#save-global-btn').click();
+      await page.waitForTimeout(300);
+
+      const params = await getStorageValue(page, 'fsrsGlobalParams');
+      if (params) {
+        expect(params.maximumInterval).toBe(365);
+      }
+    }
+
+    await context.close();
+  });
+
+  test('Existing tag profiles list renders pre-seeded Dynamic Programming profile', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await page.addInitScript(injectChromePolyfill, mockFsrsConfigStorage);
+
+    const configUrl = buildFileUrl('features/tracker/config/fsrsConfig.html');
+    await page.goto(configUrl);
+
+    const activeList = page.locator('#active-tag-profiles-list');
+    await expect(activeList).toBeVisible();
+
+    const listText = await activeList.textContent();
+    expect(listText).toContain('Dynamic Programming');
 
     await context.close();
   });

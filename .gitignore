@@ -35,6 +35,7 @@ test-report.html
 .test-user-data*/
 test-user-data*/
 .chrome-user-data*/
+.tmp-e2e/
 
 # Local Backups and Scratch Data
 # backup/

@@ -12,8 +12,6 @@ module.exports = defineConfig({
   workers: 1, // Extensions cannot easily run in parallel in Playwright due to shared contexts
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    channel: 'chrome',
-    executablePath: process.platform === 'darwin' ? (process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome') : undefined,
     trace: 'on-first-retry',
   },
 });
