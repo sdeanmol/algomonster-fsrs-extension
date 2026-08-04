@@ -568,6 +568,10 @@ export class FSRSConfigManager {
 
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                 chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
+                    if (chrome.runtime?.lastError) {
+                        Logger.error('FSRSConfig', `Storage get error in saveGlobalConfig: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                        return;
+                    }
                     const existing = result.fsrsGlobalParams || {};
                     const newParams: FSRSParameters = {
                         ...existing,
@@ -578,6 +582,9 @@ export class FSRSConfigManager {
                     };
 
                     chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
+                        if (chrome.runtime?.lastError) {
+                            Logger.error('FSRSConfig', `Storage set error in saveGlobalConfig: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                        }
                         this.showToast("FSRS global configurations saved!");
                     });
                 });

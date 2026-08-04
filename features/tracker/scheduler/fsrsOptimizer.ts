@@ -23,7 +23,7 @@ const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-bindin
 async function getBinding(): Promise<WasmBinding> {
     if (!_bindingInstance) {
         _bindingInstance = await initOptimizer({
-            wasm: wasmUrl as any,
+            wasm: wasmUrl as unknown as string,
             worker: () => new Worker(new URL('@open-spaced-repetition/binding-wasm32-wasi/wasi-worker-browser.mjs', import.meta.url))
         }) as WasmBinding;
     }
@@ -75,7 +75,7 @@ export class FsrsOptimizer {
 
         try {
             const binding = await getBinding();
-            console.log(binding)
+            Logger.debug('FSRS', 'WASM optimizer binding initialized successfully');
             let trainSet: FSRSBindingItem[] = [];
 
             history.forEach((card: Card) => {
@@ -164,5 +164,5 @@ export class FsrsOptimizer {
 export default FsrsOptimizer;
 
 if (typeof window !== 'undefined') {
-    (window as unknown as { FsrsOptimizer: typeof FsrsOptimizer }).FsrsOptimizer = FsrsOptimizer;
+    (window as unknown as { FsrsOptimizer?: typeof FsrsOptimizer }).FsrsOptimizer = FsrsOptimizer;
 }

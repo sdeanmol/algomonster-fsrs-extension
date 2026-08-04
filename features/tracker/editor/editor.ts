@@ -74,8 +74,17 @@ export class EditorManager {
      */
     loadContent(): void {
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                Logger.warn('EditorManager', 'Chrome extension storage unavailable in loadContent.');
+                return;
+            }
             chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: StorageData & { bookmarks?: BookmarkEntry[]; approachDrafts?: Record<string, DraftEntry | string> }) => {
                 try {
+                    if (chrome.runtime?.lastError) {
+                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                        Logger.error('EditorManager', `Storage get error in loadContent: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        return;
+                    }
                     const cards: Card[] = result.fsrsCards || [];
                     const bookmarks: BookmarkEntry[] = result.bookmarks || [];
                     const drafts: Record<string, DraftEntry | string> = result.approachDrafts || {};
@@ -107,7 +116,7 @@ export class EditorManager {
                         if (statusEl) statusEl.textContent = "Loaded FSRS card";
                     } else {
                         this.isCardExisting = false;
-                        const bookmark = bookmarks.find((b: BookmarkEntry) => b.url.split('?')[0].split('#')[0] === this.cleanUrl);
+                        const bookmark = bookmarks.find((b: BookmarkEntry) => b.url && b.url.split('?')[0].split('#')[0] === this.cleanUrl);
                         if (titleEl) titleEl.textContent = (bookmark && bookmark.title) || this.getCleanDisplayUrl(this.problemUrl);
                         
                         const draftVal = drafts[this.cleanUrl];
@@ -120,7 +129,7 @@ export class EditorManager {
                                 tc = draftVal.timeComplexity || "";
                                 sc = draftVal.spaceComplexity || "";
                             } else {
-                                draftText = draftVal;
+                                draftText = String(draftVal);
                             }
                         }
                         if (textarea) textarea.value = draftText;
@@ -130,12 +139,12 @@ export class EditorManager {
                     }
                 } catch (innerErr) {
                     const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('Editor', `Error populating editor content: ${errorMessage}`, { innerErr });
+                    Logger.error('EditorManager', `Error populating editor content: ${errorMessage}`, { innerErr });
                 }
             });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Editor', `Failed to load storage in Editor loadContent: ${errorMessage}`, { err });
+            Logger.error('EditorManager', `Failed to load storage in Editor loadContent: ${errorMessage}`, { err });
         }
     }
 
@@ -199,17 +208,17 @@ export class EditorManager {
                         ? win.AlgoRecall.Markdown.render(text)
                         : text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
                     
-                    const textarea = document.getElementById('editor-textarea');
-                    if (textarea) textarea.style.display = 'none';
+                    const textareaElement = document.getElementById('editor-textarea');
+                    if (textareaElement) textareaElement.style.display = 'none';
                     editorPreview.style.display = 'block';
                     previewToggleBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit`;
                 } else {
                     // Back to edit mode
-                    const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
-                    if (textarea) textarea.style.display = '';
+                    const textareaElement = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
+                    if (textareaElement) textareaElement.style.display = '';
                     editorPreview.style.display = 'none';
                     previewToggleBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Preview`;
-                    textarea?.focus();
+                    textareaElement?.focus();
                 }
             });
         }
@@ -228,12 +237,23 @@ export class EditorManager {
      */
     saveContent(callback?: () => void): void {
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                Logger.warn('EditorManager', 'Chrome extension storage unavailable in saveContent.');
+                if (callback) callback();
+                return;
+            }
             const text = (document.getElementById('editor-textarea') as HTMLTextAreaElement)?.value || '';
             const tc = (document.getElementById('time-complexity-input') as HTMLInputElement)?.value.trim() || '';
             const sc = (document.getElementById('space-complexity-input') as HTMLInputElement)?.value.trim() || '';
             
             chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
                 try {
+                    if (chrome.runtime?.lastError) {
+                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                        Logger.error('EditorManager', `Storage get error in saveContent: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        if (callback) callback();
+                        return;
+                    }
                     if (this.isCardExisting) {
                         const cards: Card[] = result.fsrsCards || [];
                         let index = -1;
@@ -248,6 +268,9 @@ export class EditorManager {
                             cards[index].timeComplexity = tc;
                             cards[index].spaceComplexity = sc;
                             chrome.storage.local.set({ fsrsCards: cards }, () => {
+                                if (chrome.runtime?.lastError) {
+                                    Logger.error('EditorManager', `Storage set error in saveContent fsrsCards: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                                }
                                 if (callback) callback();
                             });
                         } else {
@@ -268,6 +291,9 @@ export class EditorManager {
                             };
                         }
                         chrome.storage.local.set({ approachDrafts: drafts }, () => {
+                            if (chrome.runtime?.lastError) {
+                                Logger.error('EditorManager', `Storage set error in saveContent approachDrafts: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                            }
                             if (callback) callback();
                         });
                     }

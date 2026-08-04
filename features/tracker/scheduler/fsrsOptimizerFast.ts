@@ -127,6 +127,10 @@ export class FsrsOptimizerFast {
 export default FsrsOptimizerFast;
 
 if (typeof window !== 'undefined') {
-    window.FsrsOptimizer = FsrsOptimizerFast;
-    window.FsrsOptimizerFast = FsrsOptimizerFast;
+    try {
+        window.FsrsOptimizer = FsrsOptimizerFast;
+        window.FsrsOptimizerFast = FsrsOptimizerFast;
+    } catch {
+        // Comment: Safe recovery fallback for window global export
+    }
 }

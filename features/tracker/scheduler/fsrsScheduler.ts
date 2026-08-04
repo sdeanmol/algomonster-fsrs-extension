@@ -405,7 +405,11 @@ export class FsrsScheduler extends AbstractScheduler {
 export default FsrsScheduler;
 
 if (typeof window !== 'undefined') {
-    (window as unknown as { FsrsScheduler?: typeof FsrsScheduler }).FsrsScheduler = FsrsScheduler;
+    try {
+        (window as unknown as { FsrsScheduler?: typeof FsrsScheduler }).FsrsScheduler = FsrsScheduler;
+    } catch {
+        // Comment: Safe recovery fallback for window global export
+    }
 }
 
 if (typeof module !== 'undefined' && module.exports) {
