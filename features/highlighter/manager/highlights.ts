@@ -489,7 +489,12 @@ export class HighlightsManager {
                 filename: `algorecall_highlights_${new Date().toISOString().split('T')[0]}.md`,
                 saveAs: true
             }, (downloadId) => {
-                if (chrome.runtime.lastError) {
+                try {
+                    URL.revokeObjectURL(url);
+                } catch {
+                    // Ignore revokeObjectURL error if URL was already revoked
+                }
+                if (chrome.runtime?.lastError) {
                     const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                     Logger.error('HighlightsManager', `Error downloading exported Markdown: ${errorMessage}`, { error: chrome.runtime.lastError });
                 }

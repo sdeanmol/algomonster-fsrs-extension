@@ -316,6 +316,12 @@ export class AlgoRecallDashboard {
                                         url: url,
                                         filename: `algorecall_debug_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
                                         saveAs: true
+                                    }, () => {
+                                        try {
+                                            URL.revokeObjectURL(url);
+                                        } catch {
+                                            // Ignore revokeObjectURL error
+                                        }
                                     });
                                     this.showStatus(`Exported ${logs.length} debug logs!`);
                                 } catch (innerErr) {
@@ -556,6 +562,12 @@ export class AlgoRecallDashboard {
                                     url: url,
                                     filename: `algorecall_anki_${new Date().toISOString().split('T')[0]}.txt`,
                                     saveAs: true
+                                }, () => {
+                                    try {
+                                        URL.revokeObjectURL(url);
+                                    } catch {
+                                        // Ignore revokeObjectURL error
+                                    }
                                 });
                                 this.showStatus(`Exported ${cards.length} cards for Anki!`);
                             } catch (innerErr) {

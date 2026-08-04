@@ -330,6 +330,12 @@ export class BackupManager {
                 url: blobUrl,
                 filename: filename,
                 saveAs: true
+            }, () => {
+                try {
+                    URL.revokeObjectURL(blobUrl);
+                } catch {
+                    // Ignore revokeObjectURL error if URL was already revoked
+                }
             });
             Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
         } catch (err) {
