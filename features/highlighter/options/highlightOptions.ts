@@ -436,9 +436,13 @@ export class HighlightOptionsManager {
      */
     saveSettings(message: string | null = null): void {
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                Logger.warn('HighlightOptions', 'Chrome storage API unavailable in saveSettings.');
+                return;
+            }
             chrome.storage.local.set({ chromeSettings: this.chromeSettings }, () => {
                 try {
-                    if (chrome.runtime.lastError) {
+                    if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                         Logger.error('HighlightOptions', `Storage error saving chromeSettings: ${errorMessage}`, { error: chrome.runtime.lastError });
                         return;

@@ -140,9 +140,13 @@ export class HighlightsManager {
 
     loadHighlights(): void {
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                Logger.warn('HighlightsManager', 'Chrome storage API unavailable in loadHighlights.');
+                return;
+            }
             chrome.storage.local.get(['marks', 'bookmarks'], (result: StorageData) => {
                 try {
-                    if (chrome.runtime.lastError) {
+                    if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                         Logger.error('HighlightsManager', `Storage error fetching marks: ${errorMessage}`, { error: chrome.runtime.lastError });
                         return;

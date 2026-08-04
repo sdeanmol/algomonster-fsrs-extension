@@ -800,6 +800,10 @@ export class Highlighter {
 
     deleteHighlight(markId: string): void {
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime || !chrome.runtime.id) {
+                Logger.warn('Highlighter', 'Extension context invalidated. Cannot delete highlight mark.');
+                return;
+            }
             Logger.debug('Highlighter', `Deleting highlight ID: ${markId}`);
             this.state.marks = this.state.marks.filter((m: HighlightMark) => (m.id || m.createdAt.toString()) !== markId);
             chrome.storage.local.set({ marks: this.state.marks });
@@ -817,6 +821,10 @@ export class Highlighter {
 
     saveMarkNote(markId: string, noteText: string): void {
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime || !chrome.runtime.id) {
+                Logger.warn('Highlighter', 'Extension context invalidated. Cannot save mark note.');
+                return;
+            }
             const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
             if (markIndex > -1) {
                 this.state.marks[markIndex].note = noteText.trim();
