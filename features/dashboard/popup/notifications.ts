@@ -367,7 +367,9 @@ export class NotificationsComponent extends DashboardComponent {
                                 Logger.error('NotificationsComponent', `Storage error saving weeklySummaryEnabled: ${errorMessage}`, { enabled, error: lastError });
                             }
                         });
-                        chrome.runtime.sendMessage({ action: 'toggle_weekly_summary', enabled });
+                        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+                            chrome.runtime.sendMessage({ action: 'toggle_weekly_summary', enabled });
+                        }
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('NotificationsComponent', `Error toggling weekly summary: ${errorMessage}`, { err });
