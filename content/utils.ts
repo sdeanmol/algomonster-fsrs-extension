@@ -8,7 +8,7 @@ interface AlgoRecallGlobal {
 
 function getAlgoRecallGlobal(): AlgoRecallGlobal {
     try {
-        const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
+        const win = window as unknown as { AlgoRecall?: AlgoRecallGlobal };
         win.AlgoRecall = win.AlgoRecall || {};
         return win.AlgoRecall;
     } catch (err) {
@@ -91,6 +91,10 @@ export class Utils {
      */
     static restoreRangeFromMeta(highlightSource: HighlightMetaSource, markText?: string): Range | null {
         try {
+            if (!highlightSource || !highlightSource.startMeta || !highlightSource.endMeta) {
+                return null;
+            }
+
             let startNode: Node | null = null;
             let endNode: Node | null = null;
 
@@ -167,7 +171,7 @@ export class Utils {
      */
     static ensureHighlightStyle(color: string, type: string = 'highlight'): string {
         const state = getAlgoRecallGlobal().state;
-        const colorHash = color.replace('#', '');
+        const colorHash = (color || '#f1c40f').replace('#', '');
         let prefix = 'algo-hl';
         let cssRule = `background-color: ${color}; color: inherit;`;
 
@@ -182,7 +186,9 @@ export class Utils {
             if (state && !state.activeHighlightStyles.has(colorName)) {
                 const style = document.createElement('style');
                 style.textContent = `::highlight(${colorName}) { ${cssRule} }`;
-                document.head.appendChild(style);
+                if (document.head) {
+                    document.head.appendChild(style);
+                }
                 state.activeHighlightStyles.add(colorName);
             }
         } catch (err) {

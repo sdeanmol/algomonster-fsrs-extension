@@ -6,7 +6,7 @@ import './utils';
 import '../features/highlighter/highlighter';
 import './notifications';
 import '../features/tracker/tracker';
-import { Card, StorageData, ExtensionMessage, MessageResponse, FSRSParameters } from '../types/domain';
+import { Card, StorageData, ExtensionMessage, MessageResponse, FSRSParameters, HighlightMark, BookmarkItem } from '../types/domain';
 import { AlgoRecallState } from './state';
 import { Utils } from './utils';
 import { Notifier } from './notifications';
@@ -25,7 +25,7 @@ interface AlgoRecallGlobal {
 
 function getAlgoRecallGlobal(): AlgoRecallGlobal {
     try {
-        const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
+        const win = window as unknown as { AlgoRecall?: AlgoRecallGlobal };
         win.AlgoRecall = win.AlgoRecall || {};
         return win.AlgoRecall;
     } catch (err) {
@@ -72,9 +72,14 @@ export class AlgoRecallOrchestrator {
     async init(): Promise<void> {
         Logger.time('ContentScript', 'Init Storage Load');
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime) {
+                Logger.warn('ContentScript', 'Extension context invalid or chrome APIs unavailable during init.');
+                Logger.timeEnd('ContentScript', 'Init Storage Load');
+                return;
+            }
             chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result: StorageData & {
-                marks?: unknown[];
-                bookmarks?: unknown[];
+                marks?: HighlightMark[];
+                bookmarks?: BookmarkItem[];
                 pagecontents?: unknown[];
                 whitelistedWebsites?: Array<{ domain: string }>;
             }) => {
@@ -197,10 +202,14 @@ export class AlgoRecallOrchestrator {
             });
 
             // 2. Storage Changed Listener
-            chrome.storage.onChanged.addListener(this.handleStorageChanged.bind(this));
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+                chrome.storage.onChanged.addListener(this.handleStorageChanged.bind(this));
+            }
 
             // 3. Message Listener
-            chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+                chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('ContentScript', `Error binding orchestrator events: ${errorMessage}`, { err });
@@ -213,6 +222,14 @@ export class AlgoRecallOrchestrator {
      */
     setupMutationObserver(): void {
         try {
+            if (this.domObserver) {
+                try {
+                    this.domObserver.disconnect();
+                } catch {
+                    // Comment: Safe disconnect cleanup if observer was already stopped
+                }
+                this.domObserver = null;
+            }
             this.domObserver = new MutationObserver(() => {
                 if (this.state.highlightDebounceTimer) clearTimeout(this.state.highlightDebounceTimer);
                 this.state.highlightDebounceTimer = setTimeout(() => {
@@ -301,11 +318,11 @@ export class AlgoRecallOrchestrator {
                     this.state.topicWeights = (changes.fsrsTopicWeights.newValue as Record<string, number[]>) || {};
                 }
                 if (changes.marks) {
-                    this.state.marks = (changes.marks.newValue as unknown[]) || [];
+                    this.state.marks = (changes.marks.newValue as HighlightMark[]) || [];
                     this.highlighter.applyHighlightsForCurrentPage();
                 }
                 if (changes.bookmarks) {
-                    this.state.bookmarks = (changes.bookmarks.newValue as unknown[]) || [];
+                    this.state.bookmarks = (changes.bookmarks.newValue as BookmarkItem[]) || [];
                 }
                 if (changes.pagecontents) {
                     this.state.pagecontents = (changes.pagecontents.newValue as unknown[]) || [];
@@ -489,7 +506,7 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
 // Global Error Handlers for Content Script Isolation
 window.addEventListener('error', function (event: ErrorEvent) {
     try {
-        if (event.filename && event.filename.includes(chrome.runtime.id)) {
+        if (event.filename && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id && event.filename.includes(chrome.runtime.id)) {
             Logger.error('ContentScript', 'Unhandled runtime error', { message: event.message, filename: event.filename, lineno: event.lineno, colno: event.colno, error: event.error });
         }
     } catch {

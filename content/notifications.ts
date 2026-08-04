@@ -16,7 +16,7 @@ interface AlgoRecallGlobal {
 
 function getAlgoRecallGlobal(): AlgoRecallGlobal {
     try {
-        const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
+        const win = window as unknown as { AlgoRecall?: AlgoRecallGlobal };
         win.AlgoRecall = win.AlgoRecall || {};
         return win.AlgoRecall;
     } catch (err) {
@@ -165,17 +165,19 @@ export class Notifier {
                     try {
                         if (autoDismissTimer) clearTimeout(autoDismissTimer);
                         dismissNotification();
-                        chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: SNOOZE_DEFAULT_MINUTES }, (_response?: MessageResponse) => {
-                            try {
-                                if (chrome.runtime.lastError) {
-                                    const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                    Logger.error('Notifier', `Error sending snooze message: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+                            chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: SNOOZE_DEFAULT_MINUTES }, (_response?: MessageResponse) => {
+                                try {
+                                    if (chrome.runtime.lastError) {
+                                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                                        Logger.error('Notifier', `Error sending snooze message: ${errorMessage}`, { error: chrome.runtime.lastError });
+                                    }
+                                } catch (msgErr) {
+                                    const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
+                                    Logger.error('Notifier', `Error handling snooze response callback: ${errorMessage}`, { msgErr });
                                 }
-                            } catch (msgErr) {
-                                const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
-                                Logger.error('Notifier', `Error handling snooze response callback: ${errorMessage}`, { msgErr });
-                            }
-                        });
+                            });
+                        }
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('Notifier', `Context invalidation on snooze message: ${errorMessage}`, { err });

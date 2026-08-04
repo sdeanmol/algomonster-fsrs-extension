@@ -5,7 +5,7 @@
  * to act as a shared memory layer on targeted domains.
  */
 
-import { Card } from '../types/domain';
+import { Card, HighlightMark, BookmarkItem } from '../types/domain';
 import AbstractScheduler from '../features/tracker/scheduler/scheduler';
 import { Logger } from '@common/logger';
 
@@ -28,8 +28,8 @@ export interface AlgoRecallState {
     lastCheckedUrl: string;
     topicWeights: Record<string, number[]>;
     currentTheme: string;
-    marks: unknown[];
-    bookmarks: unknown[];
+    marks: HighlightMark[];
+    bookmarks: BookmarkItem[];
     pagecontents: unknown[];
     chromeSettings: ChromeSettings;
     activeHighlightStyles: Set<string>;
@@ -52,9 +52,15 @@ export interface AlgoRecallGlobal {
 }
 
 function getAlgoRecallGlobal(): AlgoRecallGlobal {
-    const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
-    win.AlgoRecall = win.AlgoRecall || {};
-    return win.AlgoRecall;
+    try {
+        const win = window as unknown as { AlgoRecall?: AlgoRecallGlobal };
+        win.AlgoRecall = win.AlgoRecall || {};
+        return win.AlgoRecall;
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('State', `Failed to access window global in getAlgoRecallGlobal: ${errorMessage}`, { err });
+        return {};
+    }
 }
 
 const algoGlobal = getAlgoRecallGlobal();
