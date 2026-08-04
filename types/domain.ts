@@ -206,6 +206,35 @@ export interface BackupData {
 }
 
 /**
+ * Pomodoro active state structure
+ */
+export interface PomodoroState {
+    state: 'idle' | 'running' | 'paused';
+    phase: 'focus' | 'shortBreak' | 'longBreak';
+    targetEndTime: number;
+    currentSession: number;
+}
+
+/**
+ * Pomodoro duration configurations
+ */
+export interface PomodoroSettings {
+    focusDuration: number;
+    shortBreakDuration: number;
+    longBreakDuration: number;
+    sessionsBeforeLongBreak: number;
+}
+
+/**
+ * Pomodoro tracking statistics
+ */
+export interface PomodoroStats {
+    sessionsToday: number;
+    focusMinutesToday: number;
+    lastDate: string;
+}
+
+/**
  * Complete `chrome.storage.local` extension data schema
  */
 export interface StorageData {
@@ -219,9 +248,11 @@ export interface StorageData {
     theme?: string;
     marks?: HighlightMark[];
     bookmarks?: BookmarkItem[];
-    pomodoroState?: unknown;
-    pomodoroSettings?: unknown;
-    pomodoroStats?: unknown;
+    pomodoroState?: PomodoroState;
+    pomodoroSettings?: PomodoroSettings;
+    pomodoroStats?: PomodoroStats;
+    weeklySummaryEnabled?: boolean;
     userSettings?: UserSettings;
     [key: string]: unknown;
 }
+

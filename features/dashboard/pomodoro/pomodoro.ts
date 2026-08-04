@@ -91,7 +91,7 @@ export class PomodoroTimer {
                         this.resetState();
                     }
 
-                    const stats = result.pomodoroStats || {};
+                    const stats: Partial<PomodoroStats> = result.pomodoroStats || {};
                     if (stats.lastDate === new Date().toLocaleDateString()) {
                         this.todaySessions = stats.sessionsToday || 0;
                         this.todayFocusMinutes = stats.focusMinutesToday || 0;
