@@ -1,12 +1,12 @@
 # Integration & Playwright E2E Testing
 
-This document describes the integration test suites (`tests/integration/`) and Playwright end-to-end browser testing (`tests/e2e/`) in **AlgoRecall**.
+This document describes the integration test suites (`tests/integration/`) and Playwright end-to-end browser testing (`tests/e2e/`) in **AlgoRecall**. It outlines how these tests traverse multiple systems and how to interpret their results.
 
 ---
 
 ## 🔗 Integration Testing Suite (`tests/integration/`)
 
-Integration tests evaluate multi-component interactions across storage, scheduler, and tracker UI:
+Integration tests evaluate multi-component interactions across storage, scheduler, and tracker UI. While they still run under Jest using Node.js/jsdom and mock the Chrome APIs, they instantiate multiple real classes simultaneously.
 
 ### Key Integration Scenarios
 1. **`tracker.test.js`**:
@@ -21,14 +21,9 @@ Integration tests evaluate multi-component interactions across storage, schedule
 
 ## 🎭 Playwright E2E Browser Testing (`tests/e2e/`)
 
-Playwright tests run against the production Webpack build in a real Chromium browser instance with the extension unpacked.
+Playwright tests run against the production Webpack build in a **real Chromium browser instance** with the compiled extension loaded via CLI flags.
 
-### Configuration (`playwright.config.js`)
-* **Test Directory**: `./tests/e2e`
-* **Single Worker Execution**: Extension testing requires `workers: 1` to prevent storage context interference across parallel browser instances.
-* **Trace Strategy**: `on-first-retry` trace recording.
-
-### E2E Test Flow (`extension-load.spec.js`)
+### The Execution Workflow
 
 ```mermaid
 sequenceDiagram
@@ -45,10 +40,26 @@ sequenceDiagram
     PW->>Chromium: Assert overlay widget injected into page DOM
 ```
 
+### Authoring E2E Tests
+
+When adding new specifications in `tests/e2e/`:
+1. **Always Build First**: Ensure you run `npm run test:e2e` (which runs `npm run build` under the hood). Playwright tests the `/build` folder directly. Modifying source files will NOT reflect in E2E tests until a build occurs.
+2. **Context Isolation**: Each test file spins up a new isolated browser context with a fresh installation of the extension. State (like indexedDB or `chrome.storage`) is not shared between test files.
+3. **Mock Pages**: Do not navigate to real live external websites if possible. Use local HTML fixtures or strictly whitelisted static domains to ensure test stability and prevent network flakiness.
+
+---
+
+## 🐛 Debugging Failing Tests
+
+If a Playwright test fails in CI or locally, it generates trace artifacts in the `/test-results/` directory (e.g. `/test-results/tracker-overlay-Tracker-Ov-c3cb0-g-buttons-for-existing-card/trace.zip`).
+
+1. Open the Playwright Trace Viewer: `npx playwright show-trace path/to/trace.zip`
+2. This UI allows you to scrub through a timeline, viewing the DOM state, console logs, and network requests exactly as they occurred during the failure.
+
 ---
 
 ## 🔗 Related Documentation
-* 🧪 [Test Suite Overview](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/testing/test-suite-overview.md)
-* 🔬 [Unit Test Coverage](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/testing/unit-tests.md)
-* 🎯 [Tracker Feature](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/tracker.md)
-* 🤖 [Migration Rules & Guidelines](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/Agents.md)
+* 🧪 [Test Suite Overview](./test-suite-overview.md)
+* 🔬 [Unit Test Coverage](./unit-tests.md)
+* 🎯 [Tracker Feature](../features/tracker.md)
+* 🤖 [Migration Rules & Guidelines](../../Agents.md)

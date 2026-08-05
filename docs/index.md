@@ -46,9 +46,9 @@ docs/
 * 📐 [Global Types & Utilities](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/runtime-core/utils-and-types.md) — Core domain types (`domain.ts`), backup types (`backup.ts`), WASM declarations (`wasm-runtime.d.ts`), and Chrome extension types.
 
 ### 5. Testing & Verification
-* 🧪 [Test Suite Overview](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/testing/test-suite-overview.md) — Jest configuration, Playwright setup, `chromeMock.js` mock environment, and coverage reporters.
-* 🔬 [Unit Test Suite](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/testing/unit-tests.md) — Comprehensive breakdown of unit test modules covering FSRS, `dataUtils`, analytics, optimizer, and `backupManager`.
-* 🎭 [E2E & Integration Tests](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/testing/e2e-integration.md) — Integration test scenarios (`tracker.test.js`, `multiCard.test.js`) and Playwright end-to-end browser extension loading specs.
+* 🧪 [Test Suite Overview](./testing/test-suite-overview.md) — Jest configuration, Playwright setup, `chromeMock.js` mock environment, and coverage reporters.
+* 🔬 [Unit Test Suite](./testing/unit-tests.md) — Comprehensive breakdown of unit test modules covering FSRS, `dataUtils`, analytics, optimizer, and `backupManager`.
+* 🎭 [E2E & Integration Tests](./testing/e2e-integration.md) — Integration test scenarios (`tracker.test.js`, `multiCard.test.js`) and Playwright end-to-end browser extension loading specs.
 
 ---
 

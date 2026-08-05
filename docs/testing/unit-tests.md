@@ -1,6 +1,6 @@
 # Unit Test Breakdown & Coverage Analysis
 
-This document details the individual unit test suites under `tests/unit/`, mapping each test file to its target source module, key test cases, and assertion logic.
+This document details the individual unit test suites under `tests/unit/`, mapping each test file to its target source module, key test cases, and assertion logic. It also outlines the conventions for writing robust Jest tests within the extension environment.
 
 ---
 
@@ -37,7 +37,33 @@ This document details the individual unit test suites under `tests/unit/`, mappi
 
 ---
 
+## ✍️ Authoring Guide: Mocking Chrome APIs
+
+When writing new Jest tests, keep in mind that the environment is Node.js (via `jsdom`), not a real browser. AlgoRecall relies on a global mock provided by `tests/mocks/chromeMock.js`.
+
+### Using the `global.mockStorage`
+The `chrome.storage.local` API is stubbed to read/write from a simple Javascript dictionary named `global.mockStorage`.
+
+* **Before Each Test**: It is recommended to clear the storage state to prevent test leakage:
+  ```javascript
+  beforeEach(() => {
+    global.mockStorage = {};
+    jest.clearAllMocks();
+  });
+  ```
+* **Injecting State**: You can pre-populate storage for a test directly:
+  ```javascript
+  global.mockStorage['fsrsCards'] = mockCardFixture;
+  ```
+* **Verifying Calls**: The `chrome.*` methods are Jest spy functions, allowing you to assert calls:
+  ```javascript
+  expect(chrome.storage.local.set).toHaveBeenCalled();
+  expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'UPDATE_BADGE' });
+  ```
+
+---
+
 ## 🔗 Related Documentation
-* 🧪 [Test Suite Overview](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/testing/test-suite-overview.md)
-* 🎭 [E2E & Integration Specs](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/testing/e2e-integration.md)
-* 🧮 [FSRS Algorithm Theory](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/fsrs-algorithm.md)
+* 🧪 [Test Suite Overview](./test-suite-overview.md)
+* 🎭 [E2E & Integration Specs](./e2e-integration.md)
+* 🧮 [FSRS Algorithm Theory](../scheduler-wasm/fsrs-algorithm.md)
