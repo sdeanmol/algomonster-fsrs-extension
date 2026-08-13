@@ -226,11 +226,11 @@ export class AlgoRecallBackground {
             if (settings.enabled) {
                 const interval = parseInt(settings.frequency || String(ALARM_DEFAULT_CHECK_INTERVAL_MIN), 10);
                 if (!isNaN(interval) && interval > 0) {
-                    chrome.alarms.create('checkFsrsReviews', { periodInMinutes: interval });
+                    chrome.alarms.create('checkFsrsReviews', { delayInMinutes: interval, periodInMinutes: interval });
                     Logger.info('Background', `Scheduled checkFsrsReviews alarm every ${interval} minutes.`);
                 } else {
                     // If frequency is invalid, fall back to default interval
-                    chrome.alarms.create('checkFsrsReviews', { periodInMinutes: ALARM_DEFAULT_CHECK_INTERVAL_MIN });
+                    chrome.alarms.create('checkFsrsReviews', { delayInMinutes: ALARM_DEFAULT_CHECK_INTERVAL_MIN, periodInMinutes: ALARM_DEFAULT_CHECK_INTERVAL_MIN });
                     Logger.info('Background', `Scheduled checkFsrsReviews alarm every ${ALARM_DEFAULT_CHECK_INTERVAL_MIN} minutes (fallback).`);
                 }
                 
