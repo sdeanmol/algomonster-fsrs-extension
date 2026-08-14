@@ -52,6 +52,7 @@ export class AlgoRecallBackground {
     private _lastPomodoroTitle: string | null = null;
     private _lastPomodoroBadge: string | null = null;
     private _lastPomodoroColor: string | null = null;
+    private isCheckingDueCards: boolean = false;
 
     constructor() {
         this.init();
@@ -166,7 +167,7 @@ export class AlgoRecallBackground {
         try {
             if (!alarm || !alarm.name) return;
             if (alarm.name === 'checkFsrsReviews' || alarm.name === 'snoozeFsrsReviews' || alarm.name === 'smartReviewSchedule') {
-                this.checkDueCards();
+                this.checkDueCards(alarm.name);
             } else if (alarm.name === 'weeklySummary') {
                 this.handleWeeklySummary();
             } else if (alarm.name === 'dailyNudge') {
@@ -584,11 +585,17 @@ export class AlgoRecallBackground {
      * Queries the list of scheduled cards in storage, filters due items, and prompts the user.
      * Delivers alerts either through an in-page notification frame or a native system notification.
      */
-    async checkDueCards(): Promise<void> {
+    async checkDueCards(source?: string): Promise<void> {
+        if (this.isCheckingDueCards) {
+            Logger.debug('Background', 'checkDueCards is already running, skipping duplicate invocation.');
+            return;
+        }
+        this.isCheckingDueCards = true;
         try {
-            const result = (await chrome.storage.local.get(['fsrsCards', 'notificationSettings', 'whitelistedWebsites'])) as StorageData & {
+            const result = (await chrome.storage.local.get(['fsrsCards', 'notificationSettings', 'whitelistedWebsites', 'lastNotificationTime'])) as StorageData & {
                 notificationSettings?: NotificationSettings;
                 whitelistedWebsites?: WhitelistedWebsite[];
+                lastNotificationTime?: number;
             };
             if (chrome.runtime.lastError) {
                 Logger.error('Background', `Storage get error in checkDueCards: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
@@ -611,6 +618,18 @@ export class AlgoRecallBackground {
                 { domain: "codewars.com" },
                 { domain: "codingame.com" }
             ];
+
+            // Enforce minimum interval for checkFsrsReviews to bypass MV3 alarm bugs (like frequent re-triggering upon wake-up)
+            if (source === 'checkFsrsReviews') {
+                const interval = parseInt(settings.frequency || String(ALARM_DEFAULT_CHECK_INTERVAL_MIN), 10);
+                const lastCheck = result.lastNotificationTime || 0;
+                const now = Date.now();
+                // 1-minute buffer to account for alarm timing drift
+                if (now - lastCheck < (interval * 60000) - 60000) {
+                    Logger.info('Background', `Skipping checkDueCards; interval of ${interval} minutes has not passed yet.`);
+                    return;
+                }
+            }
 
             // If notifications are disabled, do not notify
             if (settings.enabled === false) return;
@@ -669,56 +688,72 @@ export class AlgoRecallBackground {
                     ? `You have ${tagStrs.join(', ')} patterns ready for review.`
                     : `You have ${dueCards.length} pattern(s) ready for review.`;
 
-                chrome.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
-                    try {
-                        if (chrome.runtime.lastError) {
-                            Logger.error('Background', `Tabs query error in checkDueCards: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-                        }
-                        let handledInPage = false;
-                        if (tabs && tabs[0] && tabs[0].id) {
-                            const tab = tabs[0];
-                            const url = tab.url;
-                            if (url) {
-                                const isMatching = whitelistedWebsites.some(site => url.includes(site.domain));
-                                if (isMatching && tab.id !== undefined) {
-                                    chrome.tabs.sendMessage(tab.id, {
-                                        action: 'show_custom_notification',
-                                        title: '🧠 AlgoRecall Reviews Due!',
-                                        message: groupMessage,
-                                        type: 'review',
-                                        count: dueCards.length
-                                    }, (response?: MessageResponse) => {
-                                        try {
-                                            if (chrome.runtime.lastError || !response || !response.success) {
-                                                this.createSystemReviewNotification(dueCards.length, settings, groupMessage);
-                                            }
-                                        } catch (msgErr) {
-                                            // Comment: Safe recovery in tabs message review notification callback
-                                            const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
-                                            Logger.error('Background', `Error in review notification message callback: ${errorMessage}`, { msgErr });
-                                            this.createSystemReviewNotification(dueCards.length, settings, groupMessage);
-                                        }
-                                    });
-                                    handledInPage = true;
-                                }
-                            }
-                        }
-                        if (!handledInPage) {
-                            this.createSystemReviewNotification(dueCards.length, settings, groupMessage);
-                        }
-                    } catch (queryErr) {
-                        // Comment: Safe recovery in tabs query callback for checkDueCards
-                        const errorMessage = queryErr instanceof Error ? queryErr.message : String(queryErr);
-                        Logger.error('Background', `Error in tabs query callback for checkDueCards: ${errorMessage}`, { queryErr });
-                        this.createSystemReviewNotification(dueCards.length, settings, groupMessage);
-                    }
-                });
+                // Record the time of this notification to enforce intervals across MV3 service worker restarts
+                await chrome.storage.local.set({ lastNotificationTime: Date.now() });
+
+                this.dispatchReviewNotification(dueCards.length, groupMessage, settings, whitelistedWebsites);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Error checking due cards: ${errorMessage}`, { err });
             // Comment: Non-fatal error during due card check, background worker recovers cleanly
+        } finally {
+            this.isCheckingDueCards = false;
         }
+    }
+
+    /**
+     * Dispatches the review notification to the active tab if whitelisted, or falls back to system notification.
+     * @param {number} dueCount - The number of cards currently due.
+     * @param {string} groupMessage - The message string.
+     * @param {NotificationSettings} settings - Active notification configurations.
+     * @param {WhitelistedWebsite[]} whitelistedWebsites - User configured whitelist.
+     */
+    private dispatchReviewNotification(dueCount: number, groupMessage: string, settings: NotificationSettings, whitelistedWebsites: WhitelistedWebsite[]): void {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
+            try {
+                if (chrome.runtime.lastError) {
+                    Logger.error('Background', `Tabs query error in dispatchReviewNotification: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                }
+                let handledInPage = false;
+                if (tabs && tabs[0] && tabs[0].id) {
+                    const tab = tabs[0];
+                    const url = tab.url;
+                    if (url) {
+                        const isMatching = whitelistedWebsites.some(site => url.includes(site.domain));
+                        if (isMatching && tab.id !== undefined) {
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: 'show_custom_notification',
+                                title: '🧠 AlgoRecall Reviews Due!',
+                                message: groupMessage,
+                                type: 'review',
+                                count: dueCount
+                            }, (response?: MessageResponse) => {
+                                try {
+                                    if (chrome.runtime.lastError || !response || !response.success) {
+                                        this.createSystemReviewNotification(dueCount, settings, groupMessage);
+                                    }
+                                } catch (msgErr) {
+                                    // Comment: Safe recovery in tabs message review notification callback
+                                    const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
+                                    Logger.error('Background', `Error in review notification message callback: ${errorMessage}`, { msgErr });
+                                    this.createSystemReviewNotification(dueCount, settings, groupMessage);
+                                }
+                            });
+                            handledInPage = true;
+                        }
+                    }
+                }
+                if (!handledInPage) {
+                    this.createSystemReviewNotification(dueCount, settings, groupMessage);
+                }
+            } catch (queryErr) {
+                // Comment: Safe recovery in tabs query callback for dispatchReviewNotification
+                const errorMessage = queryErr instanceof Error ? queryErr.message : String(queryErr);
+                Logger.error('Background', `Error in tabs query callback for dispatchReviewNotification: ${errorMessage}`, { queryErr });
+                this.createSystemReviewNotification(dueCount, settings, groupMessage);
+            }
+        });
     }
 
     /**
