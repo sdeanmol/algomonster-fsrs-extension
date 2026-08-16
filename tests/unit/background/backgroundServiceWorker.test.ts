@@ -378,6 +378,73 @@ describe('BackgroundServiceWorker', () => {
     expect(chrome.notifications.create).not.toHaveBeenCalled();
   });
 
+  it('shows active-streak title when yesterday had activity', async () => {
+    const today = new Date();
+    const yesterday = new Date(today.getTime() - 86400000);
+    const yesterdayKey = new Date(yesterday.getTime() - (yesterday.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
+      const data = { fsrsActivity: { [yesterdayKey]: 5 }, notificationSettings: { enabled: true } };
+      if (typeof cb === 'function') cb(data);
+      return Promise.resolve(data);
+    });
+    await worker.handleDailyNudge();
+    expect(chrome.notifications.create).toHaveBeenCalledWith(
+      'algo-daily-nudge',
+      expect.objectContaining({ title: '🔥 Keep Your Streak Alive!' }),
+      expect.any(Function)
+    );
+  });
+
+  it('shows new-streak title when streak has ended (no recent activity)', async () => {
+    const today = new Date();
+    const threeDaysAgo = new Date(today.getTime() - 3 * 86400000);
+    const threeDaysAgoKey = new Date(threeDaysAgo.getTime() - (threeDaysAgo.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
+      const data = { fsrsActivity: { [threeDaysAgoKey]: 5 }, notificationSettings: { enabled: true } };
+      if (typeof cb === 'function') cb(data);
+      return Promise.resolve(data);
+    });
+    await worker.handleDailyNudge();
+    expect(chrome.notifications.create).toHaveBeenCalledWith(
+      'algo-daily-nudge',
+      expect.objectContaining({ title: '🚀 Start a New Streak Today!' }),
+      expect.any(Function)
+    );
+  });
+
+  it('shows new-streak title for new user with no activity history', async () => {
+    (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
+      const data = { fsrsActivity: {}, notificationSettings: { enabled: true } };
+      if (typeof cb === 'function') cb(data);
+      return Promise.resolve(data);
+    });
+    await worker.handleDailyNudge();
+    expect(chrome.notifications.create).toHaveBeenCalledWith(
+      'algo-daily-nudge',
+      expect.objectContaining({ title: '🚀 Start a New Streak Today!' }),
+      expect.any(Function)
+    );
+  });
+
+  it('correctly detects active streak at day boundary (only yesterday active)', async () => {
+    const today = new Date();
+    const yesterday = new Date(today.getTime() - 86400000);
+    const yesterdayKey = new Date(yesterday.getTime() - (yesterday.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    const twoDaysAgo = new Date(today.getTime() - 2 * 86400000);
+    const twoDaysAgoKey = new Date(twoDaysAgo.getTime() - (twoDaysAgo.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
+      const data = { fsrsActivity: { [twoDaysAgoKey]: 3, [yesterdayKey]: 3 }, notificationSettings: { enabled: true } };
+      if (typeof cb === 'function') cb(data);
+      return Promise.resolve(data);
+    });
+    await worker.handleDailyNudge();
+    expect(chrome.notifications.create).toHaveBeenCalledWith(
+      'algo-daily-nudge',
+      expect.objectContaining({ title: '🔥 Keep Your Streak Alive!' }),
+      expect.any(Function)
+    );
+  });
+
   // ─── showTestNotification ─────────────────────────────────────────────
   it('shows test notification in active matching tab', async () => {
     await worker.showTestNotification();

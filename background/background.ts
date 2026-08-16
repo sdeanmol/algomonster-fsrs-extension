@@ -19,6 +19,7 @@ import {
 } from '../types/domain';
 import {
     MS_PER_MINUTE,
+    MS_PER_DAY,
     MS_PER_WEEK,
     ALARM_DEFAULT_CHECK_INTERVAL_MIN,
     ALARM_DAILY_PERIOD_MIN,
@@ -930,11 +931,23 @@ export class AlgoRecallBackground {
             const dateKey = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
             if (!activity[dateKey] || activity[dateKey] === 0) {
+                // Determine if user has an active streak (activity yesterday)
+                const yesterdayMs = today.getTime() - MS_PER_DAY;
+                const yesterdayKey = new Date(yesterdayMs - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                const hasActiveStreak = !!(activity[yesterdayKey] && activity[yesterdayKey] > 0);
+
+                const title = hasActiveStreak
+                    ? '🔥 Keep Your Streak Alive!'
+                    : '🚀 Start a New Streak Today!';
+                const message = hasActiveStreak
+                    ? "You haven't reviewed any patterns today. Just 5 minutes can keep your memory sharp!"
+                    : "Every expert was once a beginner. Start fresh with just 5 minutes of review!";
+
                 chrome.notifications.create('algo-daily-nudge', {
                     type: 'basic',
                     iconUrl: '../icons/icon.png',
-                    title: '🔥 Keep Your Streak Alive!',
-                    message: "You haven't reviewed any patterns today. Just 5 minutes can keep your memory sharp!",
+                    title: title,
+                    message: message,
                     priority: 2,
                     requireInteraction: false
                 }, (id) => {
