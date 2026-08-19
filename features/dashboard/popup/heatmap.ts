@@ -1,4 +1,5 @@
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData } from '../../../types/domain';
 import { MS_PER_DAY, DAYS_PER_WEEK, HEATMAP_LEVEL_THRESHOLDS } from '../../common/constants';
@@ -79,14 +80,11 @@ export class HeatmapComponent extends DashboardComponent {
                 try {
                     grid.scrollLeft = grid.scrollWidth;
                 } catch (scrollErr) {
-                    const errorMessage = scrollErr instanceof Error ? scrollErr.message : String(scrollErr);
-                    Logger.error('HeatmapComponent', `Error scrolling heatmap grid: ${errorMessage}`, { scrollErr });
-                }
+            UIUtils.catchError('HeatmapComponent', 'Error scrolling heatmap grid', scrollErr);
+        }
             }, 10);
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.error('HeatmapComponent', `Error rendering heatmap: ${errorMessage}`, { lifetime, error });
-            // Comment: Non-fatal heatmap UI render catch
+            UIUtils.catchError('HeatmapComponent', 'Error rendering heatmap', error, { lifetime });
         }
     }
 
@@ -103,15 +101,12 @@ export class HeatmapComponent extends DashboardComponent {
                         toggleLifetimeBtn.innerText = this.isLifetimeView ? "Show Last 12 Weeks" : "Show Lifetime";
                         this.load(this.isLifetimeView);
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HeatmapComponent', `Error handling toggle lifetime button click: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('HeatmapComponent', 'Error handling toggle lifetime button click', err);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HeatmapComponent', `Error binding heatmap events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event listener binding error
+            UIUtils.catchError('HeatmapComponent', 'Error binding heatmap events', err);
         }
     }
 }

@@ -4,6 +4,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData } from '../../../types/domain';
 
@@ -61,9 +62,7 @@ export class RatingComponent extends DashboardComponent {
                 card.classList.add('hide-panel');
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.error('RatingComponent', `Error loading rating prompt config: ${errorMessage}`, { error });
-            // Comment: Non-fatal rating prompt load catch
+            UIUtils.catchError('RatingComponent', 'Error loading rating prompt config', error);
         }
     }
 
@@ -91,9 +90,8 @@ export class RatingComponent extends DashboardComponent {
                         card.classList.add('hide-panel');
                         this.showStatus("Notification paused for 7 days!");
                     } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        Logger.error('RatingComponent', `Error saving snooze state: ${errorMessage}`, { error });
-                    }
+            UIUtils.catchError('RatingComponent', 'Error saving snooze state', error);
+        }
                 });
             }
 
@@ -107,9 +105,8 @@ export class RatingComponent extends DashboardComponent {
                         thanksState?.classList.remove('hide-panel');
                         this.showStatus("Thank you for your rating!");
                     } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        Logger.error('RatingComponent', `Error setting already rated status: ${errorMessage}`, { error });
-                    }
+            UIUtils.catchError('RatingComponent', 'Error setting already rated status', error);
+        }
                 });
             }
 
@@ -126,15 +123,12 @@ export class RatingComponent extends DashboardComponent {
                         promptState?.classList.remove('hide-panel');
                         thanksState?.classList.add('hide-panel');
                     } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        Logger.error('RatingComponent', `Error resetting rating status: ${errorMessage}`, { error });
-                    }
+            UIUtils.catchError('RatingComponent', 'Error resetting rating status', error);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('RatingComponent', `Error binding rating events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event binding catch
+            UIUtils.catchError('RatingComponent', 'Error binding rating events', err);
         }
     }
 }

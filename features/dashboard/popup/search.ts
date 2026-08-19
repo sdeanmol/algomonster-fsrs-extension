@@ -4,6 +4,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { Card, StorageData } from '../../../types/domain';
 
@@ -50,9 +51,7 @@ export class QuickSearchComponent extends DashboardComponent {
                 tagFilter.appendChild(option);
             });
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.error('QuickSearchComponent', `Error loading quick search cards: ${errorMessage}`, { error });
-            // Comment: Non-fatal search initialization catch
+            UIUtils.catchError('QuickSearchComponent', 'Error loading quick search cards', error);
         }
     }
 
@@ -72,14 +71,12 @@ export class QuickSearchComponent extends DashboardComponent {
                             try {
                                 this.renderQuickSearch();
                             } catch (renderErr) {
-                                const errorMessage = renderErr instanceof Error ? renderErr.message : String(renderErr);
-                                Logger.error('QuickSearchComponent', `Error in debounced quick search render: ${errorMessage}`, { renderErr });
-                            }
+            UIUtils.catchError('QuickSearchComponent', 'Error in debounced quick search render', renderErr);
+        }
                         }, 150);
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('QuickSearchComponent', `Error in quick search input listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('QuickSearchComponent', 'Error in quick search input listener', err);
+        }
                 });
             }
 
@@ -88,15 +85,12 @@ export class QuickSearchComponent extends DashboardComponent {
                     try {
                         this.renderQuickSearch();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('QuickSearchComponent', `Error in tag filter change listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('QuickSearchComponent', 'Error in tag filter change listener', err);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('QuickSearchComponent', `Error binding quick search events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event listener binding error
+            UIUtils.catchError('QuickSearchComponent', 'Error binding quick search events', err);
         }
     }
 
@@ -177,9 +171,7 @@ export class QuickSearchComponent extends DashboardComponent {
             resultsContainer.style.display = 'block';
             resultsContainer.innerHTML = html;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('QuickSearchComponent', `Error rendering quick search results: ${errorMessage}`, { err });
-            // Comment: Non-fatal quick search rendering error
+            UIUtils.catchError('QuickSearchComponent', 'Error rendering quick search results', err);
         }
     }
 }

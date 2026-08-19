@@ -1,4 +1,5 @@
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { StatsComponent } from './stats';
 import { HeatmapComponent } from './heatmap';
 import { NotificationsComponent } from './notifications';
@@ -127,9 +128,7 @@ export class AlgoRecallDashboard {
             // Perform initial loading from storage databases
             await this.loadAll();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Popup', `Failed popup initialization: ${errorMessage}`, { err });
-            // Comment: Catch popup dashboard bootstrap failure gracefully
+            UIUtils.catchError('Popup', 'Failed popup initialization', err);
         } finally {
             Logger.timeEnd('Popup', 'init');
         }
@@ -149,9 +148,7 @@ export class AlgoRecallDashboard {
                 this.search.load()
             ]);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Popup', `Error loading child components in loadAll: ${errorMessage}`, { err });
-            // Comment: Catch child component loading failure gracefully
+            UIUtils.catchError('Popup', 'Error loading child components in loadAll', err);
         }
     }
 
@@ -170,9 +167,8 @@ export class AlgoRecallDashboard {
                         await chrome.storage.local.set({ theme: newTheme });
                         this.showStatus(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode!`);
                     } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        Logger.error('Popup', `Error toggling theme settings: ${errorMessage}`, { error });
-                    }
+            UIUtils.catchError('Popup', 'Error toggling theme settings', error);
+        }
                 });
             }
 
@@ -190,9 +186,8 @@ export class AlgoRecallDashboard {
                             this.dom.markerToggle.checked = result.chromeSettings.showMarkerPopup;
                         }
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Popup', `Error rendering marker toggle setting: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('Popup', 'Error rendering marker toggle setting', err);
+        }
                 });
                 this.dom.markerToggle.addEventListener('change', async (e: Event) => {
                     try {
@@ -202,9 +197,8 @@ export class AlgoRecallDashboard {
                         settings.showMarkerPopup = target.checked;
                         await chrome.storage.local.set({ chromeSettings: settings });
                     } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        Logger.error('Popup', `Error setting showMarkerPopup config: ${errorMessage}`, { error });
-                    }
+            UIUtils.catchError('Popup', 'Error setting showMarkerPopup config', error);
+        }
                 });
             }
 
@@ -225,9 +219,8 @@ export class AlgoRecallDashboard {
                             this.dom.chartsToggle.checked = showCharts;
                         }
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Popup', `Error rendering charts toggle setting: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('Popup', 'Error rendering charts toggle setting', err);
+        }
                 });
                 this.dom.chartsToggle.addEventListener('change', async (e: Event) => {
                     try {
@@ -238,9 +231,8 @@ export class AlgoRecallDashboard {
                         await chrome.storage.local.set({ chromeSettings: settings });
                         this.showStatus(`Visual charts ${target.checked ? 'enabled' : 'disabled'}!`);
                     } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        Logger.error('Popup', `Error setting showCharts config: ${errorMessage}`, { error });
-                    }
+            UIUtils.catchError('Popup', 'Error setting showCharts config', error);
+        }
                 });
             }
 
@@ -267,9 +259,8 @@ export class AlgoRecallDashboard {
                             this.dom.testNotificationsContainer.style.display = devMode ? 'flex' : 'none';
                         }
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Popup', `Error rendering dev mode toggle setting: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('Popup', 'Error rendering dev mode toggle setting', err);
+        }
                 });
                 this.dom.devModeToggle.addEventListener('change', async (e: Event) => {
                     try {
@@ -286,9 +277,8 @@ export class AlgoRecallDashboard {
                         }
                         this.showStatus(`Developer mode ${target.checked ? 'enabled' : 'disabled'}!`);
                     } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        Logger.error('Popup', `Error setting developerMode config: ${errorMessage}`, { error });
-                    }
+            UIUtils.catchError('Popup', 'Error setting developerMode config', error);
+        }
                 });
 
                 if (this.dom.exportDebugLogsBtn) {
@@ -326,14 +316,12 @@ export class AlgoRecallDashboard {
                                     });
                                     this.showStatus(`Exported ${logs.length} debug logs!`);
                                 } catch (innerErr) {
-                                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                                    Logger.error('Popup', `Error exporting debug logs from callback: ${errorMessage}`, { innerErr });
-                                }
+            UIUtils.catchError('Popup', 'Error exporting debug logs from callback', innerErr);
+        }
                             });
                         } catch (err) {
-                            const errorMessage = err instanceof Error ? err.message : String(err);
-                            Logger.error('Popup', `Error handling export debug logs click: ${errorMessage}`, { err });
-                        }
+            UIUtils.catchError('Popup', 'Error handling export debug logs click', err);
+        }
                     });
                 }
             }
@@ -344,9 +332,8 @@ export class AlgoRecallDashboard {
                     try {
                         chrome.tabs.create({ url: chrome.runtime.getURL('features/common/websites/websites.html') });
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Popup', `Error navigating to websites.html: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('Popup', 'Error navigating to websites.html', err);
+        }
                 });
             }
 
@@ -355,9 +342,8 @@ export class AlgoRecallDashboard {
                     try {
                         chrome.tabs.create({ url: chrome.runtime.getURL('features/tracker/config/fsrsConfig.html') });
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Popup', `Error navigating to fsrsConfig.html: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('Popup', 'Error navigating to fsrsConfig.html', err);
+        }
                 });
             }
 
@@ -365,74 +351,65 @@ export class AlgoRecallDashboard {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/common/help/help.html') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to help.html: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to help.html', err);
+        }
             });
             this.dom.historyBtn?.addEventListener('click', () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/history/history.html') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to history.html: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to history.html', err);
+        }
             });
             this.dom.openHeatmapTabBtn?.addEventListener('click', () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/heatmap/heatmap.html') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to heatmap.html: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to heatmap.html', err);
+        }
             });
             this.dom.boxTotal?.addEventListener('click', () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=total') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to total data view: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to total data view', err);
+        }
             });
             this.dom.boxDue?.addEventListener('click', () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=due') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to due data view: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to due data view', err);
+        }
             });
             this.dom.boxRetention?.addEventListener('click', () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=retention') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to retention data view: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to retention data view', err);
+        }
             });
             this.dom.manageHighlightsBtn?.addEventListener('click', () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/manager/highlights.html') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to highlights.html: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to highlights.html', err);
+        }
             });
             this.dom.openOptionsBtn?.addEventListener('click', () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/options/highlightOptions.html') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to highlightOptions.html: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to highlightOptions.html', err);
+        }
             });
 
             const openAnalyticsTab = () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/analytics/analytics.html') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to analytics.html: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to analytics.html', err);
+        }
             };
             this.dom.analyticsBtn?.addEventListener('click', openAnalyticsTab);
             this.dom.headerAnalyticsBtn?.addEventListener('click', openAnalyticsTab);
@@ -441,33 +418,29 @@ export class AlgoRecallDashboard {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/forecast/forecast.html') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to forecast.html: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to forecast.html', err);
+        }
             });
             this.dom.studyplanBtn?.addEventListener('click', () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/studyplan/studyplan.html') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to studyplan.html: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to studyplan.html', err);
+        }
             });
             this.dom.pomodoroBtn?.addEventListener('click', () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/pomodoro/pomodoro.html') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to pomodoro.html: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to pomodoro.html', err);
+        }
             });
             this.dom.openSummaryPageBtn?.addEventListener('click', () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/summary/summary.html') });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Popup', `Error navigating to summary.html: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('Popup', 'Error navigating to summary.html', err);
+        }
             });
 
             // Standard JSON database backup export logic
@@ -520,21 +493,18 @@ export class AlgoRecallDashboard {
                                                 }
                                             }
                                         } catch (cbErr) {
-                                            const errorMessage = cbErr instanceof Error ? cbErr.message : String(cbErr);
-                                            Logger.error('Popup', `Error updating UI toggles post-import: ${errorMessage}`, { cbErr });
-                                        }
+            UIUtils.catchError('Popup', 'Error updating UI toggles post-import', cbErr);
+        }
                                     });
                                 }
                             } catch (importCbErr) {
-                                const errorMessage = importCbErr instanceof Error ? importCbErr.message : String(importCbErr);
-                                Logger.error('Popup', `Error in import backup callback: ${errorMessage}`, { importCbErr });
-                            }
+            UIUtils.catchError('Popup', 'Error in import backup callback', importCbErr);
+        }
                         });
                         target.value = ''; // Reset file input
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Popup', `Error in importFile change listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('Popup', 'Error in importFile change listener', err);
+        }
                 });
             }
 
@@ -579,9 +549,8 @@ export class AlgoRecallDashboard {
                             }
                         });
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Popup', `Error in ankiExportBtn click listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('Popup', 'Error in ankiExportBtn click listener', err);
+        }
                 });
             }
 
@@ -632,14 +601,12 @@ export class AlgoRecallDashboard {
                                                 this.showStatus(`Imported ${unique.length} cards from Anki! (${newCards.length - unique.length} duplicates skipped)`);
                                                 this.stats.load();
                                             } catch (setCbErr) {
-                                                const errorMessage = setCbErr instanceof Error ? setCbErr.message : String(setCbErr);
-                                                Logger.error('Popup', `Error in storage set callback for Anki import: ${errorMessage}`, { setCbErr });
-                                            }
+            UIUtils.catchError('Popup', 'Error in storage set callback for Anki import', setCbErr);
+        }
                                         });
                                     } catch (readCbErr) {
-                                        const errorMessage = readCbErr instanceof Error ? readCbErr.message : String(readCbErr);
-                                        Logger.error('Popup', `Error in storage get callback for Anki import: ${errorMessage}`, { readCbErr });
-                                    }
+            UIUtils.catchError('Popup', 'Error in storage get callback for Anki import', readCbErr);
+        }
                                 });
                             } catch (readerErr) {
                                 const errorMessage = readerErr instanceof Error ? readerErr.message : String(readerErr);
@@ -650,15 +617,12 @@ export class AlgoRecallDashboard {
                         reader.readAsText(file);
                         target.value = ''; // Reset file input
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Popup', `Error in ankiImportFile change listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('Popup', 'Error in ankiImportFile change listener', err);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Popup', `Error binding popup dashboard events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event listener binding catch
+            UIUtils.catchError('Popup', 'Error binding popup dashboard events', err);
         }
     }
 
@@ -687,13 +651,11 @@ export class AlgoRecallDashboard {
                 try {
                     el.classList.remove('show');
                 } catch (timerErr) {
-                    const errorMessage = timerErr instanceof Error ? timerErr.message : String(timerErr);
-                    Logger.error('Popup', `Error hiding status toast: ${errorMessage}`, { timerErr });
-                }
+            UIUtils.catchError('Popup', 'Error hiding status toast', timerErr);
+        }
             }, 2500);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Popup', `Error rendering status toast: ${errorMessage}`, { msg, isError, err });
+            UIUtils.catchError('Popup', 'Error rendering status toast', err, { msg, isError });
         }
     }
 
@@ -817,9 +779,8 @@ function initPopupDashboard(): void {
         const dashboard = new AlgoRecallDashboard();
         dashboard.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('Popup', `Initialization failed: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('Popup', 'Initialization failed', err);
+        }
 }
 
 if (typeof document !== 'undefined') {

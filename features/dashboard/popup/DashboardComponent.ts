@@ -1,4 +1,5 @@
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 
 /**
  * @interface DashboardCoordinator
@@ -38,9 +39,7 @@ export abstract class DashboardComponent {
                 this.coordinator.showStatus(message);
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DashboardComponent', `Error executing showStatus: ${errorMessage}`, { message, err });
-            // Comment: Catch notification delegation error gracefully
+            UIUtils.catchError('DashboardComponent', 'Error executing showStatus', err, { message });
         }
     }
 }

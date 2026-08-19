@@ -4,6 +4,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING, DUE_CARDS_THRESHOLD_WARNING } from '@common/constants';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
@@ -255,16 +256,13 @@ export class StatsComponent extends DashboardComponent {
                         this.showMilestoneToast(label);
                         this.showConfetti();
                     } catch (mErr) {
-                        const errorMessage = mErr instanceof Error ? mErr.message : String(mErr);
-                        Logger.error('StatsComponent', `Error in milestone celebration callback: ${errorMessage}`, { mErr });
-                    }
+            UIUtils.catchError('StatsComponent', 'Error in milestone celebration callback', mErr);
+        }
                 }, 300);
             }
 
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.error('StatsComponent', `Error loading stats: ${errorMessage}`, { error });
-            // Comment: Non-fatal stats load catch
+            UIUtils.catchError('StatsComponent', 'Error loading stats', error);
         }
     }
 
@@ -284,9 +282,8 @@ export class StatsComponent extends DashboardComponent {
                         goalEditor.style.display = goalEditor.style.display === 'none' ? 'flex' : 'none';
                         if (goalEditor.style.display === 'flex') goalInput.focus();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('StatsComponent', `Error toggling goal editor visibility: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('StatsComponent', 'Error toggling goal editor visibility', err);
+        }
                 });
 
                 const saveGoal = async () => {
@@ -297,9 +294,8 @@ export class StatsComponent extends DashboardComponent {
                             goalEditor.style.display = 'none';
                             await this.load();
                         } catch (error) {
-                            const errorMessage = error instanceof Error ? error.message : String(error);
-                            Logger.error('StatsComponent', `Error saving daily goal target: ${errorMessage}`, { val, error });
-                        }
+            UIUtils.catchError('StatsComponent', 'Error saving daily goal target', error, { val });
+        }
                     }
                 };
 
@@ -321,9 +317,7 @@ export class StatsComponent extends DashboardComponent {
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error binding goal editor events: ${errorMessage}`, { err });
-            // Comment: Non-fatal goal editor event binding catch
+            UIUtils.catchError('StatsComponent', 'Error binding goal editor events', err);
         }
     }
 
@@ -334,8 +328,7 @@ export class StatsComponent extends DashboardComponent {
         try {
             // Events are bound during load or UI interactions
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error binding stats events: ${errorMessage}`, { err });
+            UIUtils.catchError('StatsComponent', 'Error binding stats events', err);
         }
     }
 
@@ -560,13 +553,11 @@ export class StatsComponent extends DashboardComponent {
                 try {
                     toast.classList.remove('show');
                 } catch (timerErr) {
-                    const errorMessage = timerErr instanceof Error ? timerErr.message : String(timerErr);
-                    Logger.error('StatsComponent', `Error hiding milestone toast: ${errorMessage}`, { timerErr });
-                }
+            UIUtils.catchError('StatsComponent', 'Error hiding milestone toast', timerErr);
+        }
             }, 3500);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error showing milestone toast: ${errorMessage}`, { message, err });
+            UIUtils.catchError('StatsComponent', 'Error showing milestone toast', err, { message });
         }
     }
 
@@ -658,15 +649,13 @@ export class StatsComponent extends DashboardComponent {
 
                     requestAnimationFrame(animate);
                 } catch (animErr) {
-                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
-                    Logger.error('StatsComponent', `Error in confetti animation loop: ${errorMessage}`, { animErr });
-                }
+            UIUtils.catchError('StatsComponent', 'Error in confetti animation loop', animErr);
+        }
             };
 
             requestAnimationFrame(animate);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error initializing confetti animation: ${errorMessage}`, { err });
+            UIUtils.catchError('StatsComponent', 'Error initializing confetti animation', err);
         }
     }
 }
