@@ -1,4 +1,5 @@
 import { Logger } from '@common/logger';
+import { UIUtils } from './uiUtils';
 
 export interface TagInputOptions {
     getSuggestions?: () => string[] | Promise<string[]>;
@@ -105,7 +106,7 @@ export class TagInputControl {
                 configurable: true
             });
         } catch (err) {
-            Logger.error('TagInputControl', 'Could not intercept value descriptor', { err });
+            UIUtils.catchError('TagInputControl', 'Could not intercept value descriptor', err);
         }
     }
 
@@ -308,7 +309,7 @@ export class TagInputControl {
                 this.closeDropdown();
             }
         } catch (err) {
-            Logger.error('TagInputControl', 'Error fetching autocomplete suggestions', { err });
+            UIUtils.catchError('TagInputControl', 'Error fetching autocomplete suggestions', err);
             this.closeDropdown();
         }
     }

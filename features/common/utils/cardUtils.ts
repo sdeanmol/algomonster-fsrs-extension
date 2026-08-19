@@ -5,6 +5,7 @@
 
 import { Logger } from '@common/logger';
 import { Card } from '../../../types/domain';
+import { UIUtils } from './uiUtils';
 
 export interface CardHistoryLogEntry {
     date: number | string;
@@ -48,9 +49,7 @@ export function getLastReviewDate(card?: CardLike | null): number | null {
 
         return null;
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('CardUtils', `Error in getLastReviewDate: ${errorMessage}`, { card, err });
-        // Comment: Return null if card object parsing or date conversion throws
+        UIUtils.catchError('CardUtils', 'Error in getLastReviewDate', err, { card });
         return null;
     }
 }
@@ -62,9 +61,7 @@ export function generateCardId(): string {
     try {
         return Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('CardUtils', `Error generating card ID: ${errorMessage}`, { err });
-        // Comment: Fallback random string generator on error
+        UIUtils.catchError('CardUtils', 'Error generating card ID', err);
         return `id_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
     }
 }
@@ -77,9 +74,7 @@ export function cleanUrl(url?: string | null): string {
     try {
         return url.split('?')[0].split('#')[0];
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('CardUtils', `Error cleaning URL '${url}': ${errorMessage}`, { url, err });
-        // Comment: Fallback return raw URL on string splitting error
+        UIUtils.catchError('CardUtils', `Error cleaning URL '${url}'`, err, { url });
         return String(url);
     }
 }
@@ -93,9 +88,7 @@ export function getCardsForUrl(cards: Card[], url: string): Card[] {
         const targetClean = cleanUrl(url);
         return cards.filter(c => c && c.problemUrl && cleanUrl(c.problemUrl) === targetClean);
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('CardUtils', `Error filtering cards for URL '${url}': ${errorMessage}`, { url, err });
-        // Comment: Return empty array on card array filtering error
+        UIUtils.catchError('CardUtils', `Error filtering cards for URL '${url}'`, err, { url });
         return [];
     }
 }
@@ -127,9 +120,7 @@ export function ensureCardIds(cards: Card[]): Card[] {
 
         return cards;
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('CardUtils', `Error in ensureCardIds: ${errorMessage}`, { err });
-        // Comment: Return cards array safely even if ID generation encounters invalid objects
+        UIUtils.catchError('CardUtils', 'Error in ensureCardIds', err);
         return cards;
     }
 }
