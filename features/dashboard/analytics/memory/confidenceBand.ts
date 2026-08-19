@@ -3,7 +3,7 @@
  * @description Helper class for rendering SVG confidence interval bands around retention decay curves.
  */
 
-import { Logger } from '@common/logger';
+import { UIUtils } from '../../../common/utils/uiUtils';
 
 export interface PointR {
     t: number;
@@ -44,8 +44,7 @@ export class ConfidenceBand {
             
             return `<polygon points="${polygonPoints}" fill="${color}" opacity="0.15" class="confidence-band" />`;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ConfidenceBand', `Error rendering confidence band polygon: ${errorMessage}`, { color, n, err });
+            UIUtils.catchError('ConfidenceBand', 'Error rendering confidence band polygon', err, { color, n });
             // Return empty string fallback on non-fatal SVG rendering failure
             return '';
         }
