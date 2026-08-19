@@ -7,12 +7,12 @@ import '../features/highlighter/highlighter';
 import './notifications';
 import '../features/tracker/tracker';
 import { Card, StorageData, ExtensionMessage, MessageResponse, FSRSParameters, HighlightMark, BookmarkItem } from '../types/domain';
-import { AlgoRecallState, getAlgoRecallGlobal, DEFAULT_PALETTES } from './state';
+import { AlgoRecallState, getAlgoRecallGlobal } from './state';
 import { Utils } from './utils';
 import { Notifier } from './notifications';
 import { Highlighter } from '../features/highlighter/highlighter';
 import Tracker from '../features/tracker/tracker';
-import { DEFAULT_WHITELISTED_WEBSITES } from '../features/common/constants';
+import { DEFAULT_WHITELISTED_WEBSITES, DEFAULT_PALETTES } from '../features/common/constants';
 
 /**
  * @class AlgoRecallOrchestrator

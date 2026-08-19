@@ -83,7 +83,7 @@ describe('HighlightOptionsManager', () => {
       });
 
       manager.init();
-      expect(manager.chromeSettings.palettes).toEqual([]);
+      expect(manager.chromeSettings.palettes).toEqual(manager.DEFAULT_PALETTES);
     });
 
     it('handles DOM exception gracefully in init', () => {

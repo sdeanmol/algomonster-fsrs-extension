@@ -4,6 +4,8 @@
  */
 
 // Time conversions in milliseconds
+import { Palette } from '../../types/domain';
+
 export const MS_PER_SECOND = 1000;
 export const MS_PER_MINUTE = 60 * MS_PER_SECOND;
 export const MS_PER_HOUR = 60 * MS_PER_MINUTE;
@@ -63,3 +65,19 @@ export const DEFAULT_WHITELISTED_WEBSITES = [
     { domain: "codewars.com" },
     { domain: "codingame.com" }
 ];
+
+export const DEFAULT_PALETTES: Palette[] = [
+    { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
+    { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
+    { name: 'Ocean Breeze', colors: ['#a8dadc', '#457b9d', '#1d3557', '#e63946', '#f1faee'] },
+    { name: 'Forest Moss', colors: ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'] },
+    { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
+];
+
+export const DEFAULT_CHROME_SETTINGS = {
+    defaultHighlightColor: '#f1c40f',
+    recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
+    showMarkerPopup: true,
+    activePaletteIndex: 0,
+    palettes: DEFAULT_PALETTES
+};

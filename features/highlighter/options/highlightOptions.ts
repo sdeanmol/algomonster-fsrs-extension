@@ -5,6 +5,7 @@
 
 import { Logger } from '@common/logger';
 import { StorageData, ChromeSettings } from '../../../types/domain';
+import { DEFAULT_PALETTES, DEFAULT_CHROME_SETTINGS } from '../../common/constants';
 
 export interface Palette {
     name: string;
@@ -20,23 +21,10 @@ export class HighlightOptionsManager {
     editingIndex: number | null;
 
     constructor() {
-        this.DEFAULT_PALETTES = [
-            { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
-            { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
-            { name: 'Ocean Breeze', colors: ['#a8dadc', '#457b9d', '#1d3557', '#e63946', '#f1faee'] },
-            { name: 'Forest Moss', colors: ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'] },
-            { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
-        ];
+        this.DEFAULT_PALETTES = DEFAULT_PALETTES;
+        this.chromeSettings = JSON.parse(JSON.stringify(DEFAULT_CHROME_SETTINGS));
 
-        this.chromeSettings = {
-            defaultHighlightColor: '#f1c40f',
-            recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
-            showMarkerPopup: true,
-            activePaletteIndex: 0,
-            palettes: []
-        };
-
-        this.editorColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'];
+        this.editorColors = [...this.chromeSettings.recentColors!];
         this.editingIndex = null; // null if creating, index number if editing
     }
 
@@ -183,7 +171,7 @@ export class HighlightOptionsManager {
                         if (nameInput) nameInput.value = '';
                         this.editingIndex = null;
                         if (savePaletteBtn) savePaletteBtn.textContent = '💾 Save Palette';
-                        this.editorColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'];
+                        this.editorColors = [...this.chromeSettings.recentColors!];
 
                         this.chromeSettings.palettes = palettes;
                         this.saveSettings();
@@ -217,7 +205,7 @@ export class HighlightOptionsManager {
                         if (nameInput) nameInput.value = '';
                         this.editingIndex = null;
                         if (saveBtn) saveBtn.textContent = '💾 Save Palette';
-                        this.editorColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'];
+                        this.editorColors = [...this.chromeSettings.recentColors!];
 
                         this.saveSettings("Reset to defaults successfully!");
                         this.renderEditorSlots();

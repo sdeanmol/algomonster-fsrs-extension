@@ -5,6 +5,7 @@
 
 import { Logger } from '@common/logger';
 import { HighlightMark, DOMMeta, ChromeSettings, BookmarkItem, Card } from '../../types/domain';
+import { DEFAULT_CHROME_SETTINGS, DEFAULT_PALETTES } from '../common/constants';
 
 export interface HighlighterState {
     currentTheme?: string;
@@ -368,9 +369,9 @@ export class Highlighter {
             actionsContainer.style.flexWrap = 'wrap';
 
             const activeIndex = this.state.chromeSettings?.activePaletteIndex || 0;
-            const activePalette = (this.state.chromeSettings?.palettes && this.state.chromeSettings.palettes[activeIndex])
+            const activePalette = (this.state.chromeSettings?.palettes && this.state.chromeSettings.palettes.length > activeIndex)
                 ? this.state.chromeSettings.palettes[activeIndex]
-                : { colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] };
+                : { colors: DEFAULT_PALETTES[0].colors };
 
             const paletteColors = activePalette.colors || [];
 
@@ -416,7 +417,7 @@ export class Highlighter {
             picker.type = 'color';
             picker.id = 'algo-color-picker';
             picker.setAttribute('aria-label', 'Custom highlight color');
-            picker.value = currentColor || this.state.chromeSettings?.defaultHighlightColor || '#f1c40f';
+            picker.value = currentColor || this.state.chromeSettings?.defaultHighlightColor || DEFAULT_CHROME_SETTINGS.defaultHighlightColor;
             picker.addEventListener('input', (e: Event) => {
                 try {
                     const newColor = (e.target as HTMLInputElement).value;
@@ -691,14 +692,8 @@ export class Highlighter {
 
     updateRecentColors(newColor: string): void {
         try {
-            if (!this.state.chromeSettings) {
-                this.state.chromeSettings = {
-                    defaultHighlightColor: '#f1c40f',
-                    recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
-                    showMarkerPopup: true,
-                    activePaletteIndex: 0,
-                    palettes: []
-                };
+            if (!this.state.chromeSettings || !this.state.chromeSettings.palettes) {
+                this.state.chromeSettings = JSON.parse(JSON.stringify(DEFAULT_CHROME_SETTINGS));
             }
             this.state.chromeSettings.defaultHighlightColor = newColor;
             const recent = this.state.chromeSettings.recentColors || [];

@@ -5,22 +5,10 @@
  * to act as a shared memory layer on targeted domains.
  */
 
-import { Card, HighlightMark, BookmarkItem } from '../types/domain';
+import { Card, HighlightMark, BookmarkItem, ChromeSettings } from '../types/domain';
 import AbstractScheduler from '../features/tracker/scheduler/scheduler';
 import { Logger } from '@common/logger';
-
-export interface Palette {
-    name: string;
-    colors: string[];
-}
-
-export interface ChromeSettings {
-    defaultHighlightColor?: string;
-    recentColors?: string[];
-    showMarkerPopup?: boolean;
-    activePaletteIndex?: number;
-    palettes?: Palette[];
-}
+import { DEFAULT_PALETTES } from '../features/common/constants';
 
 export interface AlgoRecallState {
     scheduler: AbstractScheduler;
@@ -76,14 +64,6 @@ try {
     // Comment: Fallback to dummy scheduler instance if constructor fails
     schedulerInstance = {} as AbstractScheduler;
 }
-
-export const DEFAULT_PALETTES: Palette[] = [
-    { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
-    { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
-    { name: 'Ocean Breeze', colors: ['#a8dadc', '#457b9d', '#1d3557', '#e63946', '#f1faee'] },
-    { name: 'Forest Moss', colors: ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'] },
-    { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
-];
 
 algoGlobal.state = {
     // Instantiated scheduling algorithm controller (FSRS as default)

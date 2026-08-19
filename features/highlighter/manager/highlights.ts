@@ -245,6 +245,30 @@ export class HighlightsManager {
         }
     }
 
+    getFilteredMarks(): HighlightMark[] {
+        return this.loadedMarks.filter(mark => {
+            const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
+            const pageTitle = bookmark && bookmark.title ? bookmark.title.toLowerCase() : '';
+            const markText = mark.text.toLowerCase();
+            const markUrl = mark.url.toLowerCase();
+            const markNote = (mark.note || '').toLowerCase();
+            const markCategory = (mark.category || '').toLowerCase();
+            const q = this.searchQuery.toLowerCase();
+
+            const matchesQuery = !this.searchQuery || 
+                                 markText.includes(q) || 
+                                 pageTitle.includes(q) || 
+                                 markUrl.includes(q) ||
+                                 markNote.includes(q) ||
+                                 markCategory.includes(q);
+
+            const matchesColor = !this.activeColorFilter || mark.color === this.activeColorFilter;
+            const matchesPage = this.activePageFilter === 'all' || mark.url === this.activePageFilter;
+
+            return matchesQuery && matchesColor && matchesPage;
+        });
+    }
+
     filterAndRender(): void {
         try {
             const container = document.getElementById('highlights-container');
@@ -252,27 +276,7 @@ export class HighlightsManager {
             const clearFiltersBtn = document.getElementById('clear-filters-btn');
             if (!container) return;
 
-            const filtered = this.loadedMarks.filter(mark => {
-                const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
-                const pageTitle = bookmark && bookmark.title ? bookmark.title.toLowerCase() : '';
-                const markText = mark.text.toLowerCase();
-                const markUrl = mark.url.toLowerCase();
-                const markNote = (mark.note || '').toLowerCase();
-                const markCategory = (mark.category || '').toLowerCase();
-                const q = this.searchQuery.toLowerCase();
-
-                const matchesQuery = !this.searchQuery || 
-                                     markText.includes(q) || 
-                                     pageTitle.includes(q) || 
-                                     markUrl.includes(q) ||
-                                     markNote.includes(q) ||
-                                     markCategory.includes(q);
-
-                const matchesColor = !this.activeColorFilter || mark.color === this.activeColorFilter;
-                const matchesPage = this.activePageFilter === 'all' || mark.url === this.activePageFilter;
-
-                return matchesQuery && matchesColor && matchesPage;
-            });
+            const filtered = this.getFilteredMarks();
 
             filtered.sort((a, b) => {
                 if (this.sortOption === 'newest') {
@@ -439,27 +443,7 @@ export class HighlightsManager {
 
     exportHighlightsToMarkdown(): void {
         try {
-            const filtered = this.loadedMarks.filter(mark => {
-                const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
-                const pageTitle = bookmark && bookmark.title ? bookmark.title.toLowerCase() : '';
-                const markText = mark.text.toLowerCase();
-                const markUrl = mark.url.toLowerCase();
-                const markNote = (mark.note || '').toLowerCase();
-                const markCategory = (mark.category || '').toLowerCase();
-                const q = this.searchQuery.toLowerCase();
-
-                const matchesQuery = !this.searchQuery || 
-                                     markText.includes(q) || 
-                                     pageTitle.includes(q) || 
-                                     markUrl.includes(q) ||
-                                     markNote.includes(q) ||
-                                     markCategory.includes(q);
-
-                const matchesColor = !this.activeColorFilter || mark.color === this.activeColorFilter;
-                const matchesPage = this.activePageFilter === 'all' || mark.url === this.activePageFilter;
-
-                return matchesQuery && matchesColor && matchesPage;
-            });
+            const filtered = this.getFilteredMarks();
 
             if (filtered.length === 0) {
                 alert('No highlights to export!');

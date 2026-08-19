@@ -163,6 +163,14 @@ export interface WhitelistedWebsite {
 }
 
 /**
+ * Color Palette configuration
+ */
+export interface Palette {
+    name: string;
+    colors: string[];
+}
+
+/**
  * Extension Chrome display/theme settings
  */
 export interface ChromeSettings {
@@ -171,7 +179,7 @@ export interface ChromeSettings {
     defaultSymbolChar?: string;
     defaultSymbolColor?: string;
     developerMode?: boolean;
-    palettes?: Array<{ colors: string[]; name: string }>;
+    palettes?: Palette[];
     recentColors?: string[];
     showCharts?: boolean;
     showMarkerPopup?: boolean;
