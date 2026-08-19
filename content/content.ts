@@ -7,34 +7,12 @@ import '../features/highlighter/highlighter';
 import './notifications';
 import '../features/tracker/tracker';
 import { Card, StorageData, ExtensionMessage, MessageResponse, FSRSParameters, HighlightMark, BookmarkItem } from '../types/domain';
-import { AlgoRecallState } from './state';
+import { AlgoRecallState, getAlgoRecallGlobal, DEFAULT_PALETTES } from './state';
 import { Utils } from './utils';
 import { Notifier } from './notifications';
 import { Highlighter } from '../features/highlighter/highlighter';
 import Tracker from '../features/tracker/tracker';
-
-interface AlgoRecallGlobal {
-    state?: AlgoRecallState;
-    Utils?: typeof Utils;
-    Notifier?: typeof Notifier;
-    Highlighter?: new () => Highlighter;
-    Tracker?: new () => Tracker;
-    Orchestrator?: typeof AlgoRecallOrchestrator;
-    orchestrator?: AlgoRecallOrchestrator;
-}
-
-function getAlgoRecallGlobal(): AlgoRecallGlobal {
-    try {
-        const win = window as unknown as { AlgoRecall?: AlgoRecallGlobal };
-        win.AlgoRecall = win.AlgoRecall || {};
-        return win.AlgoRecall;
-    } catch (err) {
-        // Comment: Safe recovery fallback if window global access fails
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('ContentScript', `Failed to access window global in getAlgoRecallGlobal: ${errorMessage}`, { err });
-        return {};
-    }
-}
+import { DEFAULT_WHITELISTED_WEBSITES } from '../features/common/constants';
 
 /**
  * @class AlgoRecallOrchestrator
@@ -90,18 +68,7 @@ export class AlgoRecallOrchestrator {
                         return;
                     }
                     // Verify whitelisting
-                    const whitelistedWebsites: Array<{ domain: string }> = result.whitelistedWebsites || [
-                        { domain: "algo.monster" },
-                        { domain: "systemdesignschool.io" },
-                        { domain: "codeforces.com" },
-                        { domain: "leetcode.com" },
-                        { domain: "codechef.com" },
-                        { domain: "atcoder.jp" },
-                        { domain: "hackerrank.com" },
-                        { domain: "hackerearth.com" },
-                        { domain: "codewars.com" },
-                        { domain: "codingame.com" }
-                    ];
+                    const whitelistedWebsites: Array<{ domain: string }> = result.whitelistedWebsites || DEFAULT_WHITELISTED_WEBSITES;
 
                     const currentDomain = window.location.hostname;
                     const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
@@ -112,13 +79,7 @@ export class AlgoRecallOrchestrator {
                     Logger.debug('ContentScript', `Domain ${currentDomain} is whitelisted. Proceeding with init.`);
 
                     if (result.fsrsGlobalParams) {
-                        const params = result.fsrsGlobalParams as Partial<FSRSParameters>;
-                        if (params.w && this.state.scheduler) (this.state.scheduler as unknown as { w: number[] }).w = params.w;
-                        if (params.decay !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { decay: number }).decay = params.decay;
-                        if (params.factor !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { factor: number }).factor = params.factor;
-                        if (params.requestRetention !== undefined && this.state.scheduler) {
-                            (this.state.scheduler as unknown as { requestRetention: number }).requestRetention = params.requestRetention;
-                        }
+                        this.applyFsrsGlobalParams(result.fsrsGlobalParams as Partial<FSRSParameters>);
                     }
 
                     if (result.fsrsCards) this.state.cards = result.fsrsCards;
@@ -133,13 +94,7 @@ export class AlgoRecallOrchestrator {
                     }
                     // Ensure palettes are initialized
                     if (!this.state.chromeSettings.palettes || this.state.chromeSettings.palettes.length === 0) {
-                        this.state.chromeSettings.palettes = [
-                            { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
-                            { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
-                            { name: 'Ocean Breeze', colors: ['#a8dadc', '#457b9d', '#1d3557', '#e63946', '#f1faee'] },
-                            { name: 'Forest Moss', colors: ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'] },
-                            { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
-                        ];
+                        this.state.chromeSettings.palettes = DEFAULT_PALETTES;
                         this.state.chromeSettings.activePaletteIndex = 0;
                     }
 
@@ -330,18 +285,7 @@ export class AlgoRecallOrchestrator {
                 }
                 if (changes.whitelistedWebsites) {
                     const currentDomain = window.location.hostname;
-                    const whitelistedWebsites: Array<{ domain: string }> = (changes.whitelistedWebsites.newValue as Array<{ domain: string }>) || [
-                        { domain: "algo.monster" },
-                        { domain: "systemdesignschool.io" },
-                        { domain: "codeforces.com" },
-                        { domain: "leetcode.com" },
-                        { domain: "codechef.com" },
-                        { domain: "atcoder.jp" },
-                        { domain: "hackerrank.com" },
-                        { domain: "hackerearth.com" },
-                        { domain: "codewars.com" },
-                        { domain: "codingame.com" }
-                    ];
+                    const whitelistedWebsites: Array<{ domain: string }> = (changes.whitelistedWebsites.newValue as Array<{ domain: string }>) || DEFAULT_WHITELISTED_WEBSITES;
                     const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
                     if (!isWhitelisted) {
                         this.highlighter.removeHighlighterUI();
@@ -354,11 +298,7 @@ export class AlgoRecallOrchestrator {
                     }
                 }
                 if (changes.fsrsGlobalParams) {
-                    const params = (changes.fsrsGlobalParams.newValue || {}) as Partial<FSRSParameters>;
-                    if (params.w && this.state.scheduler) (this.state.scheduler as unknown as { w: number[] }).w = params.w;
-                    if (params.decay !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { decay: number }).decay = params.decay;
-                    if (params.factor !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { factor: number }).factor = params.factor;
-                    if (params.requestRetention !== undefined && this.state.scheduler) (this.state.scheduler as unknown as { requestRetention: number }).requestRetention = params.requestRetention;
+                    this.applyFsrsGlobalParams((changes.fsrsGlobalParams.newValue || {}) as Partial<FSRSParameters>);
                 }
                 if (changes.approachDrafts) {
                     this.tracker.refreshWidgetState();
@@ -468,6 +408,18 @@ export class AlgoRecallOrchestrator {
             Logger.error('ContentScript', `Error applying theme class: ${errorMessage}`, { err });
             // Comment: Catch theme class DOM updates error gracefully
         }
+    }
+
+    /**
+     * Centralized helper to apply global FSRS scheduling parameters
+     */
+    private applyFsrsGlobalParams(params: Partial<FSRSParameters>): void {
+        if (!params || !this.state.scheduler) return;
+        const scheduler = this.state.scheduler as unknown as { w?: number[], decay?: number, factor?: number, requestRetention?: number };
+        if (params.w !== undefined) scheduler.w = params.w;
+        if (params.decay !== undefined) scheduler.decay = params.decay;
+        if (params.factor !== undefined) scheduler.factor = params.factor;
+        if (params.requestRetention !== undefined) scheduler.requestRetention = params.requestRetention;
     }
 }
 

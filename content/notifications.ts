@@ -1,31 +1,7 @@
 import { Logger } from '@common/logger';
-import { AlgoRecallState } from './state';
+import { AlgoRecallState, getAlgoRecallGlobal } from './state';
 import { MessageResponse } from '../types/domain';
 import { SNOOZE_DEFAULT_MINUTES } from '../features/common/constants';
-
-interface AlgoRecallGlobal {
-    state?: AlgoRecallState;
-    Notifier?: typeof Notifier;
-    orchestrator?: {
-        tracker?: {
-            refreshWidgetState(): void;
-            startReview(): void;
-        };
-    };
-}
-
-function getAlgoRecallGlobal(): AlgoRecallGlobal {
-    try {
-        const win = window as unknown as { AlgoRecall?: AlgoRecallGlobal };
-        win.AlgoRecall = win.AlgoRecall || {};
-        return win.AlgoRecall;
-    } catch (err) {
-        // Comment: Safe recovery fallback if window global access fails
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('Notifier', `Failed to access window global in getAlgoRecallGlobal: ${errorMessage}`, { err });
-        return {};
-    }
-}
 
 /**
  * @class PageNotifier

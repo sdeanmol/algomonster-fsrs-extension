@@ -1,23 +1,5 @@
 import { Logger } from '@common/logger';
-import { AlgoRecallState } from './state';
-
-interface AlgoRecallGlobal {
-    state?: AlgoRecallState;
-    Utils?: typeof Utils;
-}
-
-function getAlgoRecallGlobal(): AlgoRecallGlobal {
-    try {
-        const win = window as unknown as { AlgoRecall?: AlgoRecallGlobal };
-        win.AlgoRecall = win.AlgoRecall || {};
-        return win.AlgoRecall;
-    } catch (err) {
-        // Comment: Safe recovery fallback if window global access fails
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('ContentUtils', `Failed to access window global in getAlgoRecallGlobal: ${errorMessage}`, { err });
-        return {};
-    }
-}
+import { AlgoRecallState, getAlgoRecallGlobal } from './state';
 
 export interface DOMMeta {
     parentTagName: string;

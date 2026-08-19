@@ -24,7 +24,8 @@ import {
     ALARM_DEFAULT_CHECK_INTERVAL_MIN,
     ALARM_DAILY_PERIOD_MIN,
     ALARM_WEEKLY_PERIOD_MIN,
-    SNOOZE_DEFAULT_MINUTES
+    SNOOZE_DEFAULT_MINUTES,
+    DEFAULT_WHITELISTED_WEBSITES
 } from '../features/common/constants';
 
 (self as unknown as { onerror: (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) => boolean }).onerror = function (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) {
@@ -611,18 +612,7 @@ export class AlgoRecallBackground {
                 priority: '2',
                 requireInteraction: true
             };
-            const whitelistedWebsites: WhitelistedWebsite[] = result.whitelistedWebsites || [
-                { domain: "algo.monster" },
-                { domain: "systemdesignschool.io" },
-                { domain: "codeforces.com" },
-                { domain: "leetcode.com" },
-                { domain: "codechef.com" },
-                { domain: "atcoder.jp" },
-                { domain: "hackerrank.com" },
-                { domain: "hackerearth.com" },
-                { domain: "codewars.com" },
-                { domain: "codingame.com" }
-            ];
+            const whitelistedWebsites: WhitelistedWebsite[] = result.whitelistedWebsites || DEFAULT_WHITELISTED_WEBSITES;
 
             // Enforce minimum interval to bypass MV3 alarm bugs (like frequent re-triggering upon wake-up)
             // Allow explicit 'snoozeFsrsReviews' and 'test' source to bypass this throttle

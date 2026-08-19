@@ -51,3 +51,15 @@ export const SNOOZE_DEFAULT_MINUTES = 15;
 export const RATING_UI_DEBOUNCE_MS = 400;
 export const ALGORITHMIC_DEBOUNCE_WINDOW_MS = 60 * 1000; // 1 minute window
 
+export const DEFAULT_WHITELISTED_WEBSITES = [
+    { domain: "algo.monster" },
+    { domain: "systemdesignschool.io" },
+    { domain: "codeforces.com" },
+    { domain: "leetcode.com" },
+    { domain: "codechef.com" },
+    { domain: "atcoder.jp" },
+    { domain: "hackerrank.com" },
+    { domain: "hackerearth.com" },
+    { domain: "codewars.com" },
+    { domain: "codingame.com" }
+];
