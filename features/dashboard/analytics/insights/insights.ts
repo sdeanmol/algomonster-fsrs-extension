@@ -3,7 +3,7 @@
  * @description Main controller for the Insights tab component in Analytics.
  */
 
-import { Logger } from '@common/logger';
+import { UIUtils } from '../../../common/utils/uiUtils';
 import { ReviewTimeAnalytics } from './reviewTimeAnalytics';
 import { DataUtils } from '../utils/dataUtils';
 
@@ -18,8 +18,7 @@ export class InsightsTab {
             this.reviewTimeAnalytics = new ReviewTimeAnalytics(this.dataUtils);
             this.rendered = false;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('InsightsTab', `Error initializing InsightsTab constructor: ${errorMessage}`, { err });
+            UIUtils.catchError('InsightsTab', 'Error initializing InsightsTab constructor', err);
             this.dataUtils = dataUtils;
             this.reviewTimeAnalytics = new ReviewTimeAnalytics(dataUtils);
             this.rendered = false;
@@ -53,8 +52,7 @@ export class InsightsTab {
             this.reviewTimeAnalytics.render('review-time-analytics-container');
             this.renderNextAction('insights-next-action-container');
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('InsightsTab', `Error rendering InsightsTab: ${errorMessage}`, { containerId, err });
+            UIUtils.catchError('InsightsTab', 'Error rendering InsightsTab', err, { containerId });
         }
     }
 
@@ -67,55 +65,65 @@ export class InsightsTab {
             const { hasTimeData, data } = timeInsights;
 
             if (!hasTimeData || !data || data.every(d => d.reviews === 0)) {
-                container.innerHTML = `
-                    <div class="actionable-insight-banner warning" style="margin-bottom:0;">
-                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
-                        <div class="insight-content">
-                            <h3>Next Action: Keep Reviewing</h3>
-                            <p>Not enough timestamp data available yet. Your next action is to <strong>do more reviews</strong> so we can figure out your best study time.</p>
-                        </div>
-                    </div>
-                `;
+                container.innerHTML = this.buildEmptyStateBanner();
                 return;
             }
 
-            let best = data[0];
-            data.forEach(d => {
-                if (d.retention > best.retention && d.reviews > 5) {
-                    best = d;
-                }
-            });
+            // Find the time bucket with the highest retention (minimum 5 reviews)
+            const validData = data.filter(d => d.reviews > 5);
+            const best = validData.length > 0 
+                ? validData.reduce((prev, current) => (prev.retention > current.retention) ? prev : current)
+                : null;
 
-            if (best && best.reviews > 5) {
-                container.innerHTML = `
-                    <div class="actionable-insight-banner success" style="margin-bottom:0;">
-                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                        <div class="insight-content">
-                            <h3>Next Action: Optimize Your Schedule</h3>
-                            <p>Based on your FSRS review logs, you retain information best in the <strong>${best.bucket}</strong>. Your next action is to <strong>schedule your heaviest study sessions during this time</strong> to maximize your memory consolidation.</p>
-                        </div>
-                    </div>
-                `;
+            if (best) {
+                container.innerHTML = this.buildOptimizationBanner(best.bucket);
             } else {
-                container.innerHTML = `
-                    <div class="actionable-insight-banner success" style="margin-bottom:0;">
-                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>
-                        </svg>
-                        <div class="insight-content">
-                            <h3>Next Action: Collect More Data</h3>
-                            <p>We're starting to track your habits in the FSRS logs. Keep reviewing at different times of the day to discover when your memory is sharpest!</p>
-                        </div>
-                    </div>
-                `;
+                container.innerHTML = this.buildCollectMoreDataBanner();
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('InsightsTab', `Error rendering insights next action: ${errorMessage}`, { containerId, err });
+            UIUtils.catchError('InsightsTab', 'Error rendering insights next action', err, { containerId });
         }
+    }
+
+    private buildEmptyStateBanner(): string {
+        return `
+            <div class="actionable-insight-banner warning" style="margin-bottom:0;">
+                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <div class="insight-content">
+                    <h3>Next Action: Keep Reviewing</h3>
+                    <p>Not enough timestamp data available yet. Your next action is to <strong>do more reviews</strong> so we can figure out your best study time.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    private buildOptimizationBanner(bucketName: string): string {
+        return `
+            <div class="actionable-insight-banner success" style="margin-bottom:0;">
+                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <div class="insight-content">
+                    <h3>Next Action: Optimize Your Schedule</h3>
+                    <p>Based on your FSRS review logs, you retain information best in the <strong>${bucketName}</strong>. Your next action is to <strong>schedule your heaviest study sessions during this time</strong> to maximize your memory consolidation.</p>
+                </div>
+            </div>
+        `;
+    }
+
+    private buildCollectMoreDataBanner(): string {
+        return `
+            <div class="actionable-insight-banner success" style="margin-bottom:0;">
+                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <div class="insight-content">
+                    <h3>Next Action: Collect More Data</h3>
+                    <p>We're starting to track your habits in the FSRS logs. Keep reviewing at different times of the day to discover when your memory is sharpest!</p>
+                </div>
+            </div>
+        `;
     }
 }
