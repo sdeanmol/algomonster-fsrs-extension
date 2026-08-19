@@ -6,6 +6,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { Card, StorageData, ChromeSettings } from '../../../types/domain';
 
 export class ForecastDashboard {
@@ -33,15 +34,11 @@ export class ForecastDashboard {
                     this.chromeSettings = result.chromeSettings || {};
                     this.renderForecast(cards);
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('ForecastDashboard', `Error rendering forecast: ${errorMessage}`, { innerErr });
-                    // Comment: Non-fatal chart rendering error
-                }
+            UIUtils.catchError('ForecastDashboard', 'Error rendering forecast', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ForecastDashboard', `Failed storage get in Forecast init: ${errorMessage}`, { err });
-            // Comment: Catch storage retrieval failure gracefully
+            UIUtils.catchError('ForecastDashboard', 'Failed storage get in Forecast init', err);
         }
     }
 
@@ -160,9 +157,8 @@ export class ForecastDashboard {
                             }
                         });
                     } catch (clickErr) {
-                        const errorMessage = clickErr instanceof Error ? clickErr.message : String(clickErr);
-                        Logger.error('ForecastDashboard', `Error in calendar cell click handler: ${errorMessage}`, { cellDateStr, clickErr });
-                    }
+            UIUtils.catchError('ForecastDashboard', 'Error in calendar cell click handler', clickErr, { cellDateStr });
+        }
                 });
 
                 calendar.appendChild(cell);
@@ -181,9 +177,7 @@ export class ForecastDashboard {
             `;
             calendar.parentElement?.appendChild(legend);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ForecastDashboard', `Error orchestrating forecast rendering: ${errorMessage}`, { err });
-            // Comment: Non-fatal forecast orchestration error
+            UIUtils.catchError('ForecastDashboard', 'Error orchestrating forecast rendering', err);
         }
     }
 
@@ -329,9 +323,8 @@ export class ForecastDashboard {
                                 }
                             });
                         } catch (clickErr) {
-                            const errorMessage = clickErr instanceof Error ? clickErr.message : String(clickErr);
-                            Logger.error('ForecastDashboard', `Error in chart bar click handler: ${errorMessage}`, { dp, clickErr });
-                        }
+            UIUtils.catchError('ForecastDashboard', 'Error in chart bar click handler', clickErr, { dp });
+        }
                     });
                 }
 
@@ -342,8 +335,7 @@ export class ForecastDashboard {
             chartContainerInner.appendChild(viewport);
             chartWrapper.appendChild(chartContainerInner);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ForecastDashboard', `Error rendering forecast chart: ${errorMessage}`, { err });
+            UIUtils.catchError('ForecastDashboard', 'Error rendering forecast chart', err);
         }
     }
 }
@@ -353,9 +345,8 @@ function initForecast(): void {
         const forecast = new ForecastDashboard();
         forecast.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('ForecastDashboard', `Initialization failed: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('ForecastDashboard', 'Initialization failed', err);
+        }
 }
 
 if (typeof document !== 'undefined') {

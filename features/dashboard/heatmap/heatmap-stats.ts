@@ -5,6 +5,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { MS_PER_DAY } from '../../common/constants';
 
 export interface StreakStatsResult {
@@ -69,9 +70,7 @@ export class HeatmapStats {
                 </div>
             `;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HeatmapStats', `Error rendering heatmap stats dashboard: ${errorMessage}`, { err });
-            // Comment: Non-fatal stats dashboard render failure
+            UIUtils.catchError('HeatmapStats', 'Error rendering heatmap stats dashboard', err);
         }
     }
 
@@ -154,6 +153,5 @@ try {
     win.AlgoRecall = win.AlgoRecall || {};
     win.AlgoRecall.HeatmapStats = HeatmapStats;
 } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('HeatmapStats', `Error binding HeatmapStats to window.AlgoRecall: ${errorMessage}`, { err });
-}
+            UIUtils.catchError('HeatmapStats', 'Error binding HeatmapStats to window.AlgoRecall', err);
+        }

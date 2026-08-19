@@ -6,6 +6,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { Card, StorageData, ChromeSettings, ReviewLog } from '../../../types/domain';
 
 export class FSRSHistoryDashboard {
@@ -78,15 +79,11 @@ export class FSRSHistoryDashboard {
                     this.attachListeners();
                     this.renderView();
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('FSRSHistoryDashboard', `Error during history dashboard render: ${errorMessage}`, { innerErr });
-                    // Comment: Catch rendering error gracefully
-                }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error during history dashboard render', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSHistoryDashboard', `Failed to fetch history storage: ${errorMessage}`, { err });
-            // Comment: Catch storage retrieval failure
+            UIUtils.catchError('FSRSHistoryDashboard', 'Failed to fetch history storage', err);
         }
     }
 
@@ -96,29 +93,25 @@ export class FSRSHistoryDashboard {
                 try {
                     this.setView('year');
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('FSRSHistoryDashboard', `Error setting view to year: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error setting view to year', err);
+        }
             });
             document.getElementById('view-month')?.addEventListener('click', () => {
                 try {
                     this.setView('month');
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('FSRSHistoryDashboard', `Error setting view to month: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error setting view to month', err);
+        }
             });
             document.getElementById('view-day')?.addEventListener('click', () => {
                 try {
                     this.setView('day');
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('FSRSHistoryDashboard', `Error setting view to day: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error setting view to day', err);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSHistoryDashboard', `Error attaching view listeners: ${errorMessage}`, { err });
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error attaching view listeners', err);
         }
     }
 
@@ -137,8 +130,7 @@ export class FSRSHistoryDashboard {
             }
             this.renderView();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSHistoryDashboard', `Error setting history dashboard view: ${errorMessage}`, { view, targetYear, targetMonth, err });
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error setting history dashboard view', err, { view, targetYear, targetMonth });
         }
     }
 
@@ -175,8 +167,7 @@ export class FSRSHistoryDashboard {
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSHistoryDashboard', `Error opening data tab: ${errorMessage}`, { dateRange, err });
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error opening data tab', err, { dateRange });
         }
     }
 
@@ -272,8 +263,7 @@ export class FSRSHistoryDashboard {
             this.renderHistoryChart();
             this.bindDynamicListeners();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSHistoryDashboard', `Error rendering history view: ${errorMessage}`, { currentView: this.currentView, err });
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error rendering history view', err, { currentView: this.currentView });
         }
     }
 
@@ -401,9 +391,8 @@ export class FSRSHistoryDashboard {
                         try {
                             dp.action(e);
                         } catch (aErr) {
-                            const errorMessage = aErr instanceof Error ? aErr.message : String(aErr);
-                            Logger.error('FSRSHistoryDashboard', `Error executing chart bar click action: ${errorMessage}`, { dp, aErr });
-                        }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error executing chart bar click action', aErr, { dp });
+        }
                     });
                     barCol.addEventListener('keydown', (e: KeyboardEvent) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -411,9 +400,8 @@ export class FSRSHistoryDashboard {
                                 e.preventDefault();
                                 dp.action(e);
                             } catch (aErr) {
-                                const errorMessage = aErr instanceof Error ? aErr.message : String(aErr);
-                                Logger.error('FSRSHistoryDashboard', `Error executing chart bar keydown action: ${errorMessage}`, { dp, aErr });
-                            }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error executing chart bar keydown action', aErr, { dp });
+        }
                         }
                     });
                 }
@@ -425,8 +413,7 @@ export class FSRSHistoryDashboard {
             chartContainerInner.appendChild(viewport);
             chartWrapper.appendChild(chartContainerInner);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSHistoryDashboard', `Error rendering history chart: ${errorMessage}`, { err });
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error rendering history chart', err);
         }
     }
 
@@ -437,9 +424,8 @@ export class FSRSHistoryDashboard {
                     try {
                         this.setView('year');
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('FSRSHistoryDashboard', `Error in breadcrumb year click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error in breadcrumb year click handler', err);
+        }
                 });
             });
             document.querySelectorAll('.bc-month').forEach(el => {
@@ -448,9 +434,8 @@ export class FSRSHistoryDashboard {
                         const target = e.target as HTMLElement;
                         this.setView('month', target.getAttribute('data-year'));
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('FSRSHistoryDashboard', `Error in breadcrumb month click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error in breadcrumb month click handler', err);
+        }
                 });
             });
 
@@ -461,9 +446,8 @@ export class FSRSHistoryDashboard {
                         if (target.closest('button')) return;
                         this.setView('month', el.getAttribute('data-year'));
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('FSRSHistoryDashboard', `Error in card year click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error in card year click handler', err);
+        }
                 });
             });
             document.querySelectorAll('.card-month').forEach(el => {
@@ -473,9 +457,8 @@ export class FSRSHistoryDashboard {
                         if (target.closest('button')) return;
                         this.setView('day', el.getAttribute('data-year'), el.getAttribute('data-month'));
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('FSRSHistoryDashboard', `Error in card month click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error in card month click handler', err);
+        }
                 });
             });
 
@@ -484,9 +467,8 @@ export class FSRSHistoryDashboard {
                     try {
                         this.openDataTab(el.getAttribute('data-year') || '', e);
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('FSRSHistoryDashboard', `Error in btn year click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error in btn year click handler', err);
+        }
                 });
             });
             document.querySelectorAll('.btn-month').forEach(el => {
@@ -494,9 +476,8 @@ export class FSRSHistoryDashboard {
                     try {
                         this.openDataTab(el.getAttribute('data-month') || '', e);
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('FSRSHistoryDashboard', `Error in btn month click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error in btn month click handler', err);
+        }
                 });
             });
             document.querySelectorAll('.card-day').forEach(el => {
@@ -504,15 +485,12 @@ export class FSRSHistoryDashboard {
                     try {
                         this.openDataTab(el.getAttribute('data-date') || '', e);
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('FSRSHistoryDashboard', `Error in card day click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error in card day click handler', err);
+        }
                 });
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSHistoryDashboard', `Error binding dynamic listeners: ${errorMessage}`, { err });
-            // Comment: Non-fatal dynamic listener binding catch
+            UIUtils.catchError('FSRSHistoryDashboard', 'Error binding dynamic listeners', err);
         }
     }
 
@@ -573,9 +551,8 @@ function initHistory(): void {
         const history = new FSRSHistoryDashboard();
         history.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('FSRSHistoryDashboard', `Initialization failed: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('FSRSHistoryDashboard', 'Initialization failed', err);
+        }
 }
 
 if (typeof document !== 'undefined') {

@@ -5,6 +5,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { StorageData } from '../../../types/domain';
 
 export interface PomodoroSettings {
@@ -130,20 +131,15 @@ export class PomodoroTimer {
                                 }
                             }
                         } catch (changeErr) {
-                            const errorMessage = changeErr instanceof Error ? changeErr.message : String(changeErr);
-                            Logger.error('PomodoroTimer', `Error handling storage change event: ${errorMessage}`, { changeErr });
-                        }
+            UIUtils.catchError('PomodoroTimer', 'Error handling storage change event', changeErr);
+        }
                     });
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('PomodoroTimer', `Error during pomodoro dashboard init: ${errorMessage}`, { innerErr });
-                    // Comment: Non-fatal initialization error
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error during pomodoro dashboard init', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Failed to fetch storage in Pomodoro init: ${errorMessage}`, { err });
-            // Comment: Catch storage retrieval error gracefully
+            UIUtils.catchError('PomodoroTimer', 'Failed to fetch storage in Pomodoro init', err);
         }
     }
 
@@ -156,8 +152,7 @@ export class PomodoroTimer {
             this.timeRemaining = this.totalTime;
             this.targetEndTime = null;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error resetting pomodoro state: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error resetting pomodoro state', err);
         }
     }
 
@@ -213,8 +208,7 @@ export class PomodoroTimer {
             this.updatePhaseIndicator();
             this.updateSessionDots();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error syncing pomodoro state: ${errorMessage}`, { newState, err });
+            UIUtils.catchError('PomodoroTimer', 'Error syncing pomodoro state', err, { newState });
         }
     }
 
@@ -224,46 +218,39 @@ export class PomodoroTimer {
                 try {
                     this.start();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('PomodoroTimer', `Error in start button click handler: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in start button click handler', err);
+        }
             });
             document.getElementById('pause-btn')?.addEventListener('click', () => {
                 try {
                     this.pause();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('PomodoroTimer', `Error in pause button click handler: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in pause button click handler', err);
+        }
             });
             document.getElementById('reset-btn')?.addEventListener('click', () => {
                 try {
                     this.reset();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('PomodoroTimer', `Error in reset button click handler: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in reset button click handler', err);
+        }
             });
             document.getElementById('skip-btn')?.addEventListener('click', () => {
                 try {
                     this.skip();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('PomodoroTimer', `Error in skip button click handler: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in skip button click handler', err);
+        }
             });
             document.getElementById('save-settings-btn')?.addEventListener('click', () => {
                 try {
                     this.saveSettings();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('PomodoroTimer', `Error in save settings button click handler: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in save settings button click handler', err);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error binding pomodoro events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event listener binding error
+            UIUtils.catchError('PomodoroTimer', 'Error binding pomodoro events', err);
         }
     }
 
@@ -279,8 +266,7 @@ export class PomodoroTimer {
             if (longInput) longInput.value = String(this.settings.longBreakDuration);
             if (sessionsInput) sessionsInput.value = String(this.settings.sessionsBeforeLongBreak);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error loading settings UI: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error loading settings UI', err);
         }
     }
 
@@ -308,13 +294,11 @@ export class PomodoroTimer {
                     }
                     this.reset();
                 } catch (cbErr) {
-                    const errorMessage = cbErr instanceof Error ? cbErr.message : String(cbErr);
-                    Logger.error('PomodoroTimer', `Error in storage set callback for saveSettings: ${errorMessage}`, { cbErr });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in storage set callback for saveSettings', cbErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error saving pomodoro settings: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error saving pomodoro settings', err);
         }
     }
 
@@ -349,8 +333,7 @@ export class PomodoroTimer {
             });
             chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'start', state: stateObj } });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error starting pomodoro timer: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error starting pomodoro timer', err);
         }
     }
 
@@ -373,8 +356,7 @@ export class PomodoroTimer {
             });
             chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'pause', state: stateObj } });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error pausing pomodoro timer: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error pausing pomodoro timer', err);
         }
     }
 
@@ -391,8 +373,7 @@ export class PomodoroTimer {
             });
             chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'reset', state: stateObj } });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error resetting pomodoro timer: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error resetting pomodoro timer', err);
         }
     }
 
@@ -427,8 +408,7 @@ export class PomodoroTimer {
             });
             chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'skip', state: stateObj } });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error skipping pomodoro phase: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error skipping pomodoro phase', err);
         }
     }
 
@@ -452,9 +432,8 @@ export class PomodoroTimer {
                     this.updateDisplay();
                     this.updateRing();
                 } catch (tickErr) {
-                    const errorMessage = tickErr instanceof Error ? tickErr.message : String(tickErr);
-                    Logger.error('PomodoroTimer', `Error in visual timer tick: ${errorMessage}`, { tickErr });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in visual timer tick', tickErr);
+        }
             };
             
             tick();
@@ -462,8 +441,7 @@ export class PomodoroTimer {
             this.updatePhaseIndicator();
             this.updateSessionDots();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error starting visual interval: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error starting visual interval', err);
         }
     }
     
@@ -474,8 +452,7 @@ export class PomodoroTimer {
                 this.intervalId = null;
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error stopping visual interval: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error stopping visual interval', err);
         }
     }
 
@@ -493,8 +470,7 @@ export class PomodoroTimer {
             const phaseLabelEl = document.getElementById('timer-phase-label');
             if (phaseLabelEl) phaseLabelEl.textContent = labels[this.phase] || 'Focus Time';
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error updating timer display: ${errorMessage}`, { timeRemaining: this.timeRemaining, err });
+            UIUtils.catchError('PomodoroTimer', 'Error updating timer display', err, { timeRemaining: this.timeRemaining });
         }
     }
 
@@ -516,8 +492,7 @@ export class PomodoroTimer {
                 ring.classList.add('break-ring');
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error updating SVG progress ring: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error updating SVG progress ring', err);
         }
     }
 
@@ -538,8 +513,7 @@ export class PomodoroTimer {
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error updating phase indicator pills: ${errorMessage}`, { phase: this.phase, err });
+            UIUtils.catchError('PomodoroTimer', 'Error updating phase indicator pills', err, { phase: this.phase });
         }
     }
 
@@ -563,8 +537,7 @@ export class PomodoroTimer {
                 sessionText.textContent = `${this.currentSession} of ${total}`;
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error updating session dots: ${errorMessage}`, { currentSession: this.currentSession, err });
+            UIUtils.catchError('PomodoroTimer', 'Error updating session dots', err, { currentSession: this.currentSession });
         }
     }
 
@@ -584,8 +557,7 @@ export class PomodoroTimer {
                 }
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error updating today stats UI: ${errorMessage}`, { todaySessions: this.todaySessions, todayFocusMinutes: this.todayFocusMinutes, err });
+            UIUtils.catchError('PomodoroTimer', 'Error updating today stats UI', err, { todaySessions: this.todaySessions, todayFocusMinutes: this.todayFocusMinutes });
         }
     }
 }
@@ -596,9 +568,8 @@ function initPomodoro(): void {
         win.pomodoro = new PomodoroTimer();
         win.pomodoro.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('PomodoroTimer', `Initialization failed: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('PomodoroTimer', 'Initialization failed', err);
+        }
 }
 
 if (typeof document !== 'undefined') {
