@@ -3,7 +3,7 @@
  * @description Component for rendering the overall Memory Health score, status ring, and metrics.
  */
 
-import { Logger } from '@common/logger';
+import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
@@ -14,8 +14,7 @@ export class MemoryHealth {
         try {
             this.dataUtils = dataUtils;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('MemoryHealth', `Error initializing MemoryHealth constructor: ${errorMessage}`, { err });
+            UIUtils.catchError('MemoryHealth', 'Error initializing MemoryHealth constructor', err);
             this.dataUtils = dataUtils;
         }
     }
@@ -26,21 +25,8 @@ export class MemoryHealth {
             if (!container) return;
 
             const stats = this.dataUtils.getSummaryStats();
-            
-            let healthScore = 0;
-            if (stats.trueRetention > 0) {
-                healthScore = stats.trueRetention;
-            } else if (stats.retention > 0) {
-                healthScore = stats.retention;
-            } else {
-                healthScore = 0;
-            }
-
-            let targetRetention = 90;
-            const sched = this.dataUtils.scheduler as (AbstractScheduler & { requestRetention?: number }) | null;
-            if (sched && sched.requestRetention) {
-                targetRetention = sched.requestRetention * 100;
-            }
+            const healthScore = this.calculateHealthScore(stats);
+            const targetRetention = this.getTargetRetention();
 
             let statusText = 'Excellent';
             let statusClass = 'health-excellent';
@@ -68,51 +54,68 @@ export class MemoryHealth {
                 </svg>
             `;
 
-            container.innerHTML = `
-                <div class="memory-health-card">
-                    <div class="ana-panel-header">
-                        <span class="ana-panel-title">
-                            Memory Health Score
-                            <span class="help-icon" data-tooltip="A composite score out of 100 based on your current retention rate and how consistently you review. Aim for 85+.">?</span>
-                        </span>
+            container.innerHTML = this.buildHealthCard(healthScore, statusText, statusClass, trend, trendMsg, trendClass, svgCircle, stats);
+        } catch (err) {
+            UIUtils.catchError('MemoryHealth', 'Error rendering MemoryHealth', err, { containerId });
+        }
+    }
+
+    private calculateHealthScore(stats: any): number {
+        if (stats.trueRetention > 0) return stats.trueRetention;
+        if (stats.retention > 0) return stats.retention;
+        return 0;
+    }
+
+    private getTargetRetention(): number {
+        const sched = this.dataUtils.scheduler as (AbstractScheduler & { requestRetention?: number }) | null;
+        if (sched && sched.requestRetention) {
+            return sched.requestRetention * 100;
+        }
+        return 90;
+    }
+
+    private buildHealthCard(healthScore: number, statusText: string, statusClass: string, trend: string, trendMsg: string, trendClass: string, svgCircle: string, stats: any): string {
+        return `
+            <div class="memory-health-card">
+                <div class="ana-panel-header">
+                    <span class="ana-panel-title">
+                        Memory Health Score
+                        <span class="help-icon" data-tooltip="A composite score out of 100 based on your current retention rate and how consistently you review. Aim for 85+.">?</span>
+                    </span>
+                </div>
+                <div class="health-content">
+                    <div class="health-ring-wrapper">
+                        ${svgCircle}
+                        <div class="health-score-center">
+                            <span class="score-value">${healthScore}</span>
+                            <span class="score-max">/ 100</span>
+                        </div>
                     </div>
-                    <div class="health-content">
-                        <div class="health-ring-wrapper">
-                            ${svgCircle}
-                            <div class="health-score-center">
-                                <span class="score-value">${healthScore}</span>
-                                <span class="score-max">/ 100</span>
-                            </div>
-                        </div>
-                        <div class="health-details">
-                            <div class="health-status ${statusClass}">${statusText}</div>
-                            <div class="health-trend ${trendClass}">${trend}</div>
-                            <p class="health-msg">${trendMsg}</p>
-                        </div>
-                    </div>
-                    <div class="health-metrics-grid">
-                        <div class="health-metric">
-                            <div class="hm-val">${stats.trueRetention}%</div>
-                            <div class="hm-lbl">Retention <span class="help-icon" data-tooltip="Probability you will remember your cards right now (FSRS Retrievability).">?</span></div>
-                        </div>
-                        <div class="health-metric">
-                            <div class="hm-val">${stats.totalLapses}</div>
-                            <div class="hm-lbl">Total Lapses <span class="help-icon" data-tooltip="Total number of times you have forgotten a card (rated 'Again').">?</span></div>
-                        </div>
-                        <div class="health-metric">
-                            <div class="hm-val">${(stats.avgStability || 0).toFixed(1)}d</div>
-                            <div class="hm-lbl">Avg Stability <span class="help-icon" data-tooltip="Average time it takes for your retention to drop from 100% to 90%.">?</span></div>
-                        </div>
-                        <div class="health-metric">
-                            <div class="hm-val">${stats.streak}d</div>
-                            <div class="hm-lbl">Streak <span class="help-icon" data-tooltip="Consecutive days you have studied at least one card.">?</span></div>
-                        </div>
+                    <div class="health-details">
+                        <div class="health-status ${statusClass}">${statusText}</div>
+                        <div class="health-trend ${trendClass}">${trend}</div>
+                        <p class="health-msg">${trendMsg}</p>
                     </div>
                 </div>
-            `;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('MemoryHealth', `Error rendering MemoryHealth: ${errorMessage}`, { containerId, err });
-        }
+                <div class="health-metrics-grid">
+                    <div class="health-metric">
+                        <div class="hm-val">${stats.trueRetention}%</div>
+                        <div class="hm-lbl">Retention <span class="help-icon" data-tooltip="Probability you will remember your cards right now (FSRS Retrievability).">?</span></div>
+                    </div>
+                    <div class="health-metric">
+                        <div class="hm-val">${stats.totalLapses}</div>
+                        <div class="hm-lbl">Total Lapses <span class="help-icon" data-tooltip="Total number of times you have forgotten a card (rated 'Again').">?</span></div>
+                    </div>
+                    <div class="health-metric">
+                        <div class="hm-val">${(stats.avgStability || 0).toFixed(1)}d</div>
+                        <div class="hm-lbl">Avg Stability <span class="help-icon" data-tooltip="Average time it takes for your retention to drop from 100% to 90%.">?</span></div>
+                    </div>
+                    <div class="health-metric">
+                        <div class="hm-val">${stats.streak}d</div>
+                        <div class="hm-lbl">Streak <span class="help-icon" data-tooltip="Consecutive days you have studied at least one card.">?</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 }

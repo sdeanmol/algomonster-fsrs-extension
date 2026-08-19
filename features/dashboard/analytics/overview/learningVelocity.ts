@@ -3,7 +3,7 @@
  * @description Component for rendering learning velocity metrics and sparkline charts.
  */
 
-import { Logger } from '@common/logger';
+import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
 
 export class LearningVelocity {
@@ -13,8 +13,7 @@ export class LearningVelocity {
         try {
             this.dataUtils = dataUtils;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('LearningVelocity', `Error initializing LearningVelocity constructor: ${errorMessage}`, { err });
+            UIUtils.catchError('LearningVelocity', 'Error initializing LearningVelocity constructor', err);
             this.dataUtils = dataUtils;
         }
     }
@@ -30,18 +29,6 @@ export class LearningVelocity {
             const sparkline2 = this.generateSparkline('#50e3c2', velocity.sparklineGrad);
             const sparkline3 = this.generateSparkline('#f5a623', velocity.sparklineRev);
 
-            const formatTrend = (val: number) => {
-                try {
-                    if (val === 0) return `<span class="kpi-trend" style="color:var(--md-text-low);">0%</span>`;
-                    if (val > 0) return `<span class="kpi-trend trend-up">▲ ${val}%</span>`;
-                    return `<span class="kpi-trend trend-down">▼ ${Math.abs(val)}%</span>`;
-                } catch (trendErr) {
-                    const errorMessage = trendErr instanceof Error ? trendErr.message : String(trendErr);
-                    Logger.error('LearningVelocity', `Error formatting trend value: ${errorMessage}`, { val, trendErr });
-                    return `<span class="kpi-trend" style="color:var(--md-text-low);">0%</span>`;
-                }
-            };
-
             container.innerHTML = `
                 <div class="ana-panel-header" style="margin-bottom:0;">
                     <span class="ana-panel-title">
@@ -50,46 +37,40 @@ export class LearningVelocity {
                     </span>
                 </div>
                 <div class="velocity-kpi-grid">
-                    <div class="kpi-card">
-                        <div class="kpi-header">
-                            <span class="kpi-title">
-                                New Cards/Day
-                                <span class="help-icon" data-tooltip="The average number of new cards you learn each day.">?</span>
-                            </span>
-                            ${formatTrend(velocity.newCardsTrend)}
-                        </div>
-                        <div class="kpi-value">${velocity.newCardsPerDay} <span class="kpi-unit">/day</span></div>
-                        <div class="kpi-sparkline">${sparkline1}</div>
-                    </div>
-                    
-                    <div class="kpi-card">
-                        <div class="kpi-header">
-                            <span class="kpi-title">
-                                Graduated/Week
-                                <span class="help-icon" data-tooltip="Cards that have successfully moved out of the learning phase this week.">?</span>
-                            </span>
-                            ${formatTrend(velocity.graduatedTrend)}
-                        </div>
-                        <div class="kpi-value">${velocity.graduatedPerWeek} <span class="kpi-unit">/week</span></div>
-                        <div class="kpi-sparkline">${sparkline2}</div>
-                    </div>
-
-                    <div class="kpi-card">
-                        <div class="kpi-header">
-                            <span class="kpi-title">
-                                Total Reviews
-                                <span class="help-icon" data-tooltip="The overall count of reviews you've completed across all time.">?</span>
-                            </span>
-                            ${formatTrend(velocity.reviewsTrend)}
-                        </div>
-                        <div class="kpi-value">${velocity.reviewsPerDay} <span class="kpi-unit">/day</span></div>
-                        <div class="kpi-sparkline">${sparkline3}</div>
-                    </div>
+                    ${this.buildKpiCard('New Cards/Day', 'The average number of new cards you learn each day.', velocity.newCardsTrend, velocity.newCardsPerDay, '/day', sparkline1)}
+                    ${this.buildKpiCard('Graduated/Week', 'Cards that have successfully moved out of the learning phase this week.', velocity.graduatedTrend, velocity.graduatedPerWeek, '/week', sparkline2)}
+                    ${this.buildKpiCard('Total Reviews', 'The overall count of reviews you\'ve completed across all time.', velocity.reviewsTrend, velocity.reviewsPerDay, '/day', sparkline3)}
                 </div>
             `;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('LearningVelocity', `Error rendering LearningVelocity: ${errorMessage}`, { containerId, err });
+            UIUtils.catchError('LearningVelocity', 'Error rendering LearningVelocity', err, { containerId });
+        }
+    }
+
+    private buildKpiCard(title: string, tooltip: string, trendValue: number, mainValue: string | number, unit: string, sparkline: string): string {
+        return `
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <span class="kpi-title">
+                        ${title}
+                        <span class="help-icon" data-tooltip="${tooltip}">?</span>
+                    </span>
+                    ${this.formatTrend(trendValue)}
+                </div>
+                <div class="kpi-value">${mainValue} <span class="kpi-unit">${unit}</span></div>
+                <div class="kpi-sparkline">${sparkline}</div>
+            </div>
+        `;
+    }
+
+    private formatTrend(val: number): string {
+        try {
+            if (val === 0) return `<span class="kpi-trend" style="color:var(--md-text-low);">0%</span>`;
+            if (val > 0) return `<span class="kpi-trend trend-up">▲ ${val}%</span>`;
+            return `<span class="kpi-trend trend-down">▼ ${Math.abs(val)}%</span>`;
+        } catch (trendErr) {
+            UIUtils.catchError('LearningVelocity', 'Error formatting trend value', trendErr, { val });
+            return `<span class="kpi-trend" style="color:var(--md-text-low);">0%</span>`;
         }
     }
 
@@ -112,8 +93,7 @@ export class LearningVelocity {
                 </svg>
             `;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('LearningVelocity', `Error generating sparkline SVG: ${errorMessage}`, { color, dataArray, err });
+            UIUtils.catchError('LearningVelocity', 'Error generating sparkline SVG', err, { color, dataArray });
             return '';
         }
     }
