@@ -6,6 +6,8 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../utils/uiUtils';
+import { DEFAULT_WHITELISTED_WEBSITES } from '../constants';
 
 export interface WhitelistedSite {
     domain: string;
@@ -16,18 +18,7 @@ export class WhitelistedWebsitesManager {
     defaultSitesList: WhitelistedSite[];
 
     constructor() {
-        this.defaultSitesList = [
-            { domain: "algo.monster", isDefault: true },
-            { domain: "systemdesignschool.io", isDefault: true },
-            { domain: "codeforces.com", isDefault: true },
-            { domain: "leetcode.com", isDefault: true },
-            { domain: "codechef.com", isDefault: true },
-            { domain: "atcoder.jp", isDefault: true },
-            { domain: "hackerrank.com", isDefault: true },
-            { domain: "hackerearth.com", isDefault: true },
-            { domain: "codewars.com", isDefault: true },
-            { domain: "codingame.com", isDefault: true }
-        ];
+        this.defaultSitesList = DEFAULT_WHITELISTED_WEBSITES.map(s => ({ ...s, isDefault: true }));
     }
 
     /**
@@ -41,9 +32,7 @@ export class WhitelistedWebsitesManager {
             // Register static event listeners
             this.bindEvents();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('WhitelistedWebsites', `Error initializing WhitelistedWebsitesManager: ${errorMessage}`, { err });
-            // Comment: Non-fatal whitelist manager setup catch
+            UIUtils.catchError('WhitelistedWebsites', 'Error initializing WhitelistedWebsitesManager', err);
         }
     }
 
@@ -57,8 +46,7 @@ export class WhitelistedWebsitesManager {
                 try {
                     window.close();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('WhitelistedWebsites', `Error closing window: ${errorMessage}`, { err });
+                    UIUtils.catchError('WhitelistedWebsites', 'Error closing window', err);
                 }
             });
 
@@ -67,8 +55,7 @@ export class WhitelistedWebsitesManager {
                 try {
                     this.handleAddWebsite();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('WhitelistedWebsites', `Error in add domain button handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('WhitelistedWebsites', 'Error in add domain button handler', err);
                 }
             });
             
@@ -77,8 +64,7 @@ export class WhitelistedWebsitesManager {
                 try {
                     if (e.key === 'Enter') this.handleAddWebsite();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('WhitelistedWebsites', `Error in domain input keypress handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('WhitelistedWebsites', 'Error in domain input keypress handler', err);
                 }
             });
 
@@ -87,14 +73,11 @@ export class WhitelistedWebsitesManager {
                 try {
                     this.restoreDefaults();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('WhitelistedWebsites', `Error in restore defaults button handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('WhitelistedWebsites', 'Error in restore defaults button handler', err);
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('WhitelistedWebsites', `Error binding events: ${errorMessage}`, { err });
-            // Comment: Catch event binding failure gracefully
+            UIUtils.catchError('WhitelistedWebsites', 'Error binding events', err);
         }
     }
 
@@ -108,20 +91,13 @@ export class WhitelistedWebsitesManager {
 
             chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
                 try {
-                    if (chrome.runtime?.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('WhitelistedWebsites', `Storage error loading websites: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        return;
-                    }
+                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error loading websites')) return;
                     let sites: WhitelistedSite[] = result.whitelistedWebsites || [];
                     if (!result.whitelistedWebsites) {
                         // First time: initialize storage with default list
                         sites = [...this.defaultSitesList.map(s => ({ ...s }))];
                         chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
-                            if (chrome.runtime?.lastError) {
-                                const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                Logger.error('WhitelistedWebsites', `Error saving default websites to storage: ${errorMessage}`, { error: chrome.runtime.lastError });
-                            }
+                            UIUtils.checkStorageError('WhitelistedWebsites', 'Error saving default websites to storage');
                         });
                     }
 
@@ -162,20 +138,16 @@ export class WhitelistedWebsitesManager {
                                     this.handleDeleteWebsite(siteDomain);
                                 }
                             } catch (err) {
-                                const errorMessage = err instanceof Error ? err.message : String(err);
-                                Logger.error('WhitelistedWebsites', `Error in delete site button click: ${errorMessage}`, { err });
+                                UIUtils.catchError('WhitelistedWebsites', 'Error in delete site button click', err);
                             }
                         });
                     });
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('WhitelistedWebsites', `Error rendering whitelisted sites: ${errorMessage}`, { innerErr });
+                    UIUtils.catchError('WhitelistedWebsites', 'Error rendering whitelisted sites', innerErr);
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('WhitelistedWebsites', `Error loading whitelisted sites: ${errorMessage}`, { err });
-            // Comment: Non-fatal rendering catch
+            UIUtils.catchError('WhitelistedWebsites', 'Error loading whitelisted sites', err);
         }
     }
 
@@ -200,21 +172,19 @@ export class WhitelistedWebsitesManager {
             }
 
             if (!hostname) {
-                this.showToast("Invalid domain name.");
+                UIUtils.showToast("Invalid domain name.");
                 return;
             }
 
             chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
                 try {
-                    if (chrome.runtime.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('WhitelistedWebsites', `Storage error fetching whitelistedWebsites: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        this.showToast("Error checking website status.");
+                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error fetching whitelistedWebsites')) {
+                        UIUtils.showToast("Error checking website status.");
                         return;
                     }
                     const sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map(s => ({ ...s }))];
                     if (sites.some(s => s.domain === hostname)) {
-                        this.showToast("Website is already whitelisted.");
+                        UIUtils.showToast("Website is already whitelisted.");
                         return;
                     }
 
@@ -225,10 +195,8 @@ export class WhitelistedWebsitesManager {
                         origins: [originPattern]
                     }, (granted: boolean) => {
                         try {
-                            if (chrome.runtime.lastError) {
-                                const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                Logger.error('WhitelistedWebsites', `Permission request error: ${errorMessage}`, { hostname, error: chrome.runtime.lastError });
-                                this.showToast("Error requesting domain permission.");
+                            if (UIUtils.checkStorageError('WhitelistedWebsites', 'Permission request error', { hostname })) {
+                                UIUtils.showToast("Error requesting domain permission.");
                                 return;
                             }
 
@@ -245,50 +213,38 @@ export class WhitelistedWebsitesManager {
                                     }
                                 ], () => {
                                     try {
-                                        if (chrome.runtime.lastError) {
-                                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                            Logger.error('WhitelistedWebsites', `Script registration error: ${errorMessage}`, { hostname, error: chrome.runtime.lastError });
-                                        }
+                                        UIUtils.checkStorageError('WhitelistedWebsites', 'Script registration error', { hostname });
 
                                         // Save to storage
                                         sites.push({ domain: hostname, isDefault: false });
                                         chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
                                             try {
-                                                if (chrome.runtime.lastError) {
-                                                    const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                                    Logger.error('WhitelistedWebsites', `Storage set error after script registration: ${errorMessage}`, { hostname, error: chrome.runtime.lastError });
-                                                    return;
-                                                }
+                                                if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage set error after script registration', { hostname })) return;
                                                 input.value = '';
                                                 this.loadAndRenderSites();
-                                                this.showToast(`Authorized & Whitelisted: ${hostname}`);
+                                                UIUtils.showToast(`Authorized & Whitelisted: ${hostname}`);
                                             } catch (saveErr) {
-                                                const errorMessage = saveErr instanceof Error ? saveErr.message : String(saveErr);
-                                                Logger.error('WhitelistedWebsites', `Error saving whitelisted website to storage: ${errorMessage}`, { saveErr });
+                                                UIUtils.catchError('WhitelistedWebsites', 'Error saving whitelisted website to storage', saveErr);
                                             }
                                         });
                                     } catch (regErr) {
-                                        const errorMessage = regErr instanceof Error ? regErr.message : String(regErr);
-                                        Logger.error('WhitelistedWebsites', `Error in script registration callback: ${errorMessage}`, { regErr });
+                                        UIUtils.catchError('WhitelistedWebsites', 'Error in script registration callback', regErr);
                                     }
                                 });
                             } else {
-                                this.showToast("Permission request was declined.");
+                                UIUtils.showToast("Permission request was declined.");
                             }
                         } catch (permErr) {
-                            const errorMessage = permErr instanceof Error ? permErr.message : String(permErr);
-                            Logger.error('WhitelistedWebsites', `Error in permissions request callback: ${errorMessage}`, { permErr });
+                            UIUtils.catchError('WhitelistedWebsites', 'Error in permissions request callback', permErr);
                         }
                     });
                 } catch (getErr) {
-                    const errorMessage = getErr instanceof Error ? getErr.message : String(getErr);
-                    Logger.error('WhitelistedWebsites', `Error in storage get callback for add website: ${errorMessage}`, { getErr });
+                    UIUtils.catchError('WhitelistedWebsites', 'Error in storage get callback for add website', getErr);
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('WhitelistedWebsites', `Failed to parse domain input: ${errorMessage}`, { value, err });
-            this.showToast("Please enter a valid URL or domain.");
+            UIUtils.catchError('WhitelistedWebsites', 'Failed to parse domain input', err, { value });
+            UIUtils.showToast("Please enter a valid URL or domain.");
         }
     }
 
@@ -299,11 +255,7 @@ export class WhitelistedWebsitesManager {
         try {
             chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
                 try {
-                    if (chrome.runtime.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('WhitelistedWebsites', `Storage error reading websites for delete: ${errorMessage}`, { siteDomain, error: chrome.runtime.lastError });
-                        return;
-                    }
+                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error reading websites for delete', { siteDomain })) return;
                     let sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map(s => ({ ...s }))];
                     const site = sites.find(s => s.domain === siteDomain);
                     if (!site) return;
@@ -313,21 +265,15 @@ export class WhitelistedWebsitesManager {
                             sites = sites.filter(s => s.domain !== siteDomain);
                             chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
                                 try {
-                                    if (chrome.runtime.lastError) {
-                                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                        Logger.error('WhitelistedWebsites', `Storage set error during website delete: ${errorMessage}`, { siteDomain, error: chrome.runtime.lastError });
-                                        return;
-                                    }
+                                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage set error during website delete', { siteDomain })) return;
                                     this.loadAndRenderSites();
-                                    this.showToast(`Removed access for: ${siteDomain}`);
+                                    UIUtils.showToast(`Removed access for: ${siteDomain}`);
                                 } catch (setErr) {
-                                    const errorMessage = setErr instanceof Error ? setErr.message : String(setErr);
-                                    Logger.error('WhitelistedWebsites', `Error in storage set callback for delete website: ${errorMessage}`, { setErr });
+                                    UIUtils.catchError('WhitelistedWebsites', 'Error in storage set callback for delete website', setErr);
                                 }
                             });
                         } catch (deleteErr) {
-                            const errorMessage = deleteErr instanceof Error ? deleteErr.message : String(deleteErr);
-                            Logger.error('WhitelistedWebsites', `Error performing storage delete: ${errorMessage}`, { deleteErr });
+                            UIUtils.catchError('WhitelistedWebsites', 'Error performing storage delete', deleteErr);
                         }
                     };
 
@@ -341,39 +287,29 @@ export class WhitelistedWebsitesManager {
                             ids: [scriptId]
                         }, () => {
                             try {
-                                if (chrome.runtime.lastError) {
-                                    const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                    Logger.warn('WhitelistedWebsites', `Script unregister warning: ${errorMessage}`, { siteDomain, error: chrome.runtime.lastError });
-                                }
+                                UIUtils.checkStorageError('WhitelistedWebsites', 'Script unregister warning', { siteDomain });
 
                                 chrome.permissions.remove({
                                     origins: [originPattern]
                                 }, () => {
                                     try {
-                                        if (chrome.runtime.lastError) {
-                                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                            Logger.warn('WhitelistedWebsites', `Permission remove warning: ${errorMessage}`, { siteDomain, error: chrome.runtime.lastError });
-                                        }
+                                        UIUtils.checkStorageError('WhitelistedWebsites', 'Permission remove warning', { siteDomain });
                                         performStorageDelete();
                                     } catch (permRemoveErr) {
-                                        const errorMessage = permRemoveErr instanceof Error ? permRemoveErr.message : String(permRemoveErr);
-                                        Logger.error('WhitelistedWebsites', `Error in permissions remove callback: ${errorMessage}`, { permRemoveErr });
+                                        UIUtils.catchError('WhitelistedWebsites', 'Error in permissions remove callback', permRemoveErr);
                                     }
                                 });
                             } catch (unregErr) {
-                                const errorMessage = unregErr instanceof Error ? unregErr.message : String(unregErr);
-                                Logger.error('WhitelistedWebsites', `Error in script unregister callback: ${errorMessage}`, { unregErr });
+                                UIUtils.catchError('WhitelistedWebsites', 'Error in script unregister callback', unregErr);
                             }
                         });
                     }
                 } catch (getErr) {
-                    const errorMessage = getErr instanceof Error ? getErr.message : String(getErr);
-                    Logger.error('WhitelistedWebsites', `Error in storage get callback for delete website: ${errorMessage}`, { getErr });
+                    UIUtils.catchError('WhitelistedWebsites', 'Error in storage get callback for delete website', getErr);
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('WhitelistedWebsites', `Error deleting website '${siteDomain}': ${errorMessage}`, { siteDomain, err });
+            UIUtils.catchError('WhitelistedWebsites', `Error deleting website '${siteDomain}'`, err, { siteDomain });
         }
     }
 
@@ -384,11 +320,7 @@ export class WhitelistedWebsitesManager {
         try {
             chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
                 try {
-                    if (chrome.runtime.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('WhitelistedWebsites', `Storage error fetching websites for restore defaults: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        return;
-                    }
+                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error fetching websites for restore defaults')) return;
                     const currentSites: WhitelistedSite[] = result.whitelistedWebsites || [];
                     
                     const customSites = currentSites.filter(s => !s.isDefault);
@@ -396,49 +328,19 @@ export class WhitelistedWebsitesManager {
                     
                     chrome.storage.local.set({ whitelistedWebsites: restoredList }, () => {
                         try {
-                            if (chrome.runtime.lastError) {
-                                const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                Logger.error('WhitelistedWebsites', `Storage error saving restored defaults: ${errorMessage}`, { error: chrome.runtime.lastError });
-                                return;
-                            }
+                            if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error saving restored defaults')) return;
                             this.loadAndRenderSites();
-                            this.showToast("Default platforms restored!");
+                            UIUtils.showToast("Default platforms restored!");
                         } catch (setErr) {
-                            const errorMessage = setErr instanceof Error ? setErr.message : String(setErr);
-                            Logger.error('WhitelistedWebsites', `Error in storage set callback for restore defaults: ${errorMessage}`, { setErr });
+                            UIUtils.catchError('WhitelistedWebsites', 'Error in storage set callback for restore defaults', setErr);
                         }
                     });
                 } catch (getErr) {
-                    const errorMessage = getErr instanceof Error ? getErr.message : String(getErr);
-                    Logger.error('WhitelistedWebsites', `Error in storage get callback for restore defaults: ${errorMessage}`, { getErr });
+                    UIUtils.catchError('WhitelistedWebsites', 'Error in storage get callback for restore defaults', getErr);
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('WhitelistedWebsites', `Error restoring default platforms: ${errorMessage}`, { err });
-        }
-    }
-
-    /**
-     * Shows temporary toast alerts.
-     */
-    showToast(msg: string): void {
-        try {
-            const toast = document.getElementById('status-toast');
-            if (!toast) return;
-            toast.textContent = msg;
-            toast.className = 'toast show';
-            setTimeout(() => {
-                try {
-                    toast.className = 'toast';
-                } catch (animErr) {
-                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
-                    Logger.error('WhitelistedWebsites', `Error hiding toast animation: ${errorMessage}`, { animErr });
-                }
-            }, 2500);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('WhitelistedWebsites', `Error showing toast message '${msg}': ${errorMessage}`, { msg, err });
+            UIUtils.catchError('WhitelistedWebsites', 'Error restoring default platforms', err);
         }
     }
 }
@@ -448,8 +350,7 @@ function initWebsitesManager(): void {
         const manager = new WhitelistedWebsitesManager();
         manager.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('WhitelistedWebsites', `Initialization failed: ${errorMessage}`, { err });
+        UIUtils.catchError('WhitelistedWebsites', 'Initialization failed', err);
     }
 }
 
@@ -470,6 +371,5 @@ try {
         (window as unknown as { WhitelistedWebsitesManager?: typeof WhitelistedWebsitesManager }).WhitelistedWebsitesManager = WhitelistedWebsitesManager;
     }
 } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('WhitelistedWebsites', `Error exporting WhitelistedWebsitesManager: ${errorMessage}`, { err });
+    UIUtils.catchError('WhitelistedWebsites', 'Error exporting WhitelistedWebsitesManager', err);
 }

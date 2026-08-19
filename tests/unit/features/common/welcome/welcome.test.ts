@@ -1,5 +1,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { OnboardingWelcome } from '../../../../../features/common/welcome/welcome';
+import { UIUtils } from '../../../../../features/common/utils/uiUtils';
 
 describe('OnboardingWelcome', () => {
   let welcome: OnboardingWelcome;
@@ -168,13 +169,13 @@ describe('OnboardingWelcome', () => {
   describe('toast and error recovery', () => {
     it('shows and hides toast notification after timer', () => {
       jest.useFakeTimers();
-      welcome.showToast('Test Toast');
+      UIUtils.showToast('Test Toast');
 
       const toast = document.getElementById('status-toast');
       expect(toast?.textContent).toBe('Test Toast');
       expect(toast?.className).toBe('toast show');
 
-      jest.advanceTimersByTime(2100);
+      jest.advanceTimersByTime(2600);
       expect(toast?.className).toBe('toast');
       jest.useRealTimers();
     });
@@ -185,7 +186,7 @@ describe('OnboardingWelcome', () => {
 
       expect(() => welcome.goToStep(2)).not.toThrow();
       expect(() => welcome.checkNotificationState()).not.toThrow();
-      expect(() => welcome.showToast('Error Toast')).not.toThrow();
+      expect(() => UIUtils.showToast('Error Toast')).not.toThrow();
 
       document.getElementById = origGEBI;
     });

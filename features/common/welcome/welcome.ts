@@ -5,6 +5,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../utils/uiUtils';
 
 export class OnboardingWelcome {
     currentStep: number;
@@ -24,9 +25,7 @@ export class OnboardingWelcome {
             this.syncThemePreference();
             this.checkNotificationState();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error initializing OnboardingWelcome: ${errorMessage}`, { err });
-            // Comment: Non-fatal onboarding setup catch
+            UIUtils.catchError('Onboarding', 'Error initializing OnboardingWelcome', err);
         }
     }
 
@@ -44,8 +43,7 @@ export class OnboardingWelcome {
                         this.goToStep(this.currentStep - 1);
                     }
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Onboarding', `Error in prev button click handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('Onboarding', 'Error in prev button click handler', err);
                 }
             });
 
@@ -58,8 +56,7 @@ export class OnboardingWelcome {
                         window.location.href = '../help/help.html';
                     }
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Onboarding', `Error in next button click handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('Onboarding', 'Error in next button click handler', err);
                 }
             });
 
@@ -70,8 +67,7 @@ export class OnboardingWelcome {
                 try {
                     this.setThemePreference('dark');
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Onboarding', `Error in dark theme button click handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('Onboarding', 'Error in dark theme button click handler', err);
                 }
             });
 
@@ -79,8 +75,7 @@ export class OnboardingWelcome {
                 try {
                     this.setThemePreference('light');
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Onboarding', `Error in light theme button click handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('Onboarding', 'Error in light theme button click handler', err);
                 }
             });
 
@@ -92,30 +87,23 @@ export class OnboardingWelcome {
                             try {
                                 this.checkNotificationState();
                                 if (permission === 'granted') {
-                                    this.showToast("Notification settings initialized successfully!");
+                                    UIUtils.showToast("Notification settings initialized successfully!");
                                 } else {
-                                    this.showToast("Notifications were disabled.");
+                                    UIUtils.showToast("Notifications were disabled.");
                                 }
                             } catch (permHandlerErr) {
-                                const errorMessage = permHandlerErr instanceof Error ? permHandlerErr.message : String(permHandlerErr);
-                                Logger.error('Onboarding', `Error in permission response handler: ${errorMessage}`, { permHandlerErr });
+                                UIUtils.catchError('Onboarding', 'Error in permission response handler', permHandlerErr);
                             }
                         }).catch((err) => {
-                            const errorMessage = err instanceof Error ? err.message : String(err);
-                            Logger.error('Onboarding', `Notification permission request error: ${errorMessage}`, { err });
-                            // Comment: Catch rejected permission Promise gracefully
+                            UIUtils.catchError('Onboarding', 'Notification permission request error', err);
                         });
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Onboarding', `Error calling requestPermission: ${errorMessage}`, { err });
-                        // Comment: Catch browser notification API exception gracefully
+                        UIUtils.catchError('Onboarding', 'Error calling requestPermission', err);
                     }
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error binding event listeners: ${errorMessage}`, { err });
-            // Comment: Catch event listener setup error
+            UIUtils.catchError('Onboarding', 'Error binding event listeners', err);
         }
     }
 
@@ -126,22 +114,15 @@ export class OnboardingWelcome {
         try {
             chrome.storage.local.get(['theme'], (result: { theme?: string }) => {
                 try {
-                    if (chrome.runtime?.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Onboarding', `Storage error fetching theme: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        return;
-                    }
+                    if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching theme')) return;
                     const theme = result.theme || 'dark';
                     this.setActiveThemeButton(theme);
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('Onboarding', `Error processing storage theme result: ${errorMessage}`, { innerErr });
+                    UIUtils.catchError('Onboarding', 'Error processing storage theme result', innerErr);
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Failed to sync theme preference: ${errorMessage}`, { err });
-            // Comment: Non-fatal theme sync catch
+            UIUtils.catchError('Onboarding', 'Failed to sync theme preference', err);
         }
     }
 
@@ -180,9 +161,7 @@ export class OnboardingWelcome {
                 }
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error navigating to step ${step}: ${errorMessage}`, { step, err });
-            // Comment: Catch step navigation UI update error
+            UIUtils.catchError('Onboarding', `Error navigating to step ${step}`, err, { step });
         }
     }
 
@@ -202,8 +181,7 @@ export class OnboardingWelcome {
                 lightBtn?.classList.remove('active');
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error setting active theme button for '${theme}': ${errorMessage}`, { theme, err });
+            UIUtils.catchError('Onboarding', `Error setting active theme button for '${theme}'`, err, { theme });
         }
     }
 
@@ -214,21 +192,15 @@ export class OnboardingWelcome {
         try {
             chrome.storage.local.set({ theme: theme }, () => {
                 try {
-                    if (chrome.runtime?.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Onboarding', `Storage set error saving theme: ${errorMessage}`, { theme, error: chrome.runtime.lastError });
-                        return;
-                    }
+                    if (UIUtils.checkStorageError('Onboarding', 'Storage set error saving theme', { theme })) return;
                     this.setActiveThemeButton(theme);
-                    this.showToast(`Switched to ${theme === 'dark' ? 'Dark' : 'Light'} Mode!`);
+                    UIUtils.showToast(`Switched to ${theme === 'dark' ? 'Dark' : 'Light'} Mode!`);
                 } catch (setErr) {
-                    const errorMessage = setErr instanceof Error ? setErr.message : String(setErr);
-                    Logger.error('Onboarding', `Error in storage set callback for theme: ${errorMessage}`, { theme, setErr });
+                    UIUtils.catchError('Onboarding', 'Error in storage set callback for theme', setErr, { theme });
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error persisting theme preference '${theme}': ${errorMessage}`, { theme, err });
+            UIUtils.catchError('Onboarding', `Error persisting theme preference '${theme}'`, err, { theme });
         }
     }
 
@@ -253,32 +225,7 @@ export class OnboardingWelcome {
                 }
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error checking notification state: ${errorMessage}`, { err });
-            // Comment: Non-fatal notification state check catch
-        }
-    }
-
-    /**
-     * Displays status feedback messages in onboarding page container.
-     */
-    showToast(msg: string): void {
-        try {
-            const toast = document.getElementById('status-toast');
-            if (!toast) return;
-            toast.textContent = msg;
-            toast.className = 'toast show';
-            setTimeout(() => {
-                try {
-                    toast.className = 'toast';
-                } catch (animErr) {
-                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
-                    Logger.error('Onboarding', `Error hiding toast animation: ${errorMessage}`, { animErr });
-                }
-            }, 2000);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error showing toast message '${msg}': ${errorMessage}`, { msg, err });
+            UIUtils.catchError('Onboarding', 'Error checking notification state', err);
         }
     }
 }
@@ -288,8 +235,7 @@ function initWelcome(): void {
         const welcome = new OnboardingWelcome();
         welcome.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('Onboarding', `Initialization failed: ${errorMessage}`, { err });
+        UIUtils.catchError('Onboarding', 'Initialization failed', err);
     }
 }
 

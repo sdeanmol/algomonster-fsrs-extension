@@ -1,7 +1,9 @@
 import { Logger } from '@common/logger';
+import { UIUtils } from '../utils/uiUtils';
 import { ensureCardIds } from '../utils/cardUtils';
 import { TagInputControl } from '../utils/tagInput';
 import { Card, StorageData, UserSettings } from '../../../types/domain';
+import { PLATFORM_NAMES } from '../constants';
 
 /**
  * @file features/common/data/data.ts
@@ -91,15 +93,11 @@ export class FSRSDataDashboard {
                     // Run initial render
                     this.filterAndRender();
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('DataDashboard', `Error rendering data dashboard: ${errorMessage}`, { innerErr });
-                    // Comment: Non-fatal dashboard render catch
-                }
+            UIUtils.catchError('DataDashboard', 'Error rendering data dashboard', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Failed storage get in DataDashboard init: ${errorMessage}`, { err });
-            // Comment: Catch storage retrieval failure gracefully
+            UIUtils.catchError('DataDashboard', 'Failed storage get in DataDashboard init', err);
         }
     }
 
@@ -115,9 +113,8 @@ export class FSRSDataDashboard {
                         this.searchQuery = (e.target as HTMLInputElement).value.trim();
                         this.filterAndRender();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in search input handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in search input handler', err);
+        }
                 });
             }
 
@@ -128,9 +125,8 @@ export class FSRSDataDashboard {
                         this.selectedTag = (e.target as HTMLSelectElement).value;
                         this.filterAndRender();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in tag select handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in tag select handler', err);
+        }
                 });
             }
 
@@ -141,9 +137,8 @@ export class FSRSDataDashboard {
                         this.selectedStatus = (e.target as HTMLSelectElement).value;
                         this.filterAndRender();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in status select handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in status select handler', err);
+        }
                 });
             }
 
@@ -154,9 +149,8 @@ export class FSRSDataDashboard {
                         this.selectedPlatform = (e.target as HTMLSelectElement).value;
                         this.filterAndRender();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in platform select handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in platform select handler', err);
+        }
                 });
             }
 
@@ -167,9 +161,8 @@ export class FSRSDataDashboard {
                         this.selectedState = (e.target as HTMLSelectElement).value;
                         this.filterAndRender();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in state select handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in state select handler', err);
+        }
                 });
             }
 
@@ -180,9 +173,8 @@ export class FSRSDataDashboard {
                         this.sortBy = (e.target as HTMLSelectElement).value;
                         this.filterAndRender();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in sort select handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in sort select handler', err);
+        }
                 });
             }
 
@@ -206,9 +198,8 @@ export class FSRSDataDashboard {
 
                         this.filterAndRender();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error clearing filters: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error clearing filters', err);
+        }
                 });
             }
 
@@ -218,9 +209,8 @@ export class FSRSDataDashboard {
                     try {
                         this.bulkDelete();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in bulk delete click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in bulk delete click handler', err);
+        }
                 });
             }
 
@@ -230,9 +220,8 @@ export class FSRSDataDashboard {
                     try {
                         this.bulkRetag();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in bulk retag click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in bulk retag click handler', err);
+        }
                 });
             }
 
@@ -242,9 +231,8 @@ export class FSRSDataDashboard {
                     try {
                         this.bulkReschedule();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in bulk reschedule click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in bulk reschedule click handler', err);
+        }
                 });
             }
 
@@ -256,9 +244,8 @@ export class FSRSDataDashboard {
                         this.updateBulkActionsBar();
                         this.filterAndRender();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error deselecting bulk cards: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error deselecting bulk cards', err);
+        }
                 });
             }
 
@@ -276,9 +263,7 @@ export class FSRSDataDashboard {
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error binding dashboard events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event binding error
+            UIUtils.catchError('DataDashboard', 'Error binding dashboard events', err);
         }
     }
 
@@ -306,9 +291,7 @@ export class FSRSDataDashboard {
                 tagSelect.appendChild(option);
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error populating tags filter: ${errorMessage}`, { err });
-            // Comment: Non-fatal tag filter population error
+            UIUtils.catchError('DataDashboard', 'Error populating tags filter', err);
         }
     }
 
@@ -322,18 +305,7 @@ export class FSRSDataDashboard {
 
             platformSelect.innerHTML = '<option value="all">All Platforms</option>';
 
-            const platformNames: Record<string, string> = {
-                'leetcode.com': 'LeetCode',
-                'codeforces.com': 'Codeforces',
-                'codechef.com': 'CodeChef',
-                'atcoder.jp': 'AtCoder',
-                'hackerrank.com': 'HackerRank',
-                'hackerearth.com': 'HackerEarth',
-                'codewars.com': 'Codewars',
-                'codingame.com': 'CodinGame',
-                'algo.monster': 'AlgoMonster',
-                'systemdesignschool.io': 'System Design School'
-            };
+
 
             const platforms = new Set<string>();
             this.allCards.forEach((card: Card) => {
@@ -344,13 +316,11 @@ export class FSRSDataDashboard {
             [...platforms].sort().forEach(platform => {
                 const option = document.createElement('option');
                 option.value = platform;
-                option.textContent = platformNames[platform] || platform;
+                option.textContent = PLATFORM_NAMES[platform] || platform;
                 platformSelect.appendChild(option);
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error populating platform filter: ${errorMessage}`, { err });
-            // Comment: Non-fatal platform filter population error
+            UIUtils.catchError('DataDashboard', 'Error populating platform filter', err);
         }
     }
 
@@ -525,9 +495,7 @@ export class FSRSDataDashboard {
             this.bindDeleteButtons();
             this.bindEditButtons();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error in filterAndRender: ${errorMessage}`, { err });
-            // Comment: Catch filtering or rendering error to prevent breaking page
+            UIUtils.catchError('DataDashboard', 'Error in filterAndRender', err);
         }
     }
 
@@ -604,9 +572,7 @@ export class FSRSDataDashboard {
 
             return table + `</tbody></table></div>`;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error generating cards table: ${errorMessage}`, { err });
-            // Comment: Return empty table on rendering failure
+            UIUtils.catchError('DataDashboard', 'Error generating cards table', err);
             return '<div class="empty-state">Error loading table</div>';
         }
     }
@@ -631,28 +597,21 @@ export class FSRSDataDashboard {
                 case 'lapses-desc':
                     return sorted.sort((a, b) => (b.lapses || 0) - (a.lapses || 0));
                 case 'created-desc':
-                    return sorted.sort((a, b) => {
-                        const aLog = (a as Card & { historyLog?: (number | { date: number })[] }).historyLog;
-                        const bLog = (b as Card & { historyLog?: (number | { date: number })[] }).historyLog;
-                        const aCreated = aLog && aLog.length > 0 ? (typeof aLog[0] === 'number' ? aLog[0] : aLog[0].date) : 0;
-                        const bCreated = bLog && bLog.length > 0 ? (typeof bLog[0] === 'number' ? bLog[0] : bLog[0].date) : 0;
-                        return bCreated - aCreated;
-                    });
                 case 'created-asc':
                     return sorted.sort((a, b) => {
-                        const aLog = (a as Card & { historyLog?: (number | { date: number })[] }).historyLog;
-                        const bLog = (b as Card & { historyLog?: (number | { date: number })[] }).historyLog;
-                        const aCreated = aLog && aLog.length > 0 ? (typeof aLog[0] === 'number' ? aLog[0] : aLog[0].date) : 0;
-                        const bCreated = bLog && bLog.length > 0 ? (typeof bLog[0] === 'number' ? bLog[0] : bLog[0].date) : 0;
-                        return aCreated - bCreated;
+                        const getCreated = (card: Card) => {
+                            const log = (card as Card & { historyLog?: (number | { date: number })[] }).historyLog;
+                            return log && log.length > 0 ? (typeof log[0] === 'number' ? log[0] : log[0].date) : 0;
+                        };
+                        const aCreated = getCreated(a);
+                        const bCreated = getCreated(b);
+                        return this.sortBy === 'created-desc' ? bCreated - aCreated : aCreated - bCreated;
                     });
                 default:
                     return sorted;
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error sorting cards: ${errorMessage}`, { sortBy: this.sortBy, err });
-            // Comment: Return original array on sort exception
+            UIUtils.catchError('DataDashboard', 'Error sorting cards', err, { sortBy: this.sortBy });
             return cards;
         }
     }
@@ -672,30 +631,23 @@ export class FSRSDataDashboard {
                             this.selectedCardIds.delete(cardId);
                             chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
                                 try {
-                                    if (chrome.runtime?.lastError) {
-                                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                        Logger.error('DataDashboard', `Error deleting card from storage: ${errorMessage}`, { cardId, error: chrome.runtime.lastError });
-                                        return;
-                                    }
+                                    if (UIUtils.checkStorageError('DataDashboard', 'Error deleting card from storage', { cardId })) return;
                                     this.populateTagsFilter();
                                     this.populatePlatformFilter();
                                     this.updateBulkActionsBar();
                                     this.filterAndRender();
                                 } catch (callbackErr) {
-                                    const errorMessage = callbackErr instanceof Error ? callbackErr.message : String(callbackErr);
-                                    Logger.error('DataDashboard', `Error in delete card callback: ${errorMessage}`, { cardId, callbackErr });
+                                    UIUtils.catchError('DataDashboard', 'Error in delete card callback', callbackErr, { cardId });
                                 }
                             });
                         }
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in delete button click listener: ${errorMessage}`, { err });
+                        UIUtils.catchError('DataDashboard', 'Error in delete button click listener', err);
                     }
                 });
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error binding delete buttons: ${errorMessage}`, { err });
+            UIUtils.catchError('DataDashboard', 'Error binding delete buttons', err);
         }
     }
 
@@ -725,8 +677,7 @@ export class FSRSDataDashboard {
                         });
                         this.updateBulkActionsBar();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in select all checkbox handler: ${errorMessage}`, { err });
+                        UIUtils.catchError('DataDashboard', 'Error in select all checkbox handler', err);
                     }
                 });
             }
@@ -750,14 +701,12 @@ export class FSRSDataDashboard {
                         const allChecked = [...allCheckboxes].every((c: Element) => (c as HTMLInputElement).checked);
                         if (selectAll) selectAll.checked = allChecked;
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in row checkbox handler: ${errorMessage}`, { err });
+                        UIUtils.catchError('DataDashboard', 'Error in row checkbox handler', err);
                     }
                 });
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error binding checkboxes: ${errorMessage}`, { err });
+            UIUtils.catchError('DataDashboard', 'Error binding checkboxes', err);
         }
     }
 
@@ -778,8 +727,7 @@ export class FSRSDataDashboard {
                 bar.style.display = 'none';
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error updating bulk actions bar: ${errorMessage}`, { err });
+            UIUtils.catchError('DataDashboard', 'Error updating bulk actions bar', err);
         }
     }
 
@@ -806,14 +754,12 @@ export class FSRSDataDashboard {
                         this.updateBulkActionsBar();
                         this.filterAndRender();
                     } catch (callbackErr) {
-                        const errorMessage = callbackErr instanceof Error ? callbackErr.message : String(callbackErr);
-                        Logger.error('DataDashboard', `Error in bulk delete callback: ${errorMessage}`, { callbackErr });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in bulk delete callback', callbackErr);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error in bulkDelete: ${errorMessage}`, { err });
+            UIUtils.catchError('DataDashboard', 'Error in bulkDelete', err);
         }
     }
 
@@ -848,13 +794,11 @@ export class FSRSDataDashboard {
                     this.updateBulkActionsBar();
                     this.filterAndRender();
                 } catch (callbackErr) {
-                    const errorMessage = callbackErr instanceof Error ? callbackErr.message : String(callbackErr);
-                    Logger.error('DataDashboard', `Error in bulk retag callback: ${errorMessage}`, { callbackErr });
-                }
+            UIUtils.catchError('DataDashboard', 'Error in bulk retag callback', callbackErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error in bulkRetag: ${errorMessage}`, { err });
+            UIUtils.catchError('DataDashboard', 'Error in bulkRetag', err);
         }
     }
 
@@ -885,14 +829,12 @@ export class FSRSDataDashboard {
                         this.updateBulkActionsBar();
                         this.filterAndRender();
                     } catch (callbackErr) {
-                        const errorMessage = callbackErr instanceof Error ? callbackErr.message : String(callbackErr);
-                        Logger.error('DataDashboard', `Error in bulk reschedule callback: ${errorMessage}`, { callbackErr });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in bulk reschedule callback', callbackErr);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error in bulkReschedule: ${errorMessage}`, { err });
+            UIUtils.catchError('DataDashboard', 'Error in bulkReschedule', err);
         }
     }
 
@@ -908,14 +850,12 @@ export class FSRSDataDashboard {
                         const cardId = (e.currentTarget as HTMLElement).getAttribute('data-id');
                         if (cardId) this.openEditModal(cardId);
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('DataDashboard', `Error in edit button click listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('DataDashboard', 'Error in edit button click listener', err);
+        }
                 });
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error binding edit buttons: ${errorMessage}`, { err });
+            UIUtils.catchError('DataDashboard', 'Error binding edit buttons', err);
         }
     }
 
@@ -953,8 +893,7 @@ export class FSRSDataDashboard {
             const overlay = document.getElementById('inline-edit-overlay');
             if (overlay) overlay.style.display = 'flex';
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error opening edit modal: ${errorMessage}`, { cardId, err });
+            UIUtils.catchError('DataDashboard', 'Error opening edit modal', err, { cardId });
         }
     }
 
@@ -966,8 +905,7 @@ export class FSRSDataDashboard {
             const overlay = document.getElementById('inline-edit-overlay');
             if (overlay) overlay.style.display = 'none';
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error closing edit modal: ${errorMessage}`, { err });
+            UIUtils.catchError('DataDashboard', 'Error closing edit modal', err);
         }
     }
 
@@ -997,13 +935,11 @@ export class FSRSDataDashboard {
                     this.populateTagsFilter();
                     this.filterAndRender();
                 } catch (callbackErr) {
-                    const errorMessage = callbackErr instanceof Error ? callbackErr.message : String(callbackErr);
-                    Logger.error('DataDashboard', `Error in save card edit callback: ${errorMessage}`, { cardId, callbackErr });
-                }
+            UIUtils.catchError('DataDashboard', 'Error in save card edit callback', callbackErr, { cardId });
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error saving card edit: ${errorMessage}`, { err });
+            UIUtils.catchError('DataDashboard', 'Error saving card edit', err);
         }
     }
 
@@ -1113,9 +1049,7 @@ export class FSRSDataDashboard {
             panel.appendChild(stateCard);
             panel.appendChild(tagsCard);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('DataDashboard', `Error rendering analytics panel: ${errorMessage}`, { err });
-            // Comment: Non-fatal analytics panel render error
+            UIUtils.catchError('DataDashboard', 'Error rendering analytics panel', err);
         }
     }
 }
@@ -1125,9 +1059,8 @@ function initDataDashboard(): void {
         const dashboard = new FSRSDataDashboard();
         dashboard.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('DataDashboard', `Error instantiating FSRSDataDashboard: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('DataDashboard', 'Error instantiating FSRSDataDashboard', err);
+        }
 }
 
 if (typeof document !== 'undefined') {

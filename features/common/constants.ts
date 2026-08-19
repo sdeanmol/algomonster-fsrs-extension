@@ -54,17 +54,22 @@ export const RATING_UI_DEBOUNCE_MS = 400;
 export const ALGORITHMIC_DEBOUNCE_WINDOW_MS = 60 * 1000; // 1 minute window
 
 export const DEFAULT_WHITELISTED_WEBSITES = [
-    { domain: "algo.monster" },
-    { domain: "systemdesignschool.io" },
-    { domain: "codeforces.com" },
-    { domain: "leetcode.com" },
-    { domain: "codechef.com" },
-    { domain: "atcoder.jp" },
-    { domain: "hackerrank.com" },
-    { domain: "hackerearth.com" },
-    { domain: "codewars.com" },
-    { domain: "codingame.com" }
+    { domain: "algo.monster", name: "AlgoMonster" },
+    { domain: "systemdesignschool.io", name: "System Design School" },
+    { domain: "codeforces.com", name: "Codeforces" },
+    { domain: "leetcode.com", name: "LeetCode" },
+    { domain: "codechef.com", name: "CodeChef" },
+    { domain: "atcoder.jp", name: "AtCoder" },
+    { domain: "hackerrank.com", name: "HackerRank" },
+    { domain: "hackerearth.com", name: "HackerEarth" },
+    { domain: "codewars.com", name: "Codewars" },
+    { domain: "codingame.com", name: "CodinGame" }
 ];
+
+export const PLATFORM_NAMES = DEFAULT_WHITELISTED_WEBSITES.reduce((acc, site) => {
+    acc[site.domain] = site.name;
+    return acc;
+}, {} as Record<string, string>);
 
 export const DEFAULT_PALETTES: Palette[] = [
     { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },

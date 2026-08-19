@@ -1,5 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import WhitelistedWebsitesManager from '../../../../../features/common/websites/websites';
+import { UIUtils } from '../../../../../features/common/utils/uiUtils';
 
 describe('WhitelistedWebsitesManager', () => {
     let manager: WhitelistedWebsitesManager;
@@ -212,7 +213,7 @@ describe('WhitelistedWebsitesManager', () => {
 
     it('shows and automatically hides toast after duration', () => {
         jest.useFakeTimers();
-        manager.showToast('Test Toast');
+        UIUtils.showToast('Test Toast');
         const toast = document.getElementById('status-toast')!;
         expect(toast.textContent).toBe('Test Toast');
         expect(toast.className).toBe('toast show');

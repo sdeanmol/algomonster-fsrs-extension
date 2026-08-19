@@ -160,6 +160,7 @@ export interface NotificationSettings {
 export interface WhitelistedWebsite {
     domain: string;
     isDefault?: boolean;
+    name?: string;
 }
 
 /**

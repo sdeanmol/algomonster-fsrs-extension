@@ -1,4 +1,5 @@
 import { Logger } from '@common/logger';
+import { UIUtils } from '../utils/uiUtils';
 
 /**
  * @file features/common/help/help.ts
@@ -22,9 +23,7 @@ export class HelpCenterSPA {
             this.bindSearchFilter();
             this.bindCloseButton();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HelpCenter', `Error initializing Help Center: ${errorMessage}`, { err });
-            // Comment: Non-fatal Help Center setup catch
+            UIUtils.catchError('HelpCenter', 'Error initializing Help Center', err);
         }
     }
 
@@ -43,15 +42,12 @@ export class HelpCenterSPA {
                             this.switchTab(targetTab);
                         }
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HelpCenter', `Error handling tab button click: ${errorMessage}`, { err });
+                        UIUtils.catchError('HelpCenter', 'Error handling tab button click', err);
                     }
                 });
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HelpCenter', `Error binding tab navigation: ${errorMessage}`, { err });
-            // Comment: Non-fatal tab navigation binding catch
+            UIUtils.catchError('HelpCenter', 'Error binding tab navigation', err);
         }
     }
 
@@ -80,9 +76,7 @@ export class HelpCenterSPA {
                 pane.classList.toggle('active', pane.id === `tab-${tabId}`);
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HelpCenter', `Error switching tab to '${tabId}': ${errorMessage}`, { tabId, err });
-            // Comment: Catch tab display toggle error
+            UIUtils.catchError('HelpCenter', `Error switching tab to '${tabId}'`, err, { tabId });
         }
     }
 
@@ -99,14 +93,11 @@ export class HelpCenterSPA {
                     const query = (e.target as HTMLInputElement).value.toLowerCase().trim();
                     this.filterContent(query);
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('HelpCenter', `Error in help search input handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('HelpCenter', 'Error in help search input handler', err);
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HelpCenter', `Error binding search filter: ${errorMessage}`, { err });
-            // Comment: Catch search filter listener binding error
+            UIUtils.catchError('HelpCenter', 'Error binding search filter', err);
         }
     }
 
@@ -154,9 +145,7 @@ export class HelpCenterSPA {
                 btn.classList.toggle('active', !!hasMatch);
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HelpCenter', `Error filtering help content: ${errorMessage}`, { query, err });
-            // Comment: Non-fatal content filter catch
+            UIUtils.catchError('HelpCenter', 'Error filtering help content', err, { query });
         }
     }
 
@@ -171,14 +160,12 @@ export class HelpCenterSPA {
                     try {
                         window.close();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HelpCenter', `Error closing Help Center window: ${errorMessage}`, { err });
+                        UIUtils.catchError('HelpCenter', 'Error closing Help Center window', err);
                     }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HelpCenter', `Error binding close button: ${errorMessage}`, { err });
+            UIUtils.catchError('HelpCenter', 'Error binding close button', err);
         }
     }
 }
@@ -188,8 +175,7 @@ function initHelpCenter(): void {
         const helpCenter = new HelpCenterSPA();
         helpCenter.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('HelpCenter', `Error instantiating HelpCenterSPA: ${errorMessage}`, { err });
+        UIUtils.catchError('HelpCenter', 'Error instantiating HelpCenterSPA', err);
     }
 }
 
