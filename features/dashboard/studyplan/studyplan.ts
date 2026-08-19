@@ -7,6 +7,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
 import { Card, StorageData } from '../../../types/domain';
 
@@ -48,14 +49,11 @@ export class StudyPlanController {
                         this.renderSetupPanel();
                     }
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('StudyPlan', `Error initializing study plan UI from storage: ${errorMessage}`, { innerErr });
-                    // Comment: Non-fatal study plan initialization catch
-                }
+            UIUtils.catchError('StudyPlan', 'Error initializing study plan UI from storage', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error initiating storage get for StudyPlanController: ${errorMessage}`, { err });
+            UIUtils.catchError('StudyPlan', 'Error initiating storage get for StudyPlanController', err);
         }
     }
 
@@ -75,9 +73,8 @@ export class StudyPlanController {
                     try {
                         this.updatePreview();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('StudyPlan', `Error in exam date input listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('StudyPlan', 'Error in exam date input listener', err);
+        }
                 };
 
                 examDateInput.addEventListener('change', handleDateUpdate);
@@ -89,9 +86,8 @@ export class StudyPlanController {
                     try {
                         this.updatePreview();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('StudyPlan', `Error in daily limit input listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('StudyPlan', 'Error in daily limit input listener', err);
+        }
                 });
             }
 
@@ -100,9 +96,8 @@ export class StudyPlanController {
                     try {
                         this.activateExamMode();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('StudyPlan', `Error in activate button listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('StudyPlan', 'Error in activate button listener', err);
+        }
                 });
             }
 
@@ -111,15 +106,12 @@ export class StudyPlanController {
                     try {
                         this.deactivateExamMode();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('StudyPlan', `Error in deactivate button listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('StudyPlan', 'Error in deactivate button listener', err);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error binding study plan events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event binding catch
+            UIUtils.catchError('StudyPlan', 'Error binding study plan events', err);
         }
     }
 
@@ -177,9 +169,7 @@ export class StudyPlanController {
             preview.style.display = 'block';
             if (activateBtn) activateBtn.disabled = false;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error updating setup preview: ${errorMessage}`, { err });
-            // Comment: Non-fatal preview rendering catch
+            UIUtils.catchError('StudyPlan', 'Error updating setup preview', err);
         }
     }
 
@@ -260,14 +250,11 @@ export class StudyPlanController {
                     this.settings = settings;
                     this.renderActivePanel();
                 } catch (cbErr) {
-                    const errorMessage = cbErr instanceof Error ? cbErr.message : String(cbErr);
-                    Logger.error('StudyPlan', `Error in storage set callback for activateExamMode: ${errorMessage}`, { cbErr });
-                }
+            UIUtils.catchError('StudyPlan', 'Error in storage set callback for activateExamMode', cbErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error activating exam mode: ${errorMessage}`, { err });
-            // Comment: Non-fatal exam mode activation error
+            UIUtils.catchError('StudyPlan', 'Error activating exam mode', err);
         }
     }
 
@@ -299,14 +286,11 @@ export class StudyPlanController {
                     this.settings = null;
                     this.renderSetupPanel();
                 } catch (cbErr) {
-                    const errorMessage = cbErr instanceof Error ? cbErr.message : String(cbErr);
-                    Logger.error('StudyPlan', `Error in storage set callback for deactivateExamMode: ${errorMessage}`, { cbErr });
-                }
+            UIUtils.catchError('StudyPlan', 'Error in storage set callback for deactivateExamMode', cbErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error deactivating exam mode: ${errorMessage}`, { err });
-            // Comment: Non-fatal exam mode deactivation error
+            UIUtils.catchError('StudyPlan', 'Error deactivating exam mode', err);
         }
     }
 
@@ -322,8 +306,7 @@ export class StudyPlanController {
 
             this.updatePreview();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error rendering setup panel: ${errorMessage}`, { err });
+            UIUtils.catchError('StudyPlan', 'Error rendering setup panel', err);
         }
     }
 
@@ -383,9 +366,7 @@ export class StudyPlanController {
 
             this.renderScheduleTable(totalDays, daysLeft);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error rendering active panel: ${errorMessage}`, { err });
-            // Comment: Non-fatal active panel rendering error
+            UIUtils.catchError('StudyPlan', 'Error rendering active panel', err);
         }
     }
 
@@ -443,9 +424,7 @@ export class StudyPlanController {
                 tbody.appendChild(tr);
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error rendering schedule table: ${errorMessage}`, { totalDays, daysLeft, err });
-            // Comment: Non-fatal schedule table rendering error
+            UIUtils.catchError('StudyPlan', 'Error rendering schedule table', err, { totalDays, daysLeft });
         }
     }
 }
@@ -455,9 +434,8 @@ function initStudyPlan(): void {
         const controller = new StudyPlanController();
         controller.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('StudyPlan', `Initialization failed: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('StudyPlan', 'Initialization failed', err);
+        }
 }
 
 if (typeof document !== 'undefined') {

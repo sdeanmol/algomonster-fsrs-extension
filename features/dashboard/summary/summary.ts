@@ -4,6 +4,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { StorageData, Card } from '../../../types/domain';
 import { generateSummaryReport, SummaryReport, TopicMastery, SummaryInsight } from './summaryGenerator';
 
@@ -24,8 +25,7 @@ export class SummaryDashboard {
             this.bindEvents();
             this.loadData();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('SummaryDashboard', `Error during init: ${errorMessage}`, { err });
+            UIUtils.catchError('SummaryDashboard', 'Error during init', err);
         }
     }
 
@@ -84,13 +84,11 @@ export class SummaryDashboard {
                     this.updateTabUI();
                     this.renderReport();
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('SummaryDashboard', `Error in storage callback: ${errorMessage}`, { innerErr });
-                }
+            UIUtils.catchError('SummaryDashboard', 'Error in storage callback', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('SummaryDashboard', `Failed storage get: ${errorMessage}`, { err });
+            UIUtils.catchError('SummaryDashboard', 'Failed storage get', err);
         }
     }
 
@@ -228,8 +226,7 @@ export class SummaryDashboard {
             renderTopicList('weak-topics-container', report.weakestTopics, true);
 
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('SummaryDashboard', `Error rendering report: ${errorMessage}`, { err });
+            UIUtils.catchError('SummaryDashboard', 'Error rendering report', err);
         }
     }
 }
@@ -239,9 +236,8 @@ function initSummaryDashboard(): void {
         const summaryApp = new SummaryDashboard();
         summaryApp.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('SummaryDashboard', `Initialization failed: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('SummaryDashboard', 'Initialization failed', err);
+        }
 }
 
 if (typeof document !== 'undefined') {
