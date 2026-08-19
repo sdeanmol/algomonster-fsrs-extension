@@ -107,15 +107,15 @@ export class AlgoRecallBackground {
             if (chrome.runtime.lastError) {
                 Logger.error('Background', `Storage get error in handleInstalled: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
             }
-            if (!result.notificationSettings) {
-                await chrome.storage.local.set({
-                    notificationSettings: {
-                        enabled: true,
-                        frequency: '60',
-                        priority: '2',
-                        requireInteraction: true
-                    }
-                });
+            let settings = result.notificationSettings;
+            if (!settings) {
+                settings = {
+                    enabled: true,
+                    frequency: '60',
+                    priority: '2',
+                    requireInteraction: true
+                };
+                await chrome.storage.local.set({ notificationSettings: settings });
                 if (chrome.runtime.lastError) {
                     Logger.error('Background', `Storage set error in handleInstalled: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
                 }
@@ -130,26 +130,13 @@ export class AlgoRecallBackground {
             if (details && (details.reason === 'install' || details.reason === 'update')) {
                 chrome.tabs.create({ url: chrome.runtime.getURL('features/common/welcome/welcome.html') });
             } else {
-                chrome.notifications.create('test-install', {
-                    type: 'basic',
-                    iconUrl: '../icons/icon.png', // Relative path from service worker
-                    title: 'AlgoRecall Active 🧠',
-                    message: 'Notifications are working! You will be alerted when reviews are due.',
-                    priority: 2
-                }, (id) => {
-                    try {
-                        if (chrome.runtime.lastError) {
-                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                            Logger.error('Background', `Notification failed to send: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        } else {
-                            Logger.debug('Background', `Test install notification sent with ID: ${id}`);
-                        }
-                    } catch (callbackErr) {
-                        // Comment: Safe recovery inside test-install notification callback
-                        const errorMessage = callbackErr instanceof Error ? callbackErr.message : String(callbackErr);
-                        Logger.error('Background', `Error in test install notification callback: ${errorMessage}`, { callbackErr });
-                    }
-                });
+                this.dispatchSystemNotification(
+                    'test-install',
+                    'AlgoRecall Active 🧠',
+                    'Notifications are working! You will be alerted when reviews are due.',
+                    2,
+                    settings.requireInteraction !== false
+                );
             }
 
             await this.checkDueCards();
@@ -538,49 +525,65 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Generates and triggers a standard Google Chrome system tray test notification.
-     * @param {NotificationSettings} settings - Active notification configurations.
+     * Helper to create and clear system tray notifications securely.
      */
-    createSystemTestNotification(settings: NotificationSettings): void {
+    private dispatchSystemNotification(
+        id: string,
+        title: string,
+        message: string,
+        priority: number,
+        requireInteraction: boolean
+    ): void {
         try {
-            chrome.notifications.clear('algo-test-notification', () => {
+            chrome.notifications.clear(id, () => {
                 try {
                     if (chrome.runtime.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Background', `Error clearing test notification: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        Logger.error('Background', `Error clearing notification ${id}: ${errorMessage}`, { error: chrome.runtime.lastError });
                     }
-                    chrome.notifications.create('algo-test-notification', {
+                    chrome.notifications.create(id, {
                         type: 'basic',
                         iconUrl: '../icons/icon.png',
-                        title: '🔔 Notification Test',
-                        message: `This is a test. Reviews will check every ${settings.frequency} minutes.`,
-                        priority: parseInt(settings.priority || '2', 10) || 2,
-                        requireInteraction: settings.requireInteraction !== false
-                    }, (id) => {
+                        title,
+                        message,
+                        priority,
+                        requireInteraction
+                    }, (createdId) => {
                         try {
                             if (chrome.runtime.lastError) {
                                 const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                Logger.error('Background', `Test Notification Error: ${errorMessage}`, { error: chrome.runtime.lastError });
+                                Logger.error('Background', `Notification ${id} Error: ${errorMessage}`, { error: chrome.runtime.lastError });
                             } else {
-                                Logger.debug('Background', `System test notification sent with ID: ${id}`);
+                                Logger.debug('Background', `Notification sent with ID: ${createdId}`);
                             }
                         } catch (createErr) {
-                            // Comment: Safe recovery inside test notification creation callback
                             const errorMessage = createErr instanceof Error ? createErr.message : String(createErr);
-                            Logger.error('Background', `Error in test notification create callback: ${errorMessage}`, { createErr });
+                            Logger.error('Background', `Error in notification ${id} create callback: ${errorMessage}`, { createErr });
                         }
                     });
                 } catch (clearErr) {
-                    // Comment: Safe recovery inside test notification clear callback
                     const errorMessage = clearErr instanceof Error ? clearErr.message : String(clearErr);
-                    Logger.error('Background', `Error handling test notification clear callback: ${errorMessage}`, { clearErr });
+                    Logger.error('Background', `Error handling notification ${id} clear callback: ${errorMessage}`, { clearErr });
                 }
             });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to create system test notification: ${errorMessage}`, { err });
-            // Comment: Non-fatal error during system test notification trigger
+            Logger.error('Background', `Failed to create system notification ${id}: ${errorMessage}`, { err });
         }
+    }
+
+    /**
+     * Generates and triggers a standard Google Chrome system tray test notification.
+     * @param {NotificationSettings} settings - Active notification configurations.
+     */
+    createSystemTestNotification(settings: NotificationSettings): void {
+        this.dispatchSystemNotification(
+            'algo-test-notification',
+            '🔔 Notification Test',
+            `This is a test. Reviews will check every ${settings.frequency} minutes.`,
+            parseInt(settings.priority || '2', 10) || 2,
+            settings.requireInteraction !== false
+        );
     }
 
     /**
@@ -766,45 +769,13 @@ export class AlgoRecallBackground {
      * @param {string} message - The message string.
      */
     createSystemReviewNotification(dueCount: number, settings: NotificationSettings, message?: string): void {
-        try {
-            chrome.notifications.clear('algo-review-notification', () => {
-                try {
-                    if (chrome.runtime.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Background', `Error clearing review notification: ${errorMessage}`, { error: chrome.runtime.lastError });
-                    }
-                    chrome.notifications.create('algo-review-notification', {
-                        type: 'basic',
-                        iconUrl: '../icons/icon.png',
-                        title: '🧠 AlgoRecall Reviews Due!',
-                        message: message || `You have ${dueCount} pattern(s) ready for review.`,
-                        priority: parseInt(settings.priority || '2', 10) || 2,
-                        requireInteraction: settings.requireInteraction !== false
-                    }, (id) => {
-                        try {
-                            if (chrome.runtime.lastError) {
-                                const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                Logger.error('Background', `Review Notification Error: ${errorMessage}`, { error: chrome.runtime.lastError });
-                            } else {
-                                Logger.debug('Background', `System review notification sent with ID: ${id}`);
-                            }
-                        } catch (createErr) {
-                            // Comment: Safe recovery in review notification creation callback
-                            const errorMessage = createErr instanceof Error ? createErr.message : String(createErr);
-                            Logger.error('Background', `Error in review notification create callback: ${errorMessage}`, { createErr });
-                        }
-                    });
-                } catch (clearErr) {
-                    // Comment: Safe recovery in review notification clear callback
-                    const errorMessage = clearErr instanceof Error ? clearErr.message : String(clearErr);
-                    Logger.error('Background', `Error handling review notification clear callback: ${errorMessage}`, { clearErr });
-                }
-            });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to create system review notification: ${errorMessage}`, { err });
-            // Comment: Non-fatal error creating system review notification
-        }
+        this.dispatchSystemNotification(
+            'algo-review-notification',
+            '🧠 AlgoRecall Reviews Due!',
+            message || `You have ${dueCount} pattern(s) ready for review.`,
+            parseInt(settings.priority || '2', 10) || 2,
+            settings.requireInteraction !== false
+        );
     }
 
     // ========================================================================
@@ -817,8 +788,9 @@ export class AlgoRecallBackground {
      */
     async handleWeeklySummary(ignoreEnabledCheck: boolean = false): Promise<void> {
         try {
-            const result = (await chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'weeklySummaryEnabled'])) as StorageData & {
+            const result = (await chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'weeklySummaryEnabled', 'notificationSettings'])) as StorageData & {
                 weeklySummaryEnabled?: boolean;
+                notificationSettings?: NotificationSettings;
             };
             if (chrome.runtime.lastError) {
                 Logger.error('Background', `Storage get error in handleWeeklySummary: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
@@ -872,37 +844,15 @@ export class AlgoRecallBackground {
 
             const message = `This week: ${weekReviews} reviews across ${activeDays} day(s).${trendText} Upcoming: ${upcomingDue} cards due next week${currentlyDue > 0 ? `, ${currentlyDue} overdue now` : ''}.`;
 
-            chrome.notifications.clear('algo-weekly-summary', () => {
-                try {
-                    if (chrome.runtime.lastError) {
-                        Logger.error('Background', `Error clearing weekly summary notification: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-                    }
-                    chrome.notifications.create('algo-weekly-summary', {
-                        type: 'basic',
-                        iconUrl: '../icons/icon.png',
-                        title: '📊 AlgoRecall Weekly Summary',
-                        message: message,
-                        priority: 2,
-                        requireInteraction: true
-                    }, (id) => {
-                        try {
-                            if (chrome.runtime.lastError) {
-                                const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                Logger.error('Background', `Weekly Summary Notification Error: ${errorMessage}`, { error: chrome.runtime.lastError });
-                            } else {
-                                Logger.debug('Background', `Weekly summary notification sent with ID: ${id}`);
-                            }
-                        } catch (createErr) {
-                            // Comment: Safe recovery inside weekly summary creation callback
-                            const errorMessage = createErr instanceof Error ? createErr.message : String(createErr);
-                            Logger.error('Background', `Error in weekly summary notification callback: ${errorMessage}`, { createErr });
-                        }
-                    });
-                } catch (clearErr) {
-                    const errorMessage = clearErr instanceof Error ? clearErr.message : String(clearErr);
-                    Logger.error('Background', `Error handling weekly summary notification clear callback: ${errorMessage}`, { clearErr });
-                }
-            });
+            const settings: NotificationSettings = result.notificationSettings || {};
+            
+            this.dispatchSystemNotification(
+                'algo-weekly-summary',
+                '📊 AlgoRecall Weekly Summary',
+                message,
+                2,
+                settings.requireInteraction !== false
+            );
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -943,27 +893,13 @@ export class AlgoRecallBackground {
                     ? "You haven't reviewed any patterns today. Just 5 minutes can keep your memory sharp!"
                     : "Every expert was once a beginner. Start fresh with just 5 minutes of review!";
 
-                chrome.notifications.create('algo-daily-nudge', {
-                    type: 'basic',
-                    iconUrl: '../icons/icon.png',
-                    title: title,
-                    message: message,
-                    priority: 2,
-                    requireInteraction: false
-                }, (id) => {
-                    try {
-                        if (chrome.runtime.lastError) {
-                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                            Logger.error('Background', `Daily Nudge Notification Error: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        } else {
-                            Logger.debug('Background', `Daily nudge notification sent with ID: ${id}`);
-                        }
-                    } catch (createErr) {
-                        // Comment: Safe recovery inside daily nudge notification callback
-                        const errorMessage = createErr instanceof Error ? createErr.message : String(createErr);
-                        Logger.error('Background', `Error in daily nudge notification callback: ${errorMessage}`, { createErr });
-                    }
-                });
+                this.dispatchSystemNotification(
+                    'algo-daily-nudge',
+                    title,
+                    message,
+                    2,
+                    settings.requireInteraction !== false
+                );
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1116,10 +1052,11 @@ export class AlgoRecallBackground {
 
     async handlePomodoroEnd(): Promise<void> {
         try {
-            const result = (await chrome.storage.local.get(['pomodoroState', 'pomodoroSettings', 'pomodoroStats'])) as {
+            const result = (await chrome.storage.local.get(['pomodoroState', 'pomodoroSettings', 'pomodoroStats', 'notificationSettings'])) as {
                 pomodoroState?: PomodoroState;
                 pomodoroSettings?: PomodoroSettings;
                 pomodoroStats?: PomodoroStats;
+                notificationSettings?: NotificationSettings;
             };
             if (chrome.runtime.lastError) {
                 Logger.error('Background', `Storage get error in handlePomodoroEnd: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
@@ -1168,28 +1105,16 @@ export class AlgoRecallBackground {
                 Logger.error('Background', `Storage set error in handlePomodoroEnd: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
             }
 
+            const settingsNotif: NotificationSettings = result.notificationSettings || {};
+
             // Notify user
-            chrome.notifications.create('pomodoro-complete', {
-                type: 'basic',
-                iconUrl: '../icons/icon.png',
-                title: '⏱️ Pomodoro Complete!',
-                message: `Time is up! Ready for ${state.phase === 'focus' ? 'Focus Time' : 'a Break'}?`,
-                priority: 2,
-                requireInteraction: true
-            }, (id) => {
-                try {
-                    if (chrome.runtime.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Background', `Pomodoro completion notification error: ${errorMessage}`, { error: chrome.runtime.lastError });
-                    } else {
-                        Logger.debug('Background', `Pomodoro complete notification sent with ID: ${id}`);
-                    }
-                } catch (notifyErr) {
-                    // Comment: Safe recovery inside pomodoro complete notification callback
-                    const errorMessage = notifyErr instanceof Error ? notifyErr.message : String(notifyErr);
-                    Logger.error('Background', `Error in pomodoro complete notification callback: ${errorMessage}`, { notifyErr });
-                }
-            });
+            this.dispatchSystemNotification(
+                'pomodoro-complete',
+                '⏱️ Pomodoro Complete!',
+                `Time is up! Ready for ${state.phase === 'focus' ? 'Focus Time' : 'a Break'}?`,
+                2,
+                settingsNotif.requireInteraction !== false
+            );
 
             chrome.action.setBadgeText({ text: '' });
             chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
