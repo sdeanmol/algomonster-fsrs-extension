@@ -23,7 +23,7 @@
     "*://*.codewars.com/*",
     "*://*.codingame.com/*"
   ],
-  "optional_host_permissions": [
+  "optional_permissions": [
     "http://*/*",
     "https://*/*"
   ],

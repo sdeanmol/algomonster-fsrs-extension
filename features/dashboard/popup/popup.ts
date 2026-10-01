@@ -499,8 +499,21 @@ export class AlgoRecallDashboard {
                 });
             }
 
+            // Firefox closes popups when OS file pickers open, silently killing the import script.
+            // Intercept clicks on file inputs in Firefox popups and open the dashboard as a full tab.
+            const handleFirefoxPopupFileClick = (e: Event) => {
+                const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+                const isTab = window.location.search.includes('tab=true');
+                if (isFirefox && !isTab) {
+                    e.preventDefault();
+                    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/popup/popup.html?tab=true') });
+                    window.close();
+                }
+            };
+
             // Standard JSON backup import setup
             if (this.dom.importFile) {
+                this.dom.importFile.addEventListener('click', handleFirefoxPopupFileClick);
                 this.dom.importFile.addEventListener('change', async (e: Event) => {
                     try {
                         const target = e.target as HTMLInputElement;
@@ -613,6 +626,7 @@ export class AlgoRecallDashboard {
 
             // R9.1: Anki deck import setup
             if (this.dom.ankiImportFile) {
+                this.dom.ankiImportFile.addEventListener('click', handleFirefoxPopupFileClick);
                 this.dom.ankiImportFile.addEventListener('change', (e: Event) => {
                     try {
                         const target = e.target as HTMLInputElement;
