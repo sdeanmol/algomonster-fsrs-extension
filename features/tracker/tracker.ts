@@ -479,7 +479,7 @@ class Tracker {
             const dragStart = { x: 0, y: 0 };
             const initialPos = { x: 0, y: 0 };
 
-            const onMouseMove = (e: MouseEvent) => {
+            const onMouseMove = (e: any) => {
                 try {
                     const dx = e.clientX - dragStart.x;
                     const dy = e.clientY - dragStart.y;
@@ -502,10 +502,14 @@ class Tracker {
                 }
             };
 
-            const onMouseUp = () => {
+            const onMouseUp = (e: any) => {
                 try {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
+                    document.removeEventListener('pointermove', onMouseMove);
+                    document.removeEventListener('pointerup', onMouseUp);
+                    document.removeEventListener('pointercancel', onMouseUp);
+                    if (launcher.hasPointerCapture && launcher.hasPointerCapture(e.pointerId)) {
+                        launcher.releasePointerCapture(e.pointerId);
+                    }
                     setTimeout(() => {
                         try {
                             launcher.style.cursor = 'pointer';
@@ -522,8 +526,9 @@ class Tracker {
                 }
             };
 
-            launcher.addEventListener('mousedown', (e: MouseEvent) => {
+            launcher.addEventListener('pointerdown', (e: any) => {
                 try {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
                     isDragging = false;
                     dragStart.x = e.clientX;
                     dragStart.y = e.clientY;
@@ -532,12 +537,17 @@ class Tracker {
                     initialPos.x = rect.left;
                     initialPos.y = rect.top;
 
-                    document.addEventListener('mousemove', onMouseMove);
-                    document.addEventListener('mouseup', onMouseUp);
+                    if (launcher.setPointerCapture) {
+                        launcher.setPointerCapture(e.pointerId);
+                    }
+
+                    document.addEventListener('pointermove', onMouseMove);
+                    document.addEventListener('pointerup', onMouseUp);
+                    document.addEventListener('pointercancel', onMouseUp);
                 } catch (err) {
-                    // Comment: Safe recovery on launcher mousedown
+                    // Comment: Safe recovery on launcher pointerdown
                     const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Tracker', `Error on launcher mousedown: ${errorMessage}`, { err });
+                    Logger.error('Tracker', `Error on launcher pointerdown: ${errorMessage}`, { err });
                 }
             });
 

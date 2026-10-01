@@ -149,9 +149,7 @@ export class Highlighter {
                     if (!lastRect) return;
 
                     this.renderTooltipColors(null, null);
-                    tooltip.style.display = 'flex';
-                    tooltip.style.left = `${lastRect.right + window.scrollX}px`;
-                    tooltip.style.top = `${lastRect.bottom + window.scrollY}px`;
+                    this.positionTooltip(tooltip, lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Highlighter', `Error in pointerup event handler: ${errorMessage}`, { err });
@@ -203,9 +201,8 @@ export class Highlighter {
                         if (this.state.hoveredMarkId !== foundMark.markId) {
                             this.state.hoveredMarkId = foundMark.markId;
                             this.renderTooltipColors(this.state.hoveredMarkId, foundMark.color);
-                            tooltip.style.display = 'flex';
-                            tooltip.style.left = `${e.clientX + window.scrollX + 15}px`;
-                            tooltip.style.top = `${e.clientY + window.scrollY}px`;
+                            const r = foundMark.range.getBoundingClientRect();
+                            this.positionTooltip(tooltip, e.clientX + window.scrollX + 15, e.clientY + window.scrollY, r.top + window.scrollY);
                         }
                     } else {
                         if (this.state.hoveredMarkId !== null && !this.state.hideTooltipTimer) {
@@ -271,14 +268,33 @@ export class Highlighter {
 
             if (lastRect) {
                 this.renderTooltipColors(null, null);
-                tooltip.style.display = 'flex';
-                tooltip.style.left = `${lastRect.right + window.scrollX}px`;
-                tooltip.style.top = `${lastRect.bottom + window.scrollY}px`;
+                this.positionTooltip(tooltip, lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error in handleTextSelection: ${errorMessage}`, { err });
         }
+    }
+
+    positionTooltip(tooltip: HTMLElement, x: number, y: number, fallbackTop: number): void {
+        tooltip.style.display = 'flex';
+        const tooltipRect = tooltip.getBoundingClientRect();
+        
+        let left = x;
+        let top = y;
+
+        if (left + tooltipRect.width > window.scrollX + window.innerWidth) {
+            left = window.scrollX + window.innerWidth - tooltipRect.width - 15;
+        }
+        if (left < window.scrollX + 5) left = window.scrollX + 5;
+
+        if (top + tooltipRect.height > window.scrollY + window.innerHeight) {
+            top = fallbackTop - tooltipRect.height - 10;
+        }
+        if (top < window.scrollY + 5) top = window.scrollY + 5;
+
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
     }
 
     handleMouseMove(_e: MouseEvent): void {
