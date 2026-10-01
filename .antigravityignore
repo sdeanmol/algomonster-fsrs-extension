@@ -5,6 +5,7 @@ package-lock.json
 # Build outputs and large bundles
 build/
 dist/
+release/
 out/
 stats.json
 deps.json
