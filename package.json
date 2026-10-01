@@ -6,7 +6,12 @@
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "test:e2e": "npm run build:chrome && playwright test",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
+    "test:chrome": "npm run build:chrome && TARGET_BROWSER=chrome playwright test",
+    "test:firefox": "npm run build:firefox && TARGET_BROWSER=firefox playwright test",
+    "test:safari": "npm run build:safari && TARGET_BROWSER=safari playwright test",
+    "test:e2e": "npm run test:chrome && npm run test:firefox && npm run test:safari",
     "build:chrome": "npx tsc && rm -rf dist/chrome && webpack --env target=chrome --mode production && cd dist/chrome && mkdir -p ../../release/chrome && rm -f ../../release/chrome/extension-chrome.zip && zip -r ../../release/chrome/extension-chrome.zip .",
     "build:firefox": "npx tsc && rm -rf dist/firefox && webpack --env target=firefox --mode production && cd dist/firefox && mkdir -p ../../release/firefox && rm -f ../../release/firefox/extension-firefox.zip && zip -r ../../release/firefox/extension-firefox.zip .",
     "build:safari": "npx tsc && rm -rf dist/safari && webpack --env target=safari --mode production",

@@ -54,6 +54,13 @@ function createTempDir() {
  * @returns {Promise<Object>} Browser-like wrapper.
  */
 async function launchBrowser(overrides = {}) {
+  const targetBrowser = process.env.TARGET_BROWSER || 'chrome';
+  if (targetBrowser === 'firefox' || targetBrowser === 'safari') {
+    console.warn(`\n[WARN] Playwright does not natively support testing extensions in ${targetBrowser}.`);
+    console.warn(`[WARN] The tests will run against the ${targetBrowser} artifact loaded into a Chromium instance to verify basic logic and UI, but this does NOT test native ${targetBrowser} APIs.`);
+    console.warn(`[WARN] See LIMITATIONS.md for details.\n`);
+  }
+
   const userDataDir = createTempDir();
 
   const persistentCtx = await chromium.launchPersistentContext(userDataDir, {
@@ -122,7 +129,8 @@ async function closeBrowser(browser) {
  * @returns {string} Absolute file:// URL.
  */
 function buildFileUrl(relativePath) {
-  return `file://${path.join(process.cwd(), 'dist/chrome', relativePath)}`;
+  const targetBrowser = process.env.TARGET_BROWSER || 'chrome';
+  return `file://${path.join(process.cwd(), `dist/${targetBrowser}`, relativePath)}`;
 }
 
 module.exports = {

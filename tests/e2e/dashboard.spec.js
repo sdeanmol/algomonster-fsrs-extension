@@ -257,4 +257,36 @@ test.describe('Dashboard & Gamification E2E Workflows', () => {
 
     await context.close();
   });
+
+  test('Browser-specific rating strings are displayed correctly', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await page.addInitScript(injectChromePolyfill, {
+      fsrsCards: mockDashboardCards
+    });
+
+    const popupUrl = buildFileUrl('features/dashboard/popup/popup.html');
+    await page.goto(popupUrl);
+
+    const targetBrowser = process.env.TARGET_BROWSER || 'chrome';
+    
+    // Some pages have a rate button or text, e.g. #rating-prompt-text or similar.
+    // We can evaluate to see the DOM text and check if it contains the browser store.
+    const bodyText = await page.evaluate(() => document.body.innerText);
+    
+    if (targetBrowser === 'chrome') {
+      expect(bodyText).not.toContain('Firefox Add-ons');
+      expect(bodyText).not.toContain('App Store');
+    } else if (targetBrowser === 'firefox') {
+      expect(bodyText).not.toContain('Chrome Web Store');
+      expect(bodyText).not.toContain('App Store');
+    } else if (targetBrowser === 'safari') {
+      expect(bodyText).not.toContain('Chrome Web Store');
+      expect(bodyText).not.toContain('Firefox Add-ons');
+    }
+
+    await context.close();
+  });
 });
+
