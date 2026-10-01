@@ -7,13 +7,13 @@
 
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
-import { Card, StorageData, ChromeSettings } from '../../../types/domain';
+import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
 
 export class ForecastDashboard {
-    chromeSettings: ChromeSettings;
+    extensionSettings: ExtensionSettings;
 
     constructor() {
-        this.chromeSettings = {};
+        this.extensionSettings = {};
     }
 
     /**
@@ -21,7 +21,7 @@ export class ForecastDashboard {
      */
     init(): void {
         try {
-            chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: StorageData) => {
+            chrome.storage.local.get(['fsrsCards', 'extensionSettings'], (result: StorageData) => {
                 try {
                     const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                     if (lastError) {
@@ -31,7 +31,7 @@ export class ForecastDashboard {
                     }
 
                     const cards: Card[] = result.fsrsCards || [];
-                    this.chromeSettings = result.chromeSettings || {};
+                    this.extensionSettings = result.extensionSettings || {};
                     this.renderForecast(cards);
                 } catch (innerErr) {
             UIUtils.catchError('ForecastDashboard', 'Error rendering forecast', innerErr);
@@ -216,8 +216,8 @@ export class ForecastDashboard {
             const chartWrapper = document.getElementById('forecast-chart-wrapper');
             if (!chartWrapper) return;
 
-            const showCharts = this.chromeSettings && this.chromeSettings.showCharts !== undefined
-                ? this.chromeSettings.showCharts
+            const showCharts = this.extensionSettings && this.extensionSettings.showCharts !== undefined
+                ? this.extensionSettings.showCharts
                 : true;
 
             if (!showCharts) {

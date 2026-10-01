@@ -104,7 +104,7 @@ describe('AlgoRecallDashboard (Popup)', () => {
     (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
       const result = {
         fsrsCards: getFreshCards(),
-        chromeSettings: { showMarkerPopup: true, showCharts: true, developerMode: true },
+        extensionSettings: { showMarkerPopup: true, showCharts: true, developerMode: true },
         fsrsActivity: { '2026-08-03': 5 },
         dailyGoalTarget: 10,
         notificationSettings: { enabled: true, frequency: '60' },

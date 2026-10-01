@@ -91,7 +91,7 @@ describe('ForecastDashboard', () => {
     (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
       const result = {
         fsrsCards: getFreshCards(),
-        chromeSettings: { showCharts: true }
+        extensionSettings: { showCharts: true }
       };
       if (cb) cb(result);
       return Promise.resolve(result);
@@ -234,7 +234,7 @@ describe('ForecastDashboard', () => {
     });
 
     it('hides chart wrapper if showCharts setting is false', () => {
-      dashboard.chromeSettings = { showCharts: false };
+      dashboard.extensionSettings = { showCharts: false };
       dashboard.renderForecastChart({}, new Date(), 30);
 
       const wrapper = document.getElementById('forecast-chart-wrapper');
@@ -242,7 +242,7 @@ describe('ForecastDashboard', () => {
     });
 
     it('renders workload forecast chart columns and triggers tab creation on click', () => {
-      dashboard.chromeSettings = { showCharts: true };
+      dashboard.extensionSettings = { showCharts: true };
       const cards = getFreshCards();
       dashboard.renderForecast(cards);
 
@@ -264,7 +264,7 @@ describe('ForecastDashboard', () => {
         if (cb) cb(null);
       });
 
-      dashboard.chromeSettings = { showCharts: true };
+      dashboard.extensionSettings = { showCharts: true };
       dashboard.renderForecast(getFreshCards());
 
       const barCols = document.querySelectorAll('.chart-bar-col.has-value');

@@ -11,7 +11,7 @@ const { test, expect } = require('@playwright/test');
 const { injectChromePolyfill } = require('./helpers/chrome-polyfill');
 const { launchBrowser, closeBrowser, buildFileUrl } = require('./helpers/browser-setup');
 const { getStorageValue } = require('./helpers/storage-helpers');
-const { reviewCard, learningCard, futureCard, newCard, allCards, buildActivityData, mockChromeSettings } = require('./helpers/fixtures');
+const { reviewCard, learningCard, futureCard, newCard, allCards, buildActivityData, mockExtensionSettings } = require('./helpers/fixtures');
 
 const mockDashboardCards = [
   {

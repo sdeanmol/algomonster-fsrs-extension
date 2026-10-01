@@ -44,6 +44,13 @@ module.exports = {
   roots: ['<rootDir>/tests/unit', '<rootDir>/tests/integration'],
   setupFilesAfterEnv: ['<rootDir>/tests/mocks/chromeMock.js'],
   testMatch: ['**/?(*.)+(spec|test).[tj]s?(x)'],
+  // Define build-time constants injected by webpack DefinePlugin.
+  // Tests default to 'chrome' values — the correct baseline for unit testing.
+  globals: {
+    __BROWSER_TARGET__: 'chrome',
+    __STORE_NAME__: 'Chrome Web Store',
+    __STORE_REVIEW_URL__: 'https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews'
+  },
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       tsconfig: {
@@ -59,7 +66,7 @@ module.exports = {
     '^.+\\.js$': 'babel-jest'
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!(@napi-rs|@emnapi)/)'
+    '/node_modules/(?!(@napi-rs|@emnapi)/)' 
   ],
   moduleNameMapper: {
     '^@common/(.*)$': '<rootDir>/features/common/$1',

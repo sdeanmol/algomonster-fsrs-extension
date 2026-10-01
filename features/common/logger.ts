@@ -29,8 +29,8 @@ export class LoggerClass {
         // Listen for changes to developer mode dynamically
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
             chrome.storage.onChanged.addListener((changes: { [key: string]: { oldValue?: unknown; newValue?: unknown } }, area: string) => {
-                if (area === 'local' && changes.chromeSettings) {
-                    const newSettings = (changes.chromeSettings.newValue || {}) as { developerMode?: boolean };
+                if (area === 'local' && changes.extensionSettings) {
+                    const newSettings = (changes.extensionSettings.newValue || {}) as { developerMode?: boolean };
                     this.devMode = !!newSettings.developerMode;
                 }
             });
@@ -39,11 +39,11 @@ export class LoggerClass {
 
     private _initDevMode(): void {
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.get(['chromeSettings'], (result: { chromeSettings?: { developerMode?: boolean } }) => {
+            chrome.storage.local.get(['extensionSettings'], (result: { extensionSettings?: { developerMode?: boolean } }) => {
                 if (chrome.runtime?.lastError) {
                     return;
                 }
-                const settings = result.chromeSettings || {};
+                const settings = result.extensionSettings || {};
                 this.devMode = !!settings.developerMode;
             });
         }

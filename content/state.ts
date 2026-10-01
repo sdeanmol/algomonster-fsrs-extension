@@ -5,7 +5,7 @@
  * to act as a shared memory layer on targeted domains.
  */
 
-import { Card, HighlightMark, BookmarkItem, ChromeSettings } from '../types/domain';
+import { Card, HighlightMark, BookmarkItem, ExtensionSettings } from '../types/domain';
 import AbstractScheduler from '../features/tracker/scheduler/scheduler';
 import { Logger } from '@common/logger';
 import { DEFAULT_PALETTES } from '../features/common/constants';
@@ -19,7 +19,7 @@ export interface AlgoRecallState {
     marks: HighlightMark[];
     bookmarks: BookmarkItem[];
     pagecontents: unknown[];
-    chromeSettings: ChromeSettings;
+    extensionSettings: ExtensionSettings;
     activeHighlightStyles: Set<string>;
     highlightDebounceTimer: ReturnType<typeof setTimeout> | null;
     activeMarkRanges: unknown[];
@@ -92,7 +92,7 @@ algoGlobal.state = {
     pagecontents: [],
 
     // User settings layout preferences
-    chromeSettings: {
+    extensionSettings: {
         defaultHighlightColor: '#f1c40f',
         recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
         showMarkerPopup: true,

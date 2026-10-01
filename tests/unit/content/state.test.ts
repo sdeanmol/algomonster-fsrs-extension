@@ -17,8 +17,8 @@ describe('content/state.ts', () => {
     expect(algoRecall.state).toBeDefined();
     expect(algoRecall.state.cards).toEqual([]);
     expect(algoRecall.state.currentTheme).toBe('dark');
-    expect(algoRecall.state.chromeSettings.defaultHighlightColor).toBe('#f1c40f');
-    expect(algoRecall.state.chromeSettings.palettes.length).toBe(5);
+    expect(algoRecall.state.extensionSettings.defaultHighlightColor).toBe('#f1c40f');
+    expect(algoRecall.state.extensionSettings.palettes.length).toBe(5);
   });
 
   it('instantiates FsrsScheduler when window.FsrsScheduler constructor is present', async () => {

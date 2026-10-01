@@ -76,7 +76,7 @@ export interface DOMMeta {
 }
 
 /**
- * Highlight mark entity stored in Chrome storage
+ * Highlight mark entity stored in extension storage
  */
 export interface HighlightMark {
     id: string;
@@ -95,7 +95,7 @@ export interface HighlightMark {
 }
 
 /**
- * Page bookmark item entity stored in Chrome storage
+ * Page bookmark item entity stored in extension storage
  */
 export interface BookmarkItem {
     url: string;
@@ -120,7 +120,7 @@ export enum MessageType {
 }
 
 /**
- * Chrome Extension Runtime Message structure
+ * Extension Runtime Message structure
  */
 export interface ExtensionMessage {
     type?: MessageType | string;
@@ -132,7 +132,7 @@ export interface ExtensionMessage {
 }
 
 /**
- * Standard Chrome Extension Message Response
+ * Standard Extension Message Response
  */
 export interface MessageResponse<T = unknown> {
     success: boolean;
@@ -172,9 +172,9 @@ export interface Palette {
 }
 
 /**
- * Extension Chrome display/theme settings
+ * Extension display/theme settings
  */
-export interface ChromeSettings {
+export interface ExtensionSettings {
     activePaletteIndex?: number;
     defaultHighlightColor?: string;
     defaultSymbolChar?: string;
@@ -192,7 +192,7 @@ export interface ChromeSettings {
 export interface UserSettings {
     theme?: string;
     notificationSettings?: NotificationSettings;
-    chromeSettings?: ChromeSettings;
+    extensionSettings?: ExtensionSettings;
     fsrsGlobalParams?: FSRSParameters | Partial<FSRSParameters> | Record<string, unknown>;
     whitelistedWebsites?: WhitelistedWebsite[];
     dailyGoalTarget?: number | null;
@@ -253,7 +253,7 @@ export interface StorageData {
     fsrsGlobalParams?: FSRSParameters | Partial<FSRSParameters> | Record<string, unknown>;
     notificationSettings?: NotificationSettings;
     whitelistedWebsites?: WhitelistedWebsite[];
-    chromeSettings?: ChromeSettings;
+    extensionSettings?: ExtensionSettings;
     theme?: string;
     marks?: HighlightMark[];
     bookmarks?: BookmarkItem[];

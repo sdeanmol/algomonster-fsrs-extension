@@ -1,12 +1,26 @@
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
+const webpack = require('webpack');
 
 // Standard ignore patterns for static asset copying
 const ignorePatterns = ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'];
 
+// Browser-specific store configuration injected at build time
+const BROWSER_STORE_CONFIG = {
+  chrome: {
+    storeName: 'Chrome Web Store',
+    reviewUrl: 'https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews',
+  },
+  firefox: {
+    storeName: 'Firefox Add-ons',
+    reviewUrl: 'https://addons.mozilla.org/firefox/addon/algorecall/reviews/',
+  },
+};
+
 module.exports = (env) => {
   const targetBrowser = (env && env.target) ? env.target : 'chrome';
   const buildPath = path.resolve(__dirname, 'dist', targetBrowser);
+  const storeConfig = BROWSER_STORE_CONFIG[targetBrowser] || BROWSER_STORE_CONFIG.chrome;
 
   return {
     target: "web",
@@ -105,6 +119,14 @@ module.exports = (env) => {
     conditionNames: ["browser", "import", "module", "default"]
   },
   plugins: [
+    // Inject build-time browser-specific constants into all bundled modules.
+    // These replace __BROWSER_TARGET__, __STORE_NAME__, __STORE_REVIEW_URL__ at compile time
+    // so no runtime browser detection is needed for store-specific strings/URLs.
+    new webpack.DefinePlugin({
+      '__BROWSER_TARGET__': JSON.stringify(targetBrowser),
+      '__STORE_NAME__': JSON.stringify(storeConfig.storeName),
+      '__STORE_REVIEW_URL__': JSON.stringify(storeConfig.reviewUrl),
+    }),
     new CopyPlugin({
       patterns: [
         { from: `browser/${targetBrowser}/manifest.json`, to: 'manifest.json' },

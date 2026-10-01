@@ -523,7 +523,7 @@ describe('backupManager', () => {
                     marks: [{ url: 'https://test.com', type: 'highlight' }],
                     bookmarks: [{ url: 'https://test.com' }],
                     pagecontents: [{ url: 'https://test.com' }],
-                    chromeSettings: { showMarkerPopup: true },
+                    extensionSettings: { showMarkerPopup: true },
                     notificationSettings: { enabled: true },
                     theme: 'dark',
                     whitelistedWebsites: [{ domain: 'algo.monster' }],

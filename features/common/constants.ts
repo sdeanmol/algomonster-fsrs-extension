@@ -79,10 +79,12 @@ export const DEFAULT_PALETTES: Palette[] = [
     { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
 ];
 
-export const DEFAULT_CHROME_SETTINGS = {
+export const DEFAULT_EXTENSION_SETTINGS = {
     defaultHighlightColor: '#f1c40f',
     recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
     showMarkerPopup: true,
     activePaletteIndex: 0,
     palettes: DEFAULT_PALETTES
 };
+
+

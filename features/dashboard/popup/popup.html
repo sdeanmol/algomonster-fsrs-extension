@@ -90,17 +90,18 @@
             <div id="rating-prompt-state" class="rating-state">
                 <div class="rating-text-group">
                     <h3 class="rating-title">Enjoying AlgoRecall? 🌟</h3>
-                    <p class="rating-desc">Rate us 5 stars on Chrome Web Store to help us grow!</p>
+                    <p class="rating-desc" id="rating-prompt-text">Rate us 5 stars to help us grow!</p>
                 </div>
                 <div class="rating-actions-v">
-                    <a href="https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews" target="_blank"
-                        id="rate-store-btn" class="btn btn-primary rating-btn">
+                    <a href="#" target="_blank"
+                        id="rate-store-btn" class="btn btn-primary rating-btn"
+                        data-review-url="">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <polygon
                                 points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
                             </polygon>
                         </svg>
-                        Rate on Chrome Web Store
+                        <span id="rate-store-label">Rate on Store</span>
                     </a>
                     <div class="rating-sub-actions">
                         <button id="snooze-rate-btn" class="btn-link">Snooze (7 days)</button>
@@ -490,8 +491,8 @@
 
         <!-- Static Review Banner -->
         <div class="static-review-banner">
-            <a href="https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews" target="_blank"
-                class="static-review-link">
+            <a href="#" target="_blank"
+                id="static-review-link" class="static-review-link">
                 <svg class="svg-icon" viewBox="0 0 24 24" style="width: 16px; height: 16px;" aria-hidden="true">
                     <polygon
                         points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">

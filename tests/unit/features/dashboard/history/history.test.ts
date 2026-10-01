@@ -40,7 +40,7 @@ describe('FSRSHistoryDashboard', () => {
       const result = {
         fsrsActivity: { '2026-05-10': 1, '2026-05-12': 1, '2025-11-20': 1 },
         fsrsCards: getFreshCards(),
-        chromeSettings: { showCharts: true }
+        extensionSettings: { showCharts: true }
       };
       if (cb) cb(result);
       return Promise.resolve(result);
@@ -204,14 +204,14 @@ describe('FSRSHistoryDashboard', () => {
 
   describe('history chart rendering and interactive elements', () => {
     it('hides chart wrapper if showCharts is false or activityData is empty', () => {
-      dashboard.chromeSettings = { showCharts: false };
+      dashboard.extensionSettings = { showCharts: false };
       dashboard.activityData = { '2026-05-10': 1 };
       dashboard.renderHistoryChart();
 
       const wrapper = document.getElementById('history-chart-wrapper');
       expect(wrapper?.style.display).toBe('none');
 
-      dashboard.chromeSettings = { showCharts: true };
+      dashboard.extensionSettings = { showCharts: true };
       dashboard.activityData = {};
       dashboard.renderHistoryChart();
       expect(wrapper?.style.display).toBe('none');
@@ -219,7 +219,7 @@ describe('FSRSHistoryDashboard', () => {
 
     it('renders chart bars for year, month, and day views and responds to click & keydown events', () => {
       dashboard.activityData = { '2026-05-10': 2, '2026-05-12': 1 };
-      dashboard.chromeSettings = { showCharts: true };
+      dashboard.extensionSettings = { showCharts: true };
 
       dashboard.setView('year');
       let barCol = document.querySelector('.chart-bar-col');
@@ -245,7 +245,7 @@ describe('FSRSHistoryDashboard', () => {
 
     it('handles exceptions in chart bar click & keydown handlers gracefully', () => {
       dashboard.activityData = { '2026-05-10': 2 };
-      dashboard.chromeSettings = { showCharts: true };
+      dashboard.extensionSettings = { showCharts: true };
       dashboard.setView('year');
 
       dashboard.setView = () => { throw new Error('Chart action error'); };

@@ -10,7 +10,7 @@
 const { test, expect } = require('@playwright/test');
 const { injectChromePolyfill } = require('./helpers/chrome-polyfill');
 const { launchBrowser, closeBrowser, buildFileUrl } = require('./helpers/browser-setup');
-const { mockChromeSettings } = require('./helpers/fixtures');
+const { mockExtensionSettings } = require('./helpers/fixtures');
 
 test.describe('Extension Load and Basic Interactivity', () => {
   let browser;

@@ -55,7 +55,7 @@ export class AlgoRecallOrchestrator {
                 Logger.timeEnd('ContentScript', 'Init Storage Load');
                 return;
             }
-            chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'chromeSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result: StorageData & {
+            chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'extensionSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result: StorageData & {
                 marks?: HighlightMark[];
                 bookmarks?: BookmarkItem[];
                 pagecontents?: unknown[];
@@ -89,13 +89,13 @@ export class AlgoRecallOrchestrator {
                     if (result.bookmarks) this.state.bookmarks = result.bookmarks;
                     if (result.pagecontents) this.state.pagecontents = result.pagecontents;
                     if (result.theme) this.state.currentTheme = result.theme;
-                    if (result.chromeSettings) {
-                        this.state.chromeSettings = { ...this.state.chromeSettings, ...result.chromeSettings };
+                    if (result.extensionSettings) {
+                        this.state.extensionSettings = { ...this.state.extensionSettings, ...result.extensionSettings };
                     }
                     // Ensure palettes are initialized
-                    if (!this.state.chromeSettings.palettes || this.state.chromeSettings.palettes.length === 0) {
-                        this.state.chromeSettings.palettes = DEFAULT_PALETTES;
-                        this.state.chromeSettings.activePaletteIndex = 0;
+                    if (!this.state.extensionSettings.palettes || this.state.extensionSettings.palettes.length === 0) {
+                        this.state.extensionSettings.palettes = DEFAULT_PALETTES;
+                        this.state.extensionSettings.activePaletteIndex = 0;
                     }
 
                     // Create Highlighter & Tracker UI elements
@@ -241,10 +241,10 @@ export class AlgoRecallOrchestrator {
                 Logger.debug('ContentScript', `Storage changed in ${areaName}`, changedKeys);
             }
             if (areaName === 'local') {
-                if (changes.chromeSettings) {
-                    this.state.chromeSettings = { ...this.state.chromeSettings, ...changes.chromeSettings.newValue };
+                if (changes.extensionSettings) {
+                    this.state.extensionSettings = { ...this.state.extensionSettings, ...changes.extensionSettings.newValue };
                     const tooltip = document.getElementById('algo-highlight-tooltip') as HTMLElement | null;
-                    if (!this.state.chromeSettings.showMarkerPopup) {
+                    if (!this.state.extensionSettings.showMarkerPopup) {
                         if (tooltip) tooltip.style.display = 'none';
                     } else {
                         // Automatically show the tooltip if text is already selected on the page

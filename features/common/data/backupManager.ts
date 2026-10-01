@@ -271,7 +271,7 @@ export class BackupManager {
 
                 // Export general user preferences and statistics
                 const settings: SettingsData = {
-                    chromeSettings: raw.chromeSettings || {},
+                    extensionSettings: raw.extensionSettings || {},
                     notificationSettings: raw.notificationSettings || {},
                     theme: raw.theme || 'dark',
                     fsrsGlobalParams: raw.fsrsGlobalParams || {},
@@ -501,7 +501,7 @@ export class BackupManager {
                 marks: reconstructedMarks as unknown as HighlightMark[],
                 bookmarks: reconstructedBookmarks as unknown as BookmarkItem[],
                 pagecontents: reconstructedPageContents,
-                chromeSettings: settings.chromeSettings || {},
+                extensionSettings: settings.extensionSettings || {},
                 notificationSettings: settings.notificationSettings || {},
                 theme: (settings.theme as 'dark' | 'light') || 'dark',
                 fsrsGlobalParams: settings.fsrsGlobalParams || {},
@@ -638,7 +638,7 @@ export class BackupManager {
                         marks?: BackupMarkData[];
                         bookmarks?: BackupBookmarkData[];
                         pagecontents?: BackupPageContentData[];
-                        chromeSettings?: Record<string, unknown>;
+                        extensionSettings?: Record<string, unknown>;
                         notificationSettings?: Record<string, unknown>;
                         theme?: 'dark' | 'light';
                         whitelistedWebsites?: WhitelistedWebsite[];
@@ -672,7 +672,7 @@ export class BackupManager {
                         }
                         if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks as unknown as BookmarkItem[];
                         if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
-                        if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
+                        if (imported.extensionSettings) storageUpdate.extensionSettings = imported.extensionSettings;
                         if (imported.notificationSettings) storageUpdate.notificationSettings = imported.notificationSettings;
 
                         if (imported.theme) storageUpdate.theme = imported.theme;

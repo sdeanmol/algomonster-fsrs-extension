@@ -1,11 +1,11 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { HighlightOptionsManager } from '../../../../../features/highlighter/options/highlightOptions';
-import { ChromeSettings } from '../../../../../types/domain';
+import { ExtensionSettings } from '../../../../../types/domain';
 
 describe('HighlightOptionsManager', () => {
   let manager: HighlightOptionsManager;
 
-  const getFreshSettings = (): ChromeSettings => ({
+  const getFreshSettings = (): ExtensionSettings => ({
     defaultHighlightColor: '#f1c40f',
     recentColors: ['#f1c40f', '#e74c3c'],
     showMarkerPopup: true,
@@ -36,7 +36,7 @@ describe('HighlightOptionsManager', () => {
     `;
 
     (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
-      const result = { chromeSettings: getFreshSettings() };
+      const result = { extensionSettings: getFreshSettings() };
       if (cb) cb(result);
       return Promise.resolve(result);
     });
@@ -67,13 +67,13 @@ describe('HighlightOptionsManager', () => {
       expect(palettesContainer?.children.length).toBe(2);
     });
 
-    it('sets up default palettes when chromeSettings in storage is missing palettes', () => {
+    it('sets up default palettes when extensionSettings in storage is missing palettes', () => {
       (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
-        if (cb) cb({ chromeSettings: { defaultHighlightColor: '#f1c40f' } });
+        if (cb) cb({ extensionSettings: { defaultHighlightColor: '#f1c40f' } });
       });
 
       manager.init();
-      expect(manager.chromeSettings.palettes?.length).toBe(5);
+      expect(manager.extensionSettings.palettes?.length).toBe(5);
     });
 
     it('handles chrome.runtime.lastError during storage get', () => {
@@ -83,7 +83,7 @@ describe('HighlightOptionsManager', () => {
       });
 
       manager.init();
-      expect(manager.chromeSettings.palettes).toEqual(manager.DEFAULT_PALETTES);
+      expect(manager.extensionSettings.palettes).toEqual(manager.DEFAULT_PALETTES);
     });
 
     it('handles DOM exception gracefully in init', () => {
@@ -148,7 +148,7 @@ describe('HighlightOptionsManager', () => {
 
       // Max 50 palettes validation
       manager.editorColors = ['#fff'];
-      manager.chromeSettings.palettes = new Array(50).fill({ name: 'P', colors: ['#fff'] });
+      manager.extensionSettings.palettes = new Array(50).fill({ name: 'P', colors: ['#fff'] });
 
       saveBtn.click();
       expect(toast?.textContent).toContain('Maximum limit of 50 palettes reached');
@@ -181,7 +181,7 @@ describe('HighlightOptionsManager', () => {
       saveBtn.click();
 
       expect(chrome.storage.local.set).toHaveBeenCalled();
-      expect(manager.chromeSettings.palettes![0].name).toBe('Updated Palette Name');
+      expect(manager.extensionSettings.palettes![0].name).toBe('Updated Palette Name');
     });
 
     it('resets all settings to default on reset-palettes-btn click', () => {
@@ -191,7 +191,7 @@ describe('HighlightOptionsManager', () => {
       resetBtn.click();
 
       expect(chrome.storage.local.set).toHaveBeenCalled();
-      expect(manager.chromeSettings.activePaletteIndex).toBe(0);
+      expect(manager.extensionSettings.activePaletteIndex).toBe(0);
     });
   });
 
@@ -222,7 +222,7 @@ describe('HighlightOptionsManager', () => {
       const activateBtn = document.querySelector('.btn-action-activate') as HTMLElement;
       activateBtn.click();
 
-      expect(manager.chromeSettings.activePaletteIndex).toBe(1);
+      expect(manager.extensionSettings.activePaletteIndex).toBe(1);
       expect(chrome.storage.local.set).toHaveBeenCalled();
     });
 
@@ -243,13 +243,13 @@ describe('HighlightOptionsManager', () => {
       const deleteBtns = document.querySelectorAll('.btn-action-delete');
       (deleteBtns[0] as HTMLElement).click();
 
-      expect(manager.chromeSettings.palettes?.length).toBe(1);
+      expect(manager.extensionSettings.palettes?.length).toBe(1);
       expect(chrome.storage.local.set).toHaveBeenCalled();
     });
 
     it('prevents deleting the last remaining palette', () => {
       manager.init();
-      manager.chromeSettings.palettes = [{ name: 'Sole Palette', colors: ['#fff'] }];
+      manager.extensionSettings.palettes = [{ name: 'Sole Palette', colors: ['#fff'] }];
       manager.renderPalettesList();
 
       const deleteBtn = document.querySelector('.btn-action-delete') as HTMLElement;
@@ -273,19 +273,19 @@ describe('HighlightOptionsManager', () => {
 
     it('handles deleting an active palette or palette prior to active index', () => {
       manager.init();
-      manager.chromeSettings.palettes = [
+      manager.extensionSettings.palettes = [
         { name: 'P0', colors: ['#000'] },
         { name: 'P1', colors: ['#111'] },
         { name: 'P2', colors: ['#222'] }
       ];
-      manager.chromeSettings.activePaletteIndex = 2;
+      manager.extensionSettings.activePaletteIndex = 2;
       manager.renderPalettesList();
 
       // Delete palette 0 (index 0 < activePaletteIndex 2)
       const deleteBtns = document.querySelectorAll('.btn-action-delete');
       (deleteBtns[0] as HTMLElement).click();
 
-      expect(manager.chromeSettings.activePaletteIndex).toBe(1);
+      expect(manager.extensionSettings.activePaletteIndex).toBe(1);
     });
 
     it('handles listener error catch blocks and DOM load initialization', () => {

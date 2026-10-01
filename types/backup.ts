@@ -5,7 +5,7 @@
  */
 
 import { Rating, State } from 'ts-fsrs';
-import { ChromeSettings, NotificationSettings, FSRSParameters, WhitelistedWebsite, ReviewLog } from './domain';
+import { ExtensionSettings, NotificationSettings, FSRSParameters, WhitelistedWebsite, ReviewLog } from './domain';
 
 /**
  * Line record type discriminators for Backup NDJSON streams.
@@ -159,7 +159,7 @@ export interface WeightsRecord {
  * Settings configuration data object inside backup stream
  */
 export interface SettingsData {
-    chromeSettings?: ChromeSettings;
+    extensionSettings?: ExtensionSettings;
     notificationSettings?: NotificationSettings;
     theme?: string;
     fsrsGlobalParams?: FSRSParameters | Partial<FSRSParameters> | Record<string, unknown>;

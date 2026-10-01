@@ -4,14 +4,14 @@
  */
 
 import { Logger } from '@common/logger';
-import { HighlightMark, DOMMeta, ChromeSettings, BookmarkItem, Card } from '../../types/domain';
-import { DEFAULT_CHROME_SETTINGS, DEFAULT_PALETTES } from '../common/constants';
+import { HighlightMark, DOMMeta, ExtensionSettings, BookmarkItem, Card } from '../../types/domain';
+import { DEFAULT_EXTENSION_SETTINGS, DEFAULT_PALETTES } from '../common/constants';
 
 export interface HighlighterState {
     currentTheme?: string;
     hoveredMarkId?: string | null;
     hideTooltipTimer?: ReturnType<typeof setTimeout> | null;
-    chromeSettings: ChromeSettings;
+    extensionSettings: ExtensionSettings;
     marks: HighlightMark[];
     bookmarks: BookmarkItem[];
     pagecontents: Array<{ url: string; description: string; length: number; [key: string]: unknown }>;
@@ -42,7 +42,7 @@ export class Highlighter {
                 };
             };
             this.state = (win.AlgoRecall && win.AlgoRecall.state) ? win.AlgoRecall.state : {
-                chromeSettings: {},
+                extensionSettings: {},
                 marks: [],
                 bookmarks: [],
                 pagecontents: [],
@@ -55,7 +55,7 @@ export class Highlighter {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error in Highlighter constructor: ${errorMessage}`, { err });
             this.state = {
-                chromeSettings: {},
+                extensionSettings: {},
                 marks: [],
                 bookmarks: [],
                 pagecontents: [],
@@ -110,7 +110,7 @@ export class Highlighter {
             // 1. Text Selection Logic (For NEW highlights)
             document.addEventListener('pointerup', (e: MouseEvent) => {
                 try {
-                    const showPopup = this.state.chromeSettings?.showMarkerPopup !== false;
+                    const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
                     if (!showPopup) return;
 
                     const target = e.target as HTMLElement | null;
@@ -161,7 +161,7 @@ export class Highlighter {
             // 2. Hover Detection Logic (For EXISTING highlights)
             document.addEventListener('mousemove', (e: MouseEvent) => {
                 try {
-                    const showPopup = this.state.chromeSettings?.showMarkerPopup !== false;
+                    const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
                     if (!showPopup) return;
 
                     const target = e.target as HTMLElement | null;
@@ -258,7 +258,7 @@ export class Highlighter {
                 return;
             }
 
-            const showPopup = this.state.chromeSettings?.showMarkerPopup !== false;
+            const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
             if (!showPopup) return;
 
             const range = selection.getRangeAt(0);
@@ -368,9 +368,9 @@ export class Highlighter {
             actionsContainer.style.width = '100%';
             actionsContainer.style.flexWrap = 'wrap';
 
-            const activeIndex = this.state.chromeSettings?.activePaletteIndex || 0;
-            const activePalette = (this.state.chromeSettings?.palettes && this.state.chromeSettings.palettes.length > activeIndex)
-                ? this.state.chromeSettings.palettes[activeIndex]
+            const activeIndex = this.state.extensionSettings?.activePaletteIndex || 0;
+            const activePalette = (this.state.extensionSettings?.palettes && this.state.extensionSettings.palettes.length > activeIndex)
+                ? this.state.extensionSettings.palettes[activeIndex]
                 : { colors: DEFAULT_PALETTES[0].colors };
 
             const paletteColors = activePalette.colors || [];
@@ -417,7 +417,7 @@ export class Highlighter {
             picker.type = 'color';
             picker.id = 'algo-color-picker';
             picker.setAttribute('aria-label', 'Custom highlight color');
-            picker.value = currentColor || this.state.chromeSettings?.defaultHighlightColor || DEFAULT_CHROME_SETTINGS.defaultHighlightColor;
+            picker.value = currentColor || this.state.extensionSettings?.defaultHighlightColor || DEFAULT_EXTENSION_SETTINGS.defaultHighlightColor;
             picker.addEventListener('input', (e: Event) => {
                 try {
                     const newColor = (e.target as HTMLInputElement).value;
@@ -692,13 +692,13 @@ export class Highlighter {
 
     updateRecentColors(newColor: string): void {
         try {
-            if (!this.state.chromeSettings || !this.state.chromeSettings.palettes) {
-                this.state.chromeSettings = JSON.parse(JSON.stringify(DEFAULT_CHROME_SETTINGS));
+            if (!this.state.extensionSettings || !this.state.extensionSettings.palettes) {
+                this.state.extensionSettings = JSON.parse(JSON.stringify(DEFAULT_EXTENSION_SETTINGS));
             }
-            this.state.chromeSettings.defaultHighlightColor = newColor;
-            const recent = this.state.chromeSettings.recentColors || [];
-            this.state.chromeSettings.recentColors = [newColor, ...recent.filter((c: string) => c !== newColor)].slice(0, 4);
-            chrome.storage.local.set({ chromeSettings: this.state.chromeSettings });
+            this.state.extensionSettings.defaultHighlightColor = newColor;
+            const recent = this.state.extensionSettings.recentColors || [];
+            this.state.extensionSettings.recentColors = [newColor, ...recent.filter((c: string) => c !== newColor)].slice(0, 4);
+            chrome.storage.local.set({ extensionSettings: this.state.extensionSettings });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error updating recent colors with ${newColor}: ${errorMessage}`, { newColor, err });

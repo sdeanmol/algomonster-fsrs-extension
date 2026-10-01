@@ -28,7 +28,7 @@ describe('Highlighter Component', () => {
 
     (window as any).AlgoRecall = {
       state: {
-        chromeSettings: {
+        extensionSettings: {
           showMarkerPopup: true,
           activePaletteIndex: 0,
           defaultHighlightColor: '#f1c40f',
@@ -252,7 +252,7 @@ describe('Highlighter Component', () => {
   });
 
   it('does nothing in handleTextSelection when showMarkerPopup is false', () => {
-    highlighter.state.chromeSettings.showMarkerPopup = false;
+    highlighter.state.extensionSettings.showMarkerPopup = false;
     highlighter.createHighlighterUI();
     const tooltip = document.getElementById('algo-highlight-tooltip')!;
     tooltip.style.display = 'none';
@@ -475,12 +475,12 @@ describe('Highlighter Component', () => {
     picker.dispatchEvent(new Event('input'));
 
     expect(highlighter.state.marks.length).toBeGreaterThan(0);
-    expect(highlighter.state.chromeSettings.defaultHighlightColor).toBe('#00ff00');
+    expect(highlighter.state.extensionSettings.defaultHighlightColor).toBe('#00ff00');
     window.getSelection()?.removeAllRanges();
   });
 
-  it('uses fallback palette when chromeSettings.palettes is empty', () => {
-    highlighter.state.chromeSettings.palettes = [];
+  it('uses fallback palette when extensionSettings.palettes is empty', () => {
+    highlighter.state.extensionSettings.palettes = [];
     highlighter.createHighlighterUI();
     highlighter.renderTooltipColors(null, null);
 
@@ -643,23 +643,23 @@ describe('Highlighter Component', () => {
   // ─── updateRecentColors ───────────────────────────────────────────────
   it('updates recent colors and saves to storage', () => {
     highlighter.updateRecentColors('#9b59b6');
-    expect(highlighter.state.chromeSettings.defaultHighlightColor).toBe('#9b59b6');
-    expect(highlighter.state.chromeSettings.recentColors![0]).toBe('#9b59b6');
-    expect(chrome.storage.local.set).toHaveBeenCalledWith({ chromeSettings: highlighter.state.chromeSettings });
+    expect(highlighter.state.extensionSettings.defaultHighlightColor).toBe('#9b59b6');
+    expect(highlighter.state.extensionSettings.recentColors![0]).toBe('#9b59b6');
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({ extensionSettings: highlighter.state.extensionSettings });
   });
 
-  it('creates default chromeSettings when missing', () => {
-    (highlighter.state as any).chromeSettings = null;
+  it('creates default extensionSettings when missing', () => {
+    (highlighter.state as any).extensionSettings = null;
     highlighter.updateRecentColors('#abcdef');
-    expect(highlighter.state.chromeSettings).not.toBeNull();
-    expect(highlighter.state.chromeSettings.defaultHighlightColor).toBe('#abcdef');
+    expect(highlighter.state.extensionSettings).not.toBeNull();
+    expect(highlighter.state.extensionSettings.defaultHighlightColor).toBe('#abcdef');
   });
 
   it('deduplicates recent colors', () => {
-    highlighter.state.chromeSettings.recentColors = ['#aaa', '#bbb', '#ccc', '#ddd'];
+    highlighter.state.extensionSettings.recentColors = ['#aaa', '#bbb', '#ccc', '#ddd'];
     highlighter.updateRecentColors('#bbb');
-    expect(highlighter.state.chromeSettings.recentColors![0]).toBe('#bbb');
-    expect(highlighter.state.chromeSettings.recentColors!.filter(c => c === '#bbb').length).toBe(1);
+    expect(highlighter.state.extensionSettings.recentColors![0]).toBe('#bbb');
+    expect(highlighter.state.extensionSettings.recentColors!.filter(c => c === '#bbb').length).toBe(1);
   });
 
   // ─── deleteHighlight ──────────────────────────────────────────────────

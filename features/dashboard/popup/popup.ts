@@ -6,7 +6,7 @@ import { NotificationsComponent } from './notifications';
 import { RatingComponent } from './rating';
 import { QuickSearchComponent } from './search';
 import { BackupManager } from '../../common/data/backupManager';
-import { Card, StorageData, ChromeSettings } from '../../../types/domain';
+import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
 
 export interface PopupDOM {
     themeToggleBtn: HTMLElement | null;
@@ -174,7 +174,7 @@ export class AlgoRecallDashboard {
 
             // Floating Highlighter switch setup
             if (this.dom.markerToggle) {
-                chrome.storage.local.get(['chromeSettings'], (result: StorageData) => {
+                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
                     try {
                         const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                         if (lastError) {
@@ -182,8 +182,8 @@ export class AlgoRecallDashboard {
                             Logger.error('Popup', `Storage error fetching marker toggle settings: ${errorMessage}`, { error: lastError });
                             return;
                         }
-                        if (result.chromeSettings && result.chromeSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
-                            this.dom.markerToggle.checked = result.chromeSettings.showMarkerPopup;
+                        if (result.extensionSettings && result.extensionSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
+                            this.dom.markerToggle.checked = result.extensionSettings.showMarkerPopup;
                         }
                     } catch (err) {
             UIUtils.catchError('Popup', 'Error rendering marker toggle setting', err);
@@ -192,10 +192,10 @@ export class AlgoRecallDashboard {
                 this.dom.markerToggle.addEventListener('change', async (e: Event) => {
                     try {
                         const target = e.target as HTMLInputElement;
-                        const result = (await chrome.storage.local.get(['chromeSettings'])) as StorageData;
-                        const settings: ChromeSettings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
                         settings.showMarkerPopup = target.checked;
-                        await chrome.storage.local.set({ chromeSettings: settings });
+                        await chrome.storage.local.set({ extensionSettings: settings });
                     } catch (error) {
             UIUtils.catchError('Popup', 'Error setting showMarkerPopup config', error);
         }
@@ -204,7 +204,7 @@ export class AlgoRecallDashboard {
 
             // Visual charts display switch setup
             if (this.dom.chartsToggle) {
-                chrome.storage.local.get(['chromeSettings'], (result: StorageData) => {
+                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
                     try {
                         const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                         if (lastError) {
@@ -212,8 +212,8 @@ export class AlgoRecallDashboard {
                             Logger.error('Popup', `Storage error fetching charts toggle settings: ${errorMessage}`, { error: lastError });
                             return;
                         }
-                        const showCharts = result.chromeSettings && result.chromeSettings.showCharts !== undefined
-                            ? result.chromeSettings.showCharts
+                        const showCharts = result.extensionSettings && result.extensionSettings.showCharts !== undefined
+                            ? result.extensionSettings.showCharts
                             : true;
                         if (this.dom.chartsToggle) {
                             this.dom.chartsToggle.checked = showCharts;
@@ -225,10 +225,10 @@ export class AlgoRecallDashboard {
                 this.dom.chartsToggle.addEventListener('change', async (e: Event) => {
                     try {
                         const target = e.target as HTMLInputElement;
-                        const result = (await chrome.storage.local.get(['chromeSettings'])) as StorageData;
-                        const settings: ChromeSettings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
                         settings.showCharts = target.checked;
-                        await chrome.storage.local.set({ chromeSettings: settings });
+                        await chrome.storage.local.set({ extensionSettings: settings });
                         this.showStatus(`Visual charts ${target.checked ? 'enabled' : 'disabled'}!`);
                     } catch (error) {
             UIUtils.catchError('Popup', 'Error setting showCharts config', error);
@@ -238,7 +238,7 @@ export class AlgoRecallDashboard {
 
             // Developer mode display switch setup
             if (this.dom.devModeToggle) {
-                chrome.storage.local.get(['chromeSettings'], (result: StorageData) => {
+                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
                     try {
                         const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                         if (lastError) {
@@ -246,8 +246,8 @@ export class AlgoRecallDashboard {
                             Logger.error('Popup', `Storage error fetching dev mode toggle settings: ${errorMessage}`, { error: lastError });
                             return;
                         }
-                        const devMode = result.chromeSettings && result.chromeSettings.developerMode !== undefined
-                            ? result.chromeSettings.developerMode
+                        const devMode = result.extensionSettings && result.extensionSettings.developerMode !== undefined
+                            ? result.extensionSettings.developerMode
                             : false;
                         if (this.dom.devModeToggle) {
                             this.dom.devModeToggle.checked = devMode;
@@ -265,10 +265,10 @@ export class AlgoRecallDashboard {
                 this.dom.devModeToggle.addEventListener('change', async (e: Event) => {
                     try {
                         const target = e.target as HTMLInputElement;
-                        const result = (await chrome.storage.local.get(['chromeSettings'])) as StorageData;
-                        const settings: ChromeSettings = result.chromeSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
                         settings.developerMode = target.checked;
-                        await chrome.storage.local.set({ chromeSettings: settings });
+                        await chrome.storage.local.set({ extensionSettings: settings });
                         if (this.dom.devModeActions) {
                             this.dom.devModeActions.style.display = target.checked ? 'block' : 'none';
                         }
@@ -473,23 +473,23 @@ export class AlgoRecallDashboard {
                                 if (!isError && msg.includes("successfully")) {
                                     await this.loadAll();
                                     // Update UI settings toggles in case they changed
-                                    chrome.storage.local.get(['chromeSettings'], (result: StorageData) => {
+                                    chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
                                         try {
                                             const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                                             if (lastError) {
                                                 const errorMessage = lastError.message || String(lastError);
-                                                Logger.error('Popup', `Storage error fetching chromeSettings after import: ${errorMessage}`, { error: lastError });
+                                                Logger.error('Popup', `Storage error fetching extensionSettings after import: ${errorMessage}`, { error: lastError });
                                                 return;
                                             }
-                                            if (result.chromeSettings) {
-                                                if (result.chromeSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
-                                                    this.dom.markerToggle.checked = result.chromeSettings.showMarkerPopup;
+                                            if (result.extensionSettings) {
+                                                if (result.extensionSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
+                                                    this.dom.markerToggle.checked = result.extensionSettings.showMarkerPopup;
                                                 }
-                                                if (result.chromeSettings.showCharts !== undefined && this.dom.chartsToggle) {
-                                                    this.dom.chartsToggle.checked = result.chromeSettings.showCharts;
+                                                if (result.extensionSettings.showCharts !== undefined && this.dom.chartsToggle) {
+                                                    this.dom.chartsToggle.checked = result.extensionSettings.showCharts;
                                                 }
-                                                if (result.chromeSettings.developerMode !== undefined && this.dom.devModeToggle) {
-                                                    this.dom.devModeToggle.checked = result.chromeSettings.developerMode;
+                                                if (result.extensionSettings.developerMode !== undefined && this.dom.devModeToggle) {
+                                                    this.dom.devModeToggle.checked = result.extensionSettings.developerMode;
                                                 }
                                             }
                                         } catch (cbErr) {

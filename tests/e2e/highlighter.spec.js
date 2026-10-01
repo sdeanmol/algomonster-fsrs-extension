@@ -13,7 +13,7 @@ const path = require('path');
 const { injectChromePolyfill } = require('./helpers/chrome-polyfill');
 const { launchBrowser, closeBrowser, buildFileUrl } = require('./helpers/browser-setup');
 const { getStorageValue } = require('./helpers/storage-helpers');
-const { mockMarks, mockChromeSettings } = require('./helpers/fixtures');
+const { mockMarks, mockExtensionSettings } = require('./helpers/fixtures');
 
 const mockHighlighterStorage = {
   highlighterOptions: {
@@ -27,8 +27,8 @@ const mockHighlighterStorage = {
       }
     ]
   },
-  chromeSettings: {
-    ...mockChromeSettings,
+  extensionSettings: {
+    ...mockExtensionSettings,
     showMarkerPopup: true,
     palettes: [
       { name: 'Standard Marker', colors: ['#ffeb3b', '#ff9800', '#4caf50', '#00bcd4', '#e91e63'] }

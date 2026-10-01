@@ -150,7 +150,7 @@ const mockMarks = [
 
 // --- Chrome Settings Fixtures ---
 
-const mockChromeSettings = {
+const mockExtensionSettings = {
   defaultHighlightColor: '#ffeb3b',
   recentColors: ['#ffeb3b', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
   showMarkerPopup: true,
@@ -241,7 +241,7 @@ module.exports = {
   mockMarks,
 
   // Settings fixtures
-  mockChromeSettings,
+  mockExtensionSettings,
   mockNotificationSettings,
   mockFsrsParams,
   defaultFsrsParams: mockFsrsParams,

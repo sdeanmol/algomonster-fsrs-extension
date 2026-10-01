@@ -12,7 +12,9 @@
     "release:chrome": "npm run build:chrome",
     "release:firefox": "npm run build:firefox",
     "dev:chrome": "rm -rf dist/chrome && webpack --env target=chrome --mode development --watch",
-    "dev:firefox": "rm -rf dist/firefox && webpack --env target=firefox --mode development --watch"
+    "dev:firefox": "rm -rf dist/firefox && webpack --env target=firefox --mode development --watch",
+    "check:isolation": "node scripts/check-artifact-isolation.js",
+    "check:isolation:all": "npm run build:chrome && npm run build:firefox && node scripts/check-artifact-isolation.js"
   },
   "dependencies": {
     "firebase": "^10.12.0"

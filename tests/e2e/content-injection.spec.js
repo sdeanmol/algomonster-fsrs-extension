@@ -14,7 +14,7 @@ const { test, expect } = require('@playwright/test');
 const path = require('path');
 const { injectChromePolyfill } = require('./helpers/chrome-polyfill');
 const { launchBrowser, closeBrowser } = require('./helpers/browser-setup');
-const { reviewCard, mockMarks, defaultWhitelistedSites, mockChromeSettings } = require('./helpers/fixtures');
+const { reviewCard, mockMarks, defaultWhitelistedSites, mockExtensionSettings } = require('./helpers/fixtures');
 
 const CONTENT_SCRIPT_BUNDLE = path.join(process.cwd(), 'dist/chrome/content/content.js');
 const FSRS_SCHEDULER_BUNDLE = path.join(process.cwd(), 'dist/chrome/dist/fsrsScheduler.bundle.js');
@@ -73,7 +73,7 @@ test.describe('Content Script Injection & Orchestrator E2E', () => {
     const storageData = {
       fsrsCards: [reviewCard],
       marks: mockMarks,
-      chromeSettings: mockChromeSettings,
+      extensionSettings: mockExtensionSettings,
       whitelistedWebsites: defaultWhitelistedSites,
       theme: 'dark'
     };
@@ -152,7 +152,7 @@ test.describe('Content Script Injection & Orchestrator E2E', () => {
     const storageData = {
       fsrsCards: [reviewCard],
       marks: [],
-      chromeSettings: mockChromeSettings,
+      extensionSettings: mockExtensionSettings,
       whitelistedWebsites: defaultWhitelistedSites,
       theme: 'dark'
     };
@@ -206,7 +206,7 @@ test.describe('Content Script Injection & Orchestrator E2E', () => {
     const storageData = {
       fsrsCards: [reviewCard],
       marks: [],
-      chromeSettings: mockChromeSettings,
+      extensionSettings: mockExtensionSettings,
       whitelistedWebsites: defaultWhitelistedSites,
       theme: 'dark'
     };

@@ -12,7 +12,7 @@ const { test, expect } = require('@playwright/test');
 const { injectChromePolyfill } = require('./helpers/chrome-polyfill');
 const { launchBrowser, closeBrowser } = require('./helpers/browser-setup');
 const { getStorageValue } = require('./helpers/storage-helpers');
-const { mockMarks, mockChromeSettings } = require('./helpers/fixtures');
+const { mockMarks, mockExtensionSettings } = require('./helpers/fixtures');
 
 /**
  * Injects a lightweight Highlighter tooltip + persistence shim into the test page.
@@ -191,7 +191,7 @@ test.describe('Highlighter In-Page DOM Injection E2E', () => {
     const page = await context.newPage();
 
     await page.setContent(testPageHtml);
-    await page.evaluate(injectChromePolyfill, { marks: [], chromeSettings: mockChromeSettings });
+    await page.evaluate(injectChromePolyfill, { marks: [], extensionSettings: mockExtensionSettings });
     await page.evaluate(injectHighlighterShim);
 
     // Simulate text selection on paragraph 1

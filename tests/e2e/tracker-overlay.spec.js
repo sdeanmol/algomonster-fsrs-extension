@@ -14,7 +14,7 @@ const { test, expect } = require('@playwright/test');
 const { injectChromePolyfill } = require('./helpers/chrome-polyfill');
 const { launchBrowser, closeBrowser } = require('./helpers/browser-setup');
 const { getStorageValue, waitForStorageValue } = require('./helpers/storage-helpers');
-const { reviewCard, learningCard, newCard, allCards, mockChromeSettings, defaultWhitelistedSites } = require('./helpers/fixtures');
+const { reviewCard, learningCard, newCard, allCards, mockExtensionSettings, defaultWhitelistedSites } = require('./helpers/fixtures');
 
 /**
  * Injects a lightweight Tracker Widget shim into the test page.
@@ -215,7 +215,7 @@ test.describe('Tracker Overlay Widget E2E Workflows', () => {
     await page.setContent(`<!DOCTYPE html><html><body><h1>Two Sum Problem</h1></body></html>`);
     await page.evaluate(injectChromePolyfill, {
       fsrsCards: [reviewCard],
-      chromeSettings: mockChromeSettings,
+      extensionSettings: mockExtensionSettings,
       whitelistedWebsites: defaultWhitelistedSites
     });
     await page.evaluate(injectTrackerWidgetShim, reviewCard);

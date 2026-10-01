@@ -7,11 +7,11 @@
 
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
-import { Card, StorageData, ChromeSettings, ReviewLog } from '../../../types/domain';
+import { Card, StorageData, ExtensionSettings, ReviewLog } from '../../../types/domain';
 
 export class FSRSHistoryDashboard {
     activityData: Record<string, number>;
-    chromeSettings: ChromeSettings;
+    extensionSettings: ExtensionSettings;
     currentView: string;
     selectedYear: string | null;
     selectedMonth: string | null;
@@ -19,7 +19,7 @@ export class FSRSHistoryDashboard {
 
     constructor() {
         this.activityData = {};
-        this.chromeSettings = {};
+        this.extensionSettings = {};
         this.currentView = 'year';
         this.selectedYear = null;
         this.selectedMonth = null;
@@ -28,7 +28,7 @@ export class FSRSHistoryDashboard {
 
     init(): void {
         try {
-            chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'chromeSettings'], (result: StorageData) => {
+            chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'extensionSettings'], (result: StorageData) => {
                 try {
                     const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                     if (lastError) {
@@ -75,7 +75,7 @@ export class FSRSHistoryDashboard {
                     }
 
                     this.activityData = activityData;
-                    this.chromeSettings = result.chromeSettings || {};
+                    this.extensionSettings = result.extensionSettings || {};
                     this.attachListeners();
                     this.renderView();
                 } catch (innerErr) {
@@ -272,8 +272,8 @@ export class FSRSHistoryDashboard {
             const chartWrapper = document.getElementById('history-chart-wrapper');
             if (!chartWrapper) return;
 
-            const showCharts = this.chromeSettings && this.chromeSettings.showCharts !== undefined
-                ? this.chromeSettings.showCharts
+            const showCharts = this.extensionSettings && this.extensionSettings.showCharts !== undefined
+                ? this.extensionSettings.showCharts
                 : true;
 
             if (!showCharts || Object.keys(this.activityData).length === 0) {

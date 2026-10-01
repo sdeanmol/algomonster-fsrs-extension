@@ -25,7 +25,7 @@ describe('AlgoRecallOrchestrator', () => {
           whitelistedWebsites: [{ domain: 'leetcode.com' }],
           fsrsCards: [{ id: 'c1', due: Date.now() }],
           theme: 'light',
-          chromeSettings: { showMarkerPopup: true }
+          extensionSettings: { showMarkerPopup: true }
         });
       }
     });
@@ -64,13 +64,13 @@ describe('AlgoRecallOrchestrator', () => {
         if (cb) {
           cb({
             whitelistedWebsites: [{ domain: 'leetcode.com' }],
-            chromeSettings: { palettes: [] }
+            extensionSettings: { palettes: [] }
           });
         }
       });
 
       await orchestrator.init();
-      expect(orchestrator.state.chromeSettings?.palettes?.length).toBe(5);
+      expect(orchestrator.state.extensionSettings?.palettes?.length).toBe(5);
     });
 
     it('handles chrome.runtime.lastError in init storage callback', async () => {
@@ -146,7 +146,7 @@ describe('AlgoRecallOrchestrator', () => {
     it('handles chrome.storage.onChanged updates for all key types', () => {
       orchestrator.handleStorageChanged(
         {
-          chromeSettings: { newValue: { showMarkerPopup: true } },
+          extensionSettings: { newValue: { showMarkerPopup: true } },
           fsrsCards: { newValue: [{ id: 'c2' }] },
           fsrsTopicWeights: { newValue: { dp: [1] } },
           marks: { newValue: ['mark1'] },
@@ -164,7 +164,7 @@ describe('AlgoRecallOrchestrator', () => {
     });
 
     it('renders tooltip when active text selection exists on storage change', () => {
-      orchestrator.state.chromeSettings.showMarkerPopup = true;
+      orchestrator.state.extensionSettings.showMarkerPopup = true;
 
       const mockRange = {
         getClientRects: () => [{ right: 100, bottom: 200 }],
@@ -184,7 +184,7 @@ describe('AlgoRecallOrchestrator', () => {
 
       orchestrator.handleStorageChanged(
         {
-          chromeSettings: { newValue: { showMarkerPopup: true } }
+          extensionSettings: { newValue: { showMarkerPopup: true } }
         },
         'local'
       );

@@ -106,7 +106,7 @@ describe('FSRSDataDashboard', () => {
     (window as any).prompt = jest.fn();
 
     (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
-      if (cb) cb({ fsrsCards: JSON.parse(JSON.stringify(mockCards)), chromeSettings: { showCharts: true } });
+      if (cb) cb({ fsrsCards: JSON.parse(JSON.stringify(mockCards)), extensionSettings: { showCharts: true } });
     });
 
     (chrome.storage.local.set as jest.Mock).mockImplementation((data: any, cb?: any) => {

@@ -23,7 +23,7 @@ export class FSRSDataDashboard {
     selectedPlatform: string;
     selectedState: string;
     sortBy: string;
-    chromeSettings: UserSettings & { showCharts?: boolean };
+    extensionSettings: UserSettings & { showCharts?: boolean };
 
     selectedCardIds: Set<string>;
 
@@ -38,7 +38,7 @@ export class FSRSDataDashboard {
         this.selectedPlatform = 'all';
         this.selectedState = 'all';
         this.sortBy = 'due-asc';
-        this.chromeSettings = {};
+        this.extensionSettings = {};
 
         // Bulk selection tracking
         this.selectedCardIds = new Set();
@@ -63,7 +63,7 @@ export class FSRSDataDashboard {
                 this.selectedTag = urlTag;
             }
 
-            chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: StorageData) => {
+            chrome.storage.local.get(['fsrsCards', 'extensionSettings'], (result: StorageData) => {
                 try {
                     if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
@@ -71,7 +71,7 @@ export class FSRSDataDashboard {
                         return;
                     }
                     this.allCards = ensureCardIds(result.fsrsCards || []);
-                    this.chromeSettings = (result.chromeSettings || {}) as UserSettings & { showCharts?: boolean };
+                    this.extensionSettings = (result.extensionSettings || {}) as UserSettings & { showCharts?: boolean };
 
                     // Dynamic Filter Populators
                     this.populateTagsFilter();
@@ -951,8 +951,8 @@ export class FSRSDataDashboard {
             const panel = document.getElementById('analytics-panel');
             if (!panel) return;
 
-            const showCharts = this.chromeSettings && this.chromeSettings.showCharts !== undefined
-                ? this.chromeSettings.showCharts
+            const showCharts = this.extensionSettings && this.extensionSettings.showCharts !== undefined
+                ? this.extensionSettings.showCharts
                 : true;
 
             if (this.currentView !== 'total' || cards.length === 0 || !showCharts) {
