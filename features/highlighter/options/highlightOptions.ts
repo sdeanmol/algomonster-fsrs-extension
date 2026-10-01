@@ -55,10 +55,10 @@ export class HighlightOptionsManager {
                     // Set up General Options UI
                     const defaultColor = this.extensionSettings.defaultHighlightColor || '#f1c40f';
                     const defaultColorInput = document.getElementById('default-color') as HTMLInputElement | null;
-                    const defaultHexSpan = document.getElementById('default-hex') as HTMLElement | null;
+                    const defaultHexInput = document.getElementById('default-hex') as HTMLInputElement | null;
 
                     if (defaultColorInput) defaultColorInput.value = defaultColor;
-                    if (defaultHexSpan) defaultHexSpan.textContent = defaultColor.toUpperCase();
+                    if (defaultHexInput) defaultHexInput.value = defaultColor.toUpperCase();
 
                     // Bind Event Listeners
                     this.bindEvents();
@@ -90,8 +90,8 @@ export class HighlightOptionsManager {
                 defaultColorEl.addEventListener('input', (e: Event) => {
                     try {
                         const target = e.target as HTMLInputElement;
-                        const hexSpan = document.getElementById('default-hex');
-                        if (hexSpan) hexSpan.textContent = target.value.toUpperCase();
+                        const hexInput = document.getElementById('default-hex') as HTMLInputElement | null;
+                        if (hexInput) hexInput.value = target.value.toUpperCase();
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('HighlightOptions', `Error in default color input listener: ${errorMessage}`, { err });
@@ -106,6 +106,31 @@ export class HighlightOptionsManager {
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('HighlightOptions', `Error in default color change listener: ${errorMessage}`, { err });
+                    }
+                });
+            }
+
+            const defaultHexEl = document.getElementById('default-hex') as HTMLInputElement | null;
+            if (defaultHexEl) {
+                defaultHexEl.addEventListener('change', (e: Event) => {
+                    try {
+                        const target = e.target as HTMLInputElement;
+                        let val = target.value.trim();
+                        if (!val.startsWith('#')) val = '#' + val;
+                        if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
+                            if (defaultColorEl) {
+                                defaultColorEl.value = val;
+                                this.extensionSettings.defaultHighlightColor = val;
+                                this.saveSettings("Default highlight color updated!");
+                            }
+                            target.value = val.toUpperCase();
+                        } else {
+                            this.showToast("Invalid hex code");
+                            target.value = (this.extensionSettings.defaultHighlightColor || '#f1c40f').toUpperCase();
+                        }
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('HighlightOptions', `Error in hex input listener: ${errorMessage}`, { err });
                     }
                 });
             }
@@ -197,12 +222,12 @@ export class HighlightOptionsManager {
                         this.extensionSettings.defaultHighlightColor = '#f1c40f';
 
                         const defaultColorEl = document.getElementById('default-color') as HTMLInputElement | null;
-                        const defaultHexEl = document.getElementById('default-hex');
+                        const defaultHexEl = document.getElementById('default-hex') as HTMLInputElement | null;
                         const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
                         const saveBtn = document.getElementById('save-palette-btn');
 
                         if (defaultColorEl) defaultColorEl.value = '#f1c40f';
-                        if (defaultHexEl) defaultHexEl.textContent = '#F1C40F';
+                        if (defaultHexEl) defaultHexEl.value = '#F1C40F';
                         
                         // Reset Editor UI
                         if (nameInput) nameInput.value = '';
@@ -246,20 +271,40 @@ export class HighlightOptionsManager {
                     try {
                         const target = e.target as HTMLInputElement;
                         this.editorColors[idx] = target.value;
-                        const hexSpan = row.querySelector('.color-hex');
-                        if (hexSpan) hexSpan.textContent = target.value.toUpperCase();
+                        const hexInput = row.querySelector('.color-hex') as HTMLInputElement | null;
+                        if (hexInput) hexInput.value = target.value.toUpperCase();
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('HighlightOptions', `Error in color picker input handler for slot ${idx}: ${errorMessage}`, { idx, err });
                     }
                 });
 
-                const hexSpan = document.createElement('span');
-                hexSpan.className = 'color-hex';
-                hexSpan.textContent = color.toUpperCase();
+                const hexInput = document.createElement('input');
+                hexInput.type = 'text';
+                hexInput.className = 'color-hex';
+                hexInput.value = color.toUpperCase();
+                hexInput.maxLength = 7;
+                hexInput.addEventListener('change', (e: Event) => {
+                    try {
+                        const target = e.target as HTMLInputElement;
+                        let val = target.value.trim();
+                        if (!val.startsWith('#')) val = '#' + val;
+                        if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
+                            picker.value = val;
+                            this.editorColors[idx] = val;
+                            target.value = val.toUpperCase();
+                        } else {
+                            this.showToast("Invalid hex code");
+                            target.value = this.editorColors[idx].toUpperCase();
+                        }
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('HighlightOptions', `Error in hex input handler for slot ${idx}: ${errorMessage}`, { idx, err });
+                    }
+                });
 
                 row.appendChild(picker);
-                row.appendChild(hexSpan);
+                row.appendChild(hexInput);
 
                 // Delete slot action (require at least 1 color)
                 if (this.editorColors.length > 1) {

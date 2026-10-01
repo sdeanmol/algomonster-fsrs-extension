@@ -429,14 +429,37 @@ export class Highlighter {
             });
 
             // 3. Custom Color Picker
+            const colorPickerContainer = document.createElement('div');
+            colorPickerContainer.style.display = 'flex';
+            colorPickerContainer.style.alignItems = 'center';
+            colorPickerContainer.style.gap = '6px';
+
             const picker = document.createElement('input');
             picker.type = 'color';
             picker.id = 'algo-color-picker';
             picker.setAttribute('aria-label', 'Custom highlight color');
-            picker.value = currentColor || this.state.extensionSettings?.defaultHighlightColor || DEFAULT_EXTENSION_SETTINGS.defaultHighlightColor;
+            const defaultPickerValue = currentColor || this.state.extensionSettings?.defaultHighlightColor || DEFAULT_EXTENSION_SETTINGS.defaultHighlightColor;
+            picker.value = defaultPickerValue;
+
+            const hexInput = document.createElement('input');
+            hexInput.type = 'text';
+            hexInput.className = 'algo-color-hex-input';
+            hexInput.maxLength = 7;
+            hexInput.value = defaultPickerValue.toUpperCase();
+            hexInput.style.width = '64px';
+            hexInput.style.background = 'var(--w-bg-dark)';
+            hexInput.style.border = '1px solid var(--w-border)';
+            hexInput.style.borderRadius = '4px';
+            hexInput.style.color = 'var(--w-text)';
+            hexInput.style.fontSize = '11px';
+            hexInput.style.fontFamily = 'monospace';
+            hexInput.style.padding = '4px 6px';
+            hexInput.style.outline = 'none';
+
             picker.addEventListener('input', (e: Event) => {
                 try {
                     const newColor = (e.target as HTMLInputElement).value;
+                    hexInput.value = newColor.toUpperCase();
                     if (existingMarkId) this.updateHighlightColor(existingMarkId, newColor);
                     else this.saveHighlight(newColor, activeType);
                     this.updateRecentColors(newColor);
@@ -445,7 +468,36 @@ export class Highlighter {
                     Logger.error('Highlighter', `Error in custom color picker input: ${errorMessage}`, { err });
                 }
             });
-            actionsContainer.appendChild(picker);
+
+            hexInput.addEventListener('change', (e: Event) => {
+                try {
+                    let newColor = (e.target as HTMLInputElement).value.trim();
+                    if (!newColor.startsWith('#')) newColor = '#' + newColor;
+                    if (/^#[0-9A-Fa-f]{6}$/i.test(newColor)) {
+                        picker.value = newColor;
+                        (e.target as HTMLInputElement).value = newColor.toUpperCase();
+                        if (existingMarkId) this.updateHighlightColor(existingMarkId, newColor);
+                        else this.saveHighlight(newColor, activeType);
+                        this.updateRecentColors(newColor);
+                    } else {
+                        (e.target as HTMLInputElement).value = picker.value.toUpperCase();
+                    }
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('Highlighter', `Error in hex input: ${errorMessage}`, { err });
+                }
+            });
+
+            hexInput.addEventListener('keydown', (e) => {
+                e.stopPropagation();
+            });
+            hexInput.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+
+            colorPickerContainer.appendChild(picker);
+            colorPickerContainer.appendChild(hexInput);
+            actionsContainer.appendChild(colorPickerContainer);
 
             // 4. Delete Button (when editing existing highlight)
             if (existingMarkId) {

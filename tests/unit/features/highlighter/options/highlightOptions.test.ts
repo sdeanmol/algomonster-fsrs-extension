@@ -22,7 +22,7 @@ describe('HighlightOptionsManager', () => {
 
     document.body.innerHTML = `
       <input id="default-color" type="color" value="#f1c40f" />
-      <span id="default-hex">#F1C40F</span>
+      <input type="text" id="default-hex" class="color-hex" value="#F1C40F" />
 
       <input id="palette-name-input" value="" />
       <button id="add-slot-btn">Add Slot</button>
@@ -103,7 +103,7 @@ describe('HighlightOptionsManager', () => {
       defaultColorInput.value = '#00ff00';
 
       defaultColorInput.dispatchEvent(new Event('input'));
-      expect(document.getElementById('default-hex')?.textContent).toBe('#00FF00');
+      expect((document.getElementById('default-hex') as HTMLInputElement)?.value).toBe('#00FF00');
 
       defaultColorInput.dispatchEvent(new Event('change'));
       expect(chrome.storage.local.set).toHaveBeenCalled();
