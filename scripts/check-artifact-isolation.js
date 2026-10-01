@@ -61,7 +61,7 @@ const SAFARI_REQUIRED = [
 ];
 
 // Permissions that Safari Web Extensions do NOT support — must NOT appear in Safari manifest.
-const SAFARI_UNSUPPORTED_PERMISSIONS = ['notifications', 'alarms', 'downloads'];
+const SAFARI_UNSUPPORTED_PERMISSIONS = ['notifications', 'downloads'];
 
 const DIST_CHROME  = path.join(__dirname, '..', 'dist', 'chrome');
 const DIST_FIREFOX = path.join(__dirname, '..', 'dist', 'firefox');

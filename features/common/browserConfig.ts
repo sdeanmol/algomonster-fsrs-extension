@@ -72,12 +72,14 @@ export const BROWSER_CONFIG: BrowserConfig = {
         : __BROWSER_TARGET__ === 'safari'
         ? 'Rate on the App Store'
         : 'Rate on Chrome Web Store',
-    // Safari does not expose chrome.notifications, chrome.alarms, or chrome.downloads.
+    // Safari does not expose chrome.notifications or chrome.downloads.
+    // However, chrome.alarms IS fully supported on Safari 14+.
     // These flags are injected at build time so guards are eliminated during tree-shaking
     // in Chrome/Firefox builds (dead code elimination on `false &&`).
     supportsNotifications: __BROWSER_TARGET__ !== 'safari',
-    supportsAlarms: __BROWSER_TARGET__ !== 'safari',
+    supportsAlarms: true, // Supported across Chrome, Firefox, and Safari
     supportsDownloads: __BROWSER_TARGET__ !== 'safari',
+
 };
 
 export default BROWSER_CONFIG;
