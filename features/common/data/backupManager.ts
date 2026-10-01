@@ -18,6 +18,7 @@ import {
     SettingsData,
     FooterRecord
 } from '../../../types/backup';
+import { BROWSER_CONFIG } from '../browserConfig';
 
 export type BackupPageData = PageRecord['data'];
 export type BackupCardData = CardRecordData;
@@ -327,19 +328,34 @@ export class BackupManager {
             const blobUrl = URL.createObjectURL(blob);
 
             const filename = `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json.gz`;
-            chrome.downloads.download({
-                url: blobUrl,
-                filename: filename,
-                saveAs: true
-            }, () => {
-                try {
-                    URL.revokeObjectURL(blobUrl);
-                } catch (revokeErr) {
-                    const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
-                    Logger.debug('Backup', `Ignore revokeObjectURL error if URL was already revoked: ${errorMessage}`, { revokeErr });
-                }
-            });
+
+            // Safari does not support chrome.downloads. Fall back to an anchor-click download,
+            // which works cross-browser and does not require the 'downloads' permission.
+            if (BROWSER_CONFIG.supportsDownloads) {
+                chrome.downloads.download({
+                    url: blobUrl,
+                    filename: filename,
+                    saveAs: true
+                }, () => {
+                    try {
+                        URL.revokeObjectURL(blobUrl);
+                    } catch (revokeErr) {
+                        const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
+                        Logger.debug('Backup', `Ignore revokeObjectURL error if URL was already revoked: ${errorMessage}`, { revokeErr });
+                    }
+                });
+            } else {
+                // Anchor-click fallback for Safari (no chrome.downloads API).
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+            }
             Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
+
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Backup', `Backup export failed: ${errorMessage}`, { err });

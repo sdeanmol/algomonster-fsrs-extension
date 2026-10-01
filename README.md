@@ -1,6 +1,6 @@
 # AlgoRecall: Coding Interview Spaced Repetition Extension
 
-> **AlgoRecall** is a free, 100% local-first browser extension (Manifest V3) designed for coding interview spaced repetition and text highlighting. Powered by the **Free Spaced Repetition Scheduler (FSRS-4.5)** algorithm and WebAssembly (WASM) parameter optimization, it seamlessly tracks problem reviews on LeetCode, AlgoMonster, Codeforces, and other major platforms. Available for Google Chrome and Mozilla Firefox.
+> **AlgoRecall** is a free, 100% local-first browser extension (Manifest V3) designed for coding interview spaced repetition and text highlighting. Powered by the **Free Spaced Repetition Scheduler (FSRS-4.5)** algorithm and WebAssembly (WASM) parameter optimization, it seamlessly tracks problem reviews on LeetCode, AlgoMonster, Codeforces, and other major platforms. Available for **Google Chrome**, **Mozilla Firefox**, and **Apple Safari** (macOS & iOS/iPadOS).
 
 ---
 
@@ -68,8 +68,8 @@ graph TD
 
     subgraph Background Service Worker
         BG[AlgoRecallBackground SW]
-        AL[Chrome Alarms Manager]
-        NOTIF[Chrome Notifications]
+        AL[Chrome Alarms Manager\n⚠️ Chrome & Firefox only]
+        NOTIF[Chrome Notifications\n⚠️ Chrome & Firefox only]
     end
 
     subgraph Extension Storage & WASM
@@ -90,7 +90,7 @@ graph TD
     CS --> TR
     TR -->|Calculates Review| FSRS
     OPT -->|Train Weights| ST
-    BG -->|Alarms Trigger| NOTIF
+    BG -->|Alarms Trigger\nChrome & Firefox only| NOTIF
     BG -->|Read/Write| ST
     CS -->|Read/Write| ST
     POP -->|Read State| ST
@@ -116,15 +116,20 @@ cd algomonster-fsrs-extension
 # Install dependencies
 npm install
 
-# Build Chrome Extension artifact (Outputs to dist/chrome)
+# Build Chrome Extension artifact (→ dist/chrome/ + release/chrome/extension-chrome.zip)
 npm run build:chrome
 
-# Build Firefox Extension artifact (Outputs to dist/firefox)
+# Build Firefox Extension artifact (→ dist/firefox/ + release/firefox/extension-firefox.zip)
 npm run build:firefox
 
-# Run development mode (watch) for Chrome or Firefox
+# Build Safari Extension webpack bundle (→ dist/safari/)
+# Note: final xcrun packaging requires macOS + Xcode — see below.
+npm run build:safari
+
+# Development watch mode
 npm run dev:chrome
 npm run dev:firefox
+npm run dev:safari
 ```
 
 ### Running Test Suites
@@ -146,6 +151,14 @@ npm run test:e2e
 1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on...**
 3. Select the `manifest.json` file inside the `./dist/firefox` folder.
+
+**For Safari (macOS):**
+1. Run `npm run build:safari` to produce `dist/safari/`.
+2. Run `npm run release:safari` — this calls `xcrun safari-web-extension-packager` and outputs an Xcode project to `release/safari/AlgoRecallSafari/`. *(Requires macOS + Xcode)*
+3. Open the generated Xcode project, build it, and run it. Safari will prompt you to enable the extension in **Safari → Settings → Extensions**.
+4. Enable the extension and grant requested permissions.
+
+> **Safari distribution note**: Safari Web Extensions are distributed as the containing macOS/iOS app via the App Store. See [Apple's documentation](https://developer.apple.com/documentation/safariservices/safari_web_extensions) for signing and submission steps.
 
 ---
 

@@ -40,7 +40,8 @@ export class RatingComponent extends DashboardComponent {
             const reviewUrl = BROWSER_CONFIG.reviewUrl;
 
             if (rateBtn) {
-                // For Chrome, replace the placeholder extension ID with the actual runtime ID
+                // Only Chrome Web Store URLs embed the extension ID at runtime.
+                // Firefox AMO and Safari App Store URLs are static slugs.
                 if (BROWSER_CONFIG.target === 'chrome') {
                     const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : undefined;
                     rateBtn.href = extId
@@ -154,11 +155,12 @@ export class RatingComponent extends DashboardComponent {
                         // Navigate to the appropriate store review page for this browser target
                         let url = BROWSER_CONFIG.reviewUrl;
                         if (BROWSER_CONFIG.target === 'chrome') {
+                            // Chrome: substitute the runtime extension ID into the CWS URL
                             const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : 'unknown';
                             url = url.replace('YOUR_EXTENSION_ID', extId);
                         }
+                        // Firefox AMO and Safari App Store URLs are static — no substitution needed.
                         chrome.tabs.create({ url });
-                        
                         await chrome.storage.local.set({
                             ratingPromptState: { status: 'unrated', snoozedUntil: 0 }
                         });

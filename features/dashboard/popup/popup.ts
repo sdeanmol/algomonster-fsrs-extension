@@ -7,6 +7,7 @@ import { RatingComponent } from './rating';
 import { QuickSearchComponent } from './search';
 import { BackupManager } from '../../common/data/backupManager';
 import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
+import { BROWSER_CONFIG } from '../../common/browserConfig';
 
 export interface PopupDOM {
     themeToggleBtn: HTMLElement | null;
@@ -301,19 +302,31 @@ export class AlgoRecallDashboard {
                                     const logLines = logs.map((l: unknown) => JSON.stringify(l)).join('\n');
                                     const blob = new Blob([logLines], { type: 'application/json' });
                                     const url = URL.createObjectURL(blob);
+                                    const filename = `algorecall_debug_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
 
-                                    chrome.downloads.download({
-                                        url: url,
-                                        filename: `algorecall_debug_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
-                                        saveAs: true
-                                    }, () => {
-                                        try {
-                                            URL.revokeObjectURL(url);
-                                        } catch (revokeErr) {
-                                            const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
-                                            Logger.debug('Popup', `Ignore revokeObjectURL error: ${errorMessage}`, { revokeErr });
-                                        }
-                                    });
+                                    // Safari does not support chrome.downloads — use anchor-click fallback.
+                                    if (BROWSER_CONFIG.supportsDownloads) {
+                                        chrome.downloads.download({
+                                            url: url,
+                                            filename,
+                                            saveAs: true
+                                        }, () => {
+                                            try {
+                                                URL.revokeObjectURL(url);
+                                            } catch (revokeErr) {
+                                                const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
+                                                Logger.debug('Popup', `Ignore revokeObjectURL error: ${errorMessage}`, { revokeErr });
+                                            }
+                                        });
+                                    } else {
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = filename;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        document.body.removeChild(a);
+                                        setTimeout(() => URL.revokeObjectURL(url), 1000);
+                                    }
                                     this.showStatus(`Exported ${logs.length} debug logs!`);
                                 } catch (innerErr) {
             UIUtils.catchError('Popup', 'Error exporting debug logs from callback', innerErr);
@@ -529,19 +542,33 @@ export class AlgoRecallDashboard {
                                 const ankiText = this.exportToAnkiText(cards);
                                 const blob = new Blob([ankiText], { type: 'text/plain;charset=utf-8' });
                                 const url = URL.createObjectURL(blob);
-                                chrome.downloads.download({
-                                    url: url,
-                                    filename: `algorecall_anki_${new Date().toISOString().split('T')[0]}.txt`,
-                                    saveAs: true
-                                }, () => {
-                                    try {
-                                        URL.revokeObjectURL(url);
-                                    } catch (revokeErr) {
-                                        const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
-                                        Logger.debug('Popup', `Ignore revokeObjectURL error: ${errorMessage}`, { revokeErr });
-                                    }
-                                });
+                                const filename = `algorecall_anki_${new Date().toISOString().split('T')[0]}.txt`;
+
+                                // Safari does not support chrome.downloads — use anchor-click fallback.
+                                if (BROWSER_CONFIG.supportsDownloads) {
+                                    chrome.downloads.download({
+                                        url: url,
+                                        filename,
+                                        saveAs: true
+                                    }, () => {
+                                        try {
+                                            URL.revokeObjectURL(url);
+                                        } catch (revokeErr) {
+                                            const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
+                                            Logger.debug('Popup', `Ignore revokeObjectURL error: ${errorMessage}`, { revokeErr });
+                                        }
+                                    });
+                                } else {
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = filename;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                                }
                                 this.showStatus(`Exported ${cards.length} cards for Anki!`);
+
                             } catch (innerErr) {
                                 const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
                                 Logger.error('Popup', `Error processing Anki export: ${errorMessage}`, { innerErr });

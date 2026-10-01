@@ -46,10 +46,27 @@ jobs:
         path: release/firefox/extension-firefox.zip
         if-no-files-found: error
 
+    # ── Safari Build ──────────────────────────────────────────────────────────
+    # Note: build:safari only runs the webpack step (produces dist/safari/).
+    # The xcrun safari-web-extension-packager step (release:safari) requires macOS
+    # with Xcode installed. That step is intentionally run manually on a mac or via
+    # a separate macOS CI job — not here on ubuntu-latest.
+    - name: Build Safari Extension (webpack bundle only)
+      run: npm run build:safari
+
+    - name: Upload Safari webpack bundle artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: extension-safari-dist
+        path: dist/safari/
+        if-no-files-found: error
+
     # ── Artifact Isolation Audit ──────────────────────────────────────────────
-    # Verifies Chrome build has no Firefox-only strings and vice versa.
-    # Verifies each build contains the correct browser-specific store URLs.
-    - name: Verify artifact isolation (Chrome ↔ Firefox)
+    # Verifies:
+    #   - Chrome: no Firefox/Safari-only strings, contains Chrome strings
+    #   - Firefox: no Chrome/Safari-only strings, contains Firefox strings
+    #   - Safari: JS isolation (dist built above), manifest validation
+    - name: Verify artifact isolation (Chrome ↔ Firefox ↔ Safari)
       run: npm run check:isolation
 
     # ── E2E Tests (Chrome only — Playwright Chromium) ─────────────────────────

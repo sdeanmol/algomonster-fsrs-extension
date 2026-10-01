@@ -1,6 +1,7 @@
 import { Logger } from '@common/logger';
 import { HighlightsHelpers } from './highlights-helpers';
 import { HighlightMark, BookmarkItem, StorageData } from '../../../types/domain';
+import { BROWSER_CONFIG } from '../../common/browserConfig';
 
 try {
     window.AlgoRecall = window.AlgoRecall || {};
@@ -468,22 +469,35 @@ export class HighlightsManager {
 
             const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
             const url = URL.createObjectURL(blob);
-            chrome.downloads.download({
-                url: url,
-                filename: `algorecall_highlights_${new Date().toISOString().split('T')[0]}.md`,
-                saveAs: true
-            }, (downloadId) => {
-                try {
-                    URL.revokeObjectURL(url);
-                } catch (revokeErr) {
-                    const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
-                    Logger.debug('HighlightsManager', `Ignore revokeObjectURL error if URL was already revoked: ${errorMessage}`, { revokeErr });
-                }
-                if (chrome.runtime?.lastError) {
-                    const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                    Logger.error('HighlightsManager', `Error downloading exported Markdown: ${errorMessage}`, { error: chrome.runtime.lastError });
-                }
-            });
+            const filename = `algorecall_highlights_${new Date().toISOString().split('T')[0]}.md`;
+
+            // Safari does not support chrome.downloads — use anchor-click fallback.
+            if (BROWSER_CONFIG.supportsDownloads) {
+                chrome.downloads.download({
+                    url: url,
+                    filename,
+                    saveAs: true
+                }, () => {
+                    try {
+                        URL.revokeObjectURL(url);
+                    } catch (revokeErr) {
+                        const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
+                        Logger.debug('HighlightsManager', `Ignore revokeObjectURL error if URL was already revoked: ${errorMessage}`, { revokeErr });
+                    }
+                    if (chrome.runtime?.lastError) {
+                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                        Logger.error('HighlightsManager', `Error downloading exported Markdown: ${errorMessage}`, { error: chrome.runtime.lastError });
+                    }
+                });
+            } else {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Error exporting highlights to Markdown: ${errorMessage}`, { err });

@@ -15,6 +15,11 @@ const BROWSER_STORE_CONFIG = {
     storeName: 'Firefox Add-ons',
     reviewUrl: 'https://addons.mozilla.org/firefox/addon/algorecall/reviews/',
   },
+  safari: {
+    storeName: 'App Store',
+    // Replace with the real Mac App Store URL once the containing app is published.
+    reviewUrl: 'https://apps.apple.com/app/algorecall/idYOUR_APP_ID',
+  },
 };
 
 module.exports = (env) => {

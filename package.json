@@ -9,12 +9,15 @@
     "test:e2e": "npm run build:chrome && playwright test",
     "build:chrome": "npx tsc && rm -rf dist/chrome && webpack --env target=chrome --mode production && cd dist/chrome && mkdir -p ../../release/chrome && rm -f ../../release/chrome/extension-chrome.zip && zip -r ../../release/chrome/extension-chrome.zip .",
     "build:firefox": "npx tsc && rm -rf dist/firefox && webpack --env target=firefox --mode production && cd dist/firefox && mkdir -p ../../release/firefox && rm -f ../../release/firefox/extension-firefox.zip && zip -r ../../release/firefox/extension-firefox.zip .",
+    "build:safari": "npx tsc && rm -rf dist/safari && webpack --env target=safari --mode production",
     "release:chrome": "npm run build:chrome",
     "release:firefox": "npm run build:firefox",
+    "release:safari": "npm run build:safari && mkdir -p release/safari && xcrun safari-web-extension-packager dist/safari --project-location release/safari/AlgoRecallSafari --force",
     "dev:chrome": "rm -rf dist/chrome && webpack --env target=chrome --mode development --watch",
     "dev:firefox": "rm -rf dist/firefox && webpack --env target=firefox --mode development --watch",
+    "dev:safari": "rm -rf dist/safari && webpack --env target=safari --mode development --watch",
     "check:isolation": "node scripts/check-artifact-isolation.js",
-    "check:isolation:all": "npm run build:chrome && npm run build:firefox && node scripts/check-artifact-isolation.js"
+    "check:isolation:all": "npm run build:chrome && npm run build:firefox && npm run build:safari && node scripts/check-artifact-isolation.js"
   },
   "dependencies": {
     "firebase": "^10.12.0"

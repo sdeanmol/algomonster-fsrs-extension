@@ -27,6 +27,7 @@ import {
     SNOOZE_DEFAULT_MINUTES,
     DEFAULT_WHITELISTED_WEBSITES
 } from '../features/common/constants';
+import { BROWSER_CONFIG } from '../features/common/browserConfig';
 
 (self as unknown as { onerror: (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) => boolean }).onerror = function (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) {
     try {
@@ -81,15 +82,24 @@ export class AlgoRecallBackground {
 
     /**
      * Binds all Chrome API event listeners.
+     * Safari-specific: chrome.alarms and chrome.notifications are not supported in Safari
+     * Web Extensions — guards use build-time constants so the branches are eliminated
+     * by tree-shaking in Chrome/Firefox builds.
      */
     bindEvents(): void {
         try {
             chrome.runtime.onInstalled.addListener(this.handleInstalled.bind(this));
-            chrome.alarms.onAlarm.addListener(this.handleAlarm.bind(this));
+            // Safari does not support chrome.alarms — skip alarm listener registration.
+            if (BROWSER_CONFIG.supportsAlarms) {
+                chrome.alarms.onAlarm.addListener(this.handleAlarm.bind(this));
+            }
             chrome.webNavigation.onHistoryStateUpdated.addListener(this.handleHistoryStateUpdated.bind(this));
             chrome.storage.onChanged.addListener(this.handleStorageChanged.bind(this));
             chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
-            chrome.notifications.onClicked.addListener(this.handleNotificationClicked.bind(this));
+            // Safari does not support chrome.notifications — skip notification click listener.
+            if (BROWSER_CONFIG.supportsNotifications) {
+                chrome.notifications.onClicked.addListener(this.handleNotificationClicked.bind(this));
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Failed to bind background Chrome API event listeners: ${errorMessage}`, { err });
@@ -195,8 +205,14 @@ export class AlgoRecallBackground {
 
     /**
      * Reads user configurations from storage and schedules/reschedules the review check alarms.
+     * No-op on Safari — chrome.alarms is not supported in Safari Web Extensions.
      */
     async setupAlarm(): Promise<void> {
+        // Safari does not support chrome.alarms.
+        if (!BROWSER_CONFIG.supportsAlarms) {
+            Logger.info('Background', 'Skipping alarm setup — chrome.alarms is not supported on this platform.');
+            return;
+        }
         try {
             const result = await chrome.storage.local.get(['notificationSettings', 'fsrsActivity']);
             if (chrome.runtime.lastError) {
@@ -246,9 +262,13 @@ export class AlgoRecallBackground {
 
     /**
      * R3.6: Sets up the weekly summary alarm.
+    /**
+     * R8.3: Sets up the weekly summary digest alarm.
      * Fires every Monday at 9:00 AM local time (approximately).
+     * No-op on Safari — chrome.alarms is not supported.
      */
     async setupWeeklySummaryAlarm(): Promise<void> {
+        if (!BROWSER_CONFIG.supportsAlarms) return;
         try {
             const result = await chrome.storage.local.get(['weeklySummaryEnabled']);
             if (chrome.runtime.lastError) {
@@ -294,8 +314,10 @@ export class AlgoRecallBackground {
     /**
      * R8.4: Sets up the daily nudge alarm.
      * Fires every day at 8:00 PM (20:00).
+     * No-op on Safari — chrome.alarms is not supported.
      */
     async setupDailyNudgeAlarm(): Promise<void> {
+        if (!BROWSER_CONFIG.supportsAlarms) return;
         try {
             await chrome.alarms.clear('dailyNudge');
             const now = new Date();
@@ -384,8 +406,10 @@ export class AlgoRecallBackground {
 
         if (message.action === 'snooze_notification') {
             try {
-                const minutes = message.minutes || SNOOZE_DEFAULT_MINUTES;
-                chrome.alarms.create('snoozeFsrsReviews', { delayInMinutes: minutes });
+                if (BROWSER_CONFIG.supportsAlarms) {
+                    const minutes = message.minutes || SNOOZE_DEFAULT_MINUTES;
+                    chrome.alarms.create('snoozeFsrsReviews', { delayInMinutes: minutes });
+                }
                 sendResponse({ success: true });
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : String(err);
@@ -527,6 +551,7 @@ export class AlgoRecallBackground {
 
     /**
      * Helper to create and clear system tray notifications securely.
+     * No-op on Safari — chrome.notifications is not supported in Safari Web Extensions.
      */
     private dispatchSystemNotification(
         id: string,
@@ -535,6 +560,11 @@ export class AlgoRecallBackground {
         priority: number,
         requireInteraction: boolean
     ): void {
+        // Safari does not support chrome.notifications — skip silently.
+        if (!BROWSER_CONFIG.supportsNotifications) {
+            Logger.info('Background', `Skipping notification '${id}' — chrome.notifications is not supported on this platform.`);
+            return;
+        }
         try {
             chrome.notifications.clear(id, () => {
                 try {
@@ -956,13 +986,19 @@ export class AlgoRecallBackground {
             if (command === 'start' || command === 'resume') {
                 this.startPomodoroTick(state);
 
-                // Set alarm for exact end time to ensure we never miss it if SW sleeps
-                const delayInMinutes = Math.max(0.1, (state.targetEndTime - Date.now()) / 60000);
-                chrome.alarms.create('pomodoroEnd', { delayInMinutes });
+                // Set alarm for exact end time to ensure we never miss it if SW sleeps.
+                // Safari does not support chrome.alarms, so this backup mechanism is skipped;
+                // the setInterval tick above still provides real-time countdown.
+                if (BROWSER_CONFIG.supportsAlarms) {
+                    const delayInMinutes = Math.max(0.1, (state.targetEndTime - Date.now()) / 60000);
+                    chrome.alarms.create('pomodoroEnd', { delayInMinutes });
+                }
 
             } else if (command === 'pause' || command === 'reset' || command === 'skip') {
                 this.stopPomodoroTick();
-                chrome.alarms.clear('pomodoroEnd');
+                if (BROWSER_CONFIG.supportsAlarms) {
+                    chrome.alarms.clear('pomodoroEnd');
+                }
                 this._lastPomodoroTitle = null; // Clear title cache so it resets properly when starting again
                 this._lastPomodoroBadge = null;
                 this._lastPomodoroColor = null;
