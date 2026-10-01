@@ -32,7 +32,7 @@ sequenceDiagram
     participant Chromium as Chromium Browser
     participant EXT as AlgoRecall Extension
 
-    PW->>Chromium: Launch Chromium with --disable-extensions-except=build/
+    PW->>Chromium: Launch Chromium with --disable-extensions-except=dist/chrome/
     Chromium->>EXT: Load Manifest V3 Service Worker
     PW->>Chromium: Navigate to chrome-extension://[id]/features/dashboard/popup/popup.html
     PW->>Chromium: Assert popup title & DOM launcher elements rendered
@@ -43,7 +43,7 @@ sequenceDiagram
 ### Authoring E2E Tests
 
 When adding new specifications in `tests/e2e/`:
-1. **Always Build First**: Ensure you run `npm run test:e2e` (which runs `npm run build` under the hood). Playwright tests the `/build` folder directly. Modifying source files will NOT reflect in E2E tests until a build occurs.
+1. **Always Build First**: Ensure you run `npm run test:e2e` (which runs `npm run build:chrome` under the hood). Playwright tests the `/dist/chrome` folder directly. Modifying source files will NOT reflect in E2E tests until a build occurs.
 2. **Context Isolation**: Each test file spins up a new isolated browser context with a fresh installation of the extension. State (like indexedDB or `chrome.storage`) is not shared between test files.
 3. **Mock Pages**: Do not navigate to real live external websites if possible. Use local HTML fixtures or strictly whitelisted static domains to ensure test stability and prevent network flakiness.
 

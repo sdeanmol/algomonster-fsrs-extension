@@ -122,7 +122,7 @@ async function closeBrowser(browser) {
  * @returns {string} Absolute file:// URL.
  */
 function buildFileUrl(relativePath) {
-  return `file://${path.join(process.cwd(), 'build', relativePath)}`;
+  return `file://${path.join(process.cwd(), 'dist/chrome', relativePath)}`;
 }
 
 module.exports = {

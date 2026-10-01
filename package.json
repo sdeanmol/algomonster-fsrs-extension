@@ -6,9 +6,13 @@
   "scripts": {
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "test:e2e": "npm run build && playwright test",
-    "build": "npx tsc && rm -rf build && webpack --mode production && cd build && rm -f ../release.zip && zip -r ../release.zip .",
-    "dev": "rm -rf build && webpack --mode development --watch"
+    "test:e2e": "npm run build:chrome && playwright test",
+    "build:chrome": "npx tsc && rm -rf dist/chrome && webpack --env target=chrome --mode production && cd dist/chrome && mkdir -p ../../release/chrome && rm -f ../../release/chrome/extension-chrome.zip && zip -r ../../release/chrome/extension-chrome.zip .",
+    "build:firefox": "npx tsc && rm -rf dist/firefox && webpack --env target=firefox --mode production && cd dist/firefox && mkdir -p ../../release/firefox && rm -f ../../release/firefox/extension-firefox.zip && zip -r ../../release/firefox/extension-firefox.zip .",
+    "release:chrome": "npm run build:chrome",
+    "release:firefox": "npm run build:firefox",
+    "dev:chrome": "rm -rf dist/chrome && webpack --env target=chrome --mode development --watch",
+    "dev:firefox": "rm -rf dist/firefox && webpack --env target=firefox --mode development --watch"
   },
   "dependencies": {
     "firebase": "^10.12.0"

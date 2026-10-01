@@ -34,7 +34,7 @@ graph TD
 
     subgraph Playwright Runner
         E2E[tests/e2e/*.spec.js]
-        EXT[build/ directory - Extension Build Output]
+        EXT[dist/chrome/ directory - Extension Build Output]
         E2E -->|Loads Unpacked Extension| EXT
     end
 ```
@@ -49,7 +49,7 @@ The following npm scripts govern testing workflows:
 | :--- | :--- | :--- |
 | `npm test` | `jest` | Executes standard Jest unit and integration tests based on `jest.config.js`. |
 | `npm run test:coverage` | `jest --coverage` | Runs Jest and generates full LCOV/JSON coverage reports inside the `/coverage` directory. |
-| `npm run test:e2e` | `npm run build && playwright test` | **Crucial:** Always builds the production Webpack bundle into `/build` first, then runs Playwright against that unpacked extension. |
+| `npm run test:e2e` | `npm run build:chrome && playwright test` | **Crucial:** Always builds the production Webpack bundle into `/dist/chrome` first, then runs Playwright against that unpacked extension. |
 
 ---
 

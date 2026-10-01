@@ -355,7 +355,7 @@ describe('StudyPlanController', () => {
       controller.init();
 
       const examDateInput = document.getElementById('exam-date-input') as HTMLInputElement;
-      examDateInput.value = '2026-08-25';
+      examDateInput.value = '2030-08-25';
       examDateInput.dispatchEvent(new Event('change'));
 
       const dailyLimitInput = document.getElementById('daily-limit-input') as HTMLInputElement;

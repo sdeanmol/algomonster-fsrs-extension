@@ -1,0 +1,74 @@
+{
+  "manifest_version": 3,
+  "name": "AlgoRecall: Coding Interview Spaced Repetition",
+  "version": "3.1",
+  "description": "Coding Interview Spaced Repetition Tracker & Highlighter for LeetCode & Codeforces - 100% free, local-first, no signup.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "algorecall@algomonster.com",
+      "strict_min_version": "109.0"
+    }
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "notifications",
+    "alarms",
+    "downloads",
+    "webNavigation",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.algo.monster/*",
+    "*://*.systemdesignschool.io/*",
+    "*://*.codeforces.com/*",
+    "*://*.leetcode.com/*",
+    "*://*.codechef.com/*",
+    "*://*.atcoder.jp/*",
+    "*://*.hackerrank.com/*",
+    "*://*.hackerearth.com/*",
+    "*://*.codewars.com/*",
+    "*://*.codingame.com/*"
+  ],
+  "optional_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "scripts": ["background/background.js"],
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.algo.monster/*",
+        "*://*.systemdesignschool.io/*",
+        "*://*.codeforces.com/*",
+        "*://*.leetcode.com/*",
+        "*://*.codechef.com/*",
+        "*://*.atcoder.jp/*",
+        "*://*.hackerrank.com/*",
+        "*://*.hackerearth.com/*",
+        "*://*.codewars.com/*",
+        "*://*.codingame.com/*"
+      ],
+      "js": [
+        "features/common/marked.min.js",
+        "dist/fsrsScheduler.bundle.js",
+        "content/content.js"
+      ],
+      "css": ["features/highlighter/style.css"]
+    }
+  ],
+  "action": {
+    "default_title": "AlgoRecall Dashboard",
+    "default_popup": "features/dashboard/popup/popup.html"
+  },
+  "icons": {
+    "128": "icons/icon.png"
+  }
+}

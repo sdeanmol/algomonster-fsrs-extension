@@ -4,8 +4,12 @@ const CopyPlugin = require('copy-webpack-plugin');
 // Standard ignore patterns for static asset copying
 const ignorePatterns = ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'];
 
-module.exports = {
-  target: "web",
+module.exports = (env) => {
+  const targetBrowser = (env && env.target) ? env.target : 'chrome';
+  const buildPath = path.resolve(__dirname, 'dist', targetBrowser);
+
+  return {
+    target: "web",
   mode: 'production',
   entry: {
     // Bundles
@@ -39,7 +43,7 @@ module.exports = {
     'features/dashboard/summary/summary': './features/dashboard/summary/summary.ts'
   },
   output: {
-    path: path.resolve(__dirname, 'build'),
+    path: buildPath,
     filename: (pathData) =>
       ['config', 'fsrsScheduler'].includes(pathData.chunk.name)
         ? 'dist/[name].bundle.js'
@@ -103,7 +107,7 @@ module.exports = {
   plugins: [
     new CopyPlugin({
       patterns: [
-        { from: 'manifest.json', to: '.' },
+        { from: `browser/${targetBrowser}/manifest.json`, to: 'manifest.json' },
         { from: 'icons', to: 'icons', noErrorOnMissing: true },
         { from: 'background', to: 'background', noErrorOnMissing: true, globOptions: { ignore: ignorePatterns } },
         { from: 'content', to: 'content', noErrorOnMissing: true, globOptions: { ignore: ignorePatterns } },
@@ -111,4 +115,5 @@ module.exports = {
       ]
     })
   ]
+  };
 };

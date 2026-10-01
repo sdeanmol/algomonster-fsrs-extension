@@ -16,10 +16,10 @@ const { injectChromePolyfill } = require('./helpers/chrome-polyfill');
 const { launchBrowser, closeBrowser } = require('./helpers/browser-setup');
 const { reviewCard, mockMarks, defaultWhitelistedSites, mockChromeSettings } = require('./helpers/fixtures');
 
-const CONTENT_SCRIPT_BUNDLE = path.join(process.cwd(), 'build/content/content.js');
-const FSRS_SCHEDULER_BUNDLE = path.join(process.cwd(), 'build/dist/fsrsScheduler.bundle.js');
-const MARKED_LIB = path.join(process.cwd(), 'build/features/common/marked.min.js');
-const HIGHLIGHTER_CSS = path.join(process.cwd(), 'build/features/highlighter/style.css');
+const CONTENT_SCRIPT_BUNDLE = path.join(process.cwd(), 'dist/chrome/content/content.js');
+const FSRS_SCHEDULER_BUNDLE = path.join(process.cwd(), 'dist/chrome/dist/fsrsScheduler.bundle.js');
+const MARKED_LIB = path.join(process.cwd(), 'dist/chrome/features/common/marked.min.js');
+const HIGHLIGHTER_CSS = path.join(process.cwd(), 'dist/chrome/features/highlighter/style.css');
 
 /**
  * Creates a minimal mock HTML page simulating a whitelisted coding problem page.
