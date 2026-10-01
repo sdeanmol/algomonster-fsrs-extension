@@ -158,7 +158,17 @@ export class HelpCenterSPA {
             if (closeBtn) {
                 closeBtn.addEventListener('click', () => {
                     try {
-                        window.close();
+                        if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.getCurrent) {
+                            chrome.tabs.getCurrent((tab) => {
+                                if (tab && tab.id) {
+                                    chrome.tabs.remove(tab.id);
+                                } else {
+                                    window.close();
+                                }
+                            });
+                        } else {
+                            window.close();
+                        }
                     } catch (err) {
                         UIUtils.catchError('HelpCenter', 'Error closing Help Center window', err);
                     }
