@@ -4,7 +4,7 @@
   * Downstream script: features/tracker/editor/editor.js, features/common/markdown.js
   -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,7 +20,7 @@
         <!-- Header -->
         <div class="editor-header">
             <div class="header-left">
-                <span class="back-arrow" id="header-back-btn" title="Close and return">
+                <span class="back-arrow" id="header-back-btn" title="Close and return" role="button" tabindex="0">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 4px; width: 12px; height: 12px;"
                         aria-hidden="true">
                         <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -43,7 +43,7 @@
                     </svg>
                     Preview
                 </button>
-                <span id="save-status" class="status-indicator">Loading FSRS data...</span>
+                <span id="save-status" class="status-indicator" aria-live="polite">Loading FSRS data...</span>
             </div>
         </div>
 

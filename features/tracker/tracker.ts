@@ -399,17 +399,20 @@ class Tracker {
             const launcher = document.createElement('div');
             launcher.id = 'algo-fsrs-launcher';
             launcher.setAttribute('role', 'button');
-            launcher.setAttribute('aria-label', 'Open FSRS Tracker');
+            launcher.setAttribute('aria-label', 'Open AlgoRecall Tracker');
+            launcher.setAttribute('aria-expanded', 'false');
+            launcher.setAttribute('aria-controls', 'algo-fsrs-container');
             launcher.setAttribute('tabindex', '0');
             launcher.innerHTML = `<svg class="launcher-svg" viewBox="0 0 24 24" style="width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2;"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>`;
-            launcher.title = "FSRS Tracker (Drag to move, Right-click to reset position)";
+            launcher.title = "AlgoRecall Tracker (Drag to move, Right-click to reset position)";
             document.body.appendChild(launcher);
 
             // 2. CREATE WIDGET CONTAINER
             const container = document.createElement('div');
             container.id = 'algo-fsrs-container';
             container.setAttribute('role', 'dialog');
-            container.setAttribute('aria-label', 'FSRS Tracker');
+            container.setAttribute('aria-modal', 'true');
+            container.setAttribute('aria-label', 'AlgoRecall Tracker');
             container.style.display = 'none';
 
             const autoTagsStr = (this.utils && typeof this.utils.getAutoTags === 'function') ? this.utils.getAutoTags().join(', ') : '';
@@ -418,10 +421,10 @@ class Tracker {
                 <div id="fsrs-header">
                     <div class="fsrs-title">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-                        <span>FSRS Tracker</span>
+                        <span>AlgoRecall Tracker</span>
                     </div>
                     <div class="fsrs-controls">
-                        <button id="fsrs-min-btn" class="fsrs-icon-btn" aria-label="Minimize" title="Minimize">
+                        <button id="fsrs-min-btn" class="fsrs-icon-btn" aria-label="Minimize" aria-expanded="true" aria-controls="algo-fsrs-container" title="Minimize">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         </button>
                         <button id="fsrs-close-btn" class="fsrs-icon-btn" aria-label="Close" title="Close">
@@ -434,7 +437,7 @@ class Tracker {
                 <div id="fsrs-body">
                     <div class="fsrs-tags-container">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                        <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" placeholder="Add tags (comma separated)..." value="${autoTagsStr}">
+                        <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" aria-label="Tags" placeholder="Add tags (comma separated)..." value="${autoTagsStr}">
                     </div>
                     
                     <div class="fsrs-approach-header">
@@ -538,6 +541,8 @@ class Tracker {
                 }
             });
 
+            let previouslyFocused: HTMLElement | null = null;
+
             launcher.addEventListener('click', (e: MouseEvent) => {
                 try {
                     if (isDragging) {
@@ -546,7 +551,11 @@ class Tracker {
                         return;
                     }
                     launcher.style.display = 'none';
+                    launcher.setAttribute('aria-expanded', 'true');
                     container.style.display = 'block';
+                    previouslyFocused = document.activeElement as HTMLElement;
+                    const firstFocusable = container.querySelector('input, textarea, button') as HTMLElement;
+                    if (firstFocusable) firstFocusable.focus();
                     this.refreshWidgetState();
                 } catch (err) {
                     // Comment: Safe recovery on launcher click
@@ -560,6 +569,7 @@ class Tracker {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         launcher.style.display = 'none';
+                        launcher.setAttribute('aria-expanded', 'true');
                         container.style.display = 'block';
                         this.refreshWidgetState();
                     }
@@ -584,10 +594,30 @@ class Tracker {
                 }
             });
 
+            
+            container.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key !== 'Tab') return;
+                const focusable = Array.from(
+                    container.querySelectorAll<HTMLElement>('button, input, textarea, [tabindex]:not([tabindex="-1"])')
+                ).filter(el => !el.hasAttribute('disabled') && el.style.display !== 'none');
+                if (focusable.length === 0) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            });
+
             document.getElementById('fsrs-min-btn')?.addEventListener('click', () => {
                 try {
                     container.style.display = 'none';
                     launcher.style.display = 'flex';
+                    launcher.setAttribute('aria-expanded', 'false');
+                    if (previouslyFocused) previouslyFocused.focus();
                 } catch (err) {
                     // Comment: Safe recovery on minimize button click
                     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -599,6 +629,8 @@ class Tracker {
                 try {
                     container.style.display = 'none';
                     launcher.style.display = 'none';
+                    launcher.setAttribute('aria-expanded', 'false');
+                    if (previouslyFocused) previouslyFocused.focus();
                 } catch (err) {
                     // Comment: Safe recovery on close button click
                     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -954,7 +986,7 @@ class Tracker {
                 <div class="fsrs-tag-picker">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <h4 style="margin:0; font-size: 13px;">Select Topics to Review</h4>
-                        <button id="fsrs-picker-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px;" aria-label="Go Back">
+                        <button id="fsrs-picker-back-btn" title="Go Back" style="background: none; border: none; color: var(--md-text-low); cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px;" aria-label="Go Back">
                             <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                             Back
                         </button>
@@ -1105,7 +1137,7 @@ class Tracker {
                         <h4 style="margin:0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${currentCard.problemTitle}</h4>
                         ${filterBadge}
                     </div>
-                    <button id="fsrs-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; flex-shrink: 0;" aria-label="Go Back">
+                    <button id="fsrs-back-btn" title="Go Back" style="background: none; border: none; color: var(--md-text-low); cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; flex-shrink: 0;" aria-label="Go Back">
                         <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                         Back
                     </button>

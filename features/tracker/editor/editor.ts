@@ -186,11 +186,21 @@ export class EditorManager {
         });
 
         // Header Back / Close Button
-        document.getElementById('header-back-btn')?.addEventListener('click', () => {
-            this.saveContent(() => {
-                window.close();
+        const headerBackBtn = document.getElementById('header-back-btn');
+        if (headerBackBtn) {
+            const closeHandler = () => {
+                this.saveContent(() => {
+                    window.close();
+                });
+            };
+            headerBackBtn.addEventListener('click', closeHandler);
+            headerBackBtn.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    closeHandler();
+                }
             });
-        });
+        }
 
         // Markdown Preview Toggle
         const previewToggleBtn = document.getElementById('preview-toggle-btn');

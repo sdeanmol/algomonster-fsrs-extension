@@ -167,9 +167,9 @@ h1 {
 
 /* Intensity levels */
 .level-0 { background-color: var(--md-surface-variant); }
-.level-1 { background-color: #0c3321; }
-.level-2 { background-color: #0e5630; }
-.level-3 { background-color: #178347; }
+.level-1 { background-color: color-mix(in srgb, var(--md-success) 25%, var(--md-surface-variant)); }
+.level-2 { background-color: color-mix(in srgb, var(--md-success) 50%, var(--md-surface-variant)); }
+.level-3 { background-color: color-mix(in srgb, var(--md-success) 75%, var(--md-surface-variant)); }
 .level-4 { background-color: var(--md-success); }
 
 /* Streaks Dashboard Grid */

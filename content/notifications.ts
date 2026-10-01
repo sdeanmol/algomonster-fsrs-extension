@@ -58,15 +58,21 @@ export class Notifier {
                 `;
             }
 
+            const escapeHTML = (str: string) => {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            };
+
             notification.innerHTML = `
                 <div class="algo-notif-header">
                     <div class="algo-notif-header-left">
                         <span class="${iconClass}">${iconSymbol}</span>
-                        <span class="algo-notif-title">${title}</span>
+                        <span class="algo-notif-title">${escapeHTML(title)}</span>
                     </div>
                     <button id="algo-notif-btn-close" class="algo-notif-close" aria-label="Close" title="Close">&times;</button>
                 </div>
-                <p class="algo-notif-message">${message}</p>
+                <p class="algo-notif-message">${escapeHTML(message)}</p>
                 ${buttonsHtml}
             `;
 

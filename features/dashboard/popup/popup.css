@@ -147,7 +147,7 @@ body {
 }
 
 .analytics-header-btn:hover {
-    background: linear-gradient(135deg, var(--md-primary), #6366f1) !important;
+    background: linear-gradient(135deg, var(--md-primary), #5b50e6) !important;
     color: #ffffff !important;
     border-color: transparent !important;
     box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
@@ -335,8 +335,8 @@ body {
 
 .stat-label {
     display: block;
-    font-size: 10px;
-    color: var(--md-text-low);
+    font-size: 11px;
+    color: var(--md-secondary);
     text-transform: uppercase;
     letter-spacing: 0.8px;
     font-weight: 700;
@@ -953,6 +953,11 @@ input:checked+.slider {
     border-color: var(--md-primary);
 }
 
+input:focus-visible+.slider {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+
 input:checked+.slider:before {
     background-color: #fff;
     transform: translateX(18px);
@@ -1053,10 +1058,15 @@ input:checked+.slider:before {
 }
 
 .time-input {
-    color-scheme: dark;
     padding: 4px 8px;
     border-radius: 6px;
     font-size: 11px;
+}
+[data-theme="dark"] .time-input {
+    color-scheme: dark;
+}
+[data-theme="light"] .time-input {
+    color-scheme: light;
 }
 
 .time-separator {
@@ -1554,3 +1564,6 @@ details[open] .details-summary .chevron {
         font-size: 10px;
     }
 }
+
+/* UX-010: Safari notification card flash prevention */
+.safari-build #notification-settings-card { display: none !important; }

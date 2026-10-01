@@ -136,8 +136,16 @@ export class OnboardingWelcome {
             document.getElementById(`step-${step}`)?.classList.add('active');
 
             // Toggle indicator dot
-            document.getElementById(`dot-${this.currentStep}`)?.classList.remove('active');
-            document.getElementById(`dot-${step}`)?.classList.add('active');
+            const oldDot = document.getElementById(`dot-${this.currentStep}`);
+            if (oldDot) {
+                oldDot.classList.remove('active');
+                oldDot.removeAttribute('aria-current');
+            }
+            const newDot = document.getElementById(`dot-${step}`);
+            if (newDot) {
+                newDot.classList.add('active');
+                newDot.setAttribute('aria-current', 'step');
+            }
 
             this.currentStep = step;
 
@@ -148,8 +156,12 @@ export class OnboardingWelcome {
             if (prevBtn) {
                 if (this.currentStep === 1) {
                     prevBtn.classList.add('invisible');
+                    prevBtn.setAttribute('disabled', 'true');
+                    prevBtn.setAttribute('aria-hidden', 'true');
                 } else {
                     prevBtn.classList.remove('invisible');
+                    prevBtn.removeAttribute('disabled');
+                    prevBtn.removeAttribute('aria-hidden');
                 }
             }
 

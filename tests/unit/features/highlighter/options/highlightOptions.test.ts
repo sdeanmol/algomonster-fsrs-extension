@@ -187,11 +187,19 @@ describe('HighlightOptionsManager', () => {
     it('resets all settings to default on reset-palettes-btn click', () => {
       manager.init();
 
+      // Mock window.confirm
+      const originalConfirm = window.confirm;
+      window.confirm = jest.fn(() => true);
+
       const resetBtn = document.getElementById('reset-palettes-btn') as HTMLElement;
       resetBtn.click();
 
+      expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to reset all highlighter palettes to defaults? This cannot be undone.');
       expect(chrome.storage.local.set).toHaveBeenCalled();
       expect(manager.extensionSettings.activePaletteIndex).toBe(0);
+
+      // Restore
+      window.confirm = originalConfirm;
     });
   });
 

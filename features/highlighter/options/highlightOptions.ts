@@ -187,6 +187,9 @@ export class HighlightOptionsManager {
             const resetBtn = document.getElementById('reset-palettes-btn');
             if (resetBtn) {
                 resetBtn.addEventListener('click', () => {
+                    if (!window.confirm('Are you sure you want to reset all highlighter palettes to defaults? This cannot be undone.')) {
+                        return;
+                    }
                     try {
                         this.extensionSettings.palettes = JSON.parse(JSON.stringify(this.DEFAULT_PALETTES));
                         this.extensionSettings.activePaletteIndex = 0;

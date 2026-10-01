@@ -61,14 +61,34 @@
         "dist/fsrsScheduler.bundle.js",
         "content/content.js"
       ],
-      "css": ["features/highlighter/style.css"]
+      "css": [
+        "features/highlighter/style.css"
+      ]
     }
   ],
   "action": {
     "default_title": "AlgoRecall Dashboard",
-    "default_popup": "features/dashboard/popup/popup.html"
+    "default_popup": "features/dashboard/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "icons": {
-    "128": "icons/icon.png"
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+A",
+        "mac": "Command+Shift+A"
+      },
+      "description": "Open AlgoRecall Dashboard"
+    }
   }
 }

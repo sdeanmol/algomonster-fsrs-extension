@@ -149,6 +149,7 @@ export class StatsComponent extends DashboardComponent {
             
             const levelBadge = document.getElementById('user-level-badge');
             const xpBarFill = document.getElementById('xp-bar-fill');
+            const xpBarContainer = document.getElementById('xp-progress-bar-container');
             
             if (levelBadge) {
                 levelBadge.innerText = `Lv. ${level}`;
@@ -163,6 +164,9 @@ export class StatsComponent extends DashboardComponent {
             }
             if (xpBarFill) {
                 xpBarFill.style.width = `${currentLevelProgress}%`;
+            }
+            if (xpBarContainer) {
+                xpBarContainer.setAttribute('aria-valuenow', Math.round(currentLevelProgress).toString());
             }
 
             // 2. Daily Streak Calculation

@@ -259,6 +259,11 @@ export class AlgoRecallDashboard {
                         if (this.dom.testNotificationsContainer) {
                             this.dom.testNotificationsContainer.style.display = devMode ? 'flex' : 'none';
                         }
+                        const devIntervalOption = document.getElementById('dev-interval-option') as HTMLOptionElement | null;
+                        if (devIntervalOption) {
+                            devIntervalOption.hidden = !devMode;
+                            devIntervalOption.disabled = !devMode;
+                        }
                     } catch (err) {
             UIUtils.catchError('Popup', 'Error rendering dev mode toggle setting', err);
         }
@@ -275,6 +280,16 @@ export class AlgoRecallDashboard {
                         }
                         if (this.dom.testNotificationsContainer) {
                             this.dom.testNotificationsContainer.style.display = target.checked ? 'flex' : 'none';
+                        }
+                        const devIntervalOption = document.getElementById('dev-interval-option') as HTMLOptionElement | null;
+                        if (devIntervalOption) {
+                            devIntervalOption.hidden = !target.checked;
+                            devIntervalOption.disabled = !target.checked;
+                            const selectEl = document.getElementById('notification-interval') as HTMLSelectElement | null;
+                            if (!target.checked && selectEl && selectEl.value === '1') {
+                                selectEl.value = '60';
+                                selectEl.dispatchEvent(new Event('change'));
+                            }
                         }
                         this.showStatus(`Developer mode ${target.checked ? 'enabled' : 'disabled'}!`);
                     } catch (error) {
@@ -381,26 +396,39 @@ export class AlgoRecallDashboard {
             UIUtils.catchError('Popup', 'Error navigating to heatmap.html', err);
         }
             });
-            this.dom.boxTotal?.addEventListener('click', () => {
+            const addAccessibleClick = (el: HTMLElement | null, handler: () => void) => {
+                if (!el) return;
+                el.addEventListener('click', handler);
+                el.addEventListener('keydown', (e: KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handler();
+                    }
+                });
+            };
+
+            addAccessibleClick(this.dom.boxTotal, () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=total') });
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to total data view', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to total data view', err);
+                }
             });
-            this.dom.boxDue?.addEventListener('click', () => {
+
+            addAccessibleClick(this.dom.boxDue, () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=due') });
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to due data view', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to due data view', err);
+                }
             });
-            this.dom.boxRetention?.addEventListener('click', () => {
+
+            addAccessibleClick(this.dom.boxRetention, () => {
                 try {
                     chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=retention') });
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to retention data view', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to retention data view', err);
+                }
             });
             this.dom.manageHighlightsBtn?.addEventListener('click', () => {
                 try {
@@ -516,8 +544,10 @@ export class AlgoRecallDashboard {
                         });
                         target.value = ''; // Reset file input
                     } catch (err) {
-            UIUtils.catchError('Popup', 'Error in importFile change listener', err);
-        }
+                        const msg = err instanceof Error ? err.message : String(err);
+                        this.showStatus(`Import failed: ${msg}`, true);
+                        UIUtils.catchError('Popup', 'Error in importFile change listener', err);
+                    }
                 });
             }
 
