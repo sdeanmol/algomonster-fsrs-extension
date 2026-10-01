@@ -78,13 +78,20 @@
                 <p>Ensure you never miss review intervals. Enable OS reminders to alert you when patterns fall due:</p>
                 
                 <div class="notif-box">
-                    <div class="notif-status-row">
-                        <span class="status-label">Notifications Status:</span>
+                    <div class="notif-status-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <span class="status-label">Enable Reminders:</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="welcome-notif-toggle" role="switch">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="notif-status-row" style="margin-bottom: 12px;">
+                        <span class="status-label">OS Permission:</span>
                         <span id="welcome-notif-status" class="status-badge error">Disabled</span>
                     </div>
                     <button id="welcome-enable-btn" class="btn btn-primary w-full">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                        Grant Permissions
+                        Grant OS Permissions
                     </button>
                 </div>
             </div>

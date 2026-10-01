@@ -162,7 +162,7 @@ describe('OnboardingWelcome', () => {
       await Promise.resolve();
 
       const toast = document.getElementById('status-toast');
-      expect(toast?.textContent).toBe('Notifications were disabled.');
+      expect(toast?.textContent).toBe('Notifications were disabled at the OS level.');
     });
   });
 

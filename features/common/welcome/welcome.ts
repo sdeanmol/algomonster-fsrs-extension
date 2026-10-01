@@ -87,9 +87,9 @@ export class OnboardingWelcome {
                             try {
                                 this.checkNotificationState();
                                 if (permission === 'granted') {
-                                    UIUtils.showToast("Notification settings initialized successfully!");
+                                    UIUtils.showToast("Notification permissions granted!");
                                 } else {
-                                    UIUtils.showToast("Notifications were disabled.");
+                                    UIUtils.showToast("Notifications were disabled at the OS level.");
                                 }
                             } catch (permHandlerErr) {
                                 UIUtils.catchError('Onboarding', 'Error in permission response handler', permHandlerErr);
@@ -100,6 +100,24 @@ export class OnboardingWelcome {
                     } catch (err) {
                         UIUtils.catchError('Onboarding', 'Error calling requestPermission', err);
                     }
+                }
+            });
+
+            const notifToggle = document.getElementById('welcome-notif-toggle') as HTMLInputElement;
+            notifToggle?.addEventListener('change', (e) => {
+                const target = e.target as HTMLInputElement;
+                try {
+                    chrome.storage.local.get(['notificationSettings'], (result) => {
+                        if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching notificationSettings')) return;
+                        const settings = result.notificationSettings || { enabled: true };
+                        settings.enabled = target.checked;
+                        chrome.storage.local.set({ notificationSettings: settings }, () => {
+                            if (UIUtils.checkStorageError('Onboarding', 'Storage error saving notificationSettings')) return;
+                            UIUtils.showToast(target.checked ? "Reminders Enabled" : "Reminders Disabled");
+                        });
+                    });
+                } catch (err) {
+                    UIUtils.catchError('Onboarding', 'Error toggling notifications', err);
                 }
             });
         } catch (err) {
@@ -223,6 +241,19 @@ export class OnboardingWelcome {
         try {
             const badge = document.getElementById('welcome-notif-status');
             const btn = document.getElementById('welcome-enable-btn');
+            const toggle = document.getElementById('welcome-notif-toggle') as HTMLInputElement;
+
+            try {
+                chrome.storage.local.get(['notificationSettings'], (result) => {
+                    if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching notificationSettings in checkNotificationState')) return;
+                    if (toggle) {
+                        toggle.checked = result.notificationSettings ? result.notificationSettings.enabled !== false : true;
+                    }
+                });
+            } catch (err) {
+                UIUtils.catchError('Onboarding', 'Error fetching notificationSettings', err);
+            }
+
             if (!badge || !btn) return;
 
             if (typeof Notification !== 'undefined') {

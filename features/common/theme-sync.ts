@@ -92,6 +92,11 @@ try {
 
     // Auto-run theme sync on document head parsing
     ThemeSync.init();
+
+    // UX-010: Prevent notification card flash on Safari
+    if (/Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('safari-build');
+    }
 } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     Logger.error('ThemeSync', `Error auto-running ThemeSync initialization: ${errorMessage}`, { err });
