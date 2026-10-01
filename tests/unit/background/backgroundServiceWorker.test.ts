@@ -747,4 +747,77 @@ describe('BackgroundServiceWorker', () => {
     const setCall = (chrome.storage.local.set as jest.Mock).mock.calls[0][0] as any;
     expect(setCall.pomodoroStats.sessionsToday).toBe(1); // reset + 1 for this session
   });
+  describe('Background Service Worker - Error Boundaries and Fallbacks', () => {
+  let worker: BackgroundServiceWorker;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    worker = new BackgroundServiceWorker();
+  });
+
+  it('safely handles global onerror and recursive logging failures', () => {
+    const mockError = new Error('Test Error');
+    const spyWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const origError = console.error;
+    
+    // Mock Logger (since it is imported from the original source)
+    const Logger = require('../../../features/common/logger').Logger;
+    const origLoggerError = Logger.error;
+
+    Logger.error = jest.fn(() => { throw new Error('Logger broke'); });
+
+    // Test recursive logging failure
+    expect(() => {
+      if ((global as any).onerror) {
+        (global as any).onerror('message', 'source', 1, 1, mockError);
+      }
+    }).not.toThrow();
+    
+    expect(spyWarn).toHaveBeenCalled();
+
+    Logger.error = origLoggerError;
+    spyWarn.mockRestore();
+  });
+
+  it('safely handles global onunhandledrejection and recursive logging failures', () => {
+    const mockReason = new Error('Rejection');
+    const spyWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const Logger = require('../../../features/common/logger').Logger;
+    const origLoggerError = Logger.error;
+
+    Logger.error = jest.fn(() => { throw new Error('Logger broke'); });
+
+    // Test recursive logging failure
+    expect(() => {
+      if ((global as any).onunhandledrejection) {
+        (global as any).onunhandledrejection({ reason: mockReason } as any);
+      }
+    }).not.toThrow();
+    
+    expect(spyWarn).toHaveBeenCalled();
+
+    Logger.error = origLoggerError;
+    spyWarn.mockRestore();
+  });
+
+  it('safely handles storage set error in notifyDueCards', async () => {
+    const cards = [ { id: 'c1', due: Date.now() - 1000 } ];
+    (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
+      if (typeof cb === 'function') cb({ fsrsCards: cards, fsrsConfig: {} });
+      return Promise.resolve({ fsrsCards: cards, fsrsConfig: {} });
+    });
+
+    (chrome.storage.local.set as jest.Mock).mockImplementation((data: any, cb?: any) => {
+      // simulate an error throwing
+      if (typeof cb === 'function') {
+         cb(null); // this triggers a TypeError when the callback expects none
+      }
+    });
+
+    // We make sure it doesn't crash the background worker
+    await expect(worker.checkDueCards()).resolves.not.toThrow();
+  });
 });
+});
+

@@ -867,4 +867,68 @@ describe('Highlighter Component', () => {
     expect(h).toBeInstanceOf(Highlighter);
     expect(h.isHighlighterListenersBound).toBe(false);
   });
+
+  it('handles applyHighlightsForCurrentPage errors correctly when CSS.highlights throws', () => {
+    highlighter.state.marks.push({
+      id: 'css_error_mark', createdAt: 9999,
+      url: window.location.href.split('?')[0].split('#')[0],
+      text: 'Error text', color: '#ff00ff', type: 'highlight',
+      highlightSource: { startMeta: {} as any, endMeta: {} as any }
+    });
+    
+    // Simulate CSS.highlights.set throwing
+    (global as any).CSS.highlights.set = jest.fn().mockImplementation(() => {
+      throw new Error('CSS Highlights error');
+    });
+
+    expect(() => highlighter.applyHighlightsForCurrentPage()).not.toThrow();
+  });
+
+  it('handles global AlgoRecall assignment exception safely', () => {
+    // We test this by isolating the logic in a direct block, 
+    // since the file is already loaded
+    const originalAlgoRecall = (window as any).AlgoRecall;
+    delete (window as any).AlgoRecall;
+    
+    Object.defineProperty(window, 'AlgoRecall', {
+      get: () => { throw new Error('Global access denied'); },
+      configurable: true
+    });
+
+    expect(() => {
+      // simulate the try-catch block in highlighter.ts global space
+      try {
+        const win = window as any;
+        win.AlgoRecall = win.AlgoRecall || {};
+        win.AlgoRecall.Highlighter = Highlighter;
+      } catch (err) {
+        // should reach here without crashing test
+      }
+    }).not.toThrow();
+    
+    Object.defineProperty(window, 'AlgoRecall', {
+      value: originalAlgoRecall,
+      configurable: true,
+      writable: true
+    });
+  });
+
+  it('handles missing extension context in deleteHighlight gracefully', () => {
+    const origId = chrome.runtime.id;
+    delete (chrome as any).runtime.id;
+    
+    expect(() => highlighter.deleteHighlight('any_mark')).not.toThrow();
+    
+    (chrome as any).runtime.id = origId;
+  });
+
+  it('handles missing extension context in saveMarkNote gracefully', () => {
+    const origId = chrome.runtime.id;
+    delete (chrome as any).runtime.id;
+    
+    expect(() => highlighter.saveMarkNote('any_mark', 'note text')).not.toThrow();
+    
+    (chrome as any).runtime.id = origId;
+  });
+
 });

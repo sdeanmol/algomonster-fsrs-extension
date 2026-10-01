@@ -73,8 +73,8 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps chromium
       
-    - name: Run E2E Tests
-      run: npx playwright test
+    - name: Run E2E Tests (Cross-Browser)
+      run: npm run test:e2e
       
     # ── Reports ───────────────────────────────────────────────────────────────
     - name: Upload Coverage

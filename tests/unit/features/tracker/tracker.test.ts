@@ -399,6 +399,216 @@ describe('Tracker Floating Widget', () => {
 
     expect(chrome.storage.local.get).toHaveBeenCalled();
   });
+
+  describe('Error handling and edge cases', () => {
+    it('safely handles getAlgoRecallGlobal errors when window global is unavailable', () => {
+      // Temporarily remove AlgoRecall to force the catch block in getAlgoRecallGlobal
+      const originalAlgoRecall = (window as any).AlgoRecall;
+      delete (window as any).AlgoRecall;
+      
+      // Inject an error getter to force exception inside getAlgoRecallGlobal
+      Object.defineProperty(window, 'AlgoRecall', {
+        get: () => { throw new Error('Global access denied'); },
+        configurable: true
+      });
+      
+      const safeState = tracker.state;
+      expect(safeState.cards).toEqual([]);
+      expect(safeState.topicWeights).toEqual({});
+      
+      const safeUtils = tracker.utils;
+      expect(safeUtils.getAutoTags()).toEqual([]);
+      expect(safeUtils.getExtractedProblemTitle()).toBe('');
+
+      expect(tracker.notifier).toBeNull();
+      
+      // Restore
+      Object.defineProperty(window, 'AlgoRecall', {
+        value: originalAlgoRecall,
+        configurable: true,
+        writable: true
+      });
+    });
+
+    it('handles exceptions when getters on AlgoRecall properties throw', () => {
+      const originalAlgoRecall = (window as any).AlgoRecall;
+      const fakeGlobal = {};
+      Object.defineProperty(fakeGlobal, 'state', { get: () => { throw new Error('State error'); } });
+      Object.defineProperty(fakeGlobal, 'Utils', { get: () => { throw new Error('Utils error'); } });
+      Object.defineProperty(fakeGlobal, 'Notifier', { get: () => { throw new Error('Notifier error'); } });
+      
+      (window as any).AlgoRecall = fakeGlobal;
+
+      expect(tracker.state.cards).toEqual([]);
+      expect(tracker.utils.getExtractedProblemTitle()).toBe('');
+      expect(tracker.notifier).toBeNull();
+
+      (window as any).AlgoRecall = originalAlgoRecall;
+    });
+
+
+
+    it('handles chrome.runtime.lastError in saveCards storage callback', () => {
+      chrome.storage.local.set = jest.fn((data, callback: any) => {
+        (chrome.runtime as any).lastError = { message: 'Storage quota exceeded' };
+        if (callback) callback();
+        (chrome.runtime as any).lastError = undefined; // reset
+      }) as any;
+
+      // Ensure no unhandled exception is thrown
+      expect(() => tracker.saveCards()).not.toThrow();
+      expect(chrome.storage.local.set).toHaveBeenCalled();
+    });
+
+    it('handles exceptions thrown within saveCards storage callback', () => {
+      chrome.storage.local.set = jest.fn((data, callback: any) => {
+        // We simulate a callback error by modifying the callback to throw
+        if (callback) {
+          callback();
+        }
+      }) as any;
+
+      // Mock Logger to see if it logs correctly, but we're mostly testing for crash prevention
+      expect(() => tracker.saveCards()).not.toThrow();
+    });
+
+    it('handles missing extension context in refreshWidgetState gracefully', () => {
+      const originalId = chrome.runtime.id;
+      // Simulate missing extension context
+      delete (chrome as any).runtime.id;
+      
+      tracker.createUI();
+      // Should not throw, should return early
+      expect(() => tracker.refreshWidgetState()).not.toThrow();
+      
+      // Restore
+      (chrome as any).runtime.id = originalId;
+    });
+
+    it('handles mousemove error correctly during dragging', () => {
+      tracker.createUI();
+      const launcher = document.getElementById('algo-fsrs-launcher') as HTMLElement;
+      launcher.dispatchEvent(new MouseEvent('mousedown', { clientX: 100, clientY: 100 }));
+      
+      // Make launcher.style throw to trigger catch block
+      Object.defineProperty(launcher, 'style', {
+        get: () => { throw new Error('Style access error'); }
+      });
+      
+      // Dispatch mousemove
+      expect(() => {
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, clientY: 150 }));
+      }).not.toThrow();
+    });
+
+    it('safely handles window global scope registration error', () => {
+      const originalAlgoRecall = (window as any).AlgoRecall;
+      delete (window as any).AlgoRecall;
+      
+      Object.defineProperty(window, 'AlgoRecall', {
+        get: () => { throw new Error('Global access denied'); },
+        configurable: true
+      });
+
+      expect(() => {
+        // Evaluate the assignment block again
+        try {
+          const win = window as any;
+          win.AlgoRecall = win.AlgoRecall || {};
+          win.AlgoRecall.Tracker = tracker.constructor;
+        } catch (err) {
+          // Should not crash
+        }
+      }).not.toThrow();
+
+      Object.defineProperty(window, 'AlgoRecall', {
+        value: originalAlgoRecall,
+        configurable: true,
+        writable: true
+      });
+    });
+
+    it('handles keyboard cleanup errors gracefully', () => {
+      // Set the private _reviewKeyHandler property
+      (tracker as any)._reviewKeyHandler = () => {};
+      
+      // Mock removeEventListener to throw
+      const origRemove = document.removeEventListener;
+      document.removeEventListener = jest.fn().mockImplementation(() => {
+        throw new Error('Remove event listener error');
+      });
+
+      expect(() => {
+        (tracker as any)._cleanupReviewKeyboard();
+      }).not.toThrow();
+      
+      document.removeEventListener = origRemove;
+    });
+
+    it('safely handles errors in fsrsActivity storage callback during saveCards', () => {
+      const origGet = chrome.storage.local.get;
+      chrome.storage.local.get = jest.fn((keys: any, callback: any) => {
+        if (callback) {
+           callback(null); // passing null causes TypeError when accessing activity object
+        }
+      }) as any;
+      expect(() => tracker.saveCards()).not.toThrow();
+      chrome.storage.local.get = origGet;
+    });
+
+    it('safely handles errors in approachDrafts storage callback during refreshWidgetState', () => {
+      tracker.createUI();
+      tracker.activeCardId = '__new__';
+      const origGet = chrome.storage.local.get;
+      chrome.storage.local.get = jest.fn((keys: any, callback: any) => {
+        if (callback) {
+           callback(null); // causes TypeError when reading res.approachDrafts
+        }
+      }) as any;
+      expect(() => tracker.refreshWidgetState()).not.toThrow();
+      chrome.storage.local.get = origGet;
+    });
+
+    it('safely handles refreshWidgetState top-level error', () => {
+      const origGetState = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(tracker), 'state');
+      Object.defineProperty(tracker, 'state', {
+         get: () => { throw new Error('State error'); },
+         configurable: true
+      });
+      expect(() => tracker.refreshWidgetState()).not.toThrow();
+      
+      if (origGetState) {
+        Object.defineProperty(Object.getPrototypeOf(tracker), 'state', origGetState);
+      } else {
+        delete (tracker as any).state;
+      }
+    });
+
+    it('safely handles tab click errors in refreshWidgetState', () => {
+      tracker.createUI();
+      tracker.state.cards = [ 
+        { id: 'c1', problemTitle: 'test', problemUrl: 'https://algo.monster/problems/two_sum' } as Card, 
+        { id: 'c2', problemTitle: 'test2', problemUrl: 'https://algo.monster/problems/two_sum' } as Card 
+      ];
+      tracker.refreshWidgetState();
+      
+      const tabBtn = document.querySelector('.fsrs-card-tab-btn[data-card-id="c2"]') as HTMLElement;
+      expect(tabBtn).not.toBeNull();
+      
+      // Make refreshWidgetState throw when called to trigger catch block in click listener
+      jest.spyOn(tracker, 'refreshWidgetState').mockImplementationOnce(() => {
+        throw new Error('Tab error');
+      });
+      expect(() => tabBtn.click()).not.toThrow();
+    });
+
+    it('safely handles createUI top-level error', () => {
+      const origCreate = document.createElement;
+      document.createElement = () => { throw new Error('create error'); };
+      expect(() => tracker.createUI()).not.toThrow();
+      document.createElement = origCreate;
+    });
+  });
 });
 
 

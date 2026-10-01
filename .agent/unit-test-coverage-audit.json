@@ -1,0 +1,40 @@
+{
+  "baseline": {
+    "lines": 89.37,
+    "statements": 89.37,
+    "functions": 97.63,
+    "branches": 75.52
+  },
+  "targets": [
+    {
+      "file": "features/dashboard/popup/popup.ts",
+      "lines": 77.53,
+      "branches": 56.75,
+      "reason": "Low branch coverage, UI popup logic"
+    },
+    {
+      "file": "content/notifications.ts",
+      "lines": 76.66,
+      "branches": 61.11,
+      "reason": "Notification logic, browser APIs, branches"
+    },
+    {
+      "file": "features/highlighter/highlighter.ts",
+      "lines": 75.58,
+      "branches": 63.22,
+      "reason": "Core parsing logic, low branch coverage"
+    },
+    {
+      "file": "features/tracker/tracker.ts",
+      "lines": 75.57,
+      "branches": 61.29,
+      "reason": "Core tracker logic, complex branches"
+    },
+    {
+      "file": "background/background.ts",
+      "lines": 81.56,
+      "branches": 65.91,
+      "reason": "Background service worker logic, lots of branches"
+    }
+  ]
+}

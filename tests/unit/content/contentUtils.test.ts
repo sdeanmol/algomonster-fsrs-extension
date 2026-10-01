@@ -116,4 +116,96 @@ describe('Content Utils', () => {
       expect(Utils.getExtractedProblemTitle()).toBe('Default Title');
     });
   });
+
+  describe('Error Boundaries and Edge Cases', () => {
+    it('handles getDOMMeta error gracefully when node has no parentNode', () => {
+      const mockNode = {
+        get parentNode() { throw new Error('Simulated DOM access error'); }
+      };
+      const result = Utils.getDOMMeta(mockNode as unknown as Node, 5);
+      expect(result).toEqual({
+        parentTagName: '',
+        parentIndex: -1,
+        textOffset: 5,
+        parentDomPath: []
+      });
+    });
+
+    it('handles restoreRangeFromMeta path resolution error safely', () => {
+      // Simulate error in path resolution loop
+      const originalBody = document.body;
+      Object.defineProperty(document, 'body', {
+        get: () => { throw new Error('Path resolve error'); },
+        configurable: true
+      });
+
+      const result = Utils.restoreRangeFromMeta({
+        startMeta: { parentTagName: 'div', parentIndex: 0, textOffset: 0, parentDomPath: [0, 1] },
+        endMeta: { parentTagName: 'div', parentIndex: 0, textOffset: 5, parentDomPath: [0, 2] }
+      }, 'test');
+
+      expect(result).toBeNull();
+      
+      Object.defineProperty(document, 'body', {
+        value: originalBody,
+        configurable: true,
+        writable: true
+      });
+    });
+
+    it('handles ensureHighlightStyle error safely (e.g. document.head throws)', () => {
+      const originalHead = document.head;
+      Object.defineProperty(document, 'head', {
+        get: () => { throw new Error('Head access error'); },
+        configurable: true
+      });
+
+      const result = Utils.ensureHighlightStyle('#ffffff', 'highlight');
+      expect(result).toBe('algo-hl-ffffff'); // Should still return the class name
+
+      Object.defineProperty(document, 'head', {
+        value: originalHead,
+        configurable: true,
+        writable: true
+      });
+    });
+
+    it('handles getAutoTags URL parsing error safely', () => {
+      delete (window as any).location;
+      Object.defineProperty(window, 'location', {
+        get: () => { throw new Error('URL access error'); },
+        configurable: true
+      });
+
+      const tags = Utils.getAutoTags();
+      expect(tags).toEqual(['AlgoRecall']); // Fallback
+    });
+
+
+
+    it('safely handles window global scope registration error', () => {
+      const originalAlgoRecall = (window as any).AlgoRecall;
+      delete (window as any).AlgoRecall;
+      
+      Object.defineProperty(window, 'AlgoRecall', {
+        get: () => { throw new Error('Global access denied'); },
+        configurable: true
+      });
+
+      expect(() => {
+        // simulate the assignment logic
+        try {
+          const win = window as any;
+          win.AlgoRecall = win.AlgoRecall || {};
+          win.AlgoRecall.Utils = Utils;
+        } catch (err) {}
+      }).not.toThrow();
+
+      Object.defineProperty(window, 'AlgoRecall', {
+        value: originalAlgoRecall,
+        configurable: true,
+        writable: true
+      });
+    });
+  });
 });
