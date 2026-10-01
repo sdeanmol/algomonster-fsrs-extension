@@ -24,15 +24,16 @@ export class AlgoRecallBackground {
     /**
      * Binds all Chrome API event listeners.
      *
-     * Safari-specific: chrome.alarms and chrome.notifications are not supported
+     * Safari-specific: chrome.notifications and chrome.downloads are not supported
      * in Safari Web Extensions. Guards use build-time constants injected by
-     * webpack DefinePlugin (BROWSER_CONFIG.supportsAlarms / supportsNotifications),
+     * webpack DefinePlugin (BROWSER_CONFIG.supportsNotifications),
      * so the guarded branches are eliminated by tree-shaking in Chrome/Firefox builds.
+     * Note: chrome.alarms IS fully supported on Safari 14+.
      */
     bindEvents(): void {
         chrome.runtime.onInstalled.addListener(this.handleInstalled.bind(this));
 
-        // Safari does not support chrome.alarms — skip alarm listener registration.
+        // chrome.alarms is universally supported across Chrome, Firefox, and Safari
         if (BROWSER_CONFIG.supportsAlarms) {
             chrome.alarms.onAlarm.addListener(this.handleAlarm.bind(this));
         }
@@ -49,7 +50,7 @@ export class AlgoRecallBackground {
 }
 ```
 
-> **Build-time guards**: `BROWSER_CONFIG.supportsAlarms` and `BROWSER_CONFIG.supportsNotifications` are injected at bundle time via webpack `DefinePlugin`. In Chrome and Firefox builds they resolve to `true`, so the `if` bodies are kept as normal code. In Safari builds they resolve to `false`, and the entire blocks are eliminated by dead-code removal — no runtime overhead, no Safari crashes.
+> **Build-time guards**: `BROWSER_CONFIG.supportsNotifications` and `BROWSER_CONFIG.supportsDownloads` are injected at bundle time via webpack `DefinePlugin`. In Chrome and Firefox builds they resolve to `true`, so the `if` bodies are kept as normal code. In Safari builds they resolve to `false`, and the entire blocks are eliminated by dead-code removal — no runtime overhead, no Safari crashes.
 
 ---
 
@@ -62,7 +63,7 @@ export class AlgoRecallBackground {
 | `chrome.tabs` | ✅ | ✅ | ✅ | Shared, no guard needed |
 | `chrome.webNavigation` | ✅ | ✅ | ✅ | Shared, no guard needed |
 | `chrome.action` | ✅ | ✅ | ✅ | Shared, no guard needed |
-| `chrome.alarms` | ✅ | ✅ | ❌ | Guarded with `BROWSER_CONFIG.supportsAlarms` |
+| `chrome.alarms` | ✅ | ✅ | ✅ | Shared, no guard needed (supported in Safari 14+) |
 | `chrome.notifications` | ✅ | ✅ | ❌ | Guarded with `BROWSER_CONFIG.supportsNotifications` |
 | `chrome.downloads` | ✅ | ✅ | ❌ | Guarded with `BROWSER_CONFIG.supportsDownloads` (popup/backup/highlights) |
 
@@ -70,11 +71,11 @@ export class AlgoRecallBackground {
 
 ## ⏰ Chrome Alarms Registry
 
-The background service worker registers alarms to drive periodic background tasks. **All alarm registration is guarded by `BROWSER_CONFIG.supportsAlarms`** and is a no-op on Safari.
+The background service worker registers alarms to drive periodic background tasks. **All alarm registration is universally supported across Chrome, Firefox, and Safari** (guarded by `BROWSER_CONFIG.supportsAlarms` which resolves to `true` for all targets).
 
 ```mermaid
 graph TD
-    subgraph Chrome Alarms (Chrome & Firefox only)
+    subgraph Chrome Alarms (Chrome, Firefox, Safari)
         A1[checkFsrsReviews: Every N min]
         A2[snoozeFsrsReviews: Snooze delay]
         A3[smartReviewSchedule: Daily at 17:00]
@@ -99,11 +100,10 @@ graph TD
 
 ### Guarded methods
 
-Every method that touches `chrome.alarms` has a top-level early return on Safari:
+Every method that touches `chrome.alarms` has a top-level guard. Although it resolves to `true` for Safari, this structure ensures safe compilation:
 
 ```typescript
 async setupAlarm(): Promise<void> {
-    // Safari does not support chrome.alarms.
     if (!BROWSER_CONFIG.supportsAlarms) {
         Logger.info('Background', 'Skipping alarm setup — chrome.alarms not supported.');
         return;
@@ -151,13 +151,12 @@ On Safari, the background service worker initialises successfully and handles:
 - `chrome.webNavigation.onHistoryStateUpdated` ✅ — SPA routing detected
 - `chrome.storage.onChanged` ✅ — live settings sync
 - `chrome.runtime.onMessage` ✅ — all message actions handled
-- Pomodoro `setInterval` tick ✅ — real-time countdown works
+- `chrome.alarms.*` ✅ — all background sync, daily nudges, and Pomodoro backup alarms work natively.
 
 Silently skipped on Safari:
 
-- `chrome.alarms.*` — no periodic review reminders
 - `chrome.notifications.*` — no OS-level push notifications
-- `chrome.alarms` Pomodoro backup alarm — setInterval tick still provides countdown
+- `chrome.downloads.*` — no direct API downloads (uses anchor-click fallback)
 
 ---
 

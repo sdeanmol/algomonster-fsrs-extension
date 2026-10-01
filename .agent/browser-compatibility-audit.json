@@ -35,7 +35,7 @@
       "safari": { "compatible": true, "issues": [], "requiredChanges": [] },
       "buildTimeInjectionRequired": false,
       "runtimeDetectionRequired": false,
-      "action": "CREATED. Omits unsupported permissions: notifications, alarms, downloads. Omits Chrome-only: cross_origin_embedder_policy, cross_origin_opener_policy. Omits Firefox-only: browser_specific_settings.",
+      "action": "CREATED. Omits unsupported permissions: notifications, downloads. Omits Chrome-only: cross_origin_embedder_policy, cross_origin_opener_policy. Omits Firefox-only: browser_specific_settings. Includes 'alarms' as it is supported in Safari 14+.",
       "verified": true
     },
     {
@@ -49,10 +49,10 @@
         { "location": "browserConfig.ts", "chrome": "Rate us 5 stars on Chrome Web Store to help us grow!", "firefox": "Rate us 5 stars on Firefox Add-ons to help us grow!", "safari": "Rate us 5 stars on the App Store to help us grow!" },
         { "location": "browserConfig.ts", "chrome": "Rate on Chrome Web Store", "firefox": "Rate on Firefox Add-ons", "safari": "Rate on the App Store" }
       ],
-      "browserSpecificCode": ["supportsNotifications=false for safari", "supportsAlarms=false for safari", "supportsDownloads=false for safari"],
+      "browserSpecificCode": ["supportsNotifications=false for safari", "supportsDownloads=false for safari", "supportsAlarms=true for safari"],
       "buildTimeInjectionRequired": true,
       "runtimeDetectionRequired": false,
-      "action": "MODIFIED. Added safari to BrowserTarget union. Added supportsNotifications/supportsAlarms/supportsDownloads flags. Added Safari display name, storeName='App Store', rating texts.",
+      "action": "MODIFIED. Added safari to BrowserTarget union. Added supportsNotifications/supportsAlarms/supportsDownloads flags. supportsAlarms is true for Safari (fully supported). Added Safari display name, storeName='App Store', rating texts.",
       "verified": true
     },
     {
@@ -86,13 +86,13 @@
       "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
       "safari": {
         "compatible": true,
-        "issues": ["chrome.alarms NOT SUPPORTED on Safari", "chrome.notifications NOT SUPPORTED on Safari"],
-        "requiredChanges": ["Guarded with BROWSER_CONFIG.supportsAlarms/supportsNotifications"]
+        "issues": ["chrome.notifications NOT SUPPORTED on Safari"],
+        "requiredChanges": ["Guarded with BROWSER_CONFIG.supportsNotifications"]
       },
-      "browserSpecificApis": ["chrome.alarms (Safari unsupported)", "chrome.notifications (Safari unsupported)"],
+      "browserSpecificApis": ["chrome.notifications (Safari unsupported)"],
       "buildTimeInjectionRequired": true,
       "runtimeDetectionRequired": false,
-      "action": "MODIFIED. Added BROWSER_CONFIG import. Added supportsAlarms guards: bindEvents, setupAlarm, setupWeeklySummaryAlarm, setupDailyNudgeAlarm, handlePomodoroAction, snooze_notification. Added supportsNotifications guards: bindEvents, dispatchSystemNotification.",
+      "action": "MODIFIED. Added BROWSER_CONFIG import. Added supportsAlarms guards (resolves true) and supportsNotifications guards (resolves false).",
       "verified": true
     },
     {
