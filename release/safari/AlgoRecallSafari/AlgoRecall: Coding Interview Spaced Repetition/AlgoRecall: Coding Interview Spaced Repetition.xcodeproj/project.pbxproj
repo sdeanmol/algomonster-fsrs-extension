@@ -1,0 +1,949 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 110;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5AA3BC4B306E582D0053B06A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA3BC4A306E582D0053B06A /* AppDelegate.swift */; };
+		5AA3BC4D306E582D0053B06A /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA3BC4C306E582D0053B06A /* SceneDelegate.swift */; };
+		5AA3BC50306E582D0053B06A /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC4E306E582D0053B06A /* LaunchScreen.storyboard */; };
+		5AA3BC53306E582D0053B06A /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC51306E582D0053B06A /* Main.storyboard */; };
+		5AA3BC5C306E582D0053B06A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA3BC5B306E582D0053B06A /* AppDelegate.swift */; };
+		5AA3BC5F306E582D0053B06A /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC5D306E582D0053B06A /* Main.storyboard */; };
+		5AA3BC66306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5AA3BC65306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		5AA3BC70306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5AA3BC6F306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		5AA3BC75306E582D0053B06A /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC3A306E582C0053B06A /* Main.html */; };
+		5AA3BC76306E582D0053B06A /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC3A306E582C0053B06A /* Main.html */; };
+		5AA3BC77306E582D0053B06A /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC3C306E582C0053B06A /* Icon.png */; };
+		5AA3BC78306E582D0053B06A /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC3C306E582C0053B06A /* Icon.png */; };
+		5AA3BC79306E582D0053B06A /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC3D306E582C0053B06A /* Style.css */; };
+		5AA3BC7A306E582D0053B06A /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC3D306E582C0053B06A /* Style.css */; };
+		5AA3BC7B306E582D0053B06A /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC3E306E582C0053B06A /* Script.js */; };
+		5AA3BC7C306E582D0053B06A /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC3E306E582C0053B06A /* Script.js */; };
+		5AA3BC7D306E582D0053B06A /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA3BC3F306E582C0053B06A /* ViewController.swift */; };
+		5AA3BC7E306E582D0053B06A /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA3BC3F306E582C0053B06A /* ViewController.swift */; };
+		5AA3BC7F306E582D0053B06A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC40306E582D0053B06A /* Assets.xcassets */; };
+		5AA3BC80306E582D0053B06A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC40306E582D0053B06A /* Assets.xcassets */; };
+		5AA3BC81306E582D0053B06A /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA3BC42306E582D0053B06A /* SafariWebExtensionHandler.swift */; };
+		5AA3BC82306E582D0053B06A /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AA3BC42306E582D0053B06A /* SafariWebExtensionHandler.swift */; };
+		5AA3BC9A306E582E0053B06A /* background in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC94306E582E0053B06A /* background */; };
+		5AA3BC9B306E582E0053B06A /* dist in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC95306E582E0053B06A /* dist */; };
+		5AA3BC9C306E582E0053B06A /* features in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC96306E582E0053B06A /* features */; };
+		5AA3BC9D306E582E0053B06A /* content in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC97306E582E0053B06A /* content */; };
+		5AA3BC9E306E582E0053B06A /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC98306E582E0053B06A /* icons */; };
+		5AA3BC9F306E582E0053B06A /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC99306E582E0053B06A /* manifest.json */; };
+		5AA3BCA0306E582E0053B06A /* background in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC94306E582E0053B06A /* background */; };
+		5AA3BCA1306E582E0053B06A /* dist in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC95306E582E0053B06A /* dist */; };
+		5AA3BCA2306E582E0053B06A /* features in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC96306E582E0053B06A /* features */; };
+		5AA3BCA3306E582E0053B06A /* content in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC97306E582E0053B06A /* content */; };
+		5AA3BCA4306E582E0053B06A /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC98306E582E0053B06A /* icons */; };
+		5AA3BCA5306E582E0053B06A /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 5AA3BC99306E582E0053B06A /* manifest.json */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5AA3BC67306E582D0053B06A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5AA3BC34306E582C0053B06A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5AA3BC64306E582D0053B06A;
+			remoteInfo = "AlgoRecall: Coding Interview Spaced Repetition Extension (iOS)";
+		};
+		5AA3BC71306E582D0053B06A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5AA3BC34306E582C0053B06A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5AA3BC6E306E582D0053B06A;
+			remoteInfo = "AlgoRecall: Coding Interview Spaced Repetition Extension (macOS)";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5AA3BC88306E582D0053B06A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				5AA3BC66306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+		5AA3BC8F306E582D0053B06A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				5AA3BC70306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		5AA3BC3B306E582C0053B06A /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
+		5AA3BC3C306E582C0053B06A /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
+		5AA3BC3D306E582C0053B06A /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
+		5AA3BC3E306E582C0053B06A /* Script.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Script.js; sourceTree = "<group>"; };
+		5AA3BC3F306E582C0053B06A /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		5AA3BC40306E582D0053B06A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5AA3BC42306E582D0053B06A /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		5AA3BC47306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AlgoRecall: Coding Interview Spaced Repetition.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5AA3BC4A306E582D0053B06A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		5AA3BC4C306E582D0053B06A /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		5AA3BC4F306E582D0053B06A /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		5AA3BC52306E582D0053B06A /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		5AA3BC54306E582D0053B06A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5AA3BC59306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "AlgoRecall: Coding Interview Spaced Repetition.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5AA3BC5B306E582D0053B06A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		5AA3BC5E306E582D0053B06A /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		5AA3BC60306E582D0053B06A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5AA3BC65306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "AlgoRecall: Coding Interview Spaced Repetition Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5AA3BC6A306E582D0053B06A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5AA3BC6F306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "AlgoRecall: Coding Interview Spaced Repetition Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5AA3BC74306E582D0053B06A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5AA3BC94306E582E0053B06A /* background */ = {isa = PBXFileReference; lastKnownFileType = folder; name = background; path = ../../../../../dist/safari/background; sourceTree = "<group>"; };
+		5AA3BC95306E582E0053B06A /* dist */ = {isa = PBXFileReference; lastKnownFileType = folder; name = dist; path = ../../../../../dist/safari/dist; sourceTree = "<group>"; };
+		5AA3BC96306E582E0053B06A /* features */ = {isa = PBXFileReference; lastKnownFileType = folder; name = features; path = ../../../../../dist/safari/features; sourceTree = "<group>"; };
+		5AA3BC97306E582E0053B06A /* content */ = {isa = PBXFileReference; lastKnownFileType = folder; name = content; path = ../../../../../dist/safari/content; sourceTree = "<group>"; };
+		5AA3BC98306E582E0053B06A /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = ../../../../../dist/safari/icons; sourceTree = "<group>"; };
+		5AA3BC99306E582E0053B06A /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = ../../../../../dist/safari/manifest.json; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5AA3BC44306E582D0053B06A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		5AA3BC56306E582D0053B06A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		5AA3BC62306E582D0053B06A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		5AA3BC6C306E582D0053B06A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5AA3BC33306E582C0053B06A = {
+			isa = PBXGroup;
+			children = (
+				5AA3BC38306E582C0053B06A /* Shared (App) */,
+				5AA3BC41306E582D0053B06A /* Shared (Extension) */,
+				5AA3BC49306E582D0053B06A /* iOS (App) */,
+				5AA3BC5A306E582D0053B06A /* macOS (App) */,
+				5AA3BC69306E582D0053B06A /* iOS (Extension) */,
+				5AA3BC73306E582D0053B06A /* macOS (Extension) */,
+				5AA3BC48306E582D0053B06A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5AA3BC38306E582C0053B06A /* Shared (App) */ = {
+			isa = PBXGroup;
+			children = (
+				5AA3BC3F306E582C0053B06A /* ViewController.swift */,
+				5AA3BC40306E582D0053B06A /* Assets.xcassets */,
+				5AA3BC39306E582C0053B06A /* Resources */,
+			);
+			path = "Shared (App)";
+			sourceTree = "<group>";
+		};
+		5AA3BC39306E582C0053B06A /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				5AA3BC3A306E582C0053B06A /* Main.html */,
+				5AA3BC3C306E582C0053B06A /* Icon.png */,
+				5AA3BC3D306E582C0053B06A /* Style.css */,
+				5AA3BC3E306E582C0053B06A /* Script.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		5AA3BC41306E582D0053B06A /* Shared (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				5AA3BC93306E582E0053B06A /* Resources */,
+				5AA3BC42306E582D0053B06A /* SafariWebExtensionHandler.swift */,
+			);
+			path = "Shared (Extension)";
+			sourceTree = "<group>";
+		};
+		5AA3BC48306E582D0053B06A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5AA3BC47306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition.app */,
+				5AA3BC59306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition.app */,
+				5AA3BC65306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex */,
+				5AA3BC6F306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5AA3BC49306E582D0053B06A /* iOS (App) */ = {
+			isa = PBXGroup;
+			children = (
+				5AA3BC4A306E582D0053B06A /* AppDelegate.swift */,
+				5AA3BC4C306E582D0053B06A /* SceneDelegate.swift */,
+				5AA3BC4E306E582D0053B06A /* LaunchScreen.storyboard */,
+				5AA3BC51306E582D0053B06A /* Main.storyboard */,
+				5AA3BC54306E582D0053B06A /* Info.plist */,
+			);
+			path = "iOS (App)";
+			sourceTree = "<group>";
+		};
+		5AA3BC5A306E582D0053B06A /* macOS (App) */ = {
+			isa = PBXGroup;
+			children = (
+				5AA3BC5B306E582D0053B06A /* AppDelegate.swift */,
+				5AA3BC5D306E582D0053B06A /* Main.storyboard */,
+				5AA3BC60306E582D0053B06A /* Info.plist */,
+			);
+			path = "macOS (App)";
+			sourceTree = "<group>";
+		};
+		5AA3BC69306E582D0053B06A /* iOS (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				5AA3BC6A306E582D0053B06A /* Info.plist */,
+			);
+			path = "iOS (Extension)";
+			sourceTree = "<group>";
+		};
+		5AA3BC73306E582D0053B06A /* macOS (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				5AA3BC74306E582D0053B06A /* Info.plist */,
+			);
+			path = "macOS (Extension)";
+			sourceTree = "<group>";
+		};
+		5AA3BC93306E582E0053B06A /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				5AA3BC94306E582E0053B06A /* background */,
+				5AA3BC95306E582E0053B06A /* dist */,
+				5AA3BC96306E582E0053B06A /* features */,
+				5AA3BC97306E582E0053B06A /* content */,
+				5AA3BC98306E582E0053B06A /* icons */,
+				5AA3BC99306E582E0053B06A /* manifest.json */,
+			);
+			name = Resources;
+			path = "Shared (Extension)";
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5AA3BC46306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5AA3BC89306E582D0053B06A /* Build configuration list for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (iOS)" */;
+			buildPhases = (
+				5AA3BC43306E582D0053B06A /* Sources */,
+				5AA3BC44306E582D0053B06A /* Frameworks */,
+				5AA3BC45306E582D0053B06A /* Resources */,
+				5AA3BC88306E582D0053B06A /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5AA3BC68306E582D0053B06A /* PBXTargetDependency */,
+			);
+			name = "AlgoRecall: Coding Interview Spaced Repetition (iOS)";
+			productName = "AlgoRecall: Coding Interview Spaced Repetition (iOS)";
+			productReference = 5AA3BC47306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5AA3BC58306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5AA3BC90306E582D0053B06A /* Build configuration list for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (macOS)" */;
+			buildPhases = (
+				5AA3BC55306E582D0053B06A /* Sources */,
+				5AA3BC56306E582D0053B06A /* Frameworks */,
+				5AA3BC57306E582D0053B06A /* Resources */,
+				5AA3BC8F306E582D0053B06A /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5AA3BC72306E582D0053B06A /* PBXTargetDependency */,
+			);
+			name = "AlgoRecall: Coding Interview Spaced Repetition (macOS)";
+			productName = "AlgoRecall: Coding Interview Spaced Repetition (macOS)";
+			productReference = 5AA3BC59306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5AA3BC64306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5AA3BC85306E582D0053B06A /* Build configuration list for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (iOS)" */;
+			buildPhases = (
+				5AA3BC61306E582D0053B06A /* Sources */,
+				5AA3BC62306E582D0053B06A /* Frameworks */,
+				5AA3BC63306E582D0053B06A /* Resources */,
+			);
+			buildRules = (
+			);
+			name = "AlgoRecall: Coding Interview Spaced Repetition Extension (iOS)";
+			productName = "AlgoRecall: Coding Interview Spaced Repetition Extension (iOS)";
+			productReference = 5AA3BC65306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		5AA3BC6E306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5AA3BC8C306E582D0053B06A /* Build configuration list for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (macOS)" */;
+			buildPhases = (
+				5AA3BC6B306E582D0053B06A /* Sources */,
+				5AA3BC6C306E582D0053B06A /* Frameworks */,
+				5AA3BC6D306E582D0053B06A /* Resources */,
+			);
+			buildRules = (
+			);
+			name = "AlgoRecall: Coding Interview Spaced Repetition Extension (macOS)";
+			productName = "AlgoRecall: Coding Interview Spaced Repetition Extension (macOS)";
+			productReference = 5AA3BC6F306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5AA3BC34306E582C0053B06A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					5AA3BC46306E582D0053B06A = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					5AA3BC58306E582D0053B06A = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					5AA3BC64306E582D0053B06A = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					5AA3BC6E306E582D0053B06A = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = 5AA3BC37306E582C0053B06A /* Build configuration list for PBXProject "AlgoRecall: Coding Interview Spaced Repetition" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5AA3BC33306E582C0053B06A;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5AA3BC48306E582D0053B06A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5AA3BC46306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition (iOS) */,
+				5AA3BC58306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition (macOS) */,
+				5AA3BC64306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension (iOS) */,
+				5AA3BC6E306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension (macOS) */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5AA3BC45306E582D0053B06A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				5AA3BC77306E582D0053B06A /* Icon.png in Resources */,
+				5AA3BC50306E582D0053B06A /* LaunchScreen.storyboard in Resources */,
+				5AA3BC75306E582D0053B06A /* Main.html in Resources */,
+				5AA3BC7B306E582D0053B06A /* Script.js in Resources */,
+				5AA3BC7F306E582D0053B06A /* Assets.xcassets in Resources */,
+				5AA3BC53306E582D0053B06A /* Main.storyboard in Resources */,
+				5AA3BC79306E582D0053B06A /* Style.css in Resources */,
+			);
+		};
+		5AA3BC57306E582D0053B06A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				5AA3BC78306E582D0053B06A /* Icon.png in Resources */,
+				5AA3BC7A306E582D0053B06A /* Style.css in Resources */,
+				5AA3BC5F306E582D0053B06A /* Main.storyboard in Resources */,
+				5AA3BC7C306E582D0053B06A /* Script.js in Resources */,
+				5AA3BC80306E582D0053B06A /* Assets.xcassets in Resources */,
+				5AA3BC76306E582D0053B06A /* Main.html in Resources */,
+			);
+		};
+		5AA3BC63306E582D0053B06A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				5AA3BCA1306E582E0053B06A /* dist in Resources */,
+				5AA3BCA0306E582E0053B06A /* background in Resources */,
+				5AA3BCA3306E582E0053B06A /* content in Resources */,
+				5AA3BCA4306E582E0053B06A /* icons in Resources */,
+				5AA3BCA5306E582E0053B06A /* manifest.json in Resources */,
+				5AA3BCA2306E582E0053B06A /* features in Resources */,
+			);
+		};
+		5AA3BC6D306E582D0053B06A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				5AA3BC9B306E582E0053B06A /* dist in Resources */,
+				5AA3BC9A306E582E0053B06A /* background in Resources */,
+				5AA3BC9D306E582E0053B06A /* content in Resources */,
+				5AA3BC9E306E582E0053B06A /* icons in Resources */,
+				5AA3BC9F306E582E0053B06A /* manifest.json in Resources */,
+				5AA3BC9C306E582E0053B06A /* features in Resources */,
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5AA3BC43306E582D0053B06A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				5AA3BC7D306E582D0053B06A /* ViewController.swift in Sources */,
+				5AA3BC4B306E582D0053B06A /* AppDelegate.swift in Sources */,
+				5AA3BC4D306E582D0053B06A /* SceneDelegate.swift in Sources */,
+			);
+		};
+		5AA3BC55306E582D0053B06A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				5AA3BC7E306E582D0053B06A /* ViewController.swift in Sources */,
+				5AA3BC5C306E582D0053B06A /* AppDelegate.swift in Sources */,
+			);
+		};
+		5AA3BC61306E582D0053B06A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				5AA3BC81306E582D0053B06A /* SafariWebExtensionHandler.swift in Sources */,
+			);
+		};
+		5AA3BC6B306E582D0053B06A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				5AA3BC82306E582D0053B06A /* SafariWebExtensionHandler.swift in Sources */,
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5AA3BC68306E582D0053B06A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5AA3BC64306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension (iOS) */;
+			targetProxy = 5AA3BC67306E582D0053B06A /* PBXContainerItemProxy */;
+		};
+		5AA3BC72306E582D0053B06A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5AA3BC6E306E582D0053B06A /* AlgoRecall: Coding Interview Spaced Repetition Extension (macOS) */;
+			targetProxy = 5AA3BC71306E582D0053B06A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		5AA3BC3A306E582C0053B06A /* Main.html */ = {
+			isa = PBXVariantGroup;
+			children = (
+				5AA3BC3B306E582C0053B06A /* Base */,
+			);
+			name = Main.html;
+			sourceTree = "<group>";
+		};
+		5AA3BC4E306E582D0053B06A /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				5AA3BC4F306E582D0053B06A /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		5AA3BC51306E582D0053B06A /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				5AA3BC52306E582D0053B06A /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		5AA3BC5D306E582D0053B06A /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				5AA3BC5E306E582D0053B06A /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		5AA3BC83306E582D0053B06A /* Debug configuration for PBXProject "AlgoRecall: Coding Interview Spaced Repetition" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		5AA3BC84306E582D0053B06A /* Release configuration for PBXProject "AlgoRecall: Coding Interview Spaced Repetition" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		5AA3BC86306E582D0053B06A /* Debug configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (iOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "AlgoRecall: Coding Interview Spaced Repetition Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.AlgoRecall--Coding-Interview-Spaced-Repetition.Extension";
+				PRODUCT_NAME = "AlgoRecall: Coding Interview Spaced Repetition Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5AA3BC87306E582D0053B06A /* Release configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (iOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "AlgoRecall: Coding Interview Spaced Repetition Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.AlgoRecall--Coding-Interview-Spaced-Repetition.Extension";
+				PRODUCT_NAME = "AlgoRecall: Coding Interview Spaced Repetition Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		5AA3BC8A306E582D0053B06A /* Debug configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (iOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "AlgoRecall: Coding Interview Spaced Repetition";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.AlgoRecall--Coding-Interview-Spaced-Repetition";
+				PRODUCT_NAME = "AlgoRecall: Coding Interview Spaced Repetition";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5AA3BC8B306E582D0053B06A /* Release configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (iOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "AlgoRecall: Coding Interview Spaced Repetition";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.AlgoRecall--Coding-Interview-Spaced-Repetition";
+				PRODUCT_NAME = "AlgoRecall: Coding Interview Spaced Repetition";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		5AA3BC8D306E582D0053B06A /* Debug configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (macOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "AlgoRecall: Coding Interview Spaced Repetition Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.AlgoRecall--Coding-Interview-Spaced-Repetition.Extension";
+				PRODUCT_NAME = "AlgoRecall: Coding Interview Spaced Repetition Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		5AA3BC8E306E582D0053B06A /* Release configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (macOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "AlgoRecall: Coding Interview Spaced Repetition Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.AlgoRecall--Coding-Interview-Spaced-Repetition.Extension";
+				PRODUCT_NAME = "AlgoRecall: Coding Interview Spaced Repetition Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		5AA3BC91306E582D0053B06A /* Debug configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (macOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "AlgoRecall: Coding Interview Spaced Repetition";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.AlgoRecall--Coding-Interview-Spaced-Repetition";
+				PRODUCT_NAME = "AlgoRecall: Coding Interview Spaced Repetition";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		5AA3BC92306E582D0053B06A /* Release configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (macOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "AlgoRecall: Coding Interview Spaced Repetition";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourCompany.AlgoRecall--Coding-Interview-Spaced-Repetition";
+				PRODUCT_NAME = "AlgoRecall: Coding Interview Spaced Repetition";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5AA3BC37306E582C0053B06A /* Build configuration list for PBXProject "AlgoRecall: Coding Interview Spaced Repetition" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5AA3BC83306E582D0053B06A /* Debug configuration for PBXProject "AlgoRecall: Coding Interview Spaced Repetition" */,
+				5AA3BC84306E582D0053B06A /* Release configuration for PBXProject "AlgoRecall: Coding Interview Spaced Repetition" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		5AA3BC85306E582D0053B06A /* Build configuration list for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5AA3BC86306E582D0053B06A /* Debug configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (iOS)" */,
+				5AA3BC87306E582D0053B06A /* Release configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (iOS)" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		5AA3BC89306E582D0053B06A /* Build configuration list for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5AA3BC8A306E582D0053B06A /* Debug configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (iOS)" */,
+				5AA3BC8B306E582D0053B06A /* Release configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (iOS)" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		5AA3BC8C306E582D0053B06A /* Build configuration list for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5AA3BC8D306E582D0053B06A /* Debug configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (macOS)" */,
+				5AA3BC8E306E582D0053B06A /* Release configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition Extension (macOS)" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		5AA3BC90306E582D0053B06A /* Build configuration list for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5AA3BC91306E582D0053B06A /* Debug configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (macOS)" */,
+				5AA3BC92306E582D0053B06A /* Release configuration for PBXNativeTarget "AlgoRecall: Coding Interview Spaced Repetition (macOS)" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5AA3BC34306E582C0053B06A /* Project object */;
+	validationLevel = 1;
+}
