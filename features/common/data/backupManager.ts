@@ -331,28 +331,62 @@ export class BackupManager {
 
             // Safari does not support chrome.downloads. Fall back to an anchor-click download,
             // which works cross-browser and does not require the 'downloads' permission.
-            if (BROWSER_CONFIG.supportsDownloads) {
+            const isFirefoxAndroid = BROWSER_CONFIG.target === 'firefox' && /Android/i.test(navigator.userAgent || '');
+            
+            if (BROWSER_CONFIG.supportsDownloads && !isFirefoxAndroid) {
                 chrome.downloads.download({
                     url: blobUrl,
                     filename: filename,
                     saveAs: true
                 }, () => {
-                    try {
-                        URL.revokeObjectURL(blobUrl);
-                    } catch (revokeErr) {
-                        const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
-                        Logger.debug('Backup', `Ignore revokeObjectURL error if URL was already revoked: ${errorMessage}`, { revokeErr });
+                    if (chrome.runtime.lastError) {
+                        Logger.error('Backup', `chrome.downloads error: ${chrome.runtime.lastError.message}`);
+                        const a = document.createElement('a');
+                        a.href = blobUrl;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
                     }
+                    setTimeout(() => {
+                        try { URL.revokeObjectURL(blobUrl); } catch (e) {}
+                    }, 5000); // Wait longer before revoking just in case
                 });
+            } else if (isFirefoxAndroid) {
+                // Firefox Android: OS download manager often fails to resolve extension blob URLs.
+                // We use a base64 Data URL to bypass origin resolution issues entirely.
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const dataUrl = reader.result as string;
+                    chrome.downloads.download({
+                        url: dataUrl,
+                        filename: filename,
+                        saveAs: false // saveAs is unsupported on Firefox Android
+                    }, () => {
+                        if (chrome.runtime.lastError) {
+                            Logger.error('Backup', `Firefox Android download error: ${chrome.runtime.lastError.message}`);
+                            // Absolute last resort
+                            const a = document.createElement('a');
+                            a.href = dataUrl;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        }
+                    });
+                };
+                reader.readAsDataURL(blob);
             } else {
-                // Anchor-click fallback for Safari (no chrome.downloads API).
+                // Anchor-click fallback for Safari
                 const a = document.createElement('a');
                 a.href = blobUrl;
                 a.download = filename;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                setTimeout(() => {
+                    try { URL.revokeObjectURL(blobUrl); } catch (e) {}
+                }, 1000);
             }
             Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
 
