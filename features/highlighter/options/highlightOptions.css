@@ -202,6 +202,23 @@ body {
     gap: 12px;
 }
 
+.btn:disabled,
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+.btn-primary:disabled:hover,
+.btn-secondary:disabled:hover,
+.btn:disabled:hover,
+button:disabled:hover {
+    transform: none;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
 /* Palettes rendering */
 .palettes-list {
     display: flex;

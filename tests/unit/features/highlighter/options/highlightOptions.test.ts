@@ -26,7 +26,7 @@ describe('HighlightOptionsManager', () => {
 
       <input id="palette-name-input" value="" />
       <button id="add-slot-btn">Add Slot</button>
-      <button id="save-palette-btn">💾 Save Palette</button>
+      <button id="save-palette-btn" disabled>💾 Save Palette</button>
       <button id="reset-palettes-btn">Reset Palettes</button>
 
       <div id="palette-slots-container"></div>
@@ -130,20 +130,31 @@ describe('HighlightOptionsManager', () => {
       expect(toast?.textContent).toContain('maximum of 5 colors');
     });
 
-    it('validates palette name, empty colors, and maximum limit of 50 palettes', () => {
+    it('disables save button when palette name is empty and validates empty colors and max limit', () => {
       manager.init();
 
-      const saveBtn = document.getElementById('save-palette-btn') as HTMLElement;
-      saveBtn.click();
-
-      const toast = document.getElementById('status-toast');
-      expect(toast?.textContent).toContain('Please enter a palette name');
-
+      const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement;
       const nameInput = document.getElementById('palette-name-input') as HTMLInputElement;
+
+      // Initially disabled when palette name is empty
+      expect(saveBtn.disabled).toBe(true);
+
+      // Typing a name enables the save button
       nameInput.value = 'New Palette';
+      nameInput.dispatchEvent(new Event('input'));
+      expect(saveBtn.disabled).toBe(false);
+
+      // Clearing name disables the save button again
+      nameInput.value = '   ';
+      nameInput.dispatchEvent(new Event('input'));
+      expect(saveBtn.disabled).toBe(true);
+
+      nameInput.value = 'New Palette';
+      nameInput.dispatchEvent(new Event('input'));
       manager.editorColors = [];
 
       saveBtn.click();
+      const toast = document.getElementById('status-toast');
       expect(toast?.textContent).toContain('must contain at least 1 color');
 
       // Max 50 palettes validation
@@ -159,14 +170,17 @@ describe('HighlightOptionsManager', () => {
 
       const nameInput = document.getElementById('palette-name-input') as HTMLInputElement;
       nameInput.value = 'Brand New Palette';
+      nameInput.dispatchEvent(new Event('input'));
       manager.editorColors = ['#ff0000'];
 
-      const saveBtn = document.getElementById('save-palette-btn') as HTMLElement;
+      const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement;
+      expect(saveBtn.disabled).toBe(false);
       saveBtn.click();
 
       expect(chrome.storage.local.set).toHaveBeenCalled();
       const toast = document.getElementById('status-toast');
       expect(toast?.textContent).toContain('Palette created successfully');
+      expect(saveBtn.disabled).toBe(true);
     });
 
     it('updates an existing palette when editingIndex is set', () => {
@@ -175,6 +189,7 @@ describe('HighlightOptionsManager', () => {
 
       const nameInput = document.getElementById('palette-name-input') as HTMLInputElement;
       nameInput.value = 'Updated Palette Name';
+      nameInput.dispatchEvent(new Event('input'));
       manager.editorColors = ['#00ffff'];
 
       const saveBtn = document.getElementById('save-palette-btn') as HTMLElement;
@@ -197,8 +212,8 @@ describe('HighlightOptionsManager', () => {
       expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to reset all highlighter palettes to defaults? This cannot be undone.');
       expect(chrome.storage.local.set).toHaveBeenCalled();
       expect(manager.extensionSettings.activePaletteIndex).toBe(0);
-
-      // Restore
+      const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement;
+      expect(saveBtn.disabled).toBe(true);
       window.confirm = originalConfirm;
     });
   });
@@ -243,6 +258,9 @@ describe('HighlightOptionsManager', () => {
       expect(manager.editingIndex).toBe(0);
       const nameInput = document.getElementById('palette-name-input') as HTMLInputElement;
       expect(nameInput.value).toBe('Default');
+      const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement;
+      expect(saveBtn.disabled).toBe(false);
+      expect(saveBtn.textContent).toContain('Update Palette');
     });
 
     it('deletes a palette on Delete button click', () => {

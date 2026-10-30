@@ -145,6 +145,34 @@ test.describe('Platforms Manager, Help Center, Welcome & Summary E2E Workflows',
     const analyticsPane = page.locator('#tab-analytics');
     await expect(analyticsPane).toBeVisible();
 
+    const privacyTab = page.locator('.tab-btn[data-tab="privacy"]');
+    await expect(privacyTab).toBeVisible();
+    await privacyTab.click();
+
+    const privacyPane = page.locator('#tab-privacy');
+    await expect(privacyPane).toBeVisible();
+    await expect(privacyPane).toContainText('Privacy-First Architecture');
+
+    await context.close();
+  });
+
+  test('Direct visit to help.html with tab query parameter activates tab and scrolls tab button into view', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await page.addInitScript(injectChromePolyfill, mockWebsitesData);
+
+    const helpUrl = buildFileUrl('features/common/help/help.html') + '?tab=privacy';
+    await page.goto(helpUrl);
+
+    const privacyTab = page.locator('.tab-btn[data-tab="privacy"]');
+    await expect(privacyTab).toHaveAttribute('aria-selected', 'true', { timeout: 10000 });
+    await expect(privacyTab).toBeVisible();
+
+    const privacyPane = page.locator('#tab-privacy');
+    await expect(privacyPane).toBeVisible();
+    await expect(privacyPane).toContainText('Privacy-First Architecture');
+
     await context.close();
   });
 

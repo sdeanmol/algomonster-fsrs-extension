@@ -155,14 +155,29 @@ export class HighlightOptionsManager {
             }
 
             // Save/Update Palette Action
-            const savePaletteBtn = document.getElementById('save-palette-btn');
+            const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
+            const savePaletteBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
+
+            const updateSaveButtonState = () => {
+                if (savePaletteBtn) {
+                    const hasName = !!(nameInput && nameInput.value.trim().length > 0);
+                    savePaletteBtn.disabled = !hasName;
+                }
+            };
+
+            if (nameInput) {
+                nameInput.addEventListener('input', updateSaveButtonState);
+                nameInput.addEventListener('change', updateSaveButtonState);
+            }
+            updateSaveButtonState();
+
             if (savePaletteBtn) {
                 savePaletteBtn.addEventListener('click', () => {
                     try {
-                        const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
                         const name = nameInput?.value.trim() || '';
                         if (!name) {
                             this.showToast("Please enter a palette name.");
+                            updateSaveButtonState();
                             return;
                         }
 
@@ -195,7 +210,10 @@ export class HighlightOptionsManager {
                         // Reset editor form states
                         if (nameInput) nameInput.value = '';
                         this.editingIndex = null;
-                        if (savePaletteBtn) savePaletteBtn.textContent = '💾 Save Palette';
+                        if (savePaletteBtn) {
+                            savePaletteBtn.textContent = '💾 Save Palette';
+                            savePaletteBtn.disabled = true;
+                        }
                         this.editorColors = [...this.extensionSettings.recentColors!];
 
                         this.extensionSettings.palettes = palettes;
@@ -224,7 +242,7 @@ export class HighlightOptionsManager {
                         const defaultColorEl = document.getElementById('default-color') as HTMLInputElement | null;
                         const defaultHexEl = document.getElementById('default-hex') as HTMLInputElement | null;
                         const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
-                        const saveBtn = document.getElementById('save-palette-btn');
+                        const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
 
                         if (defaultColorEl) defaultColorEl.value = '#f1c40f';
                         if (defaultHexEl) defaultHexEl.value = '#F1C40F';
@@ -232,7 +250,10 @@ export class HighlightOptionsManager {
                         // Reset Editor UI
                         if (nameInput) nameInput.value = '';
                         this.editingIndex = null;
-                        if (saveBtn) saveBtn.textContent = '💾 Save Palette';
+                        if (saveBtn) {
+                            saveBtn.textContent = '💾 Save Palette';
+                            saveBtn.disabled = true;
+                        }
                         this.editorColors = [...this.extensionSettings.recentColors!];
 
                         this.saveSettings("Reset to defaults successfully!");
@@ -423,8 +444,11 @@ export class HighlightOptionsManager {
                         if (nameInput) nameInput.value = palette.name;
                         this.editorColors = [...palette.colors];
                         this.renderEditorSlots();
-                        const saveBtn = document.getElementById('save-palette-btn');
-                        if (saveBtn) saveBtn.textContent = '💾 Update Palette';
+                        const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
+                        if (saveBtn) {
+                            saveBtn.textContent = '💾 Update Palette';
+                            saveBtn.disabled = !palette.name.trim();
+                        }
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('HighlightOptions', `Error editing palette at index ${idx}: ${errorMessage}`, { idx, err });

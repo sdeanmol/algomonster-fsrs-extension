@@ -606,6 +606,11 @@ input.tag-inline-input::placeholder {
     transform: scale(1.1);
 }
 
+.algo-color-swatch.algo-default-swatch {
+    border: 1.5px solid var(--w-primary, #3498db);
+    box-shadow: 0 0 0 1px rgba(52, 152, 219, 0.4);
+}
+
 #algo-color-picker {
     width: 24px;
     height: 24px;

@@ -15,13 +15,15 @@ export class HelpCenterSPA {
     init(): void {
         try {
             const urlParams = new URLSearchParams(window.location.search);
-            const tabParam = urlParams.get('tab');
+            const tabParam = urlParams.get('tab') || this.getTabFromHash();
             if (tabParam) {
-                this.switchTab(tabParam);
+                this.switchTab(tabParam, true);
+                this.smoothScrollToTab(tabParam);
             }
             this.bindTabNavigation();
             this.bindSearchFilter();
             this.bindCloseButton();
+            this.bindHashNavigation();
         } catch (err) {
             UIUtils.catchError('HelpCenter', 'Error initializing Help Center', err);
         }
@@ -46,12 +48,28 @@ export class HelpCenterSPA {
                     }
                 });
             });
+
+            const switchTabLinks = document.querySelectorAll('[data-switch-tab]');
+            switchTabLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    try {
+                        e.preventDefault();
+                        const targetTab = link.getAttribute('data-switch-tab');
+                        if (targetTab) {
+                            this.switchTab(targetTab);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                    } catch (err) {
+                        UIUtils.catchError('HelpCenter', 'Error handling switch tab link click', err);
+                    }
+                });
+            });
         } catch (err) {
             UIUtils.catchError('HelpCenter', 'Error binding tab navigation', err);
         }
     }
 
-    switchTab(tabId: string): void {
+    switchTab(tabId: string, shouldScrollTabList: boolean = true): void {
         try {
             this.currentTab = tabId;
             const tabButtons = document.querySelectorAll('.tab-btn');
@@ -75,8 +93,81 @@ export class HelpCenterSPA {
             tabPanes.forEach(pane => {
                 pane.classList.toggle('active', pane.id === `tab-${tabId}`);
             });
+
+            if (shouldScrollTabList) {
+                this.smoothScrollToTab(tabId);
+            }
         } catch (err) {
             UIUtils.catchError('HelpCenter', `Error switching tab to '${tabId}'`, err, { tabId });
+        }
+    }
+
+    /**
+     * Smoothly scrolls the active tab button into view inside role="tablist"
+     */
+    smoothScrollToTab(tabId: string): void {
+        try {
+            const scrollAction = () => {
+                const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`) as HTMLElement | null;
+                const tablist = document.querySelector('.tabs-container[role="tablist"], [role="tablist"]') as HTMLElement | null;
+
+                if (!targetBtn) return;
+
+                if (typeof targetBtn.scrollIntoView === 'function') {
+                    try {
+                        targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    } catch {
+                        targetBtn.scrollIntoView(false);
+                    }
+                }
+
+                if (tablist && typeof tablist.scrollTo === 'function') {
+                    const scrollLeft = targetBtn.offsetLeft - (tablist.clientWidth / 2) + (targetBtn.clientWidth / 2);
+                    tablist.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+                }
+            };
+
+            scrollAction();
+            if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+                window.requestAnimationFrame(() => {
+                    setTimeout(scrollAction, 100);
+                });
+            }
+        } catch (err) {
+            UIUtils.catchError('HelpCenter', `Error smooth scrolling to tab '${tabId}'`, err);
+        }
+    }
+
+    /**
+     * Reads tab identifier from URL hash (e.g., #privacy or #tab-privacy)
+     */
+    getTabFromHash(): string | null {
+        try {
+            if (typeof window === 'undefined' || !window.location || !window.location.hash) return null;
+            const hash = window.location.hash.replace(/^#/, '');
+            if (!hash) return null;
+            const cleanHash = hash.startsWith('tab-') ? hash.substring(4) : hash;
+            const targetBtn = document.querySelector(`.tab-btn[data-tab="${cleanHash}"]`);
+            return targetBtn ? cleanHash : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Listens for hash changes in window to switch tabs dynamically
+     */
+    bindHashNavigation(): void {
+        try {
+            if (typeof window === 'undefined') return;
+            window.addEventListener('hashchange', () => {
+                const tab = this.getTabFromHash();
+                if (tab) {
+                    this.switchTab(tab, true);
+                }
+            });
+        } catch (err) {
+            UIUtils.catchError('HelpCenter', 'Error binding hash navigation', err);
         }
     }
 

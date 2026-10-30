@@ -61,6 +61,35 @@ Users can add custom domains via `features/common/websites/websites.html`.
 
 ---
 
+## 📖 Help Center & Privacy Hub (`help.html`, `help.ts`)
+
+The Help Center is an interactive Single-Page Application (SPA) providing comprehensive documentation, strategy guides, FSRS tutorials, and complete data privacy transparency.
+
+### Navigation Tabs
+1. **🚀 Getting Started & Strategy (`overview`)**: Core study strategies, step-by-step workflow, and platform onboarding.
+2. **🧠 FSRS & Review Engine (`fsrs`)**: FSRS mathematical formula, stability/difficulty mechanics, rating matrix (Again/Hard/Good/Easy), and review intervals.
+3. **🖍️ Highlighter & Notes (`highlighter`)**: Inline text annotations, underlines, custom color palettes, and note-taking.
+4. **📊 Analytics & Science (`analytics`)**: Retention rates, review forecasts, tag distributions, and memory health graphs.
+5. **🎮 Gamification & Focus (`gamification`)**: Daily streaks, XP, level progression, badges, and Pomodoro timer.
+6. **⚙️ Advanced, Anki & Licensing (`advanced`)**: Anki APKG/TSV deck import/export, JSON state restoration, and open-source licenses.
+7. **🛡️ Privacy & Data Policy (`privacy`)**:
+   * **Local-First Architecture**: 100% of study data, cards, and notes stored in `chrome.storage.local` by default without tracking.
+   * **Zero Monetization of Data**: Strict certification that no personal data is sold, rented, or used for third-party advertising.
+   * **Minimal Permissions Breakdown**: Detailed justification of every manifest permission (`storage`, `activeTab`, `alarms`, `notifications`, `downloads`, `webNavigation`, `scripting`).
+   * **Cloud Sync Clarification**: Optional Pro tier integration with Firebase Auth (Google OAuth) and encrypted Firestore storage.
+   * **Data Ownership & Portability**: Instructions on JSON export, Anki migration, and GDPR one-click data wipe.
+   * **Direct URL Routing**: Accessible directly from the popup footer via `help.html?tab=privacy`.
+
+### Deep Linking, Hash Routing & Smooth Tablist Scrolling
+* **Flexible Deep Linking**: Supports direct tab activation from external pages via URL query parameters (`help.html?tab=privacy`) or URL hash fragments (`help.html#privacy` or `help.html#tab-privacy`).
+* **Dynamic Hash Navigation**: Listens to browser `hashchange` events (`bindHashNavigation()`) to enable forward/backward navigation and intra-page anchor jumps without page refreshes.
+* **Centered Smooth Scrolling inside `role="tablist"`**:
+  * The tab navigation container (`.tabs-container[role="tablist"]`) enforces `scroll-behavior: smooth` and `-webkit-overflow-scrolling: touch`.
+  * `smoothScrollToTab(tabId)` dynamically calculates the tab button's horizontal offset relative to the scroll container (`tabBtn.offsetLeft - (container.clientWidth / 2) + (tabBtn.clientWidth / 2)`) and executes smooth centering.
+  * Ensures that when navigating directly to off-screen tabs (such as the Privacy tab on narrow screens or laptops), the tablist automatically scrolls smoothly to bring the active button into prominent view.
+
+---
+
 ## 🔗 Related Documentation
 * 🔄 [End-to-End Data Flow](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/data-flow.md)
 * 📐 [Global Types & Utilities](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/runtime-core/utils-and-types.md)

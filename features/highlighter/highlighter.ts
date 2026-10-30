@@ -17,6 +17,9 @@ export interface HighlighterState {
     pagecontents: Array<{ url: string; description: string; length: number; [key: string]: unknown }>;
     activeMarkRanges: Array<{ markId: string; range: Range; color: string }>;
     cards?: Card[];
+    isColorPickerOpen?: boolean;
+    savedRange?: Range | null;
+    activeCreationMarkId?: string | null;
     [key: string]: unknown;
 }
 
@@ -48,7 +51,10 @@ export class Highlighter {
                 pagecontents: [],
                 activeMarkRanges: [],
                 hoveredMarkId: null,
-                hideTooltipTimer: null
+                hideTooltipTimer: null,
+                isColorPickerOpen: false,
+                savedRange: null,
+                activeCreationMarkId: null
             };
             this.utils = (win.AlgoRecall && win.AlgoRecall.Utils) ? win.AlgoRecall.Utils : {};
         } catch (err) {
@@ -61,7 +67,10 @@ export class Highlighter {
                 pagecontents: [],
                 activeMarkRanges: [],
                 hoveredMarkId: null,
-                hideTooltipTimer: null
+                hideTooltipTimer: null,
+                isColorPickerOpen: false,
+                savedRange: null,
+                activeCreationMarkId: null
             };
             this.utils = {};
         }
@@ -113,11 +122,20 @@ export class Highlighter {
                     const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
                     if (!showPopup) return;
 
+                    const tooltip = document.getElementById('algo-highlight-tooltip');
+                    const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+                    if (isPickerOpen) {
+                        if (this.state.hideTooltipTimer) {
+                            clearTimeout(this.state.hideTooltipTimer);
+                            this.state.hideTooltipTimer = null;
+                        }
+                        return;
+                    }
+
                     const target = e.target as HTMLElement | null;
-                    if (target?.closest('#algo-highlight-tooltip') || target?.closest('#algo-fsrs-container')) return;
+                    if (target && typeof target.closest === 'function' && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) return;
 
                     const selection = window.getSelection();
-                    const tooltip = document.getElementById('algo-highlight-tooltip');
                     if (!tooltip) return;
 
                     if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
@@ -162,8 +180,18 @@ export class Highlighter {
                     const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
                     if (!showPopup) return;
 
+                    const tooltip = document.getElementById('algo-highlight-tooltip');
+                    const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+                    if (isPickerOpen) {
+                        if (this.state.hideTooltipTimer) {
+                            clearTimeout(this.state.hideTooltipTimer);
+                            this.state.hideTooltipTimer = null;
+                        }
+                        return;
+                    }
+
                     const target = e.target as HTMLElement | null;
-                    if (target?.closest('#algo-highlight-tooltip') || target?.closest('#algo-fsrs-container')) {
+                    if (target && typeof target.closest === 'function' && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) {
                         if (this.state.hideTooltipTimer) {
                             clearTimeout(this.state.hideTooltipTimer);
                             this.state.hideTooltipTimer = null;
@@ -189,7 +217,6 @@ export class Highlighter {
                         }
                     }
 
-                    const tooltip = document.getElementById('algo-highlight-tooltip');
                     if (!tooltip) return;
 
                     if (foundMark) {
@@ -244,6 +271,7 @@ export class Highlighter {
 
     handleTextSelection(): void {
         try {
+            if (this.state.isColorPickerOpen) return;
             const selection = window.getSelection();
             const tooltip = document.getElementById('algo-highlight-tooltip');
             if (!tooltip) return;
@@ -303,6 +331,7 @@ export class Highlighter {
 
     renderTooltipColors(existingMarkId: string | null = null, currentColor: string | null = null): void {
         try {
+            if (this.state.isColorPickerOpen) return;
             const tooltip = document.getElementById('algo-highlight-tooltip');
             if (!tooltip) return;
             tooltip.innerHTML = '';
@@ -428,76 +457,148 @@ export class Highlighter {
                 actionsContainer.appendChild(swatch);
             });
 
-            // 3. Custom Color Picker
-            const colorPickerContainer = document.createElement('div');
-            colorPickerContainer.style.display = 'flex';
-            colorPickerContainer.style.alignItems = 'center';
-            colorPickerContainer.style.gap = '6px';
+            // Default Highlight Color Swatch (towards the end of all swatches)
+            const defaultHighlightColor = this.state.extensionSettings?.defaultHighlightColor || DEFAULT_EXTENSION_SETTINGS.defaultHighlightColor;
+            const defaultSwatch = document.createElement('div');
+            defaultSwatch.className = 'algo-color-swatch algo-default-swatch';
+            defaultSwatch.id = 'algo-default-color-swatch';
+            defaultSwatch.style.background = defaultHighlightColor;
+            defaultSwatch.title = `Default Color: ${defaultHighlightColor}`;
+            defaultSwatch.setAttribute('role', 'button');
+            defaultSwatch.setAttribute('aria-label', `Highlight with default color ${defaultHighlightColor}`);
+            defaultSwatch.setAttribute('tabindex', '0');
+            defaultSwatch.setAttribute('data-default-color', defaultHighlightColor);
 
+            if (defaultHighlightColor === currentColor) {
+                defaultSwatch.classList.add('active');
+            }
+
+            const handleDefaultSwatchClick = () => {
+                try {
+                    if (existingMarkId) this.updateHighlightColor(existingMarkId, defaultHighlightColor);
+                    else this.saveHighlight(defaultHighlightColor, activeType);
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('Highlighter', `Error handling default swatch click for ${defaultHighlightColor}: ${errorMessage}`, { defaultHighlightColor, err });
+                }
+            };
+
+            defaultSwatch.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                handleDefaultSwatchClick();
+            });
+
+            defaultSwatch.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleDefaultSwatchClick();
+                }
+            });
+            actionsContainer.appendChild(defaultSwatch);
+
+            // 3. Custom Color Picker
             const picker = document.createElement('input');
             picker.type = 'color';
             picker.id = 'algo-color-picker';
             picker.setAttribute('aria-label', 'Custom highlight color');
+            picker.title = 'Custom Color Picker';
             const defaultPickerValue = currentColor || this.state.extensionSettings?.defaultHighlightColor || DEFAULT_EXTENSION_SETTINGS.defaultHighlightColor;
             picker.value = defaultPickerValue;
 
-            const hexInput = document.createElement('input');
-            hexInput.type = 'text';
-            hexInput.className = 'algo-color-hex-input';
-            hexInput.maxLength = 7;
-            hexInput.value = defaultPickerValue.toUpperCase();
-            hexInput.style.width = '64px';
-            hexInput.style.background = 'var(--w-bg-dark)';
-            hexInput.style.border = '1px solid var(--w-border)';
-            hexInput.style.borderRadius = '4px';
-            hexInput.style.color = 'var(--w-text)';
-            hexInput.style.fontSize = '11px';
-            hexInput.style.fontFamily = 'monospace';
-            hexInput.style.padding = '4px 6px';
-            hexInput.style.outline = 'none';
+            const cacheSelection = () => {
+                const selection = window.getSelection();
+                if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+                    this.state.savedRange = selection.getRangeAt(0).cloneRange();
+                }
+                this.state.isColorPickerOpen = true;
+                if (tooltip) tooltip.setAttribute('data-picker-open', 'true');
+                if (this.state.hideTooltipTimer) {
+                    clearTimeout(this.state.hideTooltipTimer);
+                    this.state.hideTooltipTimer = null;
+                }
+            };
+
+            picker.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                cacheSelection();
+            });
+
+            picker.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                cacheSelection();
+            });
+
+            picker.addEventListener('click', (e) => {
+                e.stopPropagation();
+                cacheSelection();
+            });
+
+            picker.addEventListener('pointerup', (e) => {
+                e.stopPropagation();
+            });
+
+            picker.addEventListener('mouseup', (e) => {
+                e.stopPropagation();
+            });
 
             picker.addEventListener('input', (e: Event) => {
                 try {
                     const newColor = (e.target as HTMLInputElement).value;
-                    hexInput.value = newColor.toUpperCase();
-                    if (existingMarkId) this.updateHighlightColor(existingMarkId, newColor);
-                    else this.saveHighlight(newColor, activeType);
+
+                    if (defaultSwatch) {
+                        defaultSwatch.style.background = newColor;
+                        defaultSwatch.title = `Default Color: ${newColor}`;
+                        defaultSwatch.setAttribute('data-default-color', newColor);
+                    }
+
                     this.updateRecentColors(newColor);
+
+                    if (existingMarkId) {
+                        this.updateHighlightColor(existingMarkId, newColor);
+                    } else if (this.state.activeCreationMarkId) {
+                        this.updateHighlightColor(this.state.activeCreationMarkId, newColor);
+                    } else {
+                        this.saveHighlight(newColor, activeType);
+                    }
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Highlighter', `Error in custom color picker input: ${errorMessage}`, { err });
                 }
             });
 
-            hexInput.addEventListener('change', (e: Event) => {
+            picker.addEventListener('change', () => {
                 try {
-                    let newColor = (e.target as HTMLInputElement).value.trim();
-                    if (!newColor.startsWith('#')) newColor = '#' + newColor;
-                    if (/^#[0-9A-Fa-f]{6}$/i.test(newColor)) {
-                        picker.value = newColor;
-                        (e.target as HTMLInputElement).value = newColor.toUpperCase();
-                        if (existingMarkId) this.updateHighlightColor(existingMarkId, newColor);
-                        else this.saveHighlight(newColor, activeType);
-                        this.updateRecentColors(newColor);
-                    } else {
-                        (e.target as HTMLInputElement).value = picker.value.toUpperCase();
-                    }
+                    setTimeout(() => {
+                        this.state.isColorPickerOpen = false;
+                        if (tooltip) tooltip.removeAttribute('data-picker-open');
+                        this.state.savedRange = null;
+                        this.state.activeCreationMarkId = null;
+                        if (!existingMarkId) {
+                            if (tooltip) tooltip.style.display = 'none';
+                            const selection = window.getSelection();
+                            if (selection) selection.removeAllRanges();
+                        } else {
+                            this.renderTooltipColors(existingMarkId, picker.value);
+                        }
+                    }, 50);
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Highlighter', `Error in hex input: ${errorMessage}`, { err });
+                    Logger.error('Highlighter', `Error in picker change handler: ${errorMessage}`, { err });
                 }
             });
 
-            hexInput.addEventListener('keydown', (e) => {
-                e.stopPropagation();
-            });
-            hexInput.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
+            picker.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (document.activeElement !== picker) {
+                        this.state.isColorPickerOpen = false;
+                        if (tooltip) tooltip.removeAttribute('data-picker-open');
+                        this.state.savedRange = null;
+                        this.state.activeCreationMarkId = null;
+                    }
+                }, 250);
             });
 
-            colorPickerContainer.appendChild(picker);
-            colorPickerContainer.appendChild(hexInput);
-            actionsContainer.appendChild(colorPickerContainer);
+            actionsContainer.appendChild(picker);
 
             // 4. Delete Button (when editing existing highlight)
             if (existingMarkId) {
@@ -785,10 +886,19 @@ export class Highlighter {
     saveHighlight(color: string, type: string = 'highlight'): void {
         try {
             const selection = window.getSelection();
-            if (!selection || selection.isCollapsed) return;
+            let range: Range | null = null;
+            let text = '';
 
-            const range = selection.getRangeAt(0);
-            const text = selection.toString();
+            if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+                range = selection.getRangeAt(0);
+                text = selection.toString();
+            } else if (this.state.savedRange) {
+                range = this.state.savedRange;
+                text = range.toString();
+            }
+
+            if (!range || !text || text.trim() === '') return;
+
             const cleanUrl = window.location.href.split('?')[0].split('#')[0];
             const timestamp = Date.now();
 
@@ -808,6 +918,9 @@ export class Highlighter {
 
             if (!this.state.marks) this.state.marks = [];
             this.state.marks.push(newMark);
+            if (this.state.isColorPickerOpen) {
+                this.state.activeCreationMarkId = newMark.id;
+            }
 
             if (!this.state.bookmarks) this.state.bookmarks = [];
             if (!this.state.bookmarks.find((b: BookmarkItem) => b.url === cleanUrl)) {
@@ -834,8 +947,11 @@ export class Highlighter {
             });
 
             const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (tooltip) tooltip.style.display = 'none';
-            selection.removeAllRanges();
+            const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+            if (tooltip && !isPickerOpen) tooltip.style.display = 'none';
+            if (selection && !isPickerOpen) {
+                selection.removeAllRanges();
+            }
 
             this.applyHighlightsForCurrentPage();
             Logger.info('Highlighter', `Created new highlight with color: ${color}`);
@@ -853,7 +969,9 @@ export class Highlighter {
                 this.state.marks[markIndex].color = newColor;
                 chrome.storage.local.set({ marks: this.state.marks });
                 this.applyHighlightsForCurrentPage();
-                this.renderTooltipColors(markId, newColor);
+                if (!this.state.isColorPickerOpen) {
+                    this.renderTooltipColors(markId, newColor);
+                }
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);

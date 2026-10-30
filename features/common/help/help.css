@@ -110,6 +110,8 @@ body {
     margin-bottom: 24px;
     padding-bottom: 8px;
     overflow-x: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 
 .tab-btn {

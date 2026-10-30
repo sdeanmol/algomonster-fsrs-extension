@@ -479,6 +479,73 @@ describe('Highlighter Component', () => {
     window.getSelection()?.removeAllRanges();
   });
 
+  it('preserves selection and prevents tooltip collapse when interacting with color picker', () => {
+    jest.useFakeTimers();
+    highlighter.createHighlighterUI();
+    highlighter.bindEvents();
+
+    const textNode = document.createTextNode('Selection preservation test');
+    document.body.appendChild(textNode);
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+
+    highlighter.renderTooltipColors(null, null);
+    const tooltip = document.getElementById('algo-highlight-tooltip')!;
+    tooltip.style.display = 'flex';
+
+    const picker = tooltip.querySelector('#algo-color-picker') as HTMLInputElement;
+    const defaultSwatch = tooltip.querySelector('#algo-default-color-swatch') as HTMLElement;
+    expect(tooltip.querySelector('.algo-color-hex-input')).toBeNull();
+
+    // 1. User clicks/focuses color picker: captures selection, sets isColorPickerOpen
+    picker.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(highlighter.state.isColorPickerOpen).toBe(true);
+    expect(highlighter.state.savedRange).not.toBeNull();
+
+    // 2. Selection in document collapses when native input opens
+    window.getSelection()?.removeAllRanges();
+
+    // 3. Pointerup or mousemove on document does NOT close tooltip while picker is open
+    document.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+    expect(tooltip.style.display).toBe('flex');
+
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 200 }));
+    jest.advanceTimersByTime(500);
+    expect(tooltip.style.display).toBe('flex');
+
+    // 4. User selects a color in the wizard (input event)
+    picker.value = '#1abc9c';
+    picker.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // Verify marks created using savedRange
+    expect(highlighter.state.marks.length).toBe(1);
+    expect(highlighter.state.marks[0].color).toBe('#1abc9c');
+    expect(highlighter.state.extensionSettings.defaultHighlightColor).toBe('#1abc9c');
+    expect(defaultSwatch.getAttribute('data-default-color')).toBe('#1abc9c');
+    // Tooltip stays open while picking
+    expect(tooltip.style.display).toBe('flex');
+
+    // 5. Subsequent input update modifies the same mark instead of creating duplicates
+    picker.value = '#e67e22';
+    picker.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(highlighter.state.marks.length).toBe(1);
+    expect(highlighter.state.marks[0].color).toBe('#e67e22');
+    expect(highlighter.state.extensionSettings.defaultHighlightColor).toBe('#e67e22');
+    expect(defaultSwatch.getAttribute('data-default-color')).toBe('#e67e22');
+
+    // 6. User commits/dismisses wizard (change event)
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    jest.advanceTimersByTime(100);
+
+    expect(highlighter.state.isColorPickerOpen).toBe(false);
+    expect(highlighter.state.savedRange).toBeNull();
+    expect(tooltip.style.display).toBe('none');
+
+    jest.useRealTimers();
+  });
+
   it('uses fallback palette when extensionSettings.palettes is empty', () => {
     highlighter.state.extensionSettings.palettes = [];
     highlighter.createHighlighterUI();
@@ -486,7 +553,51 @@ describe('Highlighter Component', () => {
 
     const tooltip = document.getElementById('algo-highlight-tooltip')!;
     const swatches = tooltip.querySelectorAll('.algo-color-swatch');
-    expect(swatches.length).toBe(5); // fallback has 5 colors
+    expect(swatches.length).toBe(6); // 5 fallback colors + 1 default color swatch
+    const defaultSwatch = tooltip.querySelector('.algo-default-swatch');
+    expect(defaultSwatch).not.toBeNull();
+  });
+
+  it('renders default highlight color swatch towards the end of all swatches and handles click', () => {
+    highlighter.state.extensionSettings.defaultHighlightColor = '#9b59b6';
+    highlighter.createHighlighterUI();
+
+    const textNode = document.createTextNode('Default swatch test');
+    document.body.appendChild(textNode);
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    window.getSelection()?.removeAllRanges();
+    window.getSelection()?.addRange(range);
+
+    highlighter.renderTooltipColors(null, null);
+    const tooltip = document.getElementById('algo-highlight-tooltip')!;
+    const defaultSwatch = tooltip.querySelector('#algo-default-color-swatch') as HTMLElement;
+
+    expect(defaultSwatch).not.toBeNull();
+    expect(defaultSwatch.getAttribute('data-default-color')).toBe('#9b59b6');
+
+    // Clicking default swatch creates highlight with default color
+    defaultSwatch.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(highlighter.state.marks.length).toBeGreaterThan(0);
+    expect(highlighter.state.marks[0].color).toBe('#9b59b6');
+
+    window.getSelection()?.removeAllRanges();
+  });
+
+  it('marks default swatch as active when currentColor matches default highlight color', () => {
+    highlighter.state.extensionSettings.defaultHighlightColor = '#2ecc71';
+    highlighter.state.marks.push({
+      id: 'mark_default_active', createdAt: 9700,
+      url: 'https://algo.monster/problem',
+      text: 'text', color: '#2ecc71'
+    });
+
+    highlighter.createHighlighterUI();
+    highlighter.renderTooltipColors('mark_default_active', '#2ecc71');
+
+    const tooltip = document.getElementById('algo-highlight-tooltip')!;
+    const defaultSwatch = tooltip.querySelector('#algo-default-color-swatch') as HTMLElement;
+    expect(defaultSwatch.classList.contains('active')).toBe(true);
   });
 
   // ─── renderTooltipColors (existing annotation) ────────────────────────

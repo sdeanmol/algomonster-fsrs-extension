@@ -8,11 +8,12 @@ describe('HelpCenterSPA', () => {
     document.body.innerHTML = `
       <input id="help-search-input" value="" />
       <button id="close-help-btn">Close</button>
-      <div class="tabs">
+      <nav class="tabs-container" role="tablist">
         <button class="tab-btn active" data-tab="overview" aria-selected="true">Overview</button>
         <button class="tab-btn" data-tab="shortcuts" aria-selected="false">Shortcuts</button>
         <button class="tab-btn" data-tab="strategy" aria-selected="false">Strategy</button>
-      </div>
+        <button class="tab-btn" data-tab="privacy" aria-selected="false">Privacy</button>
+      </nav>
       <div id="tab-overview" class="tab-pane active">
         <div class="card">Overview Card content</div>
       </div>
@@ -21,6 +22,10 @@ describe('HelpCenterSPA', () => {
       </div>
       <div id="tab-strategy" class="tab-pane">
         <div class="strategy-card">Learning strategy details</div>
+        <a href="#" data-switch-tab="privacy" id="link-to-privacy">View Privacy Policy</a>
+      </div>
+      <div id="tab-privacy" class="tab-pane">
+        <div class="card card-hero">Privacy-First Architecture & Data Protection</div>
       </div>
     `;
 
@@ -51,6 +56,77 @@ describe('HelpCenterSPA', () => {
       expect(helpCenter.currentTab).toBe('strategy');
       const strategyPane = document.getElementById('tab-strategy');
       expect(strategyPane?.classList.contains('active')).toBe(true);
+    });
+
+    it('switches to privacy tab on privacy tab button click', () => {
+      helpCenter.init();
+      const privacyBtn = document.querySelector('.tab-btn[data-tab="privacy"]') as HTMLElement;
+      privacyBtn.click();
+
+      expect(helpCenter.currentTab).toBe('privacy');
+      const privacyPane = document.getElementById('tab-privacy');
+      expect(privacyPane?.classList.contains('active')).toBe(true);
+    });
+
+    it('switches to privacy tab on data-switch-tab link click', () => {
+      window.scrollTo = jest.fn();
+      helpCenter.init();
+      const privacyLink = document.getElementById('link-to-privacy') as HTMLElement;
+      privacyLink.click();
+
+      expect(helpCenter.currentTab).toBe('privacy');
+      const privacyPane = document.getElementById('tab-privacy');
+      expect(privacyPane?.classList.contains('active')).toBe(true);
+      expect(window.scrollTo).toHaveBeenCalled();
+    });
+
+    it('activates privacy tab directly when ?tab=privacy is in URL', () => {
+      (window as any).location = new URL('https://algo.monster/help/help.html?tab=privacy');
+      const spyScroll = jest.spyOn(helpCenter, 'smoothScrollToTab');
+      helpCenter.init();
+
+      expect(helpCenter.currentTab).toBe('privacy');
+      const privacyPane = document.getElementById('tab-privacy');
+      expect(privacyPane?.classList.contains('active')).toBe(true);
+      expect(spyScroll).toHaveBeenCalledWith('privacy');
+    });
+
+    it('smoothly scrolls the active tab button into view inside role="tablist"', () => {
+      const privacyBtn = document.querySelector('.tab-btn[data-tab="privacy"]') as HTMLElement;
+      const tablist = document.querySelector('[role="tablist"]') as HTMLElement;
+
+      privacyBtn.scrollIntoView = jest.fn();
+      tablist.scrollTo = jest.fn();
+
+      helpCenter.smoothScrollToTab('privacy');
+
+      expect(privacyBtn.scrollIntoView).toHaveBeenCalledWith({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      });
+      expect(tablist.scrollTo).toHaveBeenCalled();
+    });
+
+    it('initializes tab from URL hash when query param is missing and smooth scrolls', () => {
+      (window as any).location = new URL('https://algo.monster/help/help.html#privacy');
+      const spyScroll = jest.spyOn(helpCenter, 'smoothScrollToTab');
+
+      helpCenter.init();
+
+      expect(helpCenter.currentTab).toBe('privacy');
+      expect(spyScroll).toHaveBeenCalledWith('privacy');
+    });
+
+    it('handles hashchange event to navigate to new tab', () => {
+      helpCenter.init();
+      (window as any).location = new URL('https://algo.monster/help/help.html#tab-privacy');
+
+      window.dispatchEvent(new Event('hashchange'));
+
+      expect(helpCenter.currentTab).toBe('privacy');
+      const privacyPane = document.getElementById('tab-privacy');
+      expect(privacyPane?.classList.contains('active')).toBe(true);
     });
 
     it('resets search input when switching tab manually', () => {

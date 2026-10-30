@@ -331,7 +331,7 @@ The tags input uses only a placeholder and an SVG icon for context. No `<label>`
 
 Users expect a standalone legal document; they reach a general help page.
 
-**Recommendation**: Rename to "Help & Privacy" or create a dedicated privacy policy document.
+**Recommendation**: Rename to "Help & Privacy" or create a dedicated privacy policy document. *(Resolved: Created dedicated Privacy & Data Policy tab under `help.html?tab=privacy` with complete permissions breakdown, local-first guarantee, and compliance certifications).*
 
 ---
 
