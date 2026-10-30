@@ -220,6 +220,7 @@ export class AlgoRecallDashboard {
                             this.dom.chartsToggle.checked = showCharts;
                             this.dom.chartsToggle.setAttribute('aria-checked', showCharts.toString());
                         }
+                        this.updateChartsVisibility(showCharts);
                     } catch (err) {
             UIUtils.catchError('Popup', 'Error rendering charts toggle setting', err);
         }
@@ -228,6 +229,7 @@ export class AlgoRecallDashboard {
                     try {
                         const target = e.target as HTMLInputElement;
                         target.setAttribute('aria-checked', target.checked.toString());
+                        this.updateChartsVisibility(target.checked);
                         const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
                         const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
                         settings.showCharts = target.checked;
@@ -571,6 +573,17 @@ export class AlgoRecallDashboard {
                 }
             };
 
+            const handleLabelKeydown = (e: KeyboardEvent, fileInput: HTMLInputElement | null) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInput?.click();
+                }
+            };
+            const importLabel = document.getElementById('import-btn-label');
+            importLabel?.addEventListener('keydown', (e: KeyboardEvent) => handleLabelKeydown(e, this.dom.importFile));
+            const ankiImportLabel = document.getElementById('anki-import-btn-label');
+            ankiImportLabel?.addEventListener('keydown', (e: KeyboardEvent) => handleLabelKeydown(e, this.dom.ankiImportFile));
+
             // Standard JSON backup import setup
             if (this.dom.importFile) {
                 this.dom.importFile.addEventListener('click', handleFirefoxPopupFileClick);
@@ -601,6 +614,7 @@ export class AlgoRecallDashboard {
                                                 }
                                                 if (result.extensionSettings.showCharts !== undefined && this.dom.chartsToggle) {
                                                     this.dom.chartsToggle.checked = result.extensionSettings.showCharts;
+                                                    this.updateChartsVisibility(result.extensionSettings.showCharts);
                                                 }
                                                 if (result.extensionSettings.developerMode !== undefined && this.dom.devModeToggle) {
                                                     this.dom.devModeToggle.checked = result.extensionSettings.developerMode;
@@ -827,6 +841,16 @@ export class AlgoRecallDashboard {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Popup', `Error formatting cards for Anki export: ${errorMessage}`, { err });
             return '';
+        }
+    }
+
+    /**
+     * Updates visibility of the charts and activity panel in popup.
+     */
+    updateChartsVisibility(showCharts: boolean): void {
+        const card = document.getElementById('activity-charts-card');
+        if (card) {
+            card.style.display = showCharts ? '' : 'none';
         }
     }
 

@@ -32,6 +32,15 @@
         </div>
 
         <div class="grid-layout">
+            <!-- Mode Switch: Simple (Recommended) vs Advanced -->
+            <div class="config-mode-bar">
+                <span class="mode-label">Configuration Mode:</span>
+                <div class="mode-toggle-group" role="tablist" aria-label="Configuration Mode">
+                    <button type="button" id="mode-simple-btn" class="mode-pill active" role="tab" aria-selected="true">Simple (Recommended)</button>
+                    <button type="button" id="mode-advanced-btn" class="mode-pill" role="tab" aria-selected="false">Advanced (Math &amp; Coefficients)</button>
+                </div>
+            </div>
+
             <!-- Global Config Card -->
             <div class="card main-config-card">
                 <h2>⚙️ Global Parameters</h2>
@@ -46,9 +55,14 @@
                     </div>
                     <input type="range" id="retention-slider" min="0.70" max="0.99" step="0.01" value="0.90" class="slider-input">
                     <span class="input-hint">Recommended range: 0.75 - 0.95. Higher retention targets yield shorter intervals.</span>
+                    <div class="preset-chips" style="margin-top: 10px; display: flex; gap: 8px;">
+                        <button type="button" class="preset-chip" data-retention="0.80">Relaxed (80%)</button>
+                        <button type="button" class="preset-chip active" data-retention="0.90">Balanced (90%)</button>
+                        <button type="button" class="preset-chip" data-retention="0.95">Intensive (95%)</button>
+                    </div>
                 </div>
 
-                <div class="grid-2" style="margin-top: 16px;">
+                <div id="advanced-decay-factor" class="advanced-config-only grid-2" style="display: none; margin-top: 16px;">
                     <div class="form-group">
                         <label for="decay-input">Decay Constant</label>
                         <input type="number" id="decay-input" class="input-field" step="0.05" value="-0.5">
@@ -112,7 +126,7 @@
             </div>
 
             <!-- FSRS Global Weights Configuration Card -->
-            <div class="card weights-card">
+            <div class="card weights-card advanced-config-only" style="display: none;">
                 <h2>📊 FSRS Coefficients (w0 - w16)</h2>
                 <p class="section-intro">
                     Coefficients that scale memory stability updates. Adjust carefully, or restore defaults if memory scheduling behaves unexpectedly.
@@ -129,7 +143,7 @@
             </div>
 
             <!-- Tag-Specific weights configurations Card -->
-            <div class="card tag-weights-card">
+            <div class="card tag-weights-card advanced-config-only" style="display: none;">
                 <h2>🏷️ Tag-Specific Profiles</h2>
                 <p class="section-intro">
                     Create unique FSRS parameters profiles for specific topics (e.g. review Dynamic Programming cards faster than Arrays).

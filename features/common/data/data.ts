@@ -26,11 +26,13 @@ export class FSRSDataDashboard {
     extensionSettings: UserSettings & { showCharts?: boolean };
 
     selectedCardIds: Set<string>;
+    undoTimer: ReturnType<typeof setTimeout> | null;
 
     constructor() {
         this.allCards = [];
         this.currentView = 'total';
         this.targetDate = null;
+        this.undoTimer = null;
 
         this.searchQuery = '';
         this.selectedTag = 'all';
@@ -182,24 +184,10 @@ export class FSRSDataDashboard {
             if (clearBtn) {
                 clearBtn.addEventListener('click', () => {
                     try {
-                        this.searchQuery = '';
-                        this.selectedTag = 'all';
-                        this.selectedStatus = 'all';
-                        this.selectedPlatform = 'all';
-                        this.selectedState = 'all';
-                        this.sortBy = 'due-asc';
-
-                        if (searchInput) searchInput.value = '';
-                        if (tagSelect) tagSelect.value = 'all';
-                        if (statusSelect) statusSelect.value = 'all';
-                        if (platformSelect) platformSelect.value = 'all';
-                        if (stateSelect) stateSelect.value = 'all';
-                        if (sortSelect) sortSelect.value = 'due-asc';
-
-                        this.filterAndRender();
+                        this.resetFilters();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error clearing filters', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error clearing filters', err);
+                    }
                 });
             }
 
@@ -489,6 +477,12 @@ export class FSRSDataDashboard {
 
             if (contentEl) {
                 contentEl.innerHTML = this.generateCardsTable(filtered, true);
+                const emptyClearBtn = document.getElementById('empty-clear-filters-btn');
+                if (emptyClearBtn) {
+                    emptyClearBtn.addEventListener('click', () => {
+                        this.resetFilters();
+                    });
+                }
             }
 
             this.bindCheckboxes();
@@ -500,10 +494,64 @@ export class FSRSDataDashboard {
     }
 
     /**
+     * Resets all search and filter dropdowns to their default states.
+     */
+    resetFilters(): void {
+        this.searchQuery = '';
+        this.selectedTag = 'all';
+        this.selectedStatus = 'all';
+        this.selectedPlatform = 'all';
+        this.selectedState = 'all';
+        this.sortBy = 'due-asc';
+
+        const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+        const tagSelect = document.getElementById('tag-select') as HTMLSelectElement | null;
+        const statusSelect = document.getElementById('status-select') as HTMLSelectElement | null;
+        const platformSelect = document.getElementById('platform-select') as HTMLSelectElement | null;
+        const stateSelect = document.getElementById('state-select') as HTMLSelectElement | null;
+        const sortSelect = document.getElementById('sort-select') as HTMLSelectElement | null;
+
+        if (searchInput) searchInput.value = '';
+        if (tagSelect) tagSelect.value = 'all';
+        if (statusSelect) statusSelect.value = 'all';
+        if (platformSelect) platformSelect.value = 'all';
+        if (stateSelect) stateSelect.value = 'all';
+        if (sortSelect) sortSelect.value = 'due-asc';
+
+        this.filterAndRender();
+    }
+
+    /**
      * Renders a table of FSRS card items.
      */
     generateCardsTable(cardsArray: Card[], showLapses: boolean = true): string {
         try {
+            if (!Array.isArray(cardsArray)) {
+                throw new Error('Invalid cards array provided');
+            }
+
+            if (cardsArray.length === 0) {
+                const isFilterActive = this.searchQuery !== '' || this.selectedTag !== 'all' || this.selectedStatus !== 'all' || this.selectedPlatform !== 'all' || this.selectedState !== 'all';
+                const message = isFilterActive 
+                    ? 'No problem patterns match your selected filters.' 
+                    : 'No problem patterns tracked yet. Solve problems on LeetCode or AlgoMonster to build your spaced repetition deck!';
+                const actionButton = isFilterActive 
+                    ? `<button id="empty-clear-filters-btn" class="btn btn-secondary" style="margin-top: 12px; cursor: pointer;">Clear Filters</button>` 
+                    : '';
+                return `
+                    <div class="empty-state-card" style="text-align: center; padding: 48px 24px; background: var(--md-surface); border: 1px dashed var(--md-border); border-radius: 12px; margin: 20px 0;">
+                        <svg class="svg-icon" viewBox="0 0 24 24" style="width: 48px; height: 48px; stroke: var(--md-text-subtle); margin-bottom: 12px;" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <h4 style="margin: 0 0 8px 0; color: var(--md-text-high); font-size: 16px;">${isFilterActive ? 'No Matching Patterns' : 'No Patterns Found'}</h4>
+                        <p style="margin: 0; color: var(--md-text-med); font-size: 13px; max-width: 400px; margin: 0 auto;">${message}</p>
+                        ${actionButton}
+                    </div>
+                `;
+            }
+
             const now = new Date().getTime();
             const allChecked = cardsArray.length > 0 && cardsArray.every((c: Card) => Boolean(c.id && this.selectedCardIds.has(c.id)));
 
@@ -617,6 +665,50 @@ export class FSRSDataDashboard {
     }
 
     /**
+     * Shows a temporary undo toast allowing recovery of deleted pattern cards.
+     */
+    showUndoToast(message: string, onUndo: () => void): void {
+        try {
+            const toast = document.getElementById('undo-toast');
+            const text = document.getElementById('undo-toast-text');
+            const undoBtn = document.getElementById('undo-action-btn');
+            if (!toast || !text || !undoBtn) return;
+
+            if (this.undoTimer) {
+                clearTimeout(this.undoTimer);
+                this.undoTimer = null;
+            }
+
+            text.textContent = message;
+            toast.style.display = 'flex';
+
+            const handleUndoClick = () => {
+                toast.style.display = 'none';
+                if (this.undoTimer) {
+                    clearTimeout(this.undoTimer);
+                    this.undoTimer = null;
+                }
+                onUndo();
+            };
+
+            const newUndoBtn = undoBtn.cloneNode(true) as HTMLElement;
+            undoBtn.parentNode?.replaceChild(newUndoBtn, undoBtn);
+            newUndoBtn.addEventListener('click', handleUndoClick);
+
+            this.undoTimer = setTimeout(() => {
+                try {
+                    toast.style.display = 'none';
+                    this.undoTimer = null;
+                } catch (tErr) {
+                    UIUtils.catchError('DataDashboard', 'Error hiding undo toast', tErr);
+                }
+            }, 5000);
+        } catch (err) {
+            UIUtils.catchError('DataDashboard', 'Error displaying undo toast', err);
+        }
+    }
+
+    /**
      * Binds click listener events to table delete buttons to remove cards.
      */
     bindDeleteButtons(): void {
@@ -626,21 +718,34 @@ export class FSRSDataDashboard {
                     try {
                         e.stopPropagation();
                         const cardId = (e.currentTarget as HTMLElement).getAttribute('data-id');
-                        if (cardId && confirm("Are you sure you want to remove this card from future FSRS reviews? This will delete the repetition history for this pattern.")) {
-                            this.allCards = this.allCards.filter(c => c.id !== cardId);
-                            this.selectedCardIds.delete(cardId);
-                            chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
-                                try {
-                                    if (UIUtils.checkStorageError('DataDashboard', 'Error deleting card from storage', { cardId })) return;
-                                    this.populateTagsFilter();
-                                    this.populatePlatformFilter();
-                                    this.updateBulkActionsBar();
-                                    this.filterAndRender();
-                                } catch (callbackErr) {
-                                    UIUtils.catchError('DataDashboard', 'Error in delete card callback', callbackErr, { cardId });
-                                }
-                            });
-                        }
+                        if (!cardId) return;
+                        const cardIndex = this.allCards.findIndex(c => c.id === cardId);
+                        if (cardIndex === -1) return;
+
+                        const deletedCard = this.allCards[cardIndex];
+                        this.allCards.splice(cardIndex, 1);
+                        this.selectedCardIds.delete(cardId);
+                        chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
+                            try {
+                                if (UIUtils.checkStorageError('DataDashboard', 'Error deleting card from storage', { cardId })) return;
+                                this.populateTagsFilter();
+                                this.populatePlatformFilter();
+                                this.updateBulkActionsBar();
+                                this.filterAndRender();
+
+                                this.showUndoToast(`Deleted "${deletedCard.problemTitle || 'pattern'}".`, () => {
+                                    this.allCards.splice(cardIndex, 0, deletedCard);
+                                    chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
+                                        this.populateTagsFilter();
+                                        this.populatePlatformFilter();
+                                        this.filterAndRender();
+                                        UIUtils.showToast("Pattern restored!");
+                                    });
+                                });
+                            } catch (callbackErr) {
+                                UIUtils.catchError('DataDashboard', 'Error in delete card callback', callbackErr, { cardId });
+                            }
+                        });
                     } catch (err) {
                         UIUtils.catchError('DataDashboard', 'Error in delete button click listener', err);
                     }

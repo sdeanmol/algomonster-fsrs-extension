@@ -37,6 +37,7 @@ describe('AlgoRecallDashboard (Popup)', () => {
       <button id="theme-toggle-btn"></button>
       <input id="toggle-marker-popup" type="checkbox" />
       <input id="toggle-show-charts" type="checkbox" />
+      <div id="activity-charts-card"></div>
       <input id="toggle-dev-mode" type="checkbox" />
       <button id="manage-platforms-btn"></button>
       <button id="configure-fsrs-btn"></button>
@@ -52,9 +53,9 @@ describe('AlgoRecallDashboard (Popup)', () => {
       <button id="header-analytics-btn"></button>
       <button id="forecast-btn"></button>
       <button id="export-btn"></button>
-      <input id="import-file" type="file" />
+      <label id="import-btn-label" role="button" tabindex="0"><input id="import-file" type="file" /></label>
       <button id="anki-export-btn"></button>
-      <input id="anki-import-file" type="file" />
+      <label id="anki-import-btn-label" role="button" tabindex="0"><input id="anki-import-file" type="file" /></label>
       <button id="studyplan-btn"></button>
       <button id="pomodoro-btn"></button>
       <button id="open-summary-page-btn"></button>
@@ -660,6 +661,49 @@ describe('AlgoRecallDashboard (Popup)', () => {
       expect(notifCard.style.display).toBe('none');
 
       BROWSER_CONFIG.supportsNotifications = origSupports;
+    });
+
+    it('UX-003: enables keyboard activation for backup restore and Anki import labels', async () => {
+      await dashboard.init();
+      const importFile = document.getElementById('import-file') as HTMLInputElement;
+      const ankiImportFile = document.getElementById('anki-import-file') as HTMLInputElement;
+      const importLabel = document.getElementById('import-btn-label') as HTMLElement;
+      const ankiLabel = document.getElementById('anki-import-btn-label') as HTMLElement;
+
+      const importClickSpy = jest.spyOn(importFile, 'click').mockImplementation(() => {});
+      const ankiClickSpy = jest.spyOn(ankiImportFile, 'click').mockImplementation(() => {});
+
+      // Enter key on import label triggers file input click
+      importLabel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      expect(importClickSpy).toHaveBeenCalledTimes(1);
+
+      // Space key on anki import label triggers file input click
+      ankiLabel.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+      expect(ankiClickSpy).toHaveBeenCalledTimes(1);
+
+      // Other keys do nothing
+      importLabel.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+      expect(importClickSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('UX-009: toggle-show-charts dynamically updates activity-charts-card visibility', async () => {
+      await dashboard.init();
+      const chartsToggle = document.getElementById('toggle-show-charts') as HTMLInputElement;
+      const activityCard = document.getElementById('activity-charts-card') as HTMLElement;
+
+      expect(activityCard.style.display).not.toBe('none');
+
+      // Toggle off
+      chartsToggle.checked = false;
+      chartsToggle.dispatchEvent(new Event('change'));
+      await Promise.resolve();
+      expect(activityCard.style.display).toBe('none');
+
+      // Toggle on
+      chartsToggle.checked = true;
+      chartsToggle.dispatchEvent(new Event('change'));
+      await Promise.resolve();
+      expect(activityCard.style.display).not.toBe('none');
     });
   });
 });

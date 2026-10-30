@@ -44,7 +44,7 @@ export class WhitelistedWebsitesManager {
             // Close button
             document.getElementById('back-to-popup-btn')?.addEventListener('click', () => {
                 try {
-                    window.close();
+                    UIUtils.closeCurrentTab();
                 } catch (err) {
                     UIUtils.catchError('WhitelistedWebsites', 'Error closing window', err);
                 }
@@ -207,8 +207,12 @@ export class WhitelistedWebsitesManager {
                                     {
                                         id: `site-${hostname.replace(/[^a-z0-9]/g, '-')}`,
                                         matches: [originPattern],
-                                        js: ["content/fsrs.js", "content/content.js"],
-                                        css: ["content/style.css"],
+                                        js: [
+                                            "features/common/marked.min.js",
+                                            "dist/fsrsScheduler.bundle.js",
+                                            "content/content.js"
+                                        ],
+                                        css: ["features/highlighter/style.css"],
                                         runAt: "document_idle",
                                         allFrames: true
                                     }

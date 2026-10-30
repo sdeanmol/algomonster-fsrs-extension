@@ -194,4 +194,15 @@ describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
       });
     }).not.toThrow();
   });
+
+  it('UX-012: analytics sidebar footer links to data dashboard instead of popup', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const htmlPath = path.resolve(__dirname, '../../../../../features/dashboard/analytics/analytics.html');
+    const html = fs.readFileSync(htmlPath, 'utf8');
+
+    expect(html).toContain('href="../../common/data/data.html"');
+    expect(html).toContain('View All Patterns');
+    expect(html).not.toContain('href="../popup/popup.html"');
+  });
 });

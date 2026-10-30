@@ -834,3 +834,41 @@ td a:hover {
 :root.light-theme .edit-field .tag-suggestion-item {
     color: #202124 !important;
 }
+
+/* Undo Toast */
+.undo-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--md-surface);
+    color: var(--md-text-high);
+    border: 1px solid var(--md-border);
+    border-radius: 8px;
+    padding: 12px 18px;
+    box-shadow: var(--shadow-3, 0 8px 24px rgba(0,0,0,0.3));
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 1100;
+    font-size: 13px;
+}
+
+.undo-toast .btn-undo {
+    background: var(--md-primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+
+.undo-toast .btn-undo:hover {
+    filter: brightness(1.15);
+}
+
+.empty-state-card {
+    transition: all 0.2s ease;
+}

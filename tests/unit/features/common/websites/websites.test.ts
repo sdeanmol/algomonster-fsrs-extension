@@ -121,7 +121,18 @@ describe('WhitelistedWebsitesManager', () => {
             { origins: ['*://*.mycustomsite.com/*'] },
             expect.any(Function)
         );
-        expect(chrome.scripting.registerContentScripts).toHaveBeenCalled();
+        expect(chrome.scripting.registerContentScripts).toHaveBeenCalledWith([
+            expect.objectContaining({
+                id: 'site-mycustomsite-com',
+                matches: ['*://*.mycustomsite.com/*'],
+                js: [
+                    "features/common/marked.min.js",
+                    "dist/fsrsScheduler.bundle.js",
+                    "content/content.js"
+                ],
+                css: ["features/highlighter/style.css"]
+            })
+        ], expect.any(Function));
     });
 
     it('handles adding new website when permission is declined', () => {

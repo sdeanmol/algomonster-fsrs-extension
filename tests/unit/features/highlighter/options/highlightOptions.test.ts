@@ -337,5 +337,17 @@ describe('HighlightOptionsManager', () => {
 
       expect(() => manager.saveSettings('Msg')).not.toThrow();
     });
+
+    it('UX-011: renders palette color slot delete buttons with accessible aria-label', () => {
+      manager.init();
+      manager.editorColors = ['#ff0000', '#00ff00', '#0000ff'];
+      manager.renderEditorSlots();
+
+      const deleteSlotBtns = document.querySelectorAll('#palette-slots-container .btn-danger');
+      expect(deleteSlotBtns.length).toBe(3);
+      expect(deleteSlotBtns[0].getAttribute('aria-label')).toBe('Remove color slot 1');
+      expect(deleteSlotBtns[1].getAttribute('aria-label')).toBe('Remove color slot 2');
+      expect(deleteSlotBtns[2].getAttribute('aria-label')).toBe('Remove color slot 3');
+    });
   });
 });

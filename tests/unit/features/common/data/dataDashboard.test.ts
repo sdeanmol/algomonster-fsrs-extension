@@ -75,6 +75,10 @@ describe('FSRSDataDashboard', () => {
 
       <div id="data-content"></div>
       <div id="empty-state" style="display: none;"></div>
+      <div id="undo-toast" style="display: none;">
+        <span id="undo-toast-text"></span>
+        <button id="undo-action-btn">Undo</button>
+      </div>
 
       <button id="toggle-analytics-btn">Analytics</button>
       <button id="export-json-btn">Export JSON</button>
@@ -569,6 +573,47 @@ describe('FSRSDataDashboard', () => {
       expect(() => dashboard.filterAndRender()).not.toThrow();
 
       document.getElementById = origGEBI;
+    });
+
+    it('UX-010: renders empty-state card with clear-filters action when no cards match filters', () => {
+      dashboard.allCards = [];
+      const tableHtml = dashboard.generateCardsTable([]);
+      expect(tableHtml).toContain('class="empty-state-card"');
+      expect(tableHtml).toContain('No Patterns Found');
+
+      dashboard.searchQuery = 'nonexistent';
+      const filteredHtml = dashboard.generateCardsTable([]);
+      expect(filteredHtml).toContain('No Matching Patterns');
+      expect(filteredHtml).toContain('id="empty-clear-filters-btn"');
+    });
+
+    it('UX-016: displays undo toast on card deletion and restores card on Undo click', () => {
+      dashboard.init();
+      dashboard.allCards = [...mockCards];
+      dashboard.filterAndRender();
+
+      expect(dashboard.allCards.length).toBe(2);
+
+      const deleteBtn = document.querySelector('.delete-card-btn[data-id="c1"]') as HTMLElement;
+      expect(deleteBtn).not.toBeNull();
+      deleteBtn.click();
+
+      // Card is deleted immediately
+      expect(dashboard.allCards.length).toBe(1);
+      expect(dashboard.allCards[0].id).toBe('c2');
+
+      // Undo toast is displayed
+      const undoToast = document.getElementById('undo-toast') as HTMLElement;
+      const undoBtn = document.getElementById('undo-action-btn') as HTMLElement;
+      expect(undoToast.style.display).toBe('flex');
+
+      // Click Undo
+      undoBtn.click();
+
+      // Card is restored
+      expect(dashboard.allCards.length).toBe(2);
+      expect(dashboard.allCards.some(c => c.id === 'c1')).toBe(true);
+      expect(undoToast.style.display).toBe('none');
     });
   });
 });

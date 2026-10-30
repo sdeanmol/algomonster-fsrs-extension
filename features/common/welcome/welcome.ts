@@ -13,7 +13,7 @@ export class OnboardingWelcome {
 
     constructor() {
         this.currentStep = 1;
-        this.totalSteps = 3;
+        this.totalSteps = 4;
     }
 
     /**

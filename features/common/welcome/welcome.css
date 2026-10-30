@@ -286,6 +286,29 @@ body {
     }
 }
 
+.pin-guide-box {
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 12px;
+    text-align: left;
+}
+
+.pin-step {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.pin-instructions {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--md-text-high);
+}
+
 /* R10.4 Reduced Motion Mode */
 @media (prefers-reduced-motion: reduce) {
     *, ::before, ::after {

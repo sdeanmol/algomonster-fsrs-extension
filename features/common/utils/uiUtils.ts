@@ -23,6 +23,33 @@ export class UIUtils {
     }
 
     /**
+     * Safely closes the current extension page or tab.
+     * Uses chrome.tabs.getCurrent and chrome.tabs.remove when available,
+     * falling back to window.close().
+     */
+    static closeCurrentTab(): void {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.tabs && typeof chrome.tabs.getCurrent === 'function') {
+                chrome.tabs.getCurrent((tab) => {
+                    if (tab && tab.id !== undefined) {
+                        chrome.tabs.remove(tab.id, () => {
+                            if (chrome.runtime?.lastError) {
+                                window.close();
+                            }
+                        });
+                    } else {
+                        window.close();
+                    }
+                });
+            } else {
+                window.close();
+            }
+        } catch {
+            window.close();
+        }
+    }
+
+    /**
      * Centralized error catching helper to reduce boilerplate in catch blocks.
      */
     static catchError(moduleName: string, contextMessage: string, err: unknown, metadata?: Record<string, unknown>): void {

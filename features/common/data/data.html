@@ -58,7 +58,7 @@
                 <div class="filter-group">
                     <label for="status-select">Status</label>
                     <select id="status-select" class="input-field select-field">
-                        <option value="all">All Cards</option>
+                        <option value="all">All Patterns</option>
                         <option value="due">Due for Review</option>
                         <option value="safe">Safe (Caught Up)</option>
                     </select>
@@ -178,6 +178,12 @@
                 <button id="edit-save-btn" class="btn btn-primary">Save Changes</button>
             </div>
         </div>
+    </div>
+
+    <div id="status-toast" class="toast"></div>
+    <div id="undo-toast" class="undo-toast" style="display: none;">
+        <span id="undo-toast-text"></span>
+        <button id="undo-action-btn" class="btn-undo">Undo</button>
     </div>
 
     <script src="data.js"></script>

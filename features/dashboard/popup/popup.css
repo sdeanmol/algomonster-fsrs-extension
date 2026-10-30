@@ -133,6 +133,16 @@ body {
     transform: scale(0.95);
 }
 
+.icon-btn:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+
+:root.light-theme .icon-btn:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
 /* Header Analytics Button Highlight */
 .analytics-header-btn {
     background: rgba(99, 102, 241, 0.15);
@@ -1218,6 +1228,11 @@ details[open] .details-summary .chevron {
 
 .data-btn:active {
     transform: scale(0.96);
+}
+
+.data-btn:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
 }
 
 .data-btn:hover {

@@ -401,5 +401,15 @@ describe('PomodoroTimer', () => {
       expect(() => document.getElementById('skip-btn')?.click()).not.toThrow();
       expect(() => document.getElementById('save-settings-btn')?.click()).not.toThrow();
     });
+
+    it('UX-011: start and pause buttons in pomodoro.html have accessible aria-labels', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const htmlPath = path.resolve(__dirname, '../../../../../features/dashboard/pomodoro/pomodoro.html');
+      const html = fs.readFileSync(htmlPath, 'utf8');
+
+      expect(html).toContain('id="start-btn" class="btn btn-primary btn-round" title="Start Timer" aria-label="Start Timer"');
+      expect(html).toContain('id="pause-btn" class="btn btn-secondary btn-round" style="display:none;" title="Pause Timer" aria-label="Pause Timer"');
+    });
   });
 });

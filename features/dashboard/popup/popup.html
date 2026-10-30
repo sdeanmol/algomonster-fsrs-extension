@@ -151,7 +151,7 @@
         <div class="popup-cards-layout">
             <div class="popup-column">
                 <!-- Gamification & Heatmap -->
-                <div class="card group-card">
+                <div id="activity-charts-card" class="card group-card">
                     <div class="card-header">
                         <h3 class="card-title">
                             <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
@@ -462,7 +462,7 @@
                         </svg>
                         Backup
                     </button>
-                    <label id="import-btn-label" class="data-btn danger">
+                    <label id="import-btn-label" class="data-btn danger" tabindex="0" role="button" aria-label="Restore backup from file">
                         <svg class="svg-icon" viewBox="0 0 24 24"
                             style="stroke: var(--md-danger); margin-right: 6px; width: 14px; height: 14px;"
                             aria-hidden="true">
@@ -484,7 +484,7 @@
                         </svg>
                         To Anki
                     </button>
-                    <label class="data-btn purple">
+                    <label id="anki-import-btn-label" class="data-btn purple" tabindex="0" role="button" aria-label="Import cards from Anki">
                         <svg class="svg-icon" viewBox="0 0 24 24"
                             style="stroke: #9b59b6; margin-right: 6px; width: 14px; height: 14px;" aria-hidden="true">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

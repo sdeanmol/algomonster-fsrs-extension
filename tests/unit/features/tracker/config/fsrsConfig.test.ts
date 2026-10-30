@@ -33,6 +33,11 @@ describe('FSRSConfigManager', () => {
 
     document.body.innerHTML = `
       <button id="back-to-popup-btn">Back</button>
+      <button id="mode-simple-btn" class="active"></button>
+      <button id="mode-advanced-btn"></button>
+      <div class="advanced-config-only" style="display: none;"></div>
+      <button class="preset-chip" data-retention="0.80">Relaxed</button>
+      <button class="preset-chip" data-retention="0.95">Intensive</button>
       <input id="retention-slider" type="range" min="0.7" max="0.99" step="0.01" value="0.90" />
       <span id="retention-val">90%</span>
       <input id="decay-input" value="-0.5" />
@@ -358,6 +363,39 @@ describe('FSRSConfigManager', () => {
       expect(() => manager.showToast('err', true)).not.toThrow();
 
       document.getElementById = origGEBI;
+    });
+
+    it('UX-013: switches between Simple and Advanced modes and handles preset chips', () => {
+      manager.init();
+      const simpleBtn = document.getElementById('mode-simple-btn') as HTMLElement;
+      const advancedBtn = document.getElementById('mode-advanced-btn') as HTMLElement;
+      const advSection = document.querySelector('.advanced-config-only') as HTMLElement;
+      const slider = document.getElementById('retention-slider') as HTMLInputElement;
+      const badge = document.getElementById('retention-val') as HTMLElement;
+
+      expect(manager.currentMode).toBe('simple');
+      expect(advSection.style.display).toBe('none');
+
+      // Click Advanced mode
+      advancedBtn.click();
+      expect(manager.currentMode).toBe('advanced');
+      expect(advSection.style.display).toBe('');
+      expect(advancedBtn.classList.contains('active')).toBe(true);
+      expect(simpleBtn.classList.contains('active')).toBe(false);
+
+      // Click Simple mode
+      simpleBtn.click();
+      expect(manager.currentMode).toBe('simple');
+      expect(advSection.style.display).toBe('none');
+      expect(simpleBtn.classList.contains('active')).toBe(true);
+      expect(advancedBtn.classList.contains('active')).toBe(false);
+
+      // Click preset chip (Relaxed 80%)
+      const relaxedChip = document.querySelector('.preset-chip[data-retention="0.80"]') as HTMLElement;
+      relaxedChip.click();
+      expect(slider.value).toBe('0.80');
+      expect(badge.textContent).toBe('80%');
+      expect(relaxedChip.classList.contains('active')).toBe(true);
     });
   });
 });

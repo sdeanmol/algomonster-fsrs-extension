@@ -614,6 +614,14 @@ class Tracker {
 
             
             container.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    container.style.display = 'none';
+                    launcher.style.display = 'flex';
+                    launcher.setAttribute('aria-expanded', 'false');
+                    launcher.focus();
+                    return;
+                }
                 if (e.key !== 'Tab') return;
                 const focusable = Array.from(
                     container.querySelectorAll<HTMLElement>('button, input, textarea, [tabindex]:not([tabindex="-1"])')
@@ -646,7 +654,7 @@ class Tracker {
             document.getElementById('fsrs-close-btn')?.addEventListener('click', () => {
                 try {
                     container.style.display = 'none';
-                    launcher.style.display = 'none';
+                    launcher.style.display = 'flex';
                     launcher.setAttribute('aria-expanded', 'false');
                     if (previouslyFocused) previouslyFocused.focus();
                 } catch (err) {

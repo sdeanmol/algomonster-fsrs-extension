@@ -9,6 +9,7 @@ import FsrsOptimizer from '../scheduler/fsrsOptimizer';
 import FsrsOptimizerFast from '../scheduler/fsrsOptimizerFast';
 import { Card, FSRSParameters, StorageData } from '../../../types/domain';
 import { Logger } from '@common/logger';
+import { UIUtils } from '@common/utils/uiUtils';
 
 export interface WeightHelpDetail {
     title: string;
@@ -30,8 +31,10 @@ export class FSRSConfigManager {
     public defaultRetention: number;
     public weightsHelpDetails: WeightHelpDetail[];
     public weightsHelp: string[];
+    public currentMode: 'simple' | 'advanced';
 
     constructor() {
+        this.currentMode = 'simple';
         this.defaultWeights = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
         this.defaultDecay = -0.5;
         this.defaultFactor = 0.234567;
@@ -143,14 +146,59 @@ export class FSRSConfigManager {
     }
 
     /**
+     * Toggles between Simple and Advanced configuration modes.
+     */
+    setMode(mode: 'simple' | 'advanced'): void {
+        this.currentMode = mode;
+        const simpleBtn = document.getElementById('mode-simple-btn');
+        const advancedBtn = document.getElementById('mode-advanced-btn');
+
+        if (mode === 'simple') {
+            simpleBtn?.classList.add('active');
+            simpleBtn?.setAttribute('aria-selected', 'true');
+            advancedBtn?.classList.remove('active');
+            advancedBtn?.setAttribute('aria-selected', 'false');
+            document.querySelectorAll<HTMLElement>('.advanced-config-only').forEach(el => {
+                el.style.display = 'none';
+            });
+        } else {
+            advancedBtn?.classList.add('active');
+            advancedBtn?.setAttribute('aria-selected', 'true');
+            simpleBtn?.classList.remove('active');
+            simpleBtn?.setAttribute('aria-selected', 'false');
+            document.querySelectorAll<HTMLElement>('.advanced-config-only').forEach(el => {
+                el.style.display = '';
+            });
+        }
+    }
+
+    /**
      * Registers control listeners for UI inputs.
      */
     bindEvents(): void {
         try {
+            const modeSimpleBtn = document.getElementById('mode-simple-btn');
+            const modeAdvancedBtn = document.getElementById('mode-advanced-btn');
+            if (modeSimpleBtn) modeSimpleBtn.addEventListener('click', () => this.setMode('simple'));
+            if (modeAdvancedBtn) modeAdvancedBtn.addEventListener('click', () => this.setMode('advanced'));
+
+            document.querySelectorAll('.preset-chip').forEach(chip => {
+                chip.addEventListener('click', (e: Event) => {
+                    const target = e.currentTarget as HTMLElement;
+                    const retentionStr = target.getAttribute('data-retention');
+                    if (retentionStr && slider && badge) {
+                        slider.value = retentionStr;
+                        badge.textContent = `${Math.round(parseFloat(retentionStr) * 100)}%`;
+                        document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+                        target.classList.add('active');
+                    }
+                });
+            });
+
             const backBtn = document.getElementById('back-to-popup-btn');
             if (backBtn) {
                 backBtn.addEventListener('click', () => {
-                    window.close();
+                    UIUtils.closeCurrentTab();
                 });
             }
 

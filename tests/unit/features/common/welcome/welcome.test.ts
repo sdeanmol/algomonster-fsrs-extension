@@ -21,10 +21,12 @@ describe('OnboardingWelcome', () => {
       <div id="step-1" class="step-card active">Step 1</div>
       <div id="step-2" class="step-card">Step 2</div>
       <div id="step-3" class="step-card">Step 3</div>
+      <div id="step-4" class="step-card">Step 4</div>
 
       <div id="dot-1" class="dot active"></div>
       <div id="dot-2" class="dot"></div>
       <div id="dot-3" class="dot"></div>
+      <div id="dot-4" class="dot"></div>
     `;
 
     jest.clearAllMocks();
@@ -56,7 +58,16 @@ describe('OnboardingWelcome', () => {
       // Click Next: Step 2 -> Step 3
       nextBtn.click();
       expect(welcome.currentStep).toBe(3);
+      expect(nextBtn.textContent).toBe('Next');
+
+      // Click Next: Step 3 -> Step 4
+      nextBtn.click();
+      expect(welcome.currentStep).toBe(4);
       expect(nextBtn.textContent).toBe('Explore Guide');
+
+      // Click Prev: Step 4 -> Step 3
+      prevBtn.click();
+      expect(welcome.currentStep).toBe(3);
 
       // Click Prev: Step 3 -> Step 2
       prevBtn.click();
@@ -73,12 +84,25 @@ describe('OnboardingWelcome', () => {
       (window as any).location = { href: '' };
 
       welcome.init();
-      welcome.goToStep(3);
+      welcome.goToStep(4);
 
       const nextBtn = document.getElementById('welcome-next-btn') as HTMLElement;
       nextBtn.click();
 
       expect(window.location.href).toBe('../help/help.html');
+    });
+
+    it('UX-007: renders step 4 with extension pinning guide and LeetCode start practicing link', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const htmlPath = path.resolve(__dirname, '../../../../../features/common/welcome/welcome.html');
+      const html = fs.readFileSync(htmlPath, 'utf8');
+
+      expect(html).toContain('id="step-4"');
+      expect(html).toContain('Pin Extension & Start Practicing!');
+      expect(html).toContain('id="start-practicing-btn"');
+      expect(html).toContain('https://leetcode.com/problemset/all/');
+      expect(html).toContain('id="welcome-docs-link"');
     });
   });
 

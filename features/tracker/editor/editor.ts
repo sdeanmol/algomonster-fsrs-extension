@@ -6,6 +6,7 @@
  */
 import { Markdown } from '@common/markdown';
 import { Logger } from '@common/logger';
+import { UIUtils } from '@common/utils/uiUtils';
 import { Card, StorageData } from '../../../types/domain';
 
 interface DraftEntry {
@@ -181,7 +182,7 @@ export class EditorManager {
         // Save & Close Button
         document.getElementById('save-close-btn')?.addEventListener('click', () => {
             this.saveContent(() => {
-                window.close();
+                UIUtils.closeCurrentTab();
             });
         });
 
@@ -190,7 +191,7 @@ export class EditorManager {
         if (headerBackBtn) {
             const closeHandler = () => {
                 this.saveContent(() => {
-                    window.close();
+                    UIUtils.closeCurrentTab();
                 });
             };
             headerBackBtn.addEventListener('click', closeHandler);

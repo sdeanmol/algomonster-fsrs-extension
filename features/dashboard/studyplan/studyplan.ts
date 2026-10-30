@@ -265,9 +265,14 @@ export class StudyPlanController {
         try {
             if (!confirm('Deactivate Exam Mode? This will restore all cards to their original FSRS-computed due dates.')) return;
 
-            this.allCards.forEach((card: Card & { originalDue?: number }) => {
+            const activatedAt = this.settings?.activatedAt || 0;
+            this.allCards.forEach((card: Card & { originalDue?: number; lastReview?: number }) => {
                 if (card.originalDue) {
-                    card.due = card.originalDue;
+                    const lastReviewTime = typeof card.lastReview === 'number' ? card.lastReview : (typeof card.last_review === 'number' ? card.last_review : 0);
+                    const wasReviewedDuringExam = !!(lastReviewTime && activatedAt > 0 && lastReviewTime >= activatedAt);
+                    if (!wasReviewedDuringExam) {
+                        card.due = card.originalDue;
+                    }
                     delete card.originalDue;
                 }
             });

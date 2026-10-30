@@ -338,5 +338,15 @@ describe('HighlightsManager', () => {
       manager.loadedMarks = mockMarks;
       expect(() => manager.exportHighlightsToMarkdown()).not.toThrow();
     });
+
+    it('UX-014: verifies status toast in highlights.html is empty by default', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const htmlPath = path.resolve(__dirname, '../../../../../features/highlighter/manager/highlights.html');
+      const html = fs.readFileSync(htmlPath, 'utf8');
+
+      expect(html).toContain('<div id="status-toast" class="toast"></div>');
+      expect(html).not.toContain('<div id="status-toast" class="toast">Text copied to clipboard!</div>');
+    });
   });
 });

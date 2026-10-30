@@ -89,7 +89,7 @@ describe('Tracker Floating Widget', () => {
 
     document.getElementById('fsrs-close-btn')?.click();
     expect(container.style.display).toBe('none');
-    expect(launcher.style.display).toBe('none');
+    expect(launcher.style.display).toBe('flex');
   });
 
   it('refreshes widget state for current problem page with existing card', () => {
@@ -625,6 +625,44 @@ describe('Tracker Floating Widget', () => {
       ];
       tracker.refreshWidgetState();
       expect(emptyHint?.style.display).toBe('none');
+    });
+
+    it('UX-002: close button minimizes the dialog and keeps launcher accessible', () => {
+      tracker.createUI();
+      const container = document.getElementById('algo-fsrs-container') as HTMLElement;
+      const launcher = document.getElementById('algo-fsrs-launcher') as HTMLElement;
+      const closeBtn = document.getElementById('fsrs-close-btn') as HTMLElement;
+
+      // Open container
+      launcher.click();
+      expect(container.style.display).toBe('block');
+      expect(launcher.style.display).toBe('none');
+
+      // Click close button
+      closeBtn.click();
+      expect(container.style.display).toBe('none');
+      expect(launcher.style.display).toBe('flex');
+      expect(launcher.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('UX-005: Escape key minimizes the dialog and restores launcher focus', () => {
+      tracker.createUI();
+      const container = document.getElementById('algo-fsrs-container') as HTMLElement;
+      const launcher = document.getElementById('algo-fsrs-launcher') as HTMLElement;
+
+      // Open container
+      launcher.click();
+      expect(container.style.display).toBe('block');
+      expect(launcher.style.display).toBe('none');
+
+      // Dispatch Escape key
+      const escEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+      container.dispatchEvent(escEvent);
+
+      expect(container.style.display).toBe('none');
+      expect(launcher.style.display).toBe('flex');
+      expect(launcher.getAttribute('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(launcher);
     });
   });
 });

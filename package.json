@@ -4,6 +4,7 @@
   "description": "FSRS Extension for AlgoMonster",
   "main": "test.js",
   "scripts": {
+    "build": "npm run build:chrome",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:unit": "jest tests/unit",

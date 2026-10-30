@@ -258,6 +258,8 @@ describe('StudyPlanController', () => {
       const cards = getFreshCards();
       cards[0].originalDue = 12345;
       cards[0].due = 99999;
+      cards[0].lastReview = 1000;
+      controller.settings = { isActive: true, examDate: '2026-12-01', dailyTarget: 5, activatedAt: 5000 };
       controller.allCards = cards;
 
       controller.deactivateExamMode();
@@ -265,6 +267,32 @@ describe('StudyPlanController', () => {
       expect(controller.allCards[0].due).toBe(12345);
       expect(controller.allCards[0].originalDue).toBeUndefined();
       expect(chrome.storage.local.set).toHaveBeenCalled();
+    });
+
+    it('UX-006: preserves newly computed due dates for cards reviewed during exam mode', () => {
+      const cards = getFreshCards();
+      // Card 0: reviewed during exam mode (lastReview >= activatedAt)
+      cards[0].originalDue = 10000;
+      cards[0].due = 88888;
+      cards[0].lastReview = 6000;
+
+      // Card 1: not reviewed during exam mode (lastReview < activatedAt)
+      cards[1].originalDue = 20000;
+      cards[1].due = 77777;
+      cards[1].lastReview = 4000;
+
+      controller.settings = { isActive: true, examDate: '2026-12-01', dailyTarget: 5, activatedAt: 5000 };
+      controller.allCards = cards;
+
+      controller.deactivateExamMode();
+
+      // Card 0 keeps its new due date
+      expect(controller.allCards[0].due).toBe(88888);
+      expect(controller.allCards[0].originalDue).toBeUndefined();
+
+      // Card 1 has its original due date restored
+      expect(controller.allCards[1].due).toBe(20000);
+      expect(controller.allCards[1].originalDue).toBeUndefined();
     });
 
     it('does not deactivate exam mode if confirm dialog is cancelled', () => {
