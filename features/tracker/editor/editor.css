@@ -49,6 +49,8 @@ body {
     user-select: none;
     display: inline-flex;
     align-items: center;
+    font-family: inherit;
+    outline: none;
 }
 .back-arrow:hover {
     background-color: #2c2e37;

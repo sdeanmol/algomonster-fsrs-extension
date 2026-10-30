@@ -579,11 +579,18 @@ input.tag-inline-input::placeholder {
     position: absolute;
     bottom: auto;
     top: -6px;
-    left: 20px;
+    left: var(--tooltip-caret-left, 20px);
     right: auto;
     border-width: 0 6px 6px;
     border-style: solid;
     border-color: transparent transparent var(--w-surface) transparent !important;
+}
+
+#algo-highlight-tooltip.caret-bottom::after {
+    top: auto;
+    bottom: -6px;
+    border-width: 6px 6px 0;
+    border-color: var(--w-surface) transparent transparent transparent !important;
 }
 
 .algo-color-swatch {

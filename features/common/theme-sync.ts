@@ -60,7 +60,14 @@ export class ThemeSync {
                             Logger.error('ThemeSync', `Error fetching theme from storage: ${errorMessage}`, { error: chrome.runtime.lastError });
                             return;
                         }
-                        this.applyTheme(result.theme || 'dark');
+                        if (!result.theme) {
+                            const prefersLight = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+                            const initialTheme = prefersLight ? 'light' : 'dark';
+                            this.applyTheme(initialTheme);
+                            chrome.storage.local.set({ theme: initialTheme });
+                        } else {
+                            this.applyTheme(result.theme);
+                        }
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('ThemeSync', `Error in theme storage get callback: ${errorMessage}`, { err });

@@ -645,7 +645,7 @@ body {
 }
 
 .goal-ring-label {
-    font-size: 9px;
+    font-size: 11px;
     color: var(--md-text-low);
     font-weight: 700;
     margin-top: 1px;
@@ -839,15 +839,15 @@ body {
 }
 
 .level-1 {
-    background-color: #0c3321;
+    background-color: color-mix(in srgb, var(--md-success) 25%, var(--md-surface-variant));
 }
 
 .level-2 {
-    background-color: #0e5630;
+    background-color: color-mix(in srgb, var(--md-success) 50%, var(--md-surface-variant));
 }
 
 .level-3 {
-    background-color: #178347;
+    background-color: color-mix(in srgb, var(--md-success) 75%, var(--md-surface-variant));
 }
 
 .level-4 {
@@ -1061,6 +1061,13 @@ input:checked+.slider:before {
     padding: 4px 8px;
     border-radius: 6px;
     font-size: 11px;
+    color-scheme: dark;
+}
+:root.light-theme .time-input {
+    color-scheme: light;
+}
+:root .time-input {
+    color-scheme: dark;
 }
 [data-theme="dark"] .time-input {
     color-scheme: dark;
@@ -1542,7 +1549,7 @@ details[open] .details-summary .chevron {
     }
 
     .stat-label {
-        font-size: 9px;
+        font-size: 11px;
         letter-spacing: 0.2px;
     }
 

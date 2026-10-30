@@ -100,6 +100,12 @@ export class RatingComponent extends DashboardComponent {
             } else {
                 card.classList.add('hide-panel');
             }
+
+            // UA-014: Consolidate store review CTAs — hide static review banner when prompt card is visible
+            const staticBanner = document.querySelector('.static-review-banner') as HTMLElement | null;
+            if (staticBanner) {
+                staticBanner.style.display = card.classList.contains('hide-panel') ? 'block' : 'none';
+            }
         } catch (error) {
             UIUtils.catchError('RatingComponent', 'Error loading rating prompt config', error);
         }
@@ -119,6 +125,11 @@ export class RatingComponent extends DashboardComponent {
 
             if (!card) return;
 
+            const updateStaticBanner = (show: boolean) => {
+                const staticBanner = document.querySelector('.static-review-banner') as HTMLElement | null;
+                if (staticBanner) staticBanner.style.display = show ? 'block' : 'none';
+            };
+
             if (snoozeBtn) {
                 snoozeBtn.addEventListener('click', async () => {
                     const snoozedUntil = Date.now() + 7 * 24 * 60 * 60 * 1000; // Snooze for 7 days
@@ -127,6 +138,7 @@ export class RatingComponent extends DashboardComponent {
                             ratingPromptState: { status: 'snoozed', snoozedUntil }
                         });
                         card.classList.add('hide-panel');
+                        updateStaticBanner(true);
                         this.showStatus("Notification paused for 7 days!");
                     } catch (error) {
             UIUtils.catchError('RatingComponent', 'Error saving snooze state', error);
@@ -142,6 +154,7 @@ export class RatingComponent extends DashboardComponent {
                         });
                         promptState?.classList.add('hide-panel');
                         thanksState?.classList.remove('hide-panel');
+                        updateStaticBanner(false);
                         this.showStatus("Thank you for your rating!");
                     } catch (error) {
             UIUtils.catchError('RatingComponent', 'Error setting already rated status', error);

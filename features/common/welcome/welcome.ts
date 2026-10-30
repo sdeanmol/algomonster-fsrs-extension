@@ -79,6 +79,15 @@ export class OnboardingWelcome {
                 }
             });
 
+            const skipBtn = document.getElementById('welcome-skip-btn');
+            skipBtn?.addEventListener('click', () => {
+                try {
+                    window.close();
+                } catch (err) {
+                    UIUtils.catchError('Onboarding', 'Error skipping onboarding tour', err);
+                }
+            });
+
             const enableBtn = document.getElementById('welcome-enable-btn');
             enableBtn?.addEventListener('click', () => {
                 if (typeof Notification !== 'undefined') {

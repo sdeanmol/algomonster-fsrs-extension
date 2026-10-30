@@ -196,13 +196,15 @@ body {
 }
 
 .btn-primary {
-    background-color: var(--md-primary-container);
-    color: var(--md-on-primary-container);
-    border: 1px solid rgba(168, 199, 250, 0.2);
+    background: linear-gradient(135deg, var(--md-primary), #1a73e8);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(168, 199, 250, 0.25);
+    border: none;
 }
 
 .btn-primary:hover {
-    background-color: #244985;
+    box-shadow: 0 6px 16px rgba(168, 199, 250, 0.4);
+    transform: translateY(-1px);
 }
 
 .btn-secondary {

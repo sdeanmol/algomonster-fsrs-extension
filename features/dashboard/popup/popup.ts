@@ -218,6 +218,7 @@ export class AlgoRecallDashboard {
                             : true;
                         if (this.dom.chartsToggle) {
                             this.dom.chartsToggle.checked = showCharts;
+                            this.dom.chartsToggle.setAttribute('aria-checked', showCharts.toString());
                         }
                     } catch (err) {
             UIUtils.catchError('Popup', 'Error rendering charts toggle setting', err);
@@ -226,6 +227,7 @@ export class AlgoRecallDashboard {
                 this.dom.chartsToggle.addEventListener('change', async (e: Event) => {
                     try {
                         const target = e.target as HTMLInputElement;
+                        target.setAttribute('aria-checked', target.checked.toString());
                         const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
                         const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
                         settings.showCharts = target.checked;
@@ -252,6 +254,7 @@ export class AlgoRecallDashboard {
                             : false;
                         if (this.dom.devModeToggle) {
                             this.dom.devModeToggle.checked = devMode;
+                            this.dom.devModeToggle.setAttribute('aria-checked', devMode.toString());
                         }
                         if (this.dom.devModeActions) {
                             this.dom.devModeActions.style.display = devMode ? 'block' : 'none';
@@ -271,6 +274,7 @@ export class AlgoRecallDashboard {
                 this.dom.devModeToggle.addEventListener('change', async (e: Event) => {
                     try {
                         const target = e.target as HTMLInputElement;
+                        target.setAttribute('aria-checked', target.checked.toString());
                         const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
                         const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
                         settings.developerMode = target.checked;
@@ -296,6 +300,31 @@ export class AlgoRecallDashboard {
             UIUtils.catchError('Popup', 'Error setting developerMode config', error);
         }
                 });
+
+                // Weekly summary digest switch setup
+                if (this.dom.weeklyDigestToggle) {
+                    chrome.storage.local.get(['weeklySummaryEnabled'], (result: { weeklySummaryEnabled?: boolean }) => {
+                        try {
+                            const enabled = result.weeklySummaryEnabled !== false;
+                            if (this.dom.weeklyDigestToggle) {
+                                this.dom.weeklyDigestToggle.checked = enabled;
+                                this.dom.weeklyDigestToggle.setAttribute('aria-checked', enabled.toString());
+                            }
+                        } catch (err) {
+                            UIUtils.catchError('Popup', 'Error rendering weekly digest toggle setting', err);
+                        }
+                    });
+                    this.dom.weeklyDigestToggle.addEventListener('change', async (e: Event) => {
+                        try {
+                            const target = e.target as HTMLInputElement;
+                            target.setAttribute('aria-checked', target.checked.toString());
+                            await chrome.storage.local.set({ weeklySummaryEnabled: target.checked });
+                            this.showStatus(`Weekly digest ${target.checked ? 'enabled' : 'disabled'}!`);
+                        } catch (err) {
+                            UIUtils.catchError('Popup', 'Error setting weeklySummaryEnabled config', err);
+                        }
+                    });
+                }
 
                 if (this.dom.exportDebugLogsBtn) {
                     this.dom.exportDebugLogsBtn.addEventListener('click', () => {
@@ -483,6 +512,37 @@ export class AlgoRecallDashboard {
             UIUtils.catchError('Popup', 'Error navigating to summary.html', err);
         }
             });
+
+            // UA-029: Manual Check Reviews Now trigger
+            const checkNowBtn = document.getElementById('check-now-btn');
+            if (checkNowBtn) {
+                checkNowBtn.addEventListener('click', async () => {
+                    try {
+                        checkNowBtn.setAttribute('disabled', 'true');
+                        chrome.runtime.sendMessage({ action: 'check_due_cards_now' }, (response) => {
+                            checkNowBtn.removeAttribute('disabled');
+                            if (response && response.success) {
+                                const count = typeof response.dueCount === 'number' ? response.dueCount : 0;
+                                this.showStatus(`Checked! ${count} review${count === 1 ? '' : 's'} due.`);
+                            } else {
+                                this.showStatus('Checked for due reviews.');
+                            }
+                            this.loadAll();
+                        });
+                    } catch (err) {
+                        checkNowBtn.removeAttribute('disabled');
+                        UIUtils.catchError('Popup', 'Error checking due cards manually', err);
+                    }
+                });
+            }
+
+            // UA-010: Safari notification capability guard
+            if (!BROWSER_CONFIG.supportsNotifications) {
+                const notifCard = document.getElementById('notification-settings-card');
+                if (notifCard) {
+                    notifCard.style.display = 'none';
+                }
+            }
 
             // Standard JSON database backup export logic
             if (this.dom.exportBtn) {

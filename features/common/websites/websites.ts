@@ -188,8 +188,9 @@ export class WhitelistedWebsitesManager {
                         return;
                     }
 
-                    // Request host permission
+                    // Request host permission with clear user notice
                     const originPattern = `*://*.${hostname}/*`;
+                    UIUtils.showToast(`Requesting permission to run on ${hostname}...`);
 
                     chrome.permissions.request({
                         origins: [originPattern]

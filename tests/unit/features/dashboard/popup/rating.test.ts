@@ -18,6 +18,9 @@ describe('RatingComponent (Popup)', () => {
         <button id="already-rated-btn">Already Rated</button>
         <button id="edit-rating-btn">Edit Rating</button>
       </div>
+      <div class="static-review-banner">
+        <a id="static-review-link" href="#">Rate</a>
+      </div>
     `;
 
     mockCoordinator = {
@@ -197,6 +200,24 @@ describe('RatingComponent (Popup)', () => {
       expect(() => component.bindEvents()).not.toThrow();
 
       document.getElementById = origGEBI;
+    });
+
+    it('UA-014: consolidates review CTAs by hiding static banner when prompt card is visible', async () => {
+      await component.load();
+      component.bindEvents();
+
+      const promptCard = document.getElementById('rating-prompt-card');
+      const staticBanner = document.querySelector('.static-review-banner') as HTMLElement;
+
+      expect(promptCard?.classList.contains('hide-panel')).toBe(false);
+      expect(staticBanner.style.display).toBe('none');
+
+      const snoozeBtn = document.getElementById('snooze-rate-btn');
+      snoozeBtn?.click();
+      await Promise.resolve();
+
+      expect(promptCard?.classList.contains('hide-panel')).toBe(true);
+      expect(staticBanner.style.display).toBe('block');
     });
   });
 });

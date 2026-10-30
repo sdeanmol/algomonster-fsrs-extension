@@ -247,6 +247,11 @@ class Tracker {
             const targetCleanUrl = cleanUrl(window.location.href);
             const urlCards = getCardsForUrl(this.state.cards, targetCleanUrl);
 
+            const emptyHint = document.getElementById('fsrs-empty-url-hint');
+            if (emptyHint) {
+                emptyHint.style.display = urlCards.length === 0 ? 'block' : 'none';
+            }
+
             // Determine active card
             if (this.activeCardId === '__new__') {
                 // Explicitly on "+ New Card" tab
@@ -433,11 +438,14 @@ class Tracker {
                     </div>
                 </div>
                 <div id="fsrs-nav-bar" style="display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: rgba(0,0,0,0.25); border-bottom: 1px solid rgba(255,255,255,0.08); overflow-x: auto;"></div>
+                <div id="fsrs-empty-url-hint" style="display: none; padding: 6px 12px; font-size: 11px; color: var(--md-text-low, #888); background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.06);">
+                    No cards tracked for this problem yet. Add your initial approach notes below to start!
+                </div>
 
                 <div id="fsrs-body">
                     <div class="fsrs-tags-container">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                        <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" aria-label="Tags" placeholder="Add tags (comma separated)..." value="${autoTagsStr}">
+                        <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" aria-label="Add tags" placeholder="Add tags (comma separated)..." value="${autoTagsStr}">
                     </div>
                     
                     <div class="fsrs-approach-header">

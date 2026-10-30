@@ -617,6 +617,11 @@ describe('BackgroundServiceWorker', () => {
   });
 
   it('resets pomodoro on reset command', async () => {
+    (chrome.storage.local.get as any).mockImplementation((keys: any, cb?: any) => {
+      const data = { fsrsCards: [] };
+      if (typeof cb === 'function') cb(data);
+      return Promise.resolve(data);
+    });
     const spy = jest.spyOn(worker, 'stopPomodoroTick');
     await worker.handlePomodoroAction({
       command: 'reset',
@@ -628,6 +633,11 @@ describe('BackgroundServiceWorker', () => {
   });
 
   it('skips pomodoro on skip command', async () => {
+    (chrome.storage.local.get as any).mockImplementation((keys: any, cb?: any) => {
+      const data = { fsrsCards: [] };
+      if (typeof cb === 'function') cb(data);
+      return Promise.resolve(data);
+    });
     await worker.handlePomodoroAction({
       command: 'skip',
       state: { state: 'idle', phase: 'shortBreak', targetEndTime: 0, currentSession: 2 }
@@ -817,6 +827,50 @@ describe('BackgroundServiceWorker', () => {
 
     // We make sure it doesn't crash the background worker
     await expect(worker.checkDueCards()).resolves.not.toThrow();
+  });
+
+  describe('Usability Audit Fixes (UA-024, UA-029)', () => {
+    it('UA-024: updates action badge with due cards count when pomodoro is idle', async () => {
+      const dueCards = [
+        { id: 'c1', due: Date.now() - 5000 },
+        { id: 'c2', due: Date.now() - 10000 }
+      ];
+      (chrome.storage.local.get as any).mockImplementation((keys: any, cb?: any) => {
+        const data = { fsrsCards: dueCards };
+        if (typeof cb === 'function') cb(data);
+        return Promise.resolve(data);
+      });
+
+      const dueCount = await worker.updateDueCardsBadge();
+      expect(dueCount).toBe(2);
+      expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '2' });
+      expect(chrome.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#1a73e8' });
+
+      // When 0 cards are due
+      (chrome.storage.local.get as any).mockImplementation((keys: any, cb?: any) => {
+        const data = { fsrsCards: [] };
+        if (typeof cb === 'function') cb(data);
+        return Promise.resolve(data);
+      });
+      const zeroCount = await worker.updateDueCardsBadge();
+      expect(zeroCount).toBe(0);
+      expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '' });
+    });
+
+    it('UA-029: handles check_due_cards_now message action', async () => {
+      const sendResponse = jest.fn();
+      jest.spyOn(worker, 'checkDueCards').mockResolvedValue(undefined);
+      jest.spyOn(worker, 'updateDueCardsBadge').mockResolvedValue(1);
+
+      const handled = worker.handleMessage({ action: 'check_due_cards_now' }, {} as any, sendResponse);
+      expect(handled).toBe(true);
+
+      // flush promise microtasks
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ success: true, dueCount: 1 }));
+    });
   });
 });
 });

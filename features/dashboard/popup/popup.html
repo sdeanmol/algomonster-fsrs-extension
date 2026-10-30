@@ -263,7 +263,7 @@
                 </div>
 
                 <!-- Notification Settings -->
-                <div class="card notification-card">
+                <div class="card notification-card" id="notification-settings-card">
                     <div class="card-header"
                         style="display: flex; justify-content: space-between; align-items: center;">
                         <h3 class="card-title" style="color: var(--md-danger);">
@@ -292,7 +292,7 @@
                     <div class="setting-row">
                         <label for="toggle-notifications" class="setting-label">Review Reminders</label>
                         <label class="switch">
-                            <input type="checkbox" id="toggle-notifications" role="switch" checked>
+                            <input type="checkbox" id="toggle-notifications" role="switch" checked aria-checked="true">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -318,14 +318,14 @@
                     <div class="setting-row">
                         <span class="setting-label">Sticky Notification</span>
                         <label class="switch">
-                            <input type="checkbox" id="toggle-sticky-notification" role="switch" checked>
+                            <input type="checkbox" id="toggle-sticky-notification" role="switch" checked aria-checked="true">
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="setting-row">
                         <span class="setting-label">Quiet Hours</span>
                         <label class="switch">
-                            <input type="checkbox" id="toggle-quiet-hours" role="switch">
+                            <input type="checkbox" id="toggle-quiet-hours" role="switch" aria-checked="false">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -340,9 +340,18 @@
                     <div class="setting-row">
                         <span class="setting-label">Weekly Digest</span>
                         <label class="switch">
-                            <input type="checkbox" id="toggle-weekly-digest" role="switch" checked>
+                            <input type="checkbox" id="toggle-weekly-digest" role="switch" checked aria-checked="true">
                             <span class="slider"></span>
                         </label>
+                    </div>
+                    <div class="button-row" style="margin-top: 10px;">
+                        <button id="check-now-btn" class="btn btn-secondary flex-1" title="Check for due reviews immediately" aria-label="Check for due reviews immediately">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;" aria-hidden="true">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                            </svg>
+                            Check Due Reviews Now
+                        </button>
                     </div>
                     <div id="test-notifications-container" class="button-row"
                         style="display: none; flex-direction: column; gap: 8px;">
@@ -391,7 +400,7 @@
                 <div class="setting-row" style="margin-top: 8px;">
                     <label for="toggle-show-charts" class="setting-label">Show Analytics & Charts</label>
                     <label class="switch">
-                        <input type="checkbox" id="toggle-show-charts" role="switch" checked>
+                        <input type="checkbox" id="toggle-show-charts" role="switch" checked aria-checked="true">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -399,7 +408,7 @@
                 <div class="setting-row" style="margin-top: 8px;">
                     <label for="toggle-dev-mode" class="setting-label">Developer Mode</label>
                     <label class="switch">
-                        <input type="checkbox" id="toggle-dev-mode" role="switch">
+                        <input type="checkbox" id="toggle-dev-mode" role="switch" aria-checked="false">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -506,7 +515,7 @@
 
         <footer class="footer-modern">
             <p>AlgoRecall: 100% Private, Local-First.</p>
-            <a href="../../common/help/help.html?tab=privacy" target="_blank">Privacy Policy</a>
+            <a href="../../common/help/help.html?tab=privacy" target="_blank">Help & Privacy</a>
         </footer>
     </div>
 

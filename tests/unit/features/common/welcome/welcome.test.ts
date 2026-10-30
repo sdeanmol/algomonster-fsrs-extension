@@ -12,6 +12,7 @@ describe('OnboardingWelcome', () => {
       <button id="welcome-enable-btn">Enable</button>
 
       <button id="welcome-prev-btn" class="invisible">Prev</button>
+      <button id="welcome-skip-btn">Skip</button>
       <button id="welcome-next-btn">Next</button>
 
       <button id="set-dark-btn">Dark</button>
@@ -272,6 +273,15 @@ describe('OnboardingWelcome', () => {
       expect(() => welcome.setActiveThemeButton('dark')).not.toThrow();
 
       document.getElementById = origGEBI;
+    });
+
+    it('UA-032: closes window when skip button is clicked', () => {
+      (window as any).close = jest.fn();
+      welcome.init();
+
+      const skipBtn = document.getElementById('welcome-skip-btn') as HTMLElement;
+      skipBtn.click();
+      expect(window.close).toHaveBeenCalled();
     });
   });
 });

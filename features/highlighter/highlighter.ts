@@ -310,6 +310,7 @@ export class Highlighter {
         
         let left = x;
         let top = y;
+        let isFlippedAbove = false;
 
         if (left + tooltipRect.width > window.scrollX + window.innerWidth) {
             left = window.scrollX + window.innerWidth - tooltipRect.width - 15;
@@ -318,11 +319,24 @@ export class Highlighter {
 
         if (top + tooltipRect.height > window.scrollY + window.innerHeight) {
             top = fallbackTop - tooltipRect.height - 10;
+            isFlippedAbove = true;
         }
         if (top < window.scrollY + 5) top = window.scrollY + 5;
 
         tooltip.style.left = `${left}px`;
         tooltip.style.top = `${top}px`;
+
+        // Compute dynamic caret horizontal position relative to anchor x
+        const relativeX = x - left;
+        const width = tooltipRect.width > 0 ? tooltipRect.width : 200;
+        const caretLeft = Math.min(Math.max(relativeX, 16), width - 16);
+        tooltip.style.setProperty('--tooltip-caret-left', `${caretLeft}px`);
+
+        if (isFlippedAbove) {
+            tooltip.classList.add('caret-bottom');
+        } else {
+            tooltip.classList.remove('caret-bottom');
+        }
     }
 
     handleMouseMove(_e: MouseEvent): void {
@@ -452,6 +466,14 @@ export class Highlighter {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         handleSwatchClick();
+                    } else if (e.key === 'ArrowRight') {
+                        e.preventDefault();
+                        const next = swatch.nextElementSibling as HTMLElement | null;
+                        if (next && typeof next.focus === 'function') next.focus();
+                    } else if (e.key === 'ArrowLeft') {
+                        e.preventDefault();
+                        const prev = swatch.previousElementSibling as HTMLElement | null;
+                        if (prev && typeof prev.focus === 'function') prev.focus();
                     }
                 });
                 actionsContainer.appendChild(swatch);
@@ -492,6 +514,14 @@ export class Highlighter {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     handleDefaultSwatchClick();
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    const next = defaultSwatch.nextElementSibling as HTMLElement | null;
+                    if (next && typeof next.focus === 'function') next.focus();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    const prev = defaultSwatch.previousElementSibling as HTMLElement | null;
+                    if (prev && typeof prev.focus === 'function') prev.focus();
                 }
             });
             actionsContainer.appendChild(defaultSwatch);

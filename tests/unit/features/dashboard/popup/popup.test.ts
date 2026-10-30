@@ -59,6 +59,8 @@ describe('AlgoRecallDashboard (Popup)', () => {
       <button id="pomodoro-btn"></button>
       <button id="open-summary-page-btn"></button>
       <input id="toggle-weekly-digest" type="checkbox" />
+      <button id="check-now-btn"></button>
+      <div id="notification-settings-card"></div>
       <span id="status-msg"></span>
       <div id="dev-mode-actions" style="display: none;"></div>
       <button id="export-debug-logs-btn"></button>
@@ -612,6 +614,52 @@ describe('AlgoRecallDashboard (Popup)', () => {
       }));
 
       expect(() => ankiFileInput.dispatchEvent(new Event('change'))).not.toThrow();
+    });
+  });
+
+  describe('Usability Audit Fixes (UA-002, UA-010, UA-029)', () => {
+    it('UA-029: triggers manual review check via check-now-btn and shows status', async () => {
+      await dashboard.init();
+      const checkNowBtn = document.getElementById('check-now-btn') as HTMLElement;
+      expect(checkNowBtn).not.toBeNull();
+
+      (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg: any, cb?: any) => {
+        if (msg.action === 'check_due_cards_now' && cb) {
+          cb({ success: true, dueCount: 3 });
+        }
+      });
+
+      checkNowBtn.click();
+      const statusMsg = document.getElementById('status-msg');
+      expect(statusMsg?.textContent).toContain('Checked! 3 reviews due.');
+    });
+
+    it('UA-002: sets and syncs aria-checked attribute on switch toggles', async () => {
+      await dashboard.init();
+      const chartsToggle = document.getElementById('toggle-show-charts') as HTMLInputElement;
+      expect(chartsToggle.getAttribute('aria-checked')).toBe('true');
+
+      chartsToggle.checked = false;
+      chartsToggle.dispatchEvent(new Event('change'));
+      expect(chartsToggle.getAttribute('aria-checked')).toBe('false');
+
+      const weeklyToggle = document.getElementById('toggle-weekly-digest') as HTMLInputElement;
+      expect(weeklyToggle.getAttribute('aria-checked')).toBe('true');
+      weeklyToggle.checked = false;
+      weeklyToggle.dispatchEvent(new Event('change'));
+      expect(weeklyToggle.getAttribute('aria-checked')).toBe('false');
+    });
+
+    it('UA-010: hides notification settings card on Safari builds', async () => {
+      const BROWSER_CONFIG = require('../../../../../features/common/browserConfig').BROWSER_CONFIG;
+      const origSupports = BROWSER_CONFIG.supportsNotifications;
+      BROWSER_CONFIG.supportsNotifications = false;
+
+      await dashboard.init();
+      const notifCard = document.getElementById('notification-settings-card') as HTMLElement;
+      expect(notifCard.style.display).toBe('none');
+
+      BROWSER_CONFIG.supportsNotifications = origSupports;
     });
   });
 });

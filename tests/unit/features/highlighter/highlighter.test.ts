@@ -1042,4 +1042,38 @@ describe('Highlighter Component', () => {
     (chrome as any).runtime.id = origId;
   });
 
+  it('UA-028: navigates between swatches with ArrowRight and ArrowLeft keys', () => {
+    highlighter.createHighlighterUI();
+    highlighter.renderTooltipColors(null, null);
+
+    const swatches = document.querySelectorAll('.algo-color-swatch');
+    expect(swatches.length).toBeGreaterThan(1);
+
+    const firstSwatch = swatches[0] as HTMLElement;
+    const secondSwatch = swatches[1] as HTMLElement;
+    const focusSpy = jest.spyOn(secondSwatch, 'focus');
+
+    firstSwatch.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    expect(focusSpy).toHaveBeenCalled();
+
+    const prevFocusSpy = jest.spyOn(firstSwatch, 'focus');
+    secondSwatch.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    expect(prevFocusSpy).toHaveBeenCalled();
+  });
+
+  it('UA-030: dynamically calculates --tooltip-caret-left and toggles caret-bottom in positionTooltip', () => {
+    highlighter.createHighlighterUI();
+    const tooltip = document.getElementById('algo-highlight-tooltip') as HTMLElement;
+
+    // Normal position (below selection)
+    highlighter.positionTooltip(tooltip, 150, 200, 180);
+    expect(tooltip.style.left).toBe('150px');
+    expect(tooltip.style.getPropertyValue('--tooltip-caret-left')).toBeDefined();
+    expect(tooltip.classList.contains('caret-bottom')).toBe(false);
+
+    // Flipped position (near bottom edge, above selection)
+    highlighter.positionTooltip(tooltip, 150, window.innerHeight + 500, 180);
+    expect(tooltip.classList.contains('caret-bottom')).toBe(true);
+  });
+
 });

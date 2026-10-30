@@ -70,6 +70,7 @@ export class AlgoRecallBackground {
         try {
             this.bindEvents();
             await this.resumePomodoroBackground();
+            await this.updateDueCardsBadge();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Failed background initialization: ${errorMessage}`, { err });
@@ -349,6 +350,9 @@ export class AlgoRecallBackground {
             if (areaName === 'local' && changes.weeklySummaryEnabled) {
                 await this.setupWeeklySummaryAlarm();
             }
+            if (areaName === 'local' && changes.fsrsCards) {
+                await this.updateDueCardsBadge();
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Error handling storage change: ${errorMessage}`, { changes, areaName, err });
@@ -367,6 +371,21 @@ export class AlgoRecallBackground {
             return false;
         }
         Logger.debug('Background', `Received message: ${message.action}`, { senderId: sender.id, tabId: sender.tab?.id });
+
+        if (message.action === 'check_due_cards_now') {
+            (async () => {
+                try {
+                    await this.checkDueCards('manual');
+                    const dueCount = await this.updateDueCardsBadge();
+                    sendResponse({ success: true, dueCount });
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('Background', `Error in check_due_cards_now: ${errorMessage}`, { err });
+                    sendResponse({ success: false, error: errorMessage });
+                }
+            })();
+            return true;
+        }
 
         if (message.action === 'test_notification') {
             (async () => {
@@ -725,6 +744,46 @@ export class AlgoRecallBackground {
             // Comment: Non-fatal error during due card check, background worker recovers cleanly
         } finally {
             this.isCheckingDueCards = false;
+            await this.updateDueCardsBadge();
+        }
+    }
+
+    /**
+     * UA-024: Updates the extension action icon badge to reflect current due reviews.
+     * Yields to active Pomodoro sessions when running.
+     */
+    async updateDueCardsBadge(): Promise<number> {
+        try {
+            if (typeof chrome === 'undefined' || !chrome.action) return 0;
+            if (this.pomodoroIntervalId !== null) {
+                return 0;
+            }
+
+            const result = (await chrome.storage.local.get(['fsrsCards', 'pomodoroState'])) as {
+                fsrsCards?: Card[];
+                pomodoroState?: PomodoroState;
+            };
+            if (result.pomodoroState && result.pomodoroState.state === 'running') {
+                return 0;
+            }
+
+            const cards = result.fsrsCards || [];
+            const now = Date.now();
+            const dueCount = cards.filter((c: Card) => c.due <= now).length;
+
+            if (dueCount > 0) {
+                chrome.action.setBadgeText({ text: String(dueCount) });
+                chrome.action.setBadgeBackgroundColor({ color: '#1a73e8' });
+                chrome.action.setTitle({ title: `AlgoRecall: ${dueCount} review${dueCount === 1 ? '' : 's'} due` });
+            } else {
+                chrome.action.setBadgeText({ text: '' });
+                chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
+            }
+            return dueCount;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Background', `Error updating due cards badge: ${errorMessage}`, { err });
+            return 0;
         }
     }
 
@@ -1004,8 +1063,7 @@ export class AlgoRecallBackground {
                 this._lastPomodoroColor = null;
 
                 if (command === 'reset' || command === 'skip') {
-                    chrome.action.setBadgeText({ text: '' });
-                    chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
+                    await this.updateDueCardsBadge();
                 } else if (command === 'pause') {
                     chrome.action.setBadgeBackgroundColor({ color: '#95a5a6' });
                     chrome.action.setTitle({ title: 'AlgoRecall (Paused)' });
@@ -1142,8 +1200,7 @@ export class AlgoRecallBackground {
                 settingsNotif.requireInteraction !== false
             );
 
-            chrome.action.setBadgeText({ text: '' });
-            chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
+            await this.updateDueCardsBadge();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Error handling pomodoro end: ${errorMessage}`, { err });

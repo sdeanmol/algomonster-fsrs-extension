@@ -75,11 +75,14 @@ export class NotificationsComponent extends DashboardComponent {
             try {
                 if (!notifToggle) return;
                 notifToggle.checked = settings.enabled !== false;
+                notifToggle.setAttribute('aria-checked', notifToggle.checked.toString());
                 if (notifStickyToggle) {
                     notifStickyToggle.checked = settings.requireInteraction !== false;
+                    notifStickyToggle.setAttribute('aria-checked', notifStickyToggle.checked.toString());
                 }
                 if (quietToggle) {
                     quietToggle.checked = settings.quietHoursEnabled === true;
+                    quietToggle.setAttribute('aria-checked', quietToggle.checked.toString());
                     if (quietContainer) quietContainer.classList.toggle('hide-panel', !settings.quietHoursEnabled);
                 }
                 if (quietStart && settings.quietHoursStart) quietStart.value = settings.quietHoursStart;
@@ -178,6 +181,10 @@ export class NotificationsComponent extends DashboardComponent {
                         quietHoursStart: quietStart ? quietStart.value : '23:00',
                         quietHoursEnd: quietEnd ? quietEnd.value : '07:00'
                     };
+
+                    if (notifToggle) notifToggle.setAttribute('aria-checked', notifToggle.checked.toString());
+                    if (notifStickyToggle) notifStickyToggle.setAttribute('aria-checked', notifStickyToggle.checked.toString());
+                    if (quietToggle) quietToggle.setAttribute('aria-checked', quietToggle.checked.toString());
 
                     await chrome.storage.local.set({ notificationSettings: updatedSettings });
                 } catch (error) {

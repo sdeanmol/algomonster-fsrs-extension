@@ -252,6 +252,11 @@ body {
     color: var(--md-danger);
 }
 
+.status-badge.pending {
+    background-color: var(--md-surface-variant);
+    color: var(--md-text-med);
+}
+
 /* Navigation Actions */
 .welcome-actions {
     display: flex;

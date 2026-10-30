@@ -87,7 +87,7 @@
                     </div>
                     <div class="notif-status-row" style="margin-bottom: 12px;">
                         <span class="status-label">OS Permission:</span>
-                        <span id="welcome-notif-status" class="status-badge error">Disabled</span>
+                        <span id="welcome-notif-status" class="status-badge pending">Disabled</span>
                     </div>
                     <button id="welcome-enable-btn" class="btn btn-primary w-full">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -98,8 +98,9 @@
         </div>
 
         <!-- Navigation Controls -->
-        <div class="welcome-actions">
+        <div class="welcome-actions" style="display: flex; align-items: center; justify-content: space-between;">
             <button id="welcome-prev-btn" class="btn btn-secondary invisible">Back</button>
+            <button id="welcome-skip-btn" class="btn btn-link" style="color: var(--md-text-low); font-size: 13px; text-decoration: underline; background: none; border: none; cursor: pointer;">Skip Tour</button>
             <button id="welcome-next-btn" class="btn btn-primary">Next</button>
         </div>
     </div>

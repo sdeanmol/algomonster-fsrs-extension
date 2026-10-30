@@ -608,6 +608,24 @@ describe('Tracker Floating Widget', () => {
       expect(() => tracker.createUI()).not.toThrow();
       document.createElement = origCreate;
     });
+
+    it('UA-009 & UA-021: sets accessible aria-label on tag input and shows empty hint when no cards exist', () => {
+      tracker.createUI();
+      const tagInput = document.getElementById('fsrs-tags-input') as HTMLInputElement;
+      expect(tagInput.getAttribute('aria-label')).toBe('Add tags');
+
+      tracker.state.cards = [];
+      tracker.refreshWidgetState();
+      const emptyHint = document.getElementById('fsrs-empty-url-hint');
+      expect(emptyHint).not.toBeNull();
+      expect(emptyHint?.style.display).toBe('block');
+
+      tracker.state.cards = [
+        { id: 'c1', problemTitle: 'Two Sum', problemUrl: 'https://algo.monster/problems/two_sum' } as Card
+      ];
+      tracker.refreshWidgetState();
+      expect(emptyHint?.style.display).toBe('none');
+    });
   });
 });
 
