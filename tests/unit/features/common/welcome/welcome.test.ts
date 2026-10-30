@@ -21,7 +21,10 @@ describe('OnboardingWelcome', () => {
       <div id="step-1" class="step-card active">Step 1</div>
       <div id="step-2" class="step-card">Step 2</div>
       <div id="step-3" class="step-card">Step 3</div>
-      <div id="step-4" class="step-card">Step 4</div>
+      <div id="step-4" class="step-card">
+        Step 4
+        <div id="welcome-pin-instructions"></div>
+      </div>
 
       <div id="dot-1" class="dot active"></div>
       <div id="dot-2" class="dot"></div>
@@ -103,6 +106,15 @@ describe('OnboardingWelcome', () => {
       expect(html).toContain('id="start-practicing-btn"');
       expect(html).toContain('https://leetcode.com/problemset/all/');
       expect(html).toContain('id="welcome-docs-link"');
+      expect(html).not.toContain("Chrome's top right toolbar");
+      expect(html).toContain("your browser's toolbar");
+    });
+
+    it('dynamically renders browser-specific pin instructions on init', () => {
+      welcome.init();
+      const pinInstructions = document.getElementById('welcome-pin-instructions');
+      expect(pinInstructions?.innerHTML).toContain('Pin AlgoRecall');
+      expect(pinInstructions?.innerHTML.length).toBeGreaterThan(0);
     });
   });
 

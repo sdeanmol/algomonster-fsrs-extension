@@ -855,6 +855,29 @@ describe('BackgroundServiceWorker', () => {
       const zeroCount = await worker.updateDueCardsBadge();
       expect(zeroCount).toBe(0);
       expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '' });
+
+      // When user disabled pinned icon due badge in notification settings
+      (chrome.storage.local.get as any).mockImplementation((keys: any, cb?: any) => {
+        const data = {
+          fsrsCards: dueCards,
+          notificationSettings: { badgeEnabled: false }
+        };
+        if (typeof cb === 'function') cb(data);
+        return Promise.resolve(data);
+      });
+      const disabledCount = await worker.updateDueCardsBadge();
+      expect(disabledCount).toBe(0);
+      expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '' });
+      expect(chrome.action.setTitle).toHaveBeenCalledWith({ title: 'AlgoRecall Dashboard' });
+    });
+
+    it('updates badge when notificationSettings storage changes', async () => {
+      const updateBadgeSpy = jest.spyOn(worker, 'updateDueCardsBadge').mockResolvedValue(0);
+      await worker.handleStorageChanged(
+        { notificationSettings: { oldValue: { badgeEnabled: true }, newValue: { badgeEnabled: false } } as any },
+        'local'
+      );
+      expect(updateBadgeSpy).toHaveBeenCalled();
     });
 
     it('UA-029: handles check_due_cards_now message action', async () => {

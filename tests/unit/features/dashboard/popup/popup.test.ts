@@ -60,6 +60,7 @@ describe('AlgoRecallDashboard (Popup)', () => {
       <button id="pomodoro-btn"></button>
       <button id="open-summary-page-btn"></button>
       <input id="toggle-weekly-digest" type="checkbox" />
+      <input id="toggle-badge-due-count" type="checkbox" />
       <button id="check-now-btn"></button>
       <div id="notification-settings-card"></div>
       <span id="status-msg"></span>

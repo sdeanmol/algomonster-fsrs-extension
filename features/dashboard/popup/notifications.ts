@@ -70,6 +70,7 @@ export class NotificationsComponent extends DashboardComponent {
         const quietContainer = document.getElementById('quiet-hours-container') || document.getElementById('quiet-hours-inputs');
         const quietStart = (document.getElementById('quiet-hours-start') || document.getElementById('quiet-start')) as HTMLInputElement | null;
         const quietEnd = (document.getElementById('quiet-hours-end') || document.getElementById('quiet-end')) as HTMLInputElement | null;
+        const badgeToggle = document.getElementById('toggle-badge-due-count') as HTMLInputElement | null;
 
         const updateNotificationUI = (settings: NotificationSettings) => {
             try {
@@ -87,6 +88,11 @@ export class NotificationsComponent extends DashboardComponent {
                 }
                 if (quietStart && settings.quietHoursStart) quietStart.value = settings.quietHoursStart;
                 if (quietEnd && settings.quietHoursEnd) quietEnd.value = settings.quietHoursEnd;
+                if (badgeToggle) {
+                    const isBadgeEnabled = settings.badgeEnabled !== false && settings.showDueBadge !== false;
+                    badgeToggle.checked = isBadgeEnabled;
+                    badgeToggle.setAttribute('aria-checked', isBadgeEnabled.toString());
+                }
 
                 const freqStr = settings.frequency || '60';
                 const standardOptions = ['1', '15', '30', '60', '120', '360', '720', '1440'];
@@ -111,7 +117,8 @@ export class NotificationsComponent extends DashboardComponent {
                 enabled: true,
                 frequency: '60',
                 priority: '2',
-                requireInteraction: true
+                requireInteraction: true,
+                badgeEnabled: true
             };
             updateNotificationUI(settings);
         } catch (error) {
@@ -134,6 +141,7 @@ export class NotificationsComponent extends DashboardComponent {
             const quietContainer = document.getElementById('quiet-hours-container') || document.getElementById('quiet-hours-inputs');
             const quietStart = (document.getElementById('quiet-hours-start') || document.getElementById('quiet-start')) as HTMLInputElement | null;
             const quietEnd = (document.getElementById('quiet-hours-end') || document.getElementById('quiet-end')) as HTMLInputElement | null;
+            const badgeToggle = document.getElementById('toggle-badge-due-count') as HTMLInputElement | null;
             const testNotifBtn = document.getElementById('test-notification-btn');
 
             if (enableBtn) {
@@ -179,12 +187,15 @@ export class NotificationsComponent extends DashboardComponent {
                         requireInteraction: notifStickyToggle ? notifStickyToggle.checked : true,
                         quietHoursEnabled: quietToggle ? quietToggle.checked : false,
                         quietHoursStart: quietStart ? quietStart.value : '23:00',
-                        quietHoursEnd: quietEnd ? quietEnd.value : '07:00'
+                        quietHoursEnd: quietEnd ? quietEnd.value : '07:00',
+                        badgeEnabled: badgeToggle ? badgeToggle.checked : (oldSettings.badgeEnabled !== false),
+                        showDueBadge: badgeToggle ? badgeToggle.checked : (oldSettings.showDueBadge !== false)
                     };
 
                     if (notifToggle) notifToggle.setAttribute('aria-checked', notifToggle.checked.toString());
                     if (notifStickyToggle) notifStickyToggle.setAttribute('aria-checked', notifStickyToggle.checked.toString());
                     if (quietToggle) quietToggle.setAttribute('aria-checked', quietToggle.checked.toString());
+                    if (badgeToggle) badgeToggle.setAttribute('aria-checked', badgeToggle.checked.toString());
 
                     await chrome.storage.local.set({ notificationSettings: updatedSettings });
                 } catch (error) {
@@ -238,6 +249,18 @@ export class NotificationsComponent extends DashboardComponent {
                     } catch (err) {
             UIUtils.catchError('NotificationsComponent', 'Error in quiet toggle change listener', err);
         }
+                });
+            }
+
+            if (badgeToggle) {
+                badgeToggle.addEventListener('change', () => {
+                    try {
+                        badgeToggle.setAttribute('aria-checked', badgeToggle.checked.toString());
+                        saveNotificationSettings();
+                        this.showStatus(`Pinned icon due badge ${badgeToggle.checked ? 'enabled' : 'disabled'}!`);
+                    } catch (err) {
+                        UIUtils.catchError('NotificationsComponent', 'Error in badge toggle change listener', err);
+                    }
                 });
             }
 

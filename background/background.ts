@@ -103,7 +103,7 @@ export class AlgoRecallBackground {
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to bind background Chrome API event listeners: ${errorMessage}`, { err });
+            Logger.error('Background', `Failed to bind background extension API event listeners: ${errorMessage}`, { err });
             // Comment: Catch listener registration error to prevent constructor failure
         }
     }
@@ -346,6 +346,7 @@ export class AlgoRecallBackground {
         try {
             if (areaName === 'local' && changes.notificationSettings) {
                 await this.setupAlarm();
+                await this.updateDueCardsBadge();
             }
             if (areaName === 'local' && changes.weeklySummaryEnabled) {
                 await this.setupWeeklySummaryAlarm();
@@ -759,11 +760,21 @@ export class AlgoRecallBackground {
                 return 0;
             }
 
-            const result = (await chrome.storage.local.get(['fsrsCards', 'pomodoroState'])) as {
+            const result = (await chrome.storage.local.get(['fsrsCards', 'pomodoroState', 'notificationSettings'])) as {
                 fsrsCards?: Card[];
                 pomodoroState?: PomodoroState;
+                notificationSettings?: NotificationSettings;
             };
             if (result.pomodoroState && result.pomodoroState.state === 'running') {
+                return 0;
+            }
+
+            const notifSettings = result.notificationSettings || {};
+            const isBadgeEnabled = notifSettings.badgeEnabled !== false && notifSettings.showDueBadge !== false;
+
+            if (!isBadgeEnabled) {
+                chrome.action.setBadgeText({ text: '' });
+                chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
                 return 0;
             }
 

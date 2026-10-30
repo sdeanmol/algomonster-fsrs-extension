@@ -74,7 +74,7 @@ While the core algorithmic scheduling foundation and local storage privacy model
 
 | Surface / Area | Entry Point | Primary User Functionality | Implementation Status |
 |---|---|---|---|
-| **Extension Toolbar Icon** | Browser Toolbar | Displays extension icon, active due card badge counter (`setBadgeText`), and global shortcut `Ctrl+Shift+A` (`Command+Shift+A`). | Production Ready |
+| **Extension Toolbar Icon** | Browser Toolbar | Displays extension icon, user-configurable active due card badge counter (toggled via "Pinned Icon Due Badge" in Notification Settings, `setBadgeText`), and global shortcut `Ctrl+Shift+A` (`Command+Shift+A`). | Production Ready |
 | **Popup Dashboard** | Click Toolbar Icon | Stats summary, quick search, heatmap preview, quick chips, highlighter controls, notification settings, data backup/restore, dev actions. | Production (High Clutter) |
 | **Injected Tracker Widget** | Floating Brain FAB | Problem approach notes, tag input, rating buttons (Again, Hard, Good, Easy), full-screen editor launcher. | Production (Severe Close Flaw) |
 | **Highlighter Tooltip** | Text Selection | Floating palette swatch picker, underline/highlight toggle, mark deletion, custom palette selector. | Production Ready |

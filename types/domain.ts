@@ -152,6 +152,8 @@ export interface NotificationSettings {
     quietHoursEnabled?: boolean;
     quietHoursStart?: string;
     quietHoursEnd?: string;
+    badgeEnabled?: boolean;
+    showDueBadge?: boolean;
 }
 
 /**

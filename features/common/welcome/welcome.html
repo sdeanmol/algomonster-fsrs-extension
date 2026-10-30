@@ -5,6 +5,7 @@
   -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,11 +14,20 @@
     <link rel="stylesheet" href="welcome.css">
     <script src="../theme-sync.js"></script>
 </head>
+
 <body>
     <div class="welcome-container">
         <!-- Logo and Branding Header -->
         <div class="welcome-header">
-            <svg class="svg-icon logo-glow" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>
+            <svg class="svg-icon logo-glow" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                    d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z">
+                </path>
+                <path
+                    d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z">
+                </path>
+                <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path>
+            </svg>
             <h1>Welcome to AlgoRecall</h1>
             <p class="subtitle">Your FSRS spaced repetition and text highlighter is active!</p>
         </div>
@@ -38,11 +48,23 @@
                 <p>Personalize your recall environment. Select your preferred look below:</p>
                 <div class="theme-picker">
                     <button id="set-dark-btn" class="theme-opt-btn active">
-                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
                         Material Dark (Default)
                     </button>
                     <button id="set-light-btn" class="theme-opt-btn">
-                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
                         Material Light
                     </button>
                 </div>
@@ -55,7 +77,8 @@
                     <div class="guide-item">
                         <div class="guide-number">1</div>
                         <div class="guide-text">
-                            <strong>Highlight any text</strong> on supported pages (LeetCode, AlgoMonster, Codeforces, etc.) to mark key formulas or approaches.
+                            <strong>Highlight any text</strong> on supported pages (LeetCode, AlgoMonster, Codeforces,
+                            etc.) to mark key formulas or approaches.
                         </div>
                     </div>
                     <div class="guide-item">
@@ -67,7 +90,8 @@
                     <div class="guide-item">
                         <div class="guide-number">3</div>
                         <div class="guide-text">
-                            <strong>Rate review difficulty</strong> (Again, Hard, Good, Easy) to let the FSRS algorithm calculate the next check interval.
+                            <strong>Rate review difficulty</strong> (Again, Hard, Good, Easy) to let the FSRS algorithm
+                            calculate the next check interval.
                         </div>
                     </div>
                 </div>
@@ -77,9 +101,10 @@
             <div class="step-card" id="step-3">
                 <h2>Step 3: Setup Notifications</h2>
                 <p>Ensure you never miss review intervals. Enable OS reminders to alert you when patterns fall due:</p>
-                
+
                 <div class="notif-box">
-                    <div class="notif-status-row" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="notif-status-row"
+                        style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
                         <span class="status-label">Enable Reminders:</span>
                         <label class="toggle-switch">
                             <input type="checkbox" id="welcome-notif-toggle" role="switch">
@@ -91,7 +116,10 @@
                         <span id="welcome-notif-status" class="status-badge pending">Disabled</span>
                     </div>
                     <button id="welcome-enable-btn" class="btn btn-primary w-full">
-                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
                         Grant OS Permissions
                     </button>
                 </div>
@@ -103,21 +131,25 @@
                 <p>Pin AlgoRecall to your browser toolbar for quick one-click access:</p>
                 <div class="pin-guide-box">
                     <div class="pin-step">
-                        <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary); width: 28px; height: 28px; min-width: 28px;" aria-hidden="true">
+                        <svg class="svg-icon" viewBox="0 0 24 24"
+                            style="stroke: var(--md-primary); width: 28px; height: 28px; min-width: 28px;"
+                            aria-hidden="true">
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                             <circle cx="12" cy="10" r="3"></circle>
                         </svg>
-                        <div class="pin-instructions">
-                            <strong>1. Click the puzzle icon 🧩</strong> in Chrome's top right toolbar.<br>
+                        <div class="pin-instructions" id="welcome-pin-instructions">
+                            <strong>1. Click the extension icon 🧩</strong> in your browser's toolbar.<br>
                             <strong>2. Pin AlgoRecall 📌</strong> to keep your review counter always visible.
                         </div>
                     </div>
                 </div>
-                <div class="completion-actions" style="margin-top: 18px; display: flex; flex-direction: column; gap: 8px; width: 100%;">
-                    <a href="https://leetcode.com/problemset/all/" target="_blank" id="start-practicing-btn" class="btn btn-primary w-full" style="text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <div class="completion-actions"
+                    style="margin-top: 18px; display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                    <!-- <a href="https://leetcode.com/problemset/all/" target="_blank" id="start-practicing-btn" class="btn btn-primary w-full" style="text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
                         Start Practicing on LeetCode 🚀
-                    </a>
-                    <a href="../help/help.html" id="welcome-docs-link" class="btn btn-secondary w-full" style="text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;">
+                    </a> -->
+                    <a href="../help/help.html" id="welcome-docs-link" class="btn btn-secondary w-full"
+                        style="text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;">
                         Browse Full Help & Documentation 📖
                     </a>
                 </div>
@@ -127,7 +159,9 @@
         <!-- Navigation Controls -->
         <div class="welcome-actions" style="display: flex; align-items: center; justify-content: space-between;">
             <button id="welcome-prev-btn" class="btn btn-secondary invisible">Back</button>
-            <button id="welcome-skip-btn" class="btn btn-link" style="color: var(--md-text-low); font-size: 13px; text-decoration: underline; background: none; border: none; cursor: pointer;">Skip Tour</button>
+            <button id="welcome-skip-btn" class="btn btn-link"
+                style="color: var(--md-text-low); font-size: 13px; text-decoration: underline; background: none; border: none; cursor: pointer;">Skip
+                Tour</button>
             <button id="welcome-next-btn" class="btn btn-primary">Next</button>
         </div>
     </div>
@@ -137,4 +171,5 @@
 
     <script src="welcome.js"></script>
 </body>
+
 </html>

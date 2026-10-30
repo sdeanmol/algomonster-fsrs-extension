@@ -146,7 +146,7 @@ AlgoRecall is a feature-rich, privacy-first spaced repetition extension with a w
 **Category**: Browser Integration, Visual Design  
 **Status**: **Resolved**
 
-**Resolution**: Generated 16×16, 32×32, 48×48, and 128×128 icon variants. Configured `action.default_icon` in Chrome, Firefox, and Safari manifests with all icon sizes. Implemented dynamic badge text (`chrome.action.setBadgeText()`) in `background.ts` showing due review counts.
+**Resolution**: Generated 16×16, 32×32, 48×48, and 128×128 icon variants. Configured `action.default_icon` in Chrome, Firefox, and Safari manifests with all icon sizes. Implemented dynamic badge text (`chrome.action.setBadgeText()`) in `background.ts` showing due review counts, complete with user toggle control ("Pinned Icon Due Badge") in Notification Settings to show or hide the count at will.
 
 ---
 

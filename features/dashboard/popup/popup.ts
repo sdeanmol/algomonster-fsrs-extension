@@ -35,6 +35,7 @@ export interface PopupDOM {
     pomodoroBtn: HTMLElement | null;
     openSummaryPageBtn: HTMLElement | null;
     weeklyDigestToggle: HTMLInputElement | null;
+    badgeToggle: HTMLInputElement | null;
     statusMsg: HTMLElement | null;
     devModeActions: HTMLElement | null;
     exportDebugLogsBtn: HTMLElement | null;
@@ -85,6 +86,7 @@ export class AlgoRecallDashboard {
                 pomodoroBtn: document.getElementById('pomodoro-btn'),
                 openSummaryPageBtn: document.getElementById('open-summary-page-btn'),
                 weeklyDigestToggle: document.getElementById('toggle-weekly-digest') as HTMLInputElement | null,
+                badgeToggle: document.getElementById('toggle-badge-due-count') as HTMLInputElement | null,
                 statusMsg: document.getElementById('status-msg'),
                 devModeActions: document.getElementById('dev-mode-actions'),
                 exportDebugLogsBtn: document.getElementById('export-debug-logs-btn'),

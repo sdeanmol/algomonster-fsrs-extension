@@ -26,6 +26,8 @@ describe('HelpCenterSPA', () => {
       </div>
       <div id="tab-privacy" class="tab-pane">
         <div class="card card-hero">Privacy-First Architecture & Data Protection</div>
+        <p class="section-intro"><span id="help-store-policy-name">browser extension store</span></p>
+        <h3 id="help-data-certification-title">📜 Extension Store Data Use Certification</h3>
       </div>
     `;
 
@@ -106,6 +108,25 @@ describe('HelpCenterSPA', () => {
         inline: 'center'
       });
       expect(tablist.scrollTo).toHaveBeenCalled();
+    });
+
+    it('dynamically renders browser and store specific names on init', () => {
+      helpCenter.init();
+      const policyNameEl = document.getElementById('help-store-policy-name');
+      const dataCertEl = document.getElementById('help-data-certification-title');
+
+      expect(policyNameEl?.textContent).toBeTruthy();
+      expect(dataCertEl?.textContent).toContain('Data Use Certification');
+    });
+
+    it('verifies help.html does not contain hardcoded Chrome-specific store strings in static HTML', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const htmlPath = path.resolve(__dirname, '../../../../../features/common/help/help.html');
+      const html = fs.readFileSync(htmlPath, 'utf8');
+
+      expect(html).not.toContain('Chrome Web Store Minimal Permissions policy');
+      expect(html).not.toContain('<h3>📜 Chrome Web Store Data Use Certification</h3>');
     });
 
     it('initializes tab from URL hash when query param is missing and smooth scrolls', () => {

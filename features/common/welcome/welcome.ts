@@ -6,6 +6,7 @@
 
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
+import { BROWSER_CONFIG } from '@common/browserConfig';
 
 export class OnboardingWelcome {
     currentStep: number;
@@ -24,8 +25,27 @@ export class OnboardingWelcome {
             this.bindEvents();
             this.syncThemePreference();
             this.checkNotificationState();
+            this.renderBrowserSpecificInstructions();
         } catch (err) {
             UIUtils.catchError('Onboarding', 'Error initializing OnboardingWelcome', err);
+        }
+    }
+
+    /**
+     * Renders browser-appropriate extension pinning and toolbar instructions.
+     */
+    renderBrowserSpecificInstructions(): void {
+        try {
+            const pinInstructionsEl = document.getElementById('welcome-pin-instructions');
+            if (!pinInstructionsEl) return;
+
+            if (BROWSER_CONFIG.target === 'safari') {
+                pinInstructionsEl.innerHTML = `<strong>1. Open Safari Settings ⚙️ &rarr; Extensions</strong> and ensure AlgoRecall is turned on.<br><strong>2. Check your Safari toolbar</strong> to access your review counter at any time.`;
+            } else {
+                pinInstructionsEl.innerHTML = `<strong>1. Click the puzzle icon 🧩</strong> in ${BROWSER_CONFIG.displayName}'s top right toolbar.<br><strong>2. Pin AlgoRecall 📌</strong> to keep your review counter always visible.`;
+            }
+        } catch (err) {
+            UIUtils.catchError('Onboarding', 'Error rendering browser-specific pin instructions', err);
         }
     }
 

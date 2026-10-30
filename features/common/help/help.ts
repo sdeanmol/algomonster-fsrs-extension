@@ -1,5 +1,6 @@
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
+import { BROWSER_CONFIG } from '@common/browserConfig';
 
 /**
  * @file features/common/help/help.ts
@@ -24,8 +25,27 @@ export class HelpCenterSPA {
             this.bindSearchFilter();
             this.bindCloseButton();
             this.bindHashNavigation();
+            this.renderBrowserSpecificContent();
         } catch (err) {
             UIUtils.catchError('HelpCenter', 'Error initializing Help Center', err);
+        }
+    }
+
+    /**
+     * Dynamically renders browser and store-specific text in help center.
+     */
+    renderBrowserSpecificContent(): void {
+        try {
+            const storePolicyEl = document.getElementById('help-store-policy-name');
+            if (storePolicyEl) {
+                storePolicyEl.textContent = `${BROWSER_CONFIG.storeName} (${BROWSER_CONFIG.displayName})`;
+            }
+            const dataCertTitleEl = document.getElementById('help-data-certification-title');
+            if (dataCertTitleEl) {
+                dataCertTitleEl.textContent = `📜 ${BROWSER_CONFIG.storeName} Data Use Certification`;
+            }
+        } catch (err) {
+            UIUtils.catchError('HelpCenter', 'Error rendering browser-specific content in Help Center', err);
         }
     }
 

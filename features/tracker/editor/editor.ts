@@ -76,7 +76,7 @@ export class EditorManager {
     loadContent(): void {
         try {
             if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-                Logger.warn('EditorManager', 'Chrome extension storage unavailable in loadContent.');
+                Logger.warn('EditorManager', 'Browser extension storage unavailable in loadContent.');
                 return;
             }
             chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: StorageData & { bookmarks?: BookmarkEntry[]; approachDrafts?: Record<string, DraftEntry | string> }) => {
@@ -249,7 +249,7 @@ export class EditorManager {
     saveContent(callback?: () => void): void {
         try {
             if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-                Logger.warn('EditorManager', 'Chrome extension storage unavailable in saveContent.');
+                Logger.warn('EditorManager', 'Browser extension storage unavailable in saveContent.');
                 if (callback) callback();
                 return;
             }

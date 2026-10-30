@@ -142,7 +142,7 @@ export class HighlightsManager {
     loadHighlights(): void {
         try {
             if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-                Logger.warn('HighlightsManager', 'Chrome storage API unavailable in loadHighlights.');
+                Logger.warn('HighlightsManager', 'Browser storage API unavailable in loadHighlights.');
                 return;
             }
             chrome.storage.local.get(['marks', 'bookmarks'], (result: StorageData) => {

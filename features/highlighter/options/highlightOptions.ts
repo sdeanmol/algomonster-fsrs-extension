@@ -498,7 +498,7 @@ export class HighlightOptionsManager {
     saveSettings(message: string | null = null): void {
         try {
             if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-                Logger.warn('HighlightOptions', 'Chrome storage API unavailable in saveSettings.');
+                Logger.warn('HighlightOptions', 'Browser storage API unavailable in saveSettings.');
                 return;
             }
             chrome.storage.local.set({ extensionSettings: this.extensionSettings }, () => {

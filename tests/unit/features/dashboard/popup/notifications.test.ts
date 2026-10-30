@@ -34,6 +34,7 @@ describe('NotificationsComponent (Popup)', () => {
       <button id="test-notification-btn">Test</button>
       <button id="test-summary-notification-btn">Test Summary</button>
       <input id="toggle-weekly-digest" type="checkbox" />
+      <input id="toggle-badge-due-count" type="checkbox" />
     `;
 
     mockCoordinator = {
@@ -48,7 +49,8 @@ describe('NotificationsComponent (Popup)', () => {
           requireInteraction: true,
           quietHoursEnabled: true,
           quietHoursStart: '22:00',
-          quietHoursEnd: '07:00'
+          quietHoursEnd: '07:00',
+          badgeEnabled: true
         },
         weeklySummaryEnabled: true
       };
@@ -175,6 +177,27 @@ describe('NotificationsComponent (Popup)', () => {
 
       await Promise.resolve();
       expect(chrome.storage.local.set).toHaveBeenCalled();
+    });
+
+    it('loads badge toggle state from notificationSettings and toggles preference on change', async () => {
+      await component.load();
+      component.bindEvents();
+
+      const badgeToggle = document.getElementById('toggle-badge-due-count') as HTMLInputElement;
+      expect(badgeToggle.checked).toBe(true);
+
+      badgeToggle.checked = false;
+      badgeToggle.dispatchEvent(new Event('change'));
+
+      await Promise.resolve();
+      expect(chrome.storage.local.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notificationSettings: expect.objectContaining({
+            badgeEnabled: false
+          })
+        })
+      );
+      expect(mockCoordinator.showStatus).toHaveBeenCalledWith('Pinned icon due badge disabled!');
     });
 
     it('requests notification permission on enableBtn click and handles denied permission', async () => {

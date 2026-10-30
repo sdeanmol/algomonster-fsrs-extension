@@ -102,7 +102,7 @@ export class MemoryTab {
             if (typeof chrome !== 'undefined' && chrome.storage?.local) {
                 chrome.storage.local.get(['fsrsGlobalParams'], (result: StorageData & { fsrsGlobalParams?: { version?: string; timestamp?: number } }) => {
                     try {
-                        if (UIUtils.checkStorageError('MemoryTab', 'Chrome storage error when fetching fsrsGlobalParams')) {
+                        if (UIUtils.checkStorageError('MemoryTab', 'Browser storage error when fetching fsrsGlobalParams')) {
                             // Logged automatically
                         }
 
