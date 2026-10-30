@@ -160,8 +160,7 @@ export class Utils {
 
         if (type === 'underline') {
             prefix = 'algo-ul';
-            // Use shorthand and longhand, plus a subtle background fallback for mobile Firefox
-            cssRule = `background-color: transparent; background-color: ${color}40; text-decoration: underline solid ${color} 2px; text-decoration-line: underline; text-decoration-color: ${color}; text-decoration-thickness: 2px; text-underline-offset: 2px;`;
+            cssRule = `background-color: transparent; text-decoration: underline solid ${color} 2px; text-decoration-line: underline; text-decoration-color: ${color}; text-decoration-thickness: 2px; text-underline-offset: 2px;`;
         }
 
         const colorName = `${prefix}-${colorHash}`;

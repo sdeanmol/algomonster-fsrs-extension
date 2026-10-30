@@ -67,6 +67,14 @@ describe('Content Utils', () => {
 
       const underlineClass = Utils.ensureHighlightStyle(color, 'underline');
       expect(underlineClass).toContain('algo-ul-ff0000');
+
+      const styleElements = Array.from(document.head.querySelectorAll('style'));
+      const underlineStyle = styleElements.find(s => s.textContent?.includes('algo-ul-ff0000'));
+      expect(underlineStyle).toBeDefined();
+      expect(underlineStyle?.textContent).toContain('background-color: transparent');
+      expect(underlineStyle?.textContent).not.toContain('#ff000040');
+      expect(underlineStyle?.textContent).toContain('text-decoration: underline');
+      expect(underlineStyle?.textContent).toContain('text-decoration-color: #ff0000');
     });
   });
 
