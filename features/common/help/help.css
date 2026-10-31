@@ -31,14 +31,12 @@ body {
 
 .header-title-container {
     display: flex;
-    align-items: center;
-    gap: 16px;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 .header-emoji {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: none;
 }
 
 .main-logo-icon {

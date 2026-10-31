@@ -419,6 +419,75 @@ canvas {
     box-sizing: border-box;
 }
 
+/* ==========================================================================
+   AlgoRecall Brand Identity Component
+   ========================================================================== */
+.algorecall-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    user-select: none;
+    margin-bottom: 8px;
+    vertical-align: middle;
+}
+
+.algorecall-brand-icon {
+    width: 22px;
+    height: 22px;
+    stroke: var(--md-primary);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(168, 199, 250, 0.3));
+    transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+:root.light-theme .algorecall-brand-icon {
+    stroke: var(--md-primary);
+    filter: drop-shadow(0 1px 3px rgba(26, 115, 232, 0.25));
+}
+
+.algorecall-brand-badge:hover .algorecall-brand-icon {
+    transform: scale(1.05);
+}
+
+.algorecall-brand-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #a8c7fa 0%, #d3e3fd 60%, #81c995 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+}
+
+:root.light-theme .algorecall-brand-name {
+    background: linear-gradient(135deg, #1a73e8 0%, #1557b0 60%, #1e8e3e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Compact Brand Badge (for small popovers/editors) */
+.algorecall-brand-badge.brand-badge-sm {
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.algorecall-brand-badge.brand-badge-sm .algorecall-brand-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.algorecall-brand-badge.brand-badge-sm .algorecall-brand-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
 /* R10.4 Reduced Motion Mode */
 @media (prefers-reduced-motion: reduce) {
 
