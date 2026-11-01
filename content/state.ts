@@ -96,6 +96,7 @@ algoGlobal.state = {
         defaultHighlightColor: '#f1c40f',
         recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
         showMarkerPopup: true,
+        showLauncher: true,
         activePaletteIndex: 0,
         palettes: DEFAULT_PALETTES
     },

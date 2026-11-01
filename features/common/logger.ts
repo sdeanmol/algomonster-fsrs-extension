@@ -23,6 +23,7 @@ export class LoggerClass {
     private isFlushing: boolean = false;
 
     constructor() {
+        this._patchConsole();
         // Initialize developer mode state from chrome storage
         this._initDevMode();
 
@@ -31,9 +32,34 @@ export class LoggerClass {
             chrome.storage.onChanged.addListener((changes: { [key: string]: { oldValue?: unknown; newValue?: unknown } }, area: string) => {
                 if (area === 'local' && changes.extensionSettings) {
                     const newSettings = (changes.extensionSettings.newValue || {}) as { developerMode?: boolean };
-                    this.devMode = !!newSettings.developerMode;
+                    this._setDevMode(!!newSettings.developerMode);
                 }
             });
+        }
+    }
+
+    private _setDevMode(enabled: boolean): void {
+        this.devMode = enabled;
+        if (typeof globalThis !== 'undefined') {
+            (globalThis as any).__algorecall_dev_mode = enabled;
+        }
+    }
+    // suppresses console logs of ts-fsrs
+    private _patchConsole(): void {
+        if (typeof console === 'undefined') return;
+        const consoleObj = console as unknown as { __algorecall_patched?: boolean; debug: (...args: unknown[]) => void };
+        if (consoleObj.__algorecall_patched) return;
+        consoleObj.__algorecall_patched = true;
+        const origDebug = console.debug;
+        if (typeof origDebug === 'function') {
+            console.debug = (...args: unknown[]) => {
+                const isDev = typeof globalThis !== 'undefined' && typeof (globalThis as any).__algorecall_dev_mode === 'boolean'
+                    ? (globalThis as any).__algorecall_dev_mode
+                    : this.devMode;
+                if (isDev) {
+                    origDebug.apply(console, args);
+                }
+            };
         }
     }
 
@@ -44,7 +70,7 @@ export class LoggerClass {
                     return;
                 }
                 const settings = result.extensionSettings || {};
-                this.devMode = !!settings.developerMode;
+                this._setDevMode(!!settings.developerMode);
             });
         }
     }
@@ -53,7 +79,6 @@ export class LoggerClass {
      * Checks if logging is allowed for the given level.
      */
     private _canLog(level: string): boolean {
-        if (level === 'ERROR' || level === 'FATAL') return true;
         return this.devMode;
     }
 
@@ -79,7 +104,9 @@ export class LoggerClass {
             }
         } catch (flushErr) {
             // Silently handle to prevent recursive error loops during storage failure
-            console.warn('[AlgoRecall Logger] Log flush storage failure:', flushErr);
+            if (this.devMode) {
+                console.warn('[AlgoRecall Logger] Log flush storage failure:', flushErr);
+            }
         } finally {
             this.isFlushing = false;
             if (this.logQueue.length > 0) {
@@ -190,6 +217,7 @@ export class LoggerClass {
     }
 
     error(moduleName: string, message: string, data: unknown = null): void {
+        this._persistLog('ERROR', moduleName, message, data);
         if (!this._canLog('ERROR')) return;
 
         const errorData: Record<string, unknown> = {
@@ -205,7 +233,6 @@ export class LoggerClass {
             errorData.metadata = data;
         }
 
-        this._persistLog('ERROR', moduleName, message, data);
         const consoleArgs = this._getColoredConsoleArgs('ERROR', moduleName, message);
         console.error(...consoleArgs, errorData);
     }

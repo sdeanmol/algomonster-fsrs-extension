@@ -13,6 +13,7 @@ export interface PopupDOM {
     themeToggleBtn: HTMLElement | null;
     markerToggle: HTMLInputElement | null;
     chartsToggle: HTMLInputElement | null;
+    launcherToggle: HTMLInputElement | null;
     devModeToggle: HTMLInputElement | null;
     managePlatformsBtn: HTMLElement | null;
     configureFsrsBtn: HTMLElement | null;
@@ -64,6 +65,7 @@ export class AlgoRecallDashboard {
                 themeToggleBtn: document.getElementById('theme-toggle-btn'),
                 markerToggle: document.getElementById('toggle-marker-popup') as HTMLInputElement | null,
                 chartsToggle: document.getElementById('toggle-show-charts') as HTMLInputElement | null,
+                launcherToggle: document.getElementById('toggle-algo-launcher') as HTMLInputElement | null,
                 devModeToggle: document.getElementById('toggle-dev-mode') as HTMLInputElement | null,
                 managePlatformsBtn: document.getElementById('manage-platforms-btn'),
                 configureFsrsBtn: document.getElementById('configure-fsrs-btn'),
@@ -240,6 +242,42 @@ export class AlgoRecallDashboard {
                     } catch (error) {
             UIUtils.catchError('Popup', 'Error setting showCharts config', error);
         }
+                });
+            }
+
+            // Problem tracker launcher toggle setup
+            if (this.dom.launcherToggle) {
+                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
+                    try {
+                        const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                        if (lastError) {
+                            const errorMessage = lastError.message || String(lastError);
+                            Logger.error('Popup', `Storage error fetching launcher toggle settings: ${errorMessage}`, { error: lastError });
+                            return;
+                        }
+                        const showLauncher = result.extensionSettings && result.extensionSettings.showLauncher !== undefined
+                            ? result.extensionSettings.showLauncher
+                            : true;
+                        if (this.dom.launcherToggle) {
+                            this.dom.launcherToggle.checked = showLauncher;
+                            this.dom.launcherToggle.setAttribute('aria-checked', showLauncher.toString());
+                        }
+                    } catch (err) {
+                        UIUtils.catchError('Popup', 'Error rendering launcher toggle setting', err);
+                    }
+                });
+                this.dom.launcherToggle.addEventListener('change', async (e: Event) => {
+                    try {
+                        const target = e.target as HTMLInputElement;
+                        target.setAttribute('aria-checked', target.checked.toString());
+                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                        settings.showLauncher = target.checked;
+                        await chrome.storage.local.set({ extensionSettings: settings });
+                        this.showStatus(`Problem tracker launcher ${target.checked ? 'enabled' : 'disabled'}!`);
+                    } catch (error) {
+                        UIUtils.catchError('Popup', 'Error setting showLauncher config', error);
+                    }
                 });
             }
 
@@ -613,6 +651,10 @@ export class AlgoRecallDashboard {
                                             if (result.extensionSettings) {
                                                 if (result.extensionSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
                                                     this.dom.markerToggle.checked = result.extensionSettings.showMarkerPopup;
+                                                }
+                                                if (result.extensionSettings.showLauncher !== undefined && this.dom.launcherToggle) {
+                                                    this.dom.launcherToggle.checked = result.extensionSettings.showLauncher;
+                                                    this.dom.launcherToggle.setAttribute('aria-checked', result.extensionSettings.showLauncher.toString());
                                                 }
                                                 if (result.extensionSettings.showCharts !== undefined && this.dom.chartsToggle) {
                                                     this.dom.chartsToggle.checked = result.extensionSettings.showCharts;

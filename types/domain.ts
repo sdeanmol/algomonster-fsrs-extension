@@ -186,6 +186,7 @@ export interface ExtensionSettings {
     recentColors?: string[];
     showCharts?: boolean;
     showMarkerPopup?: boolean;
+    showLauncher?: boolean;
 }
 
 /**

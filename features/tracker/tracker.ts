@@ -1,6 +1,6 @@
 import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
 import { TagInputControl } from '../common/utils/tagInput';
-import { Card, StorageData } from '../../types/domain';
+import { Card, StorageData, ExtensionSettings } from '../../types/domain';
 import { RATING_UI_DEBOUNCE_MS } from '../common/constants';
 import FsrsScheduler from './scheduler/fsrsScheduler';
 import { Logger } from '@common/logger';
@@ -9,6 +9,7 @@ interface AlgoRecallState {
     cards: Card[];
     topicWeights: Record<string, number[]>;
     scheduler: FsrsScheduler;
+    extensionSettings?: ExtensionSettings;
 }
 
 interface DraftEntry {
@@ -410,6 +411,9 @@ class Tracker {
             launcher.setAttribute('tabindex', '0');
             launcher.innerHTML = `<svg class="launcher-svg" viewBox="0 0 24 24" style="width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2;"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>`;
             launcher.title = "AlgoRecall Tracker (Drag to move, Right-click to reset position)";
+            if (this.state && this.state.extensionSettings?.showLauncher === false) {
+                launcher.style.display = 'none';
+            }
             document.body.appendChild(launcher);
 
             // 2. CREATE WIDGET CONTAINER
@@ -617,9 +621,12 @@ class Tracker {
                 if (e.key === 'Escape') {
                     e.preventDefault();
                     container.style.display = 'none';
-                    launcher.style.display = 'flex';
-                    launcher.setAttribute('aria-expanded', 'false');
-                    launcher.focus();
+                    const showLauncher = this.state?.extensionSettings?.showLauncher !== false;
+                    if (showLauncher) {
+                        launcher.style.display = 'flex';
+                        launcher.setAttribute('aria-expanded', 'false');
+                        launcher.focus();
+                    }
                     return;
                 }
                 if (e.key !== 'Tab') return;
@@ -641,8 +648,11 @@ class Tracker {
             document.getElementById('fsrs-min-btn')?.addEventListener('click', () => {
                 try {
                     container.style.display = 'none';
-                    launcher.style.display = 'flex';
-                    launcher.setAttribute('aria-expanded', 'false');
+                    const showLauncher = this.state?.extensionSettings?.showLauncher !== false;
+                    if (showLauncher) {
+                        launcher.style.display = 'flex';
+                        launcher.setAttribute('aria-expanded', 'false');
+                    }
                     if (previouslyFocused) previouslyFocused.focus();
                 } catch (err) {
                     // Comment: Safe recovery on minimize button click
@@ -654,8 +664,11 @@ class Tracker {
             document.getElementById('fsrs-close-btn')?.addEventListener('click', () => {
                 try {
                     container.style.display = 'none';
-                    launcher.style.display = 'flex';
-                    launcher.setAttribute('aria-expanded', 'false');
+                    const showLauncher = this.state?.extensionSettings?.showLauncher !== false;
+                    if (showLauncher) {
+                        launcher.style.display = 'flex';
+                        launcher.setAttribute('aria-expanded', 'false');
+                    }
                     if (previouslyFocused) previouslyFocused.focus();
                 } catch (err) {
                     // Comment: Safe recovery on close button click

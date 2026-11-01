@@ -664,6 +664,37 @@ describe('Tracker Floating Widget', () => {
       expect(launcher.getAttribute('aria-expanded')).toBe('false');
       expect(document.activeElement).toBe(launcher);
     });
+
+    it('respects showLauncher = false setting during createUI, close, and Escape key', () => {
+      // Set showLauncher to false on state
+      const globalState = (window as any).AlgoRecall.state;
+      globalState.extensionSettings = { showLauncher: false };
+
+      tracker.createUI();
+      const container = document.getElementById('algo-fsrs-container') as HTMLElement;
+      const launcher = document.getElementById('algo-fsrs-launcher') as HTMLElement;
+
+      expect(launcher.style.display).toBe('none');
+
+      // Open container
+      container.style.display = 'block';
+
+      // Click close button
+      const closeBtn = document.getElementById('fsrs-close-btn') as HTMLElement;
+      closeBtn.click();
+      expect(container.style.display).toBe('none');
+      expect(launcher.style.display).toBe('none');
+
+      // Open container again and test Escape key
+      container.style.display = 'block';
+      const escEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+      container.dispatchEvent(escEvent);
+      expect(container.style.display).toBe('none');
+      expect(launcher.style.display).toBe('none');
+
+      // Clean up state
+      globalState.extensionSettings = { showLauncher: true };
+    });
   });
 });
 

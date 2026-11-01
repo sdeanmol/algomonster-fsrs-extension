@@ -36,21 +36,37 @@ describe('Logger', () => {
     expect((Logger as any).logQueue.length).toBe(0);
   });
 
-  it('always logs error messages regardless of devMode', () => {
+  it('does not log error messages to console when devMode is false but persists them', () => {
     (Logger as any).devMode = false;
+    Logger.error('TestModule', 'test error', new Error('Something went wrong'));
+    expect(console.error).not.toHaveBeenCalled();
+    expect((Logger as any).logQueue.length).toBe(1);
+    expect((Logger as any).logQueue[0].level).toBe('ERROR');
+  });
+
+  it('logs error messages to console when devMode is true', () => {
+    (Logger as any).devMode = true;
     Logger.error('TestModule', 'test error', new Error('Something went wrong'));
     expect(console.error).toHaveBeenCalled();
     expect((Logger as any).logQueue.length).toBe(1);
     expect((Logger as any).logQueue[0].level).toBe('ERROR');
   });
 
-  it('logs fatal messages properly', () => {
+  it('does not log fatal messages to console when devMode is false', () => {
     (Logger as any).devMode = false;
+    Logger.fatal('TestModule', 'critical failure');
+    expect(console.error).not.toHaveBeenCalled();
+    expect((Logger as any).logQueue.length).toBe(1);
+    expect((Logger as any).logQueue[0].level).toBe('ERROR');
+    expect((Logger as any).logQueue[0].message).toContain('FATAL: critical failure');
+  });
+
+  it('logs fatal messages to console when devMode is true', () => {
+    (Logger as any).devMode = true;
     Logger.fatal('TestModule', 'critical failure');
     expect(console.error).toHaveBeenCalled();
     expect((Logger as any).logQueue.length).toBe(1);
     expect((Logger as any).logQueue[0].level).toBe('ERROR');
-    expect((Logger as any).logQueue[0].message).toContain('FATAL: critical failure');
   });
 
   it('handles groups and timers', () => {
@@ -113,14 +129,14 @@ describe('Logger', () => {
     expect(console.info).not.toHaveBeenCalled();
   });
 
-  it('logs error with Error instance properly', () => {
-    (Logger as any).devMode = false;
+  it('logs error with Error instance properly when devMode is true', () => {
+    (Logger as any).devMode = true;
     Logger.error('TestModule', 'error occurred', new Error('fail'));
     expect(console.error).toHaveBeenCalled();
   });
 
-  it('logs error with plain object data', () => {
-    (Logger as any).devMode = false;
+  it('logs error with plain object data when devMode is true', () => {
+    (Logger as any).devMode = true;
     Logger.error('TestModule', 'error with data', { detail: 123 });
     expect(console.error).toHaveBeenCalled();
   });

@@ -103,6 +103,11 @@ export class AlgoRecallOrchestrator {
                     this.highlighter.createHighlighterUI();
                     this.highlighter.applyHighlightsForCurrentPage();
 
+                    if (this.state.extensionSettings && this.state.extensionSettings.showLauncher === false) {
+                        const launcher = document.getElementById('algo-fsrs-launcher');
+                        if (launcher) launcher.style.display = 'none';
+                    }
+
                     this.bindEvents();
                     this.setupMutationObserver();
                 } catch (innerErr) {
@@ -243,6 +248,16 @@ export class AlgoRecallOrchestrator {
             if (areaName === 'local') {
                 if (changes.extensionSettings) {
                     this.state.extensionSettings = { ...this.state.extensionSettings, ...changes.extensionSettings.newValue };
+                    const launcher = document.getElementById('algo-fsrs-launcher') as HTMLElement | null;
+                    const container = document.getElementById('algo-fsrs-container') as HTMLElement | null;
+                    if (launcher) {
+                        const showLauncher = this.state.extensionSettings.showLauncher !== false;
+                        if (!showLauncher) {
+                            launcher.style.display = 'none';
+                        } else if (!container || container.style.display !== 'block') {
+                            launcher.style.display = 'flex';
+                        }
+                    }
                     const tooltip = document.getElementById('algo-highlight-tooltip') as HTMLElement | null;
                     if (!this.state.extensionSettings.showMarkerPopup) {
                         if (tooltip) tooltip.style.display = 'none';
@@ -365,7 +380,8 @@ export class AlgoRecallOrchestrator {
                 // Restore launcher display on page transition so it's not permanently lost
                 const launcher = document.getElementById('algo-fsrs-launcher') as HTMLElement | null;
                 const container = document.getElementById('algo-fsrs-container') as HTMLElement | null;
-                if (launcher && container && container.style.display !== 'block') {
+                const showLauncher = this.state.extensionSettings?.showLauncher !== false;
+                if (launcher && container && container.style.display !== 'block' && showLauncher) {
                     launcher.style.display = 'flex';
                 }
 
@@ -464,7 +480,11 @@ window.addEventListener('error', function (event: ErrorEvent) {
         }
     } catch (err) {
         // Comment: Suppress recursive logging error during window error handler
-        console.warn('[AlgoRecall] Suppressed error in window error handler:', err);
+        try {
+            Logger.warn('ContentScript', 'Suppressed error in window error handler', { err });
+        } catch {
+            // Silently suppress in production
+        }
     }
 });
 
@@ -473,6 +493,10 @@ window.addEventListener('unhandledrejection', function (event: PromiseRejectionE
         Logger.error('ContentScript', 'Unhandled promise rejection', { reason: event?.reason });
     } catch (err) {
         // Comment: Suppress recursive logging error during window unhandled rejection handler
-        console.warn('[AlgoRecall] Suppressed error in window unhandledrejection handler:', err);
+        try {
+            Logger.warn('ContentScript', 'Suppressed error in window unhandledrejection handler', { err });
+        } catch {
+            // Silently suppress in production
+        }
     }
 });

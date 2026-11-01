@@ -403,6 +403,39 @@ describe('AlgoRecallOrchestrator', () => {
         window.dispatchEvent(rejectionEvent);
       }).not.toThrow();
     });
+
+    it('updates launcher visibility on extensionSettings.showLauncher storage change', () => {
+      const launcher = document.getElementById('algo-fsrs-launcher');
+      expect(launcher).not.toBeNull();
+
+      // Change showLauncher to false
+      orchestrator.handleStorageChanged(
+        {
+          extensionSettings: {
+            newValue: { showLauncher: false },
+            oldValue: { showLauncher: true }
+          }
+        },
+        'local'
+      );
+      expect(launcher?.style.display).toBe('none');
+
+      // triggerAggressiveUIUpdate should keep it hidden
+      orchestrator.triggerAggressiveUIUpdate();
+      expect(launcher?.style.display).toBe('none');
+
+      // Change showLauncher to true
+      orchestrator.handleStorageChanged(
+        {
+          extensionSettings: {
+            newValue: { showLauncher: true },
+            oldValue: { showLauncher: false }
+          }
+        },
+        'local'
+      );
+      expect(launcher?.style.display).toBe('flex');
+    });
   });
 });
 

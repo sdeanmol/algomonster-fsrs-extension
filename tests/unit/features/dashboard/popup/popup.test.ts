@@ -36,6 +36,7 @@ describe('AlgoRecallDashboard (Popup)', () => {
     document.body.innerHTML = `
       <button id="theme-toggle-btn"></button>
       <input id="toggle-marker-popup" type="checkbox" />
+      <input id="toggle-algo-launcher" type="checkbox" />
       <input id="toggle-show-charts" type="checkbox" />
       <div id="activity-charts-card"></div>
       <input id="toggle-dev-mode" type="checkbox" />
@@ -256,6 +257,11 @@ describe('AlgoRecallDashboard (Popup)', () => {
       const markerToggle = document.getElementById('toggle-marker-popup') as HTMLInputElement;
       markerToggle.checked = false;
       markerToggle.dispatchEvent(new Event('change'));
+      await Promise.resolve();
+
+      const launcherToggle = document.getElementById('toggle-algo-launcher') as HTMLInputElement;
+      launcherToggle.checked = false;
+      launcherToggle.dispatchEvent(new Event('change'));
       await Promise.resolve();
 
       const chartsToggle = document.getElementById('toggle-show-charts') as HTMLInputElement;
@@ -644,6 +650,12 @@ describe('AlgoRecallDashboard (Popup)', () => {
       chartsToggle.checked = false;
       chartsToggle.dispatchEvent(new Event('change'));
       expect(chartsToggle.getAttribute('aria-checked')).toBe('false');
+
+      const launcherToggle = document.getElementById('toggle-algo-launcher') as HTMLInputElement;
+      expect(launcherToggle.getAttribute('aria-checked')).toBe('true');
+      launcherToggle.checked = false;
+      launcherToggle.dispatchEvent(new Event('change'));
+      expect(launcherToggle.getAttribute('aria-checked')).toBe('false');
 
       const weeklyToggle = document.getElementById('toggle-weekly-digest') as HTMLInputElement;
       expect(weeklyToggle.getAttribute('aria-checked')).toBe('true');
