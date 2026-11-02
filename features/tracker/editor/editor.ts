@@ -214,10 +214,13 @@ export class EditorManager {
                 if (this.isPreviewMode) {
                     // Render preview
                     const text = (document.getElementById('editor-textarea') as HTMLTextAreaElement)?.value || '';
-                    const win = window as unknown as { AlgoRecall?: { Markdown?: typeof Markdown } };
-                    editorPreview.innerHTML = win.AlgoRecall?.Markdown
-                        ? win.AlgoRecall.Markdown.render(text)
-                        : text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                    if (!text.trim()) {
+                        editorPreview.innerHTML = '<p class="editor-preview-empty"><em>No content to preview. Switch to Edit mode to jot down notes.</em></p>';
+                    } else {
+                        const win = typeof window !== 'undefined' ? (window as unknown as { AlgoRecall?: { Markdown?: typeof Markdown } }) : undefined;
+                        const renderFn = win?.AlgoRecall?.Markdown?.render || Markdown.render;
+                        editorPreview.innerHTML = renderFn(text);
+                    }
                     
                     const textareaElement = document.getElementById('editor-textarea');
                     if (textareaElement) textareaElement.style.display = 'none';

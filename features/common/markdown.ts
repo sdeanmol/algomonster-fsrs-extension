@@ -1,8 +1,9 @@
 /**
  * @file features/common/markdown.ts
- * @description Lightweight Markdown rendering wrapper utilizing the marked.js parser library.
+ * @description Robust Markdown rendering wrapper utilizing marked.js parser library and DOMPurify sanitization.
  */
 
+import DOMPurify from 'dompurify';
 import { Logger } from '@common/logger';
 
 interface MarkedOptions {
@@ -13,8 +14,9 @@ interface MarkedOptions {
 }
 
 interface MarkedLibrary {
-    setOptions(options: MarkedOptions): void;
-    parse(src: string): string;
+    setOptions?(options: MarkedOptions): void;
+    use?(options: MarkedOptions): void;
+    parse(src: string): string | Promise<string>;
 }
 
 declare const marked: MarkedLibrary | undefined;
@@ -25,7 +27,7 @@ interface AlgoRecallMarkdownGlobal {
 
 function getAlgoRecallGlobal(): AlgoRecallMarkdownGlobal {
     try {
-        const win = window as unknown as { AlgoRecall: AlgoRecallMarkdownGlobal };
+        const win = (typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : {})) as unknown as { AlgoRecall?: AlgoRecallMarkdownGlobal };
         win.AlgoRecall = win.AlgoRecall || {};
         return win.AlgoRecall;
     } catch (err) {
@@ -35,11 +37,57 @@ function getAlgoRecallGlobal(): AlgoRecallMarkdownGlobal {
     }
 }
 
+function getMarkedInstance(): MarkedLibrary | undefined {
+    try {
+        // 1. Check window/globalThis for marked (e.g. from marked.min.js loaded in editor.html or content script, or in tests)
+        const g = (typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : undefined)) as unknown as { marked?: MarkedLibrary } | undefined;
+        if (g && 'marked' in g && g.marked && typeof g.marked.parse === 'function') {
+            return g.marked;
+        }
+
+        // 2. Global identifier check (for worker or alternative environments)
+        if (typeof marked !== 'undefined' && marked && typeof marked.parse === 'function') {
+            return marked;
+        }
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('Markdown', `Error resolving marked instance: ${errorMessage}`, { err });
+    }
+    return undefined;
+}
+
+const PURIFY_OPTIONS = {
+    FORBID_TAGS: ['form', 'input', 'button', 'select', 'textarea', 'script', 'iframe', 'object', 'embed', 'style', 'link', 'meta'],
+    FORBID_ATTR: ['style']
+};
+
+function sanitizeHtml(html: string): string {
+    try {
+        if (typeof DOMPurify !== 'undefined') {
+            if (typeof DOMPurify.sanitize === 'function') {
+                return DOMPurify.sanitize(html, PURIFY_OPTIONS);
+            }
+            if (typeof DOMPurify === 'function' && typeof window !== 'undefined') {
+                return (DOMPurify as unknown as (win: Window) => { sanitize: (s: string, opt?: unknown) => string })(window).sanitize(html, PURIFY_OPTIONS);
+            }
+        }
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.error('Markdown', `DOMPurify sanitization failed: ${errorMessage}`, { err });
+    }
+
+    // Defense-in-depth fallback sanitization if DOMPurify is unavailable
+    let safe = html.replace(/<(script|iframe|object|embed|form|input|button|select|textarea|style|link|meta)[\s\S]*?(?:<\/\1>|\/>)/gi, '');
+    safe = safe.replace(/on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    safe = safe.replace(/(javascript|vbscript|data):/gi, '');
+    return safe;
+}
+
 /**
  * @class Markdown
- * @description Lightweight Markdown rendering wrapper utilizing the marked.js parser library.
- * Implements fallback rendering when marked is unavailable and performs structural regex-based sanitization
- * of potential XSS vectors (unsafe tags, inline attributes, javascript: URIs).
+ * @description Robust Markdown rendering wrapper utilizing the marked.js parser library and DOMPurify.
+ * Implements fallback rendering when marked is unavailable and performs DOMPurify sanitization
+ * against all XSS vectors (unsafe tags, inline event attributes, javascript: URIs).
  */
 export class Markdown {
     /**
@@ -47,13 +95,21 @@ export class Markdown {
      */
     static init(): void {
         try {
-            if (typeof marked !== 'undefined' && marked && typeof marked.setOptions === 'function') {
-                marked.setOptions({
-                    breaks: true,       // Convert \n to <br>
-                    gfm: true,          // GitHub Flavored Markdown (tables, strikethrough)
-                    headerIds: false,   // Don't generate id attributes on headings
-                    mangle: false       // Don't mangle email addresses
-                });
+            const m = getMarkedInstance();
+            if (m) {
+                if (typeof m.use === 'function') {
+                    m.use({
+                        breaks: true,
+                        gfm: true
+                    });
+                } else if (typeof m.setOptions === 'function') {
+                    m.setOptions({
+                        breaks: true,       // Convert \n to <br>
+                        gfm: true,          // GitHub Flavored Markdown (tables, strikethrough)
+                        headerIds: false,   // Don't generate id attributes on headings
+                        mangle: false       // Don't mangle email addresses
+                    });
+                }
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
@@ -71,7 +127,8 @@ export class Markdown {
     static render(text: string): string {
         if (!text || typeof text !== 'string') return '';
         
-        if (typeof marked === 'undefined' || !marked || typeof marked.parse !== 'function') {
+        const m = getMarkedInstance();
+        if (!m || typeof m.parse !== 'function') {
             // Fallback: escape HTML and convert newlines
             return text
                 .replace(/&/g, '&amp;')
@@ -82,17 +139,11 @@ export class Markdown {
 
         try {
             // Parse with marked
-            let html: string = marked.parse(text);
+            const parsed = m.parse(text);
+            const html: string = typeof parsed === 'string' ? parsed : String(parsed);
             
-            // Sanitization: strip dangerous tags (script, iframe, object, embed, form)
-            html = html.replace(/<(script|iframe|object|embed|form|style|link|meta)[\s\S]*?(?:<\/\1>|\/>)/gi, '');
-            // Strip inline script handlers (e.g. onclick, onload)
-            html = html.replace(/on\w+\s*=\s*"[^"]*"/gi, '');
-            html = html.replace(/on\w+\s*=\s*'[^']*'/gi, '');
-            // Remove javascript URI schemes
-            html = html.replace(/javascript\s*:/gi, '');
-            
-            return html;
+            // Sanitize with DOMPurify
+            return sanitizeHtml(html);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Markdown', `Markdown parsing failed: ${errorMessage}`, { err });

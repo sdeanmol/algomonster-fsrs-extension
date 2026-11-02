@@ -279,5 +279,151 @@ describe('EditorManager', () => {
       window.dispatchEvent(new Event('beforeunload'));
       expect(chrome.storage.local.set).toHaveBeenCalled();
     });
+
+    it('displays empty state notice when previewing an empty or whitespace note', () => {
+      editor.init();
+      const previewToggleBtn = document.getElementById('preview-toggle-btn') as HTMLElement;
+      const editorPreview = document.getElementById('editor-preview') as HTMLElement;
+      const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement;
+
+      textarea.value = '   \n   ';
+      previewToggleBtn.click();
+      expect(editor.isPreviewMode).toBe(true);
+      expect(editorPreview.innerHTML).toContain('editor-preview-empty');
+      expect(editorPreview.innerHTML).toContain('No content to preview');
+
+      // Toggling back to edit mode restores textarea and focus
+      previewToggleBtn.click();
+      expect(editor.isPreviewMode).toBe(false);
+      expect(textarea.style.display).toBe('');
+      expect(editorPreview.style.display).toBe('none');
+    });
+
+    it('renders the Section 9 mandatory fixture correctly in editor preview mode', () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const markedLib = require('../../../../../features/common/marked.min.js');
+      (global as any).marked = markedLib;
+      (window as any).marked = markedLib;
+
+      editor.init();
+      const previewToggleBtn = document.getElementById('preview-toggle-btn') as HTMLElement;
+      const editorPreview = document.getElementById('editor-preview') as HTMLElement;
+      const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement;
+
+      const MANDATORY_FIXTURE = `#### 1. The "Byheart" Vault (Memorization)
+* **Mnemonic Anchors:** Use the acronym **B-R-S-D-C** ("**B**rains **R**emember **S**imple **D**ata **C**ases"):
+  * **B** — **B**ackward (Work backward from the goal)
+  * **R** — **R**elated (Recall a related problem with the same unknown)
+  * **S** — **S**impler (Solve a simpler version, then add conditions back)
+  * **D** — **D**ata (Ensure all data and constraints are utilized)
+  * **C** — **C**ases (Test small cases to discover the mathematical rule)
+  * *AIR Story (Association, Imagination, Ridiculous Thinking):* Imagine walking **Backward** through a door and bumping into a twin (**Related** person). The twin shrinks into a **Simpler** miniature version, starts eating a giant pile of raw **Data** sheets, and opens **Cases** of lightbulbs (**Small Cases**) that light up one by one!
+* **Visual Cues (The Hide-and-Seek / Loci Journey):**
+  * **Doorway:** Picture a giant red **Rewind / Backward** button mounted on your front door (Work backward from the goal).
+  * **Living Room Mirror:** A mirror reflecting a twin problem, pointing at the prize and asking "What is the unknown?" (**Related problem**).
+  * **Kitchen Table:** A pair of shears stripping away complex constraints from a device to reveal its core engine (**Simpler version**).
+  * **Study Desk:** A neon-highlighted contract checking off every single input parameter and array size (**Did you use all the data?**).
+  * **Nightstand:** A line of 10 small lightbulbs (1 through 10) where you toggle switches by hand to see which ones stay lit (**Try small cases**).
+
+---
+
+#### 2. The Feynman Check (Simplified Logic)
+Imagine you are playing a tricky maze game. If starting at the beginning gives you too many paths and you keep getting lost, turn around and start at the finish line—walking backward often reveals only one clear path. If you still get stuck, look at what prize you are trying to get and ask if you've ever won a prize like that in a different game. If the game is too hard, remove one rule to make an easier version first. Make sure you didn't drop any secret clue cards that were given to you at the start. And if you need to find a secret code, test the game with tiny numbers (like 1, 2, or 3) on your fingers until you spot the repeating trick!
+
+---`;
+
+      textarea.value = MANDATORY_FIXTURE;
+
+      previewToggleBtn.click();
+      expect(editor.isPreviewMode).toBe(true);
+      expect(textarea.style.display).toBe('none');
+      expect(editorPreview.style.display).toBe('block');
+
+      // Verify level 4 headings rendered
+      expect(editorPreview.innerHTML).toContain('<h4>1. The "Byheart" Vault (Memorization)</h4>');
+      expect(editorPreview.innerHTML).toContain('<h4>2. The Feynman Check (Simplified Logic)</h4>');
+
+      // Verify nested bullet hierarchy
+      expect(editorPreview.innerHTML).toContain('<strong>Mnemonic Anchors:</strong>');
+      expect(editorPreview.innerHTML).toContain('<strong>B-R-S-D-C</strong>');
+      expect(editorPreview.innerHTML).toContain('<strong>B</strong> — <strong>B</strong>ackward (Work backward from the goal)');
+      expect(editorPreview.innerHTML).toContain('<em>AIR Story (Association, Imagination, Ridiculous Thinking):</em>');
+      expect(editorPreview.innerHTML).toContain('<hr>');
+      expect(editorPreview.innerHTML).toContain('<p>Imagine you are playing a tricky maze game.');
+
+      delete (global as any).marked;
+      delete (window as any).marked;
+    });
+
+    it('preserves raw markdown and allows repeated toggling between Edit and Preview without data loss', () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const markedLib = require('../../../../../features/common/marked.min.js');
+      (global as any).marked = markedLib;
+      (window as any).marked = markedLib;
+
+      editor.init();
+      const previewToggleBtn = document.getElementById('preview-toggle-btn') as HTMLElement;
+      const editorPreview = document.getElementById('editor-preview') as HTMLElement;
+      const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement;
+
+      const initialMarkdown = '### Complexity Analysis\n- Time: **O(N)**\n- Space: *O(1)*\n\n```ts\nreturn 0;\n```';
+      textarea.value = initialMarkdown;
+
+      // Repeat toggle 5 times
+      for (let i = 0; i < 5; i++) {
+        previewToggleBtn.click(); // to Preview
+        expect(editor.isPreviewMode).toBe(true);
+        expect(editorPreview.innerHTML).toContain('<h3>Complexity Analysis</h3>');
+        expect(textarea.value).toBe(initialMarkdown);
+
+        previewToggleBtn.click(); // back to Edit
+        expect(editor.isPreviewMode).toBe(false);
+        expect(textarea.value).toBe(initialMarkdown);
+      }
+
+      delete (global as any).marked;
+      delete (window as any).marked;
+    });
+
+    it('saves exact raw markdown string to storage from both Edit and Preview modes', () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const markedLib = require('../../../../../features/common/marked.min.js');
+      (global as any).marked = markedLib;
+      (window as any).marked = markedLib;
+
+      editor.init();
+      const previewToggleBtn = document.getElementById('preview-toggle-btn') as HTMLElement;
+      const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement;
+
+      const rawMarkdown = '#### Binary Search\n* Step 1: `mid = (lo + hi) / 2`\n* Step 2: **Compare** target';
+      textarea.value = rawMarkdown;
+
+      // 1. Save from Edit mode
+      let savedData: any = null;
+      (chrome.storage.local.set as jest.Mock).mockImplementation((data: any, cb?: any) => {
+        savedData = data;
+        if (cb) cb();
+      });
+
+      editor.saveContent();
+      expect(savedData).not.toBeNull();
+      expect(savedData.fsrsCards[0].approach).toBe(rawMarkdown);
+      expect(savedData.fsrsCards[0].approach).not.toContain('<h4>');
+
+      // 2. Switch to Preview mode
+      previewToggleBtn.click();
+      expect(editor.isPreviewMode).toBe(true);
+
+      // Save from Preview mode
+      savedData = null;
+      editor.saveContent();
+      expect(savedData).not.toBeNull();
+      // MUST still be the raw Markdown, NOT the rendered HTML
+      expect(savedData.fsrsCards[0].approach).toBe(rawMarkdown);
+      expect(savedData.fsrsCards[0].approach).not.toContain('<h4>');
+
+      delete (global as any).marked;
+      delete (window as any).marked;
+    });
   });
 });
