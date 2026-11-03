@@ -491,7 +491,7 @@ class Tracker {
             const dragStart = { x: 0, y: 0 };
             const initialPos = { x: 0, y: 0 };
 
-            const onMouseMove = (e: any) => {
+            const onMouseMove = (e: PointerEvent) => {
                 try {
                     const dx = e.clientX - dragStart.x;
                     const dy = e.clientY - dragStart.y;
@@ -514,7 +514,7 @@ class Tracker {
                 }
             };
 
-            const onMouseUp = (e: any) => {
+            const onMouseUp = (e: PointerEvent) => {
                 try {
                     document.removeEventListener('pointermove', onMouseMove);
                     document.removeEventListener('pointerup', onMouseUp);
@@ -538,7 +538,7 @@ class Tracker {
                 }
             };
 
-            launcher.addEventListener('pointerdown', (e: any) => {
+            launcher.addEventListener('pointerdown', (e: PointerEvent) => {
                 try {
                     if (e.pointerType === 'mouse' && e.button !== 0) return;
                     isDragging = false;

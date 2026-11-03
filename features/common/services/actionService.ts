@@ -315,12 +315,20 @@ export class ActionService {
                             ActionService.triggerDomDownload(url, filename);
                             resolve();
                         } else {
-                            try { URL.revokeObjectURL(url); } catch (e) {}
+                            try {
+                                URL.revokeObjectURL(url);
+                            } catch (e) {
+                                Logger.debug('ActionService', 'Blob URL revocation exception', { error: e });
+                            }
                             reject(new Error(lastError.message));
                         }
                     } else {
                         setTimeout(() => {
-                            try { URL.revokeObjectURL(url); } catch (e) {}
+                            try {
+                                URL.revokeObjectURL(url);
+                            } catch (e) {
+                                Logger.debug('ActionService', 'Blob URL revocation exception', { error: e });
+                            }
                         }, 5000);
                         resolve();
                     }
@@ -329,7 +337,11 @@ export class ActionService {
         } else if (typeof document !== 'undefined') {
             ActionService.triggerDomDownload(url, filename);
         } else {
-            try { URL.revokeObjectURL(url); } catch (e) {}
+            try {
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                Logger.debug('ActionService', 'Blob URL revocation exception', { error: e });
+            }
             await ActionService.openExtensionPage(fallbackPath);
         }
     }
@@ -345,7 +357,11 @@ export class ActionService {
         a.click();
         document.body.removeChild(a);
         setTimeout(() => {
-            try { URL.revokeObjectURL(url); } catch (e) {}
+            try {
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                Logger.debug('ActionService', 'Blob URL revocation exception', { error: e });
+            }
         }, 1000);
     }
 }

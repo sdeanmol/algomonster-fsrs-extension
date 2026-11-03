@@ -6,7 +6,7 @@
 
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { UIUtils } from '../../../common/utils/uiUtils';
-import { DataUtils } from '../utils/dataUtils';
+import { DataUtils, FutureMemorySimulationStats } from '../utils/dataUtils';
 
 export class FutureMemorySimulation {
     dataUtils: DataUtils;
@@ -140,7 +140,7 @@ export class FutureMemorySimulation {
     /**
      * Generates HTML for the metric cards showing static snapshots at Today, 30d, 90d, 180d.
      */
-    private buildSimulationCardsHTML(data: any): string {
+    private buildSimulationCardsHTML(data: FutureMemorySimulationStats): string {
         return `
             <div class="sim-steps-grid">
                 <div class="sim-step-card step-today">
@@ -205,7 +205,7 @@ export class FutureMemorySimulation {
     /**
      * Generates HTML for the interactive day slider and dynamic projections.
      */
-    private buildInteractiveSliderHTML(data: any): string {
+    private buildInteractiveSliderHTML(data: FutureMemorySimulationStats): string {
         return `
             <div class="sim-interactive-box">
                 <div class="sim-slider-row">

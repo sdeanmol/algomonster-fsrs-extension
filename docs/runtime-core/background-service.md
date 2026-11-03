@@ -80,21 +80,21 @@ export class AlgoRecallBackground {
 The background service worker registers alarms to drive periodic background tasks. **All alarm registration is universally supported across Chrome, Firefox, and Safari** (guarded by `BROWSER_CONFIG.supportsAlarms` which resolves to `true` for all targets).
 
 ```mermaid
-graph TD
-    subgraph Chrome Alarms (Chrome, Firefox, Safari)
-        A1[checkFsrsReviews: Every N min]
-        A2[snoozeFsrsReviews: Snooze delay]
-        A3[smartReviewSchedule: Daily at 17:00]
-        A4[weeklySummary: Every Monday 9 AM]
-        A5[dailyNudge: Daily at 20:00]
-        A6[pomodoroEnd: Exact targetEndTime]
+flowchart TD
+    subgraph SG_Alarms ["Chrome Alarms (Chrome, Firefox, Safari)"]
+        A1["checkFsrsReviews: Every N min"]
+        A2["snoozeFsrsReviews: Snooze delay"]
+        A3["smartReviewSchedule: Daily at 17:00"]
+        A4["weeklySummary: Every Monday 9 AM"]
+        A5["dailyNudge: Daily at 20:00"]
+        A6["pomodoroEnd: Exact targetEndTime"]
     end
 
-    subgraph Alarm Handlers
-        H1[checkDueCards: Group by tags & notify]
-        H2[handleWeeklySummary: Calculate 7-day review trend]
-        H3[handleDailyNudge: Streak retention nudge]
-        H4[handlePomodoroEnd: Advance phase & push notification]
+    subgraph SG_Handlers ["Alarm Handlers"]
+        H1["checkDueCards: Group by tags & notify"]
+        H2["handleWeeklySummary: Calculate 7-day review trend"]
+        H3["handleDailyNudge: Streak retention nudge"]
+        H4["handlePomodoroEnd: Advance phase & push notification"]
     end
 
     A1 --> H1

@@ -60,6 +60,7 @@ pnpm-debug.log*
 docs/directory_structure.txt
 docs/*prompt*.md
 directory_structure.txt
+.agent-audit/
 
 # Environment Variables
 .env

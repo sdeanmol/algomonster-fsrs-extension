@@ -13,19 +13,19 @@ The content script pipeline comprises:
 * **`notifications.ts`**: `Notifier` class rendering custom toast notifications inside the host webpage.
 
 ```mermaid
-graph TD
-    subgraph Browser Context
-        DOMContentLoaded Event --> Boot[Instantiate AlgoRecallOrchestrator]
-        Boot --> Init[Orchestrator.init]
+flowchart TD
+    subgraph BC ["Browser Context"]
+        DCL["DOMContentLoaded Event"] --> Boot["Instantiate AlgoRecallOrchestrator"]
+        Boot --> Init["Orchestrator.init"]
     end
 
-    subgraph Initialization Steps
-        Init --> CheckDomain{Check Whitelisted Domain}
-        CheckDomain -- Not Whitelisted --> Exit[Exit Early]
-        CheckDomain -- Whitelisted --> LoadStorage[Read chrome.storage.local]
-        LoadStorage --> CreateUI[Inject Tracker & Highlighter UI]
-        CreateUI --> BindEvents[Bind Click, Storage & Message Listeners]
-        BindEvents --> SetupMO[Attach DOM MutationObserver]
+    subgraph IS ["Initialization Steps"]
+        Init --> CheckDomain{"Check Whitelisted Domain"}
+        CheckDomain -- "Not Whitelisted" --> Exit["Exit Early"]
+        CheckDomain -- "Whitelisted" --> LoadStorage["Read chrome.storage.local"]
+        LoadStorage --> CreateUI["Inject Tracker & Highlighter UI"]
+        CreateUI --> BindEvents["Bind Click, Storage & Message Listeners"]
+        BindEvents --> SetupMO["Attach DOM MutationObserver"]
     end
 ```
 

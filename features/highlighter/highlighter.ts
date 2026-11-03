@@ -31,6 +31,12 @@ export interface HighlighterUtils {
     [key: string]: unknown;
 }
 
+export interface ApproachDraft {
+    approach?: string;
+    tags?: string;
+    [key: string]: unknown;
+}
+
 export class Highlighter {
     state: HighlighterState;
     utils: HighlighterUtils;
@@ -769,7 +775,7 @@ export class Highlighter {
             const prefix = mark.category ? `**${mark.category}:** ` : '';
             const appendText = `\n\n> ${prefix}${mark.text}` + (mark.note ? `\n> *Note: ${mark.note}*` : '');
 
-            chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: { [key: string]: any }) => {
+            chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: { fsrsCards?: Card[]; approachDrafts?: Record<string, ApproachDraft | string> }) => {
                 try {
                     const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                     if (lastError) {
@@ -843,11 +849,14 @@ export class Highlighter {
                             }
                         });
                     } else {
-                        let draft = drafts[cleanUrl];
-                        if (!draft) {
+                        const rawDraft = drafts[cleanUrl];
+                        let draft: ApproachDraft;
+                        if (!rawDraft) {
                             draft = { approach: '', tags: '' };
-                        } else if (typeof draft === 'string') {
-                            draft = { approach: draft, tags: '' };
+                        } else if (typeof rawDraft === 'string') {
+                            draft = { approach: rawDraft, tags: '' };
+                        } else {
+                            draft = { ...rawDraft };
                         }
 
                         draft.approach = ((draft.approach || '') + appendText).trim();

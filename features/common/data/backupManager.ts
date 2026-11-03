@@ -339,7 +339,11 @@ export class BackupManager {
                         document.body.removeChild(a);
                     }
                     setTimeout(() => {
-                        try { URL.revokeObjectURL(blobUrl); } catch (e) {}
+                        try {
+                            URL.revokeObjectURL(blobUrl);
+                        } catch (e) {
+                            Logger.debug('Backup', 'Blob URL revocation exception', { error: e });
+                        }
                     }, 5000); // Wait longer before revoking just in case
                 });
             } else if (isFirefoxAndroid) {
@@ -375,7 +379,11 @@ export class BackupManager {
                 a.click();
                 document.body.removeChild(a);
                 setTimeout(() => {
-                    try { URL.revokeObjectURL(blobUrl); } catch (e) {}
+                    try {
+                        URL.revokeObjectURL(blobUrl);
+                    } catch (e) {
+                        Logger.debug('Backup', 'Blob URL revocation exception', { error: e });
+                    }
                 }, 1000);
             }
             Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);

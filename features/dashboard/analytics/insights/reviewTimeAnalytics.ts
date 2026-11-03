@@ -4,8 +4,10 @@
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
-import { DataUtils } from '../utils/dataUtils';
+import { DataUtils, ReviewTimeInsights } from '../utils/dataUtils';
 import { TIME_OF_DAY_BUCKET_NAMES } from '../../../common/constants';
+
+export type ReviewTimeBucketItem = ReviewTimeInsights['data'][number];
 
 export class ReviewTimeAnalytics {
     dataUtils: DataUtils;
@@ -56,9 +58,9 @@ export class ReviewTimeAnalytics {
         }
     }
 
-    private findBestBuckets(data: any[]): { bestBuckets: any[]; bestRetention: number } {
+    private findBestBuckets(data: ReviewTimeBucketItem[]): { bestBuckets: ReviewTimeBucketItem[]; bestRetention: number } {
         let bestRetention = -1;
-        let bestBuckets: any[] = [];
+        let bestBuckets: ReviewTimeBucketItem[] = [];
         
         data.forEach(d => {
             try {
@@ -78,7 +80,7 @@ export class ReviewTimeAnalytics {
         return { bestBuckets, bestRetention };
     }
 
-    private buildHighlightText(bestBuckets: any[], bestRetention: number): string {
+    private buildHighlightText(bestBuckets: ReviewTimeBucketItem[], bestRetention: number): string {
         let highlightText = `Keep reviewing to discover your optimal study time!`;
         if (bestBuckets.length > 0) {
             if (bestBuckets.length === 4) {
@@ -96,7 +98,7 @@ export class ReviewTimeAnalytics {
         return highlightText;
     }
 
-    private buildChartSVG(data: any[]): string {
+    private buildChartSVG(data: ReviewTimeBucketItem[]): string {
         let html = `
             <div style="display: flex; height: 180px; margin-top: 16px;">
                 <div style="display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 28px;">

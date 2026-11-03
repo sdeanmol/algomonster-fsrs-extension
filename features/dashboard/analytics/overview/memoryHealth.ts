@@ -4,8 +4,16 @@
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
-import { DataUtils } from '../utils/dataUtils';
+import { DataUtils, SummaryStats } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
+
+export interface MemoryHealthInputStats {
+    trueRetention?: number;
+    retention?: number;
+    streak?: number;
+    totalLapses?: number;
+    avgStability?: number;
+}
 
 export class MemoryHealth {
     dataUtils: DataUtils;
@@ -60,9 +68,9 @@ export class MemoryHealth {
         }
     }
 
-    private calculateHealthScore(stats: any): number {
-        if (stats.trueRetention > 0) return stats.trueRetention;
-        if (stats.retention > 0) return stats.retention;
+    private calculateHealthScore(stats: MemoryHealthInputStats): number {
+        if (stats.trueRetention && stats.trueRetention > 0) return stats.trueRetention;
+        if (stats.retention && stats.retention > 0) return stats.retention;
         return 0;
     }
 
@@ -74,7 +82,16 @@ export class MemoryHealth {
         return 90;
     }
 
-    private buildHealthCard(healthScore: number, statusText: string, statusClass: string, trend: string, trendMsg: string, trendClass: string, svgCircle: string, stats: any): string {
+    private buildHealthCard(
+        healthScore: number,
+        statusText: string,
+        statusClass: string,
+        trend: string,
+        trendMsg: string,
+        trendClass: string,
+        svgCircle: string,
+        stats: MemoryHealthInputStats
+    ): string {
         return `
             <div class="memory-health-card">
                 <div class="ana-panel-header">

@@ -27,16 +27,25 @@ export interface AlgoRecallState {
     hideTooltipTimer: ReturnType<typeof setTimeout> | null;
 }
 
+export interface OrchestratorContract {
+    init: () => void | Promise<void>;
+    tracker?: {
+        refreshWidgetState: () => void;
+        startReview: () => void;
+    };
+}
+
 export interface AlgoRecallGlobal {
     state?: AlgoRecallState;
     Utils?: any;
     Notifier?: any;
-    Tracker?: any;
-    Highlighter?: any;
-    Orchestrator?: any;
-    orchestrator?: any;
+    Tracker?: new (...args: any[]) => any;
+    Highlighter?: new (...args: any[]) => any;
+    Orchestrator?: new (...args: any[]) => any;
+    orchestrator?: OrchestratorContract;
     HighlightsHelpers?: any;
     HighlightsManager?: any;
+    [key: string]: unknown;
 }
 
 export function getAlgoRecallGlobal(): AlgoRecallGlobal {

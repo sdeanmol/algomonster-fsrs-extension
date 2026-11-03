@@ -12,6 +12,13 @@ import {
     RETENTION_TIME_POINTS
 } from '../../../common/constants';
 
+export interface ComparisonPoint {
+    t: number;
+    R: number;
+    x: number;
+    y: number;
+}
+
 export class PredictionComparison {
     dataUtils: DataUtils;
 
@@ -104,7 +111,17 @@ export class PredictionComparison {
     /**
      * Renders the SVG axes, predicted line, and actual line.
      */
-    private generateSvgContent(predPoints: any[], actPoints: any[], timePoints: number[], xScale: any, yScale: any, svgW: number, svgH: number, padL: number, padR: number): string {
+    private generateSvgContent(
+        predPoints: ComparisonPoint[],
+        actPoints: ComparisonPoint[],
+        timePoints: number[],
+        xScale: (t: number) => number,
+        yScale: (r: number) => number,
+        svgW: number,
+        svgH: number,
+        padL: number,
+        padR: number
+    ): string {
         let content = `<svg class="prediction-svg multi-line" viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="none" style="width: 100%; height: 100%; min-height: 250px;">`;
 
         // Y-Axis
@@ -121,8 +138,8 @@ export class PredictionComparison {
         });
 
         // Lines
-        content += `<polyline points="${predPoints.map((p: any) => `${p.x},${p.y}`).join(' ')}" stroke="#a8c7fa" stroke-dasharray="5,5" fill="none" stroke-width="2" />`;
-        content += `<polyline points="${actPoints.map((p: any) => `${p.x},${p.y}`).join(' ')}" stroke="#f28b82" fill="none" stroke-width="2" />`;
+        content += `<polyline points="${predPoints.map((p: ComparisonPoint) => `${p.x},${p.y}`).join(' ')}" stroke="#a8c7fa" stroke-dasharray="5,5" fill="none" stroke-width="2" />`;
+        content += `<polyline points="${actPoints.map((p: ComparisonPoint) => `${p.x},${p.y}`).join(' ')}" stroke="#f28b82" fill="none" stroke-width="2" />`;
         
         content += `</svg>`;
         return content;
