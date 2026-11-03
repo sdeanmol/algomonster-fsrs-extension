@@ -1,19 +1,38 @@
 /**
  * @file features/dashboard/analytics/insights/reviewTimeAnalytics.ts
- * @description Renders breakdown of memory retention and review speed grouped by time of day (Morning, Afternoon, Evening, Night).
+ * @description Renders visual line charts and comparative statistics analyzing memory retention
+ * and card review speed grouped by time of day (Morning, Afternoon, Evening, Night).
+ *
+ * Architecture Role: Time-of-Day Retention Analysis View.
+ * Context: Extension Standalone Tab (`features/dashboard/analytics/analytics.html`).
+ * Key Exports:
+ * - {@link ReviewTimeBucketItem}: Single time bucket metric data point.
+ * - {@link ReviewTimeAnalytics}: Chart renderer class plotting time bucket recall curves.
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, ReviewTimeInsights } from '../utils/dataUtils';
 import { TIME_OF_DAY_BUCKET_NAMES } from '../../../common/constants';
 
+/**
+ * Data item representing review volume and accuracy within a specific time-of-day bucket.
+ */
 export type ReviewTimeBucketItem = ReviewTimeInsights['data'][number];
 
+/**
+ * Component that renders an SVG line chart correlating recall accuracy with time-of-day study buckets.
+ */
 export class ReviewTimeAnalytics {
+    /** Statistical calculation engine reference. */
     dataUtils: DataUtils;
 
+    /** Map of bucket identifier keys to localized display labels with hour spans. */
     private readonly nameMap: Record<string, string> = TIME_OF_DAY_BUCKET_NAMES;
 
+    /**
+     * Initializes ReviewTimeAnalytics with a DataUtils reference.
+     * @param dataUtils - Statistical engine instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -23,6 +42,10 @@ export class ReviewTimeAnalytics {
         }
     }
 
+    /**
+     * Renders the time-of-day performance line chart and best study time highlight banner into container.
+     * @param containerId - ID of DOM element to render into.
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -58,6 +81,9 @@ export class ReviewTimeAnalytics {
         }
     }
 
+    /**
+     * Identifies the time bucket(s) achieving the highest recall retention (min 5 reviews).
+     */
     private findBestBuckets(data: ReviewTimeBucketItem[]): { bestBuckets: ReviewTimeBucketItem[]; bestRetention: number } {
         let bestRetention = -1;
         let bestBuckets: ReviewTimeBucketItem[] = [];
@@ -80,6 +106,9 @@ export class ReviewTimeAnalytics {
         return { bestBuckets, bestRetention };
     }
 
+    /**
+     * Synthesizes user-facing summary text highlighting the most effective study period.
+     */
     private buildHighlightText(bestBuckets: ReviewTimeBucketItem[], bestRetention: number): string {
         let highlightText = `Keep reviewing to discover your optimal study time!`;
         if (bestBuckets.length > 0) {
@@ -98,6 +127,9 @@ export class ReviewTimeAnalytics {
         return highlightText;
     }
 
+    /**
+     * Constructs HTML and SVG markup plotting retention data points across time buckets.
+     */
     private buildChartSVG(data: ReviewTimeBucketItem[]): string {
         let html = `
             <div style="display: flex; height: 180px; margin-top: 16px;">

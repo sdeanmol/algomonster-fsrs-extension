@@ -1,6 +1,9 @@
 /**
  * @file features/dashboard/analytics/overview/overview.ts
  * @description Main controller for the Analytics Overview tab component.
+ * Coordinates rendering of Memory Health scores, Learning Velocity KPI sparklines,
+ * a mini 7-day upcoming review forecast strip, and dynamic next action guidance banners.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
@@ -10,13 +13,26 @@ import { MiniForecast } from './miniForecast';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
+/**
+ * Controller for the Overview tab view in the analytics dashboard.
+ * Synthesizes high-level retention health, velocity trends, and review queue status.
+ */
 export class OverviewTab {
+    /** Data utility instance for querying card stats and velocity */
     dataUtils: DataUtils;
+    /** Sub-component rendering the memory health radial gauge and metric tiles */
     memoryHealth: MemoryHealth;
+    /** Sub-component rendering learning speed KPIs and sparkline graphs */
     learningVelocity: LearningVelocity;
+    /** Sub-component rendering the horizontal 7-day upcoming review cards */
     miniForecast: MiniForecast;
+    /** Flag indicating whether the primary static DOM shell has already been mounted */
     rendered: boolean;
 
+    /**
+     * Initializes the OverviewTab with child visualization components.
+     * @param dataUtils - Card statistics and study history utility instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -34,6 +50,11 @@ export class OverviewTab {
         }
     }
 
+    /**
+     * Renders the complete overview dashboard grid into the specified container element.
+     * @param containerId - DOM ID of the container element hosting the overview tab.
+     * @returns void
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -60,6 +81,12 @@ export class OverviewTab {
         }
     }
 
+    /**
+     * Determines the user's highest-priority next study action based on due queue size,
+     * memory health drop relative to target retention, or complete catch-up state.
+     * @param containerId - DOM ID of the container element hosting the action banner.
+     * @returns void
+     */
     renderNextAction(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -93,6 +120,10 @@ export class OverviewTab {
         }
     }
 
+    /**
+     * Generates HTML markup for an all-caught-up success banner.
+     * @returns Rendered HTML banner string.
+     */
     private buildCaughtUpBanner(): string {
         return `
             <div class="actionable-insight-banner success">
@@ -107,6 +138,11 @@ export class OverviewTab {
         `;
     }
 
+    /**
+     * Generates HTML markup for a warning banner indicating pending reviews.
+     * @param dueCount - Number of cards currently due for review.
+     * @returns Rendered HTML banner string.
+     */
     private buildPendingReviewsBanner(dueCount: number): string {
         return `
             <div class="actionable-insight-banner warning">
@@ -121,6 +157,11 @@ export class OverviewTab {
         `;
     }
 
+    /**
+     * Generates HTML markup for a warning banner indicating declining memory retention.
+     * @param health - Current retention score percentage.
+     * @returns Rendered HTML banner string.
+     */
     private buildMemoryHealthDroppingBanner(health: number): string {
         return `
             <div class="actionable-insight-banner warning">

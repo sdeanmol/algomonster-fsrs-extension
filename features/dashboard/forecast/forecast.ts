@@ -1,8 +1,13 @@
 /**
  * @file features/dashboard/forecast/forecast.ts
- * @description Main controller for the dedicated forecast future workloads dashboard.
+ * @description Main controller for the dedicated review forecast dashboard page.
  * Projects upcoming review volumes up to 30 days based on scheduled card due dates,
- * rendering column charts and interactive calendars.
+ * rendering interactive CSS column charts, a 30-day calendar grid, and aggregate metrics.
+ *
+ * Architecture Role: Forecast Standalone Page Controller.
+ * Context: Extension Standalone Tab (`features/dashboard/forecast/forecast.html`).
+ * Key Exports:
+ * - {@link ForecastDashboard}: Main dashboard class calculating daily review loads and rendering charts.
  */
 
 import { Logger } from '@common/logger';
@@ -10,15 +15,25 @@ import { UIUtils } from '../../common/utils/uiUtils';
 import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
 import { FORECAST_DAYS_TO_SHOW, DAY_NAMES_SHORT } from '../../common/constants';
 
+/**
+ * Controller for the review workload forecast dashboard page.
+ * Aggregates card due dates across the next 30 days and renders an interactive
+ * column chart and calendar view allowing drill-down into specific forecast dates.
+ */
 export class ForecastDashboard {
+    /** Cached extension settings, including chart visibility toggles. */
     extensionSettings: ExtensionSettings;
 
+    /**
+     * Creates an instance of ForecastDashboard with initial empty settings.
+     */
     constructor() {
         this.extensionSettings = {};
     }
 
     /**
-     * Bootstraps forecast settings and triggers UI loads.
+     * Bootstraps forecast settings and triggers UI loads by fetching card data from local storage.
+     * @listens chrome.storage.local
      */
     init(): void {
         try {
@@ -182,6 +197,11 @@ export class ForecastDashboard {
         }
     }
 
+    /**
+     * Formats a date object into a short localized string (e.g., "Jan 5").
+     * @param date - Date to format.
+     * @returns Formatted short date string.
+     */
     formatDateShort(date: Date): string {
         try {
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -192,6 +212,11 @@ export class ForecastDashboard {
         }
     }
 
+    /**
+     * Formats a date object into a full localized string with weekday (e.g., "Mon, Jan 5").
+     * @param date - Date to format.
+     * @returns Formatted full date string.
+     */
     formatDateFull(date: Date): string {
         try {
             return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -202,6 +227,11 @@ export class ForecastDashboard {
         }
     }
 
+    /**
+     * Formats a date object into an ISO-style date key (`YYYY-MM-DD`) in local time.
+     * @param date - Date to convert.
+     * @returns `YYYY-MM-DD` date key string.
+     */
     formatDateKey(date: Date): string {
         try {
             return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -212,6 +242,12 @@ export class ForecastDashboard {
         }
     }
 
+    /**
+     * Renders a responsive CSS column bar chart showing daily review volume projections.
+     * @param dueCounts - Map of day offset index to projected number of due cards.
+     * @param todayStart - Midnight timestamp of the current day.
+     * @param daysToShow - Total number of forecast days to visualize.
+     */
     renderForecastChart(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {
         try {
             const chartWrapper = document.getElementById('forecast-chart-wrapper');
@@ -341,6 +377,9 @@ export class ForecastDashboard {
     }
 }
 
+/**
+ * Initializes the forecast dashboard controller on DOM load.
+ */
 function initForecast(): void {
     try {
         const forecast = new ForecastDashboard();

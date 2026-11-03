@@ -6,28 +6,45 @@ import { Card, StorageData, UserSettings } from '../../../types/domain';
 import { PLATFORM_NAMES, MONTH_NAMES } from '../constants';
 
 /**
- * @file features/common/data/data.ts
- * @description Manages database tables listing saved patterns.
- * Supports keyword search, filter dropdown updates (status, tag, platform, FSRS state),
- * sorting, bulk actions (R2.7), inline card editing (R2.9),
- * overall memory retention rates calculations, stacked distribution bars, and card deletion events.
+ * @file Full Problem Pattern Database Table and Management Dashboard
+ * @module features/common/data/data
+ * @context Extension Dashboard Page (features/common/data/data.html)
+ * @description Manages database tables listing saved problem patterns and cards.
+ * Supports keyword search, multi-factor filtering (status, tag, platform, FSRS memory state),
+ * column sorting, bulk actions (delete, retag, reschedule), inline card modal editing,
+ * card deletion with undo toasts, and visual memory retention/state distribution analytics.
  */
 export class FSRSDataDashboard {
+    /** In-memory cache of all FSRS cards retrieved from storage */
     allCards: Card[];
+    /** Current view mode ('total' | 'due' | 'retention') */
     currentView: string;
+    /** Optional calendar date filter parameter ("YYYY-MM-DD") */
     targetDate: string | null;
 
+    /** Active search query string */
     searchQuery: string;
+    /** Currently selected tag filter identifier */
     selectedTag: string;
+    /** Currently selected due status filter */
     selectedStatus: string;
+    /** Currently selected platform/domain filter */
     selectedPlatform: string;
+    /** Currently selected FSRS state filter */
     selectedState: string;
+    /** Active sorting key (e.g. 'due-asc', 'difficulty-desc') */
     sortBy: string;
+    /** User extension settings cached from storage */
     extensionSettings: UserSettings & { showCharts?: boolean };
 
+    /** Set of selected card IDs for bulk actions */
     selectedCardIds: Set<string>;
+    /** Timer reference for auto-dismissing deletion undo toast */
     undoTimer: ReturnType<typeof setTimeout> | null;
 
+    /**
+     * Initializes default filter selections, views, and bulk selection state.
+     */
     constructor() {
         this.allCards = [];
         this.currentView = 'total';
@@ -47,7 +64,9 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Bootstraps dashboard parameters and sets up storage variables.
+     * Bootstraps dashboard parameters from URL search parameters, retrieves cards and
+     * settings from Chrome storage, populates filter dropdowns, and triggers the initial table render.
+     * @fires chrome.storage.local.get
      */
     init(): void {
         try {
@@ -104,7 +123,8 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Registers control elements click and input listener bindings.
+     * Registers DOM event listeners for search input changes, filter select dropdowns,
+     * sorting controls, clear filter buttons, bulk action buttons, and edit modal controls.
      */
     bindEvents(): void {
         try {
@@ -256,7 +276,7 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Searches the collection of card objects and populates tag select options dynamically.
+     * Inspects the cached `allCards` collection and dynamically populates unique tags into the `#tag-select` dropdown.
      */
     populateTagsFilter(): void {
         try {
@@ -284,7 +304,7 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Populates platform filter dropdown by extracting hostnames from card URLs.
+     * Extracts platform hostnames across all cards and populates the `#platform-select` dropdown.
      */
     populatePlatformFilter(): void {
         try {
@@ -313,7 +333,9 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Extracts platform hostname from a URL.
+     * Extracts and normalizes the primary domain name (e.g. "leetcode.com") from a full URL.
+     * @param url - Page URL to inspect.
+     * @returns Normalized domain string or null if unparseable.
      */
     extractPlatform(url?: string): string | null {
         if (!url || url.startsWith('#')) return null;
@@ -332,7 +354,9 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * FSRS state to human label.
+     * Converts an FSRS numeric state code into a human-readable display label.
+     * @param state - Numeric State enum value (0=New, 1=Learning, 2=Review, 3=Relearning).
+     * @returns Human-readable state name.
      */
     getStateLabel(state: number): string {
         try {
@@ -346,8 +370,8 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Filters the cards collection by search keywords, active tags, due statuses,
-     * platform, FSRS state, sorts them, and calls the rendering templates.
+     * Filters the full collection of cards based on search query, active tags, review due status,
+     * target platform, and FSRS state, applies the selected sort order, and updates DOM tables and analytics.
      */
     filterAndRender(): void {
         try {
@@ -496,6 +520,10 @@ export class FSRSDataDashboard {
     /**
      * Resets all search and filter dropdowns to their default states.
      */
+    /**
+     * Resets all search queries and filter dropdown values to their default states ('all' / 'due-asc')
+     * and triggers a re-render.
+     */
     resetFilters(): void {
         this.searchQuery = '';
         this.selectedTag = 'all';
@@ -522,7 +550,11 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Renders a table of FSRS card items.
+     * Generates responsive HTML markup for the problem cards table, including selection checkboxes,
+     * status badges, stability and difficulty indicators, leech flags, and action buttons.
+     * @param cardsArray - Filtered and sorted cards to display.
+     * @param showLapses - Whether to render the lapses column.
+     * @returns HTML string of the cards table.
      */
     generateCardsTable(cardsArray: Card[], showLapses: boolean = true): string {
         try {
@@ -626,7 +658,10 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Sorts the filtered cards array based on current sort selection.
+     * Sorts an array of cards based on the currently selected sort option (`sortBy`).
+     * Supports sorting by due date, difficulty, stability, lapses, and creation date.
+     * @param cards - Cards array to sort.
+     * @returns A sorted shallow copy of the cards array.
      */
     sortCards(cards: Card[]): Card[] {
         try {
@@ -665,7 +700,10 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Shows a temporary undo toast allowing recovery of deleted pattern cards.
+     * Displays a temporary notification banner with an undo action button, allowing the user
+     * to immediately restore a recently deleted problem card.
+     * @param message - Notice message detailing which item was removed.
+     * @param onUndo - Callback invoked if the user clicks the undo button.
      */
     showUndoToast(message: string, onUndo: () => void): void {
         try {
@@ -709,7 +747,9 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Binds click listener events to table delete buttons to remove cards.
+     * Binds click handlers to row delete buttons, removing the card from storage
+     * and prompting with an undo toast.
+     * @fires chrome.storage.local.set
      */
     bindDeleteButtons(): void {
         try {
@@ -757,7 +797,8 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Binds checkbox change events for bulk selection.
+     * Binds change listeners to table row checkboxes and the master select-all checkbox,
+     * maintaining `selectedCardIds` and toggling the bulk actions toolbar.
      */
     bindCheckboxes(): void {
         try {
@@ -816,7 +857,8 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Updates the bulk actions bar visibility and selected count display.
+     * Updates the floating bulk actions bar visibility and updates the count badge
+     * to reflect the current size of `selectedCardIds`.
      */
     updateBulkActionsBar(): void {
         try {
@@ -837,7 +879,8 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Bulk delete selected cards.
+     * Deletes all currently selected cards from storage after prompting the user for confirmation.
+     * @fires chrome.storage.local.set
      */
     bulkDelete(): void {
         try {
@@ -869,7 +912,9 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Bulk re-tag selected cards.
+     * Prompts the user for a new set of comma-delimited tags and applies them to all
+     * currently selected cards, replacing their existing tags.
+     * @fires chrome.storage.local.set
      */
     bulkRetag(): void {
         try {
@@ -908,7 +953,8 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Bulk reschedule selected cards (reset due date to now).
+     * Reschedules all currently selected cards to be due immediately (sets `due = Date.now()`).
+     * @fires chrome.storage.local.set
      */
     bulkReschedule(): void {
         try {
@@ -944,7 +990,7 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Binds click events for edit buttons on each card row.
+     * Binds click events to individual card row edit buttons, opening the modal editor for that card.
      */
     bindEditButtons(): void {
         try {
@@ -964,6 +1010,10 @@ export class FSRSDataDashboard {
         }
     }
 
+    /**
+     * Gathers and returns a sorted array of all unique tags present across stored cards.
+     * @returns Array of unique tag strings.
+     */
     getDatabaseTags(): string[] {
         const tagsSet = new Set<string>();
         (this.allCards || []).forEach((c: Card) => {
@@ -975,7 +1025,9 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Opens the inline edit modal for a specific card.
+     * Opens the inline edit modal pre-populated with problem title, tag chips,
+     * approach notes, and time/space complexity fields for the specified card.
+     * @param cardId - Unique ID of the card to edit.
      */
     openEditModal(cardId: string): void {
         try {
@@ -1003,7 +1055,7 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Closes the inline edit modal.
+     * Hides the inline edit modal overlay without saving changes.
      */
     closeEditModal(): void {
         try {
@@ -1015,7 +1067,9 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Saves edits from the inline edit modal to storage.
+     * Extracts values from the edit modal inputs, updates the target card in `allCards`,
+     * persists the modified cards collection to `chrome.storage.local`, and refreshes the view.
+     * @fires chrome.storage.local.set
      */
     saveCardEdit(): void {
         try {
@@ -1049,7 +1103,9 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Renders statistical cards and distributions of card states.
+     * Renders analytical overview charts above the table, including card state breakdowns
+     * (New, Learning, Review, Lapsed) and top tag frequency distribution bars.
+     * @param cards - Collection of filtered cards to compute metrics for.
      */
     renderAnalyticsPanel(cards: Card[]): void {
         try {
@@ -1159,6 +1215,9 @@ export class FSRSDataDashboard {
     }
 }
 
+/**
+ * Bootstrap entry function creating and initializing the data dashboard instance on DOM readiness.
+ */
 function initDataDashboard(): void {
     try {
         const dashboard = new FSRSDataDashboard();

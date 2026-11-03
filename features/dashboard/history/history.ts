@@ -1,8 +1,13 @@
 /**
  * @file features/dashboard/history/history.ts
- * @description Main controller for the dedicated contribution history dashboard.
- * Aggregates review logs by year, month, or day, and displays grid list drill-downs
- * with interactive CSS charts tracking user activity metrics.
+ * @description Main controller for the dedicated contribution and review history dashboard.
+ * Aggregates review logs across year, month, or day granularities, renders interactive
+ * CSS column charts, and displays clickable drill-down cards linked to detailed card views in `data.html`.
+ *
+ * Architecture Role: History Standalone Page Controller.
+ * Context: Extension Standalone Tab (`features/dashboard/history/history.html`).
+ * Key Exports:
+ * - {@link FSRSHistoryDashboard}: Controller class managing date grouping, view drill-downs, and chart rendering.
  */
 
 import { Logger } from '@common/logger';
@@ -10,14 +15,28 @@ import { UIUtils } from '../../common/utils/uiUtils';
 import { Card, StorageData, ExtensionSettings, ReviewLog } from '../../../types/domain';
 import { MONTH_NAMES } from '../../common/constants';
 
+/**
+ * Controller for the review activity history dashboard page.
+ * Manages calendar hierarchies (year -> month -> day), aggregates review frequencies,
+ * and handles drill-down navigation into specific review logs.
+ */
 export class FSRSHistoryDashboard {
+    /** Map of ISO date strings (`YYYY-MM-DD`) to count of reviews completed on that date. */
     activityData: Record<string, number>;
+    /** Cached extension settings including chart display preferences. */
     extensionSettings: ExtensionSettings;
+    /** Current calendar hierarchy zoom level: 'year', 'month', or 'day'. */
     currentView: string;
+    /** Currently selected 4-digit year filter (e.g., '2026'), or null in year view. */
     selectedYear: string | null;
+    /** Currently selected year-month filter (e.g., '2026-03'), or null if above day view. */
     selectedMonth: string | null;
+    /** Array of localized month names used for display headers and breadcrumbs. */
     monthNames: string[];
 
+    /**
+     * Initializes default history dashboard state with empty activity data and year view.
+     */
     constructor() {
         this.activityData = {};
         this.extensionSettings = {};
@@ -27,6 +46,11 @@ export class FSRSHistoryDashboard {
         this.monthNames = [...MONTH_NAMES];
     }
 
+    /**
+     * Initializes history data from storage, validates consistency between cards' history logs
+     * and cached `fsrsActivity` map, updates storage if out of sync, and renders initial view.
+     * @listens chrome.storage.local
+     */
     init(): void {
         try {
             chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'extensionSettings'], (result: StorageData) => {
@@ -88,6 +112,9 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Binds click listeners to the year/month/day view toggle buttons.
+     */
     attachListeners(): void {
         try {
             document.getElementById('view-year')?.addEventListener('click', () => {
@@ -116,6 +143,12 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Switches the current calendar hierarchy level and re-renders the dashboard.
+     * @param view - View mode ('year', 'month', or 'day').
+     * @param targetYear - Optional specific year to inspect.
+     * @param targetMonth - Optional specific year-month (e.g. '2026-03') to inspect.
+     */
     setView(view: string, targetYear: string | null = null, targetMonth: string | null = null): void {
         try {
             this.currentView = view;
@@ -135,6 +168,10 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Determines the most recent year with logged reviews, or falls back to current year.
+     * @returns 4-digit year string.
+     */
     getMostRecentYear(): string {
         try {
             const years = Object.keys(this.aggregateByYear());
@@ -146,6 +183,11 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Determines the most recent month with logged reviews in a given year.
+     * @param year - 4-digit year string.
+     * @returns `YYYY-MM` month string.
+     */
     getMostRecentMonth(year: string): string {
         try {
             const months = Object.keys(this.aggregateByMonth(year));
@@ -157,6 +199,11 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Opens a new browser tab navigating to `data.html` filtered to cards reviewed in `dateRange`.
+     * @param dateRange - ISO date string or year/month prefix to query.
+     * @param event - Optional click event to prevent propagation.
+     */
     openDataTab(dateRange: string, event?: Event): void {
         try {
             if (event) event.stopPropagation();
@@ -172,6 +219,9 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Renders breadcrumbs, drill-down summary cards, and charts for the active view granularity.
+     */
     renderView(): void {
         try {
             ['year', 'month', 'day'].forEach(v => {
@@ -268,6 +318,10 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Renders a responsive CSS bar chart displaying review activity distributions
+     * for the currently selected hierarchy view (years, months in year, or days in month).
+     */
     renderHistoryChart(): void {
         try {
             const chartWrapper = document.getElementById('history-chart-wrapper');
@@ -418,6 +472,9 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Binds event listeners to dynamically rendered breadcrumb links and drill-down cards.
+     */
     bindDynamicListeners(): void {
         try {
             document.querySelectorAll('.bc-year').forEach(el => {
@@ -495,6 +552,10 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Aggregates activity counts by 4-digit year, tallying total reviews and unique active days.
+     * @returns Map of year strings to total reviews and active day counts.
+     */
     aggregateByYear(): Record<string, { total: number; activeDays: number }> {
         try {
             const years: Record<string, { total: number; activeDays: number }> = {};
@@ -512,6 +573,11 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Aggregates activity counts for each month in a specific year.
+     * @param targetYear - 4-digit year string.
+     * @returns Map of `YYYY-MM` month strings to total review counts.
+     */
     aggregateByMonth(targetYear: string): Record<string, { total: number }> {
         try {
             const months: Record<string, { total: number }> = {};
@@ -530,6 +596,11 @@ export class FSRSHistoryDashboard {
         }
     }
 
+    /**
+     * Aggregates activity counts for each day in a specific month.
+     * @param targetMonth - `YYYY-MM` month string.
+     * @returns Map of `YYYY-MM-DD` date strings to review counts.
+     */
     aggregateByDay(targetMonth: string): Record<string, number> {
         try {
             const days: Record<string, number> = {};
@@ -547,6 +618,9 @@ export class FSRSHistoryDashboard {
     }
 }
 
+/**
+ * Initializes the history dashboard controller on DOM load.
+ */
 function initHistory(): void {
     try {
         const history = new FSRSHistoryDashboard();

@@ -1,6 +1,9 @@
 /**
  * @file features/dashboard/analytics/performance/recoveryTracking.ts
  * @description Renders trouble spots and recovered flashcards analytics.
+ * Categorizes lapsed cards into 'Recovered' (previously lapsed cards that have re-achieved
+ * memory stability) and 'Still Struggling' (cards with recent lapses requiring attention).
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { Logger } from '@common/logger';
@@ -8,10 +11,21 @@ import { getLastReviewDate } from '../../../common/utils/cardUtils';
 import { DataUtils } from '../utils/dataUtils';
 import { Card, ReviewLog } from '../../../../types/domain';
 
+/**
+ * Visualizes memory recovery after card lapses.
+ * Separates lapsed cards into recovered and currently struggling subsets,
+ * supporting tag-based filtering and lapse recency tracking.
+ */
 export class RecoveryTracking {
+    /** Data utility instance for card performance analysis */
     dataUtils: DataUtils;
+    /** Current tag filter applied to the recovery analysis ('all' or specific tag name) */
     tagFilter: string;
 
+    /**
+     * Creates an instance of RecoveryTracking.
+     * @param dataUtils - Card statistics and study history utility instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -24,6 +38,11 @@ export class RecoveryTracking {
         }
     }
 
+    /**
+     * Updates the tag filter applied when displaying recovered and struggling cards.
+     * @param tag - Tag name to filter by, or 'all' to show all cards.
+     * @returns void
+     */
     setTagFilter(tag: string): void {
         try {
             this.tagFilter = tag || 'all';
@@ -33,6 +52,11 @@ export class RecoveryTracking {
         }
     }
 
+    /**
+     * Renders the two-column Recovered vs Struggling cards breakdown into the target container.
+     * @param containerId - DOM ID of the container element hosting the recovery section.
+     * @returns void
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -71,6 +95,13 @@ export class RecoveryTracking {
         }
     }
     
+    /**
+     * Builds the HTML table representation for a list of recovered or struggling cards.
+     * Computes elapsed days since the last lapse or review log.
+     * @param cards - Array of cards to render in the table.
+     * @param isRecovered - True if rendering the recovered cards table; false for struggling cards.
+     * @returns Rendered HTML table markup or empty state placeholder.
+     */
     buildTable(cards: Card[], isRecovered: boolean): string {
         try {
             if (!cards || cards.length === 0) {

@@ -1,6 +1,14 @@
 /**
  * @file features/tracker/scheduler/fsrsOptimizer.ts
- * @description Lightweight JavaScript optimizer for personalized FSRS weights using WASM binding.
+ * @description WebAssembly/WASI optimizer binding for training personalized FSRS parameters from card review history.
+ * Utilizes `@open-spaced-repetition/binding` to compute optimized 17-parameter weights vectors.
+ * 
+ * Context: Runs in standalone options or web worker context during background weight optimization.
+ * 
+ * Key Exports:
+ * - `WasmBinding`: Interface describing constructor and function signatures from the WASI binary.
+ * - `EligibilityResult`: Metric interface representing review history volume and readiness.
+ * - `FsrsOptimizer`: Optimizer class coordinating training set preparation, WASM worker execution, and progress reporting.
  */
 
 import type { FSRSBindingReview, FSRSBindingItem, computeParameters } from '@open-spaced-repetition/binding';
@@ -10,9 +18,15 @@ import { Card, ReviewLog } from '../../../types/domain';
 import { MS_PER_DAY, OPTIMIZER_DEFAULT_THRESHOLD, OPTIMIZER_MAX_TRAINING_CARDS, DEFAULT_FSRS_REQUEST_RETENTION } from '../../common/constants';
 import { Logger } from '@common/logger';
 
+/**
+ * Shape of the initialized WebAssembly WASI module binding.
+ */
 export interface WasmBinding {
+    /** Constructor for individual review log items accepted by the WASM optimizer. */
     FSRSBindingReview: new (rating: number, deltaT: number) => FSRSBindingReview;
+    /** Constructor for grouped card review sequences accepted by the WASM optimizer. */
     FSRSBindingItem: new (reviews: FSRSBindingReview[]) => FSRSBindingItem;
+    /** Calculation method computing optimal weights from training items. */
     computeParameters: typeof computeParameters;
 }
 
@@ -20,6 +34,12 @@ let _bindingInstance: WasmBinding | null = null;
 
 const wasmUrl = new URL('@open-spaced-repetition/binding-wasm32-wasi/fsrs-binding.wasm32-wasi.wasm', import.meta.url);
 
+/**
+ * Lazily loads and instantiates the WebAssembly WASI optimizer worker.
+ * 
+ * @async
+ * @returns {Promise<WasmBinding>} The initialized WASM binding instance.
+ */
 async function getBinding(): Promise<WasmBinding> {
     if (!_bindingInstance) {
         _bindingInstance = await initOptimizer({
@@ -30,20 +50,41 @@ async function getBinding(): Promise<WasmBinding> {
     return _bindingInstance;
 }
 
+/**
+ * Representation of history qualification status for weight training.
+ */
 export interface EligibilityResult {
+    /** Whether review history volume qualifies for training. */
     eligible: boolean;
+    /** Number of historical reviews recorded. */
     count: number;
+    /** Minimum review threshold required. */
     threshold: number;
+    /** Count of unique cards with multiple reviews. */
     uniqueCards?: number;
 }
 
+/**
+ * WebAssembly-based parameter optimizer for personalized FSRS weights.
+ */
 export class FsrsOptimizer {
+    /** Number of training epochs to run. */
     epochs: number;
 
+    /**
+     * Initializes default training hyper-parameters.
+     */
     constructor() {
         this.epochs = 50;
     }
 
+    /**
+     * Evaluates card collection history to determine if enough multi-review items exist to train weights.
+     * 
+     * @param {Card[]} history - Array of study cards to evaluate.
+     * @param {number} [threshold=OPTIMIZER_DEFAULT_THRESHOLD] - Target review threshold.
+     * @returns {EligibilityResult} Eligibility metrics and card count.
+     */
     computeEligibility(history: Card[], threshold: number = OPTIMIZER_DEFAULT_THRESHOLD): EligibilityResult {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
 
@@ -65,6 +106,17 @@ export class FsrsOptimizer {
         };
     }
 
+    /**
+     * Prepares review logs and executes the WebAssembly optimizer to calculate personalized weights.
+     * 
+     * @async
+     * @param {Card[]} history - Full array of user cards containing review logs.
+     * @param {number[]} currentWeights - Current 17-parameter weights baseline.
+     * @param {number} [targetRetention=DEFAULT_FSRS_REQUEST_RETENTION] - Target memory retention probability.
+     * @param {((current: number, total: number) => void) | null} [onProgress=null] - Optional progress notification callback.
+     * @returns {Promise<number[]>} Array of 17 optimized weights.
+     * @throws {Error} If WASM compilation or optimization times out or fails.
+     */
     async trainWeights(
         history: Card[],
         currentWeights: number[],

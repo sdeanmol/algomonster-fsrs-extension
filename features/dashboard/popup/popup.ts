@@ -1,3 +1,17 @@
+/**
+ * @file features/dashboard/popup/popup.ts
+ * @description Central coordinator for the AlgoRecall popup dashboard window.
+ * Manages configuration updates (theme, highlighting visibility), page data backup (import/export),
+ * Anki deck exchange utilities, and instantiates visual dashboard components (stats, heatmap,
+ * notifications, ratings, and quick search).
+ *
+ * Architecture Role: Popup Master Controller and View Coordinator.
+ * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
+ * Key Exports:
+ * - {@link PopupDOM}: Interface mapping cached DOM element references for the popup.
+ * - {@link AlgoRecallDashboard}: Main coordinator class managing popup lifecycle, settings, and tabs.
+ */
+
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { StatsComponent } from './stats';
@@ -10,55 +24,98 @@ import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
 import { ActionService } from '../../common/services/actionService';
 
+/**
+ * Cached DOM elements for the primary popup dashboard window.
+ */
 export interface PopupDOM {
+    /** Button toggling light/dark theme. */
     themeToggleBtn: HTMLElement | null;
+    /** Toggle switch enabling/disabling floating text highlighter popup. */
     markerToggle: HTMLInputElement | null;
+    /** Toggle switch enabling/disabling visual SVG activity charts. */
     chartsToggle: HTMLInputElement | null;
+    /** Toggle switch enabling/disabling problem tracker launcher button on content pages. */
     launcherToggle: HTMLInputElement | null;
+    /** Toggle switch enabling developer debug tools and short test intervals. */
     devModeToggle: HTMLInputElement | null;
+    /** Button navigating to supported websites management page. */
     managePlatformsBtn: HTMLElement | null;
+    /** Button navigating to FSRS algorithmic weight configuration page. */
     configureFsrsBtn: HTMLElement | null;
+    /** Button navigating to user documentation and help page. */
     helpBtn: HTMLElement | null;
+    /** Button navigating to historical review logs page. */
     historyBtn: HTMLElement | null;
+    /** Button opening dedicated full-tab heatmap page. */
     openHeatmapTabBtn: HTMLElement | null;
+    /** Stat box displaying total cards tracked. */
     boxTotal: HTMLElement | null;
+    /** Stat box displaying cards currently due for review. */
     boxDue: HTMLElement | null;
+    /** Stat box displaying overall retention percentage. */
     boxRetention: HTMLElement | null;
+    /** Button opening highlights manager page. */
     manageHighlightsBtn: HTMLElement | null;
+    /** Button opening highlighter palette options page. */
     openOptionsBtn: HTMLElement | null;
+    /** Footer button opening full analytics dashboard. */
     analyticsBtn: HTMLElement | null;
+    /** Header button opening full analytics dashboard. */
     headerAnalyticsBtn: HTMLElement | null;
+    /** Button opening future workload forecast page. */
     forecastBtn: HTMLElement | null;
+    /** Button triggering JSON database backup export. */
     exportBtn: HTMLElement | null;
+    /** Hidden file input element for restoring JSON backup file. */
     importFile: HTMLInputElement | null;
+    /** Button exporting cards formatted for Anki deck import. */
     ankiExportBtn: HTMLElement | null;
+    /** Hidden file input element for importing Anki text deck. */
     ankiImportFile: HTMLInputElement | null;
+    /** Button opening exam countdown study plan page. */
     studyplanBtn: HTMLElement | null;
+    /** Button opening Pomodoro timer page. */
     pomodoroBtn: HTMLElement | null;
+    /** Button opening review session summary page. */
     openSummaryPageBtn: HTMLElement | null;
+    /** Toggle switch for weekly summary email/digest feature. */
     weeklyDigestToggle: HTMLInputElement | null;
+    /** Toggle switch displaying due review count badge on browser extension icon. */
     badgeToggle: HTMLInputElement | null;
+    /** Status toast banner container for temporary user notifications. */
     statusMsg: HTMLElement | null;
+    /** Container element holding developer-only action buttons. */
     devModeActions: HTMLElement | null;
+    /** Button exporting internal debug log history as JSON. */
     exportDebugLogsBtn: HTMLElement | null;
+    /** Container element holding test notification triggers in developer mode. */
     testNotificationsContainer: HTMLElement | null;
 }
 
 /**
- * @class AlgoRecallDashboard
- * @description Central coordinator for the AlgoRecall popup options dashboard page.
+ * Central coordinator for the AlgoRecall popup options dashboard page.
  * Manages configuration updates (theme, highlighting visibility), page data backup (import/export),
  * Anki deck exchange utilities, and instantiates visual dashboard components.
  */
 export class AlgoRecallDashboard {
+    /** Active timeout handle for auto-dismissing toast notifications. */
     statusTimeout: ReturnType<typeof setTimeout> | null = null;
+    /** Cached DOM elements for the dashboard window. */
     dom: PopupDOM;
+    /** Sub-component rendering summary counters and retention metrics. */
     stats: StatsComponent;
+    /** Sub-component rendering mini activity heatmap grid. */
     heatmap: HeatmapComponent;
+    /** Sub-component managing background reminder schedules and permissions. */
     notifications: NotificationsComponent;
+    /** Sub-component providing inline card rating interface. */
     rating: RatingComponent;
+    /** Sub-component providing search bar for quick problem lookup. */
     search: QuickSearchComponent;
 
+    /**
+     * Initializes the popup dashboard, caching element references and instantiating sub-components.
+     */
     constructor() {
         try {
             // Cache global/page-level elements
@@ -947,7 +1004,9 @@ export class AlgoRecallDashboard {
     }
 }
 
-// Instantiate and initialize coordinator on DOM load
+/**
+ * Initializes the popup dashboard controller when the DOM is ready.
+ */
 function initPopupDashboard(): void {
     try {
         const dashboard = new AlgoRecallDashboard();

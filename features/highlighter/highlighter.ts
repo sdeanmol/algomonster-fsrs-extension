@@ -1,47 +1,93 @@
 /**
  * @file features/highlighter/highlighter.ts
- * @description In-page text selection highlighter, floating tooltip UI, and custom CSS Highlights API manager.
+ * @description In-page text selection highlighter, floating tooltip UI, and CSS Custom Highlights API manager.
+ * Detects user text selections, displays anchored color swatch tooltips, manages note annotations,
+ * links highlights to flashcard problem approaches, and restores highlight ranges across page sessions.
+ * 
+ * Context: Content script environment (injected into target web pages within the extension context).
+ * 
+ * Key Exports:
+ * - `HighlighterState`: State interface managing in-memory marks, bookmarks, and tooltip timers.
+ * - `HighlighterUtils`: Helper utilities interface for DOM range serialization and title extraction.
+ * - `ApproachDraft`: Draft notes interface for uncommitted problem approaches.
+ * - `Highlighter`: Main highlighter controller class managing DOM marks, tooltips, and storage persistence.
  */
 
 import { Logger } from '@common/logger';
 import { HighlightMark, DOMMeta, ExtensionSettings, BookmarkItem, Card } from '../../types/domain';
 import { DEFAULT_EXTENSION_SETTINGS, DEFAULT_PALETTES, DEFAULT_HIGHLIGHT_COLOR } from '../common/constants';
 
+/**
+ * Shared in-memory highlighter state container.
+ */
 export interface HighlighterState {
+    /** Active theme indicator ('light' | 'dark'). */
     currentTheme?: string;
+    /** Identifier of the highlight mark currently hovered by the user cursor. */
     hoveredMarkId?: string | null;
+    /** Timer reference to delay tooltip dismissal during mouse movement transitions. */
     hideTooltipTimer?: ReturnType<typeof setTimeout> | null;
+    /** Extension layout preferences and active palette selections. */
     extensionSettings: ExtensionSettings;
+    /** Collection of all saved text highlight annotations. */
     marks: HighlightMark[];
+    /** Saved problem page bookmarks. */
     bookmarks: BookmarkItem[];
+    /** Injected page content excerpts and length metadata. */
     pagecontents: Array<{ url: string; description: string; length: number; [key: string]: unknown }>;
+    /** Active live DOM Range references and colors for hover detection. */
     activeMarkRanges: Array<{ markId: string; range: Range; color: string }>;
+    /** Optional cached study cards collection for approach linking. */
     cards?: Card[];
+    /** Flag indicating whether the native color picker dialog is currently open. */
     isColorPickerOpen?: boolean;
+    /** Cached range selection preserved while the color picker dialog is focused. */
     savedRange?: Range | null;
+    /** Active mark ID being configured during creation mode. */
     activeCreationMarkId?: string | null;
     [key: string]: unknown;
 }
 
+/**
+ * Utility functions required by the highlighter module.
+ */
 export interface HighlighterUtils {
+    /** Serializes the DOM path coordinates of a given text boundary node. */
     getDOMMeta?: (node: Node | null, offset: number) => DOMMeta;
+    /** Reconstructs a DOM Range from serialized start and end metadata coordinates. */
     restoreRangeFromMeta?: (meta: { startMeta?: DOMMeta; endMeta?: DOMMeta } | undefined, text: string) => Range | null;
+    /** Injects custom CSS style rules for a specific color and annotation type. */
     ensureHighlightStyle?: (color: string, type: string) => string;
+    /** Parses document title and DOM structure for clean problem titles. */
     getExtractedProblemTitle?: () => string;
     [key: string]: unknown;
 }
 
+/**
+ * Interface defining approach draft notes stored for problem pages.
+ */
 export interface ApproachDraft {
+    /** Markdown explanation of the algorithmic solution. */
     approach?: string;
+    /** Comma-separated topic tag list. */
     tags?: string;
     [key: string]: unknown;
 }
 
+/**
+ * Controller for in-page text selection highlights, floating action tooltips, and CSS Custom Highlights.
+ */
 export class Highlighter {
+    /** Shared state slice accessed by the highlighter. */
     state: HighlighterState;
+    /** Content script utilities. */
     utils: HighlighterUtils;
+    /** Flag tracking whether document pointer and keyboard listeners have been bound. */
     isHighlighterListenersBound: boolean = false;
 
+    /**
+     * Initializes the highlighter controller, attaching to `window.AlgoRecall.state` if available.
+     */
     constructor() {
         try {
             const win = window as unknown as {
@@ -82,6 +128,12 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Injects the floating tooltip element `#algo-highlight-tooltip` into `document.body`
+     * and binds pointerup, mousemove, and keyboard selection events.
+     * 
+     * @returns {void}
+     */
     createHighlighterUI(): void {
         try {
             if (!document.getElementById('algo-highlight-tooltip')) {
@@ -110,6 +162,11 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Removes the floating highlighter tooltip DOM element if present.
+     * 
+     * @returns {void}
+     */
     removeHighlighterUI(): void {
         try {
             const tooltip = document.getElementById('algo-highlight-tooltip');
@@ -120,6 +177,12 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Binds text selection triggers (pointerup), hover detection across active highlights (mousemove),
+     * and keyboard selection adjustments (keyup).
+     * 
+     * @returns {void}
+     */
     bindEvents(): void {
         try {
             // 1. Text Selection Logic (For NEW highlights)
@@ -275,6 +338,11 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Inspects current window text selection boundaries and anchors the floating highlighter tooltip.
+     * 
+     * @returns {void}
+     */
     handleTextSelection(): void {
         try {
             if (this.state.isColorPickerOpen) return;
@@ -310,6 +378,16 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Calculates absolute screen coordinates for the floating tooltip, ensuring it stays within viewport
+     * boundaries and flipping above the text range when bottom clearance is insufficient.
+     * 
+     * @param {HTMLElement} tooltip - Floating tooltip container element.
+     * @param {number} x - Target horizontal page coordinate.
+     * @param {number} y - Target vertical page coordinate.
+     * @param {number} fallbackTop - Alternate top coordinate for upward flipping.
+     * @returns {void}
+     */
     positionTooltip(tooltip: HTMLElement, x: number, y: number, fallbackTop: number): void {
         tooltip.style.display = 'flex';
         const tooltipRect = tooltip.getBoundingClientRect();
@@ -349,6 +427,14 @@ export class Highlighter {
         // Main mousemove handling is bound in bindEvents
     }
 
+    /**
+     * Renders palette color swatches, native color picker, type selector, and note editing forms
+     * inside the floating tooltip. Adapts layout depending on whether creating a new or modifying an existing highlight.
+     * 
+     * @param {string | null} [existingMarkId=null] - Mark ID if editing an existing highlight.
+     * @param {string | null} [currentColor=null] - Currently assigned hex color string.
+     * @returns {void}
+     */
     renderTooltipColors(existingMarkId: string | null = null, currentColor: string | null = null): void {
         try {
             if (this.state.isColorPickerOpen) return;
@@ -753,6 +839,13 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Updates the category tag (e.g. 'Key Insight', 'Gotcha', 'Edge Case') for a saved highlight.
+     * 
+     * @param {string} markId - ID of the target highlight mark.
+     * @param {string} category - Selected category string.
+     * @returns {void}
+     */
     saveMarkCategory(markId: string, category: string): void {
         try {
             const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
@@ -766,6 +859,13 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Appends the selected highlight snippet (and any attached note) into the active FSRS problem
+     * card's approach notes or unsaved draft notes in storage.
+     * 
+     * @param {string} markId - ID of the highlight to link.
+     * @returns {void}
+     */
     linkHighlightToCard(markId: string): void {
         try {
             const mark = this.state.marks.find((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
@@ -898,6 +998,12 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Caches recently used custom color selections in `extensionSettings.recentColors`.
+     * 
+     * @param {string} newColor - Hex color code.
+     * @returns {void}
+     */
     updateRecentColors(newColor: string): void {
         try {
             if (!this.state.extensionSettings || !this.state.extensionSettings.palettes) {
@@ -913,6 +1019,13 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Alias method triggering `saveHighlight`.
+     * 
+     * @param {string} color - Hex color code.
+     * @param {string} [type='highlight'] - Annotation style type.
+     * @returns {void}
+     */
     createHighlight(color: string, type: string = 'highlight'): void {
         try {
             this.saveHighlight(color, type);
@@ -922,6 +1035,14 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Serializes the active text selection or cached range coordinates into a new `HighlightMark` record,
+     * updates bookmarks and page content snapshots, persists to storage, and activates DOM highlights.
+     * 
+     * @param {string} color - Hex color code for the highlight.
+     * @param {string} [type='highlight'] - Visual style ('highlight' or 'underline').
+     * @returns {void}
+     */
     saveHighlight(color: string, type: string = 'highlight'): void {
         try {
             const selection = window.getSelection();
@@ -1001,6 +1122,13 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Modifies the color of an existing highlight mark and updates the CSS highlight representation.
+     * 
+     * @param {string} markId - Identifier of the target highlight mark.
+     * @param {string} newColor - New hex color code.
+     * @returns {void}
+     */
     updateHighlightColor(markId: string, newColor: string): void {
         try {
             const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
@@ -1018,6 +1146,12 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Deletes a highlight mark from extension storage and clears its CSS highlight overlay.
+     * 
+     * @param {string} markId - ID of the mark to delete.
+     * @returns {void}
+     */
     deleteHighlight(markId: string): void {
         try {
             if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime || !chrome.runtime.id) {
@@ -1039,6 +1173,13 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Saves user note text attached to a specific highlight mark.
+     * 
+     * @param {string} markId - ID of the mark.
+     * @param {string} noteText - Note content string.
+     * @returns {void}
+     */
     saveMarkNote(markId: string, noteText: string): void {
         try {
             if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime || !chrome.runtime.id) {
@@ -1056,6 +1197,12 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Queries all saved marks for the active URL, deserializes their DOM tree ranges,
+     * registers CSS style rules, and renders annotations via the CSS Custom Highlights API.
+     * 
+     * @returns {void}
+     */
     applyHighlightsForCurrentPage(): void {
         try {
             if (typeof CSS === 'undefined' || !('highlights' in CSS)) {

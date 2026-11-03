@@ -1,17 +1,34 @@
 /**
  * @file features/dashboard/analytics/insights/insights.ts
- * @description Main controller for the Insights tab component in Analytics.
+ * @description Main controller for the Behavioral Insights tab in the Analytics Dashboard.
+ * Embeds time-of-day study analytics and presents actionable recommendation banners
+ * advising optimal review scheduling based on retention patterns.
+ *
+ * Architecture Role: Analytics Tab Sub-View Controller (Behavioral Insights).
+ * Context: Extension Standalone Tab (`features/dashboard/analytics/analytics.html`).
+ * Key Exports:
+ * - {@link InsightsTab}: View controller class rendering study habits and recommendation banners.
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { ReviewTimeAnalytics } from './reviewTimeAnalytics';
 import { DataUtils } from '../utils/dataUtils';
 
+/**
+ * Controller for the Insights tab, rendering behavioral study metrics and next actions.
+ */
 export class InsightsTab {
+    /** Shared statistical calculation engine. */
     dataUtils: DataUtils;
+    /** Sub-component rendering time-of-day charts and duration statistics. */
     reviewTimeAnalytics: ReviewTimeAnalytics;
+    /** Tracks whether static DOM container scaffolding has already been injected. */
     rendered: boolean;
 
+    /**
+     * Initializes the Insights tab with a DataUtils reference.
+     * @param dataUtils - Statistical engine instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -25,6 +42,10 @@ export class InsightsTab {
         }
     }
 
+    /**
+     * Renders container structure and initiates child component rendering.
+     * @param containerId - ID of parent DOM element.
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -56,6 +77,10 @@ export class InsightsTab {
         }
     }
 
+    /**
+     * Evaluates study time buckets and renders an actionable recommendation banner.
+     * @param containerId - ID of the container element for the banner.
+     */
     renderNextAction(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -85,6 +110,9 @@ export class InsightsTab {
         }
     }
 
+    /**
+     * Builds HTML template for the empty state warning banner.
+     */
     private buildEmptyStateBanner(): string {
         return `
             <div class="actionable-insight-banner warning" style="margin-bottom:0;">
@@ -99,6 +127,10 @@ export class InsightsTab {
         `;
     }
 
+    /**
+     * Builds HTML template for the schedule optimization advice banner.
+     * @param bucketName - Best-performing study time period name (e.g. 'morning').
+     */
     private buildOptimizationBanner(bucketName: string): string {
         return `
             <div class="actionable-insight-banner success" style="margin-bottom:0;">
@@ -113,6 +145,9 @@ export class InsightsTab {
         `;
     }
 
+    /**
+     * Builds HTML template advising the user to log more reviews across different times.
+     */
     private buildCollectMoreDataBanner(): string {
         return `
             <div class="actionable-insight-banner success" style="margin-bottom:0;">

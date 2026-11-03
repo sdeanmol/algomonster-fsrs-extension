@@ -1,6 +1,9 @@
 /**
  * @file features/dashboard/analytics/memory/memory.ts
- * @description Main controller for the Memory & Retention tab.
+ * @description Main controller for the Memory & Retention tab in the analytics dashboard.
+ * Coordinates multi-line forgetting curves, predicted vs actual recall comparisons,
+ * FSRS personalized model status badges, and overdue review remediation guidance.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
@@ -10,12 +13,25 @@ import { DataUtils } from '../utils/dataUtils';
 import { StorageData } from '../../../../types/domain';
 import { DEFAULT_FSRS_REQUEST_RETENTION, RETENTION_DROP_THRESHOLD } from '../../../common/constants';
 
+/**
+ * Controller for the Memory & Retention tab view in the analytics dashboard.
+ * Orchestrates retention decay visualizations, model calibration comparisons,
+ * and personal FSRS parameter weight status.
+ */
 export class MemoryTab {
+    /** Data utility instance for card statistics and FSRS parameters */
     dataUtils: DataUtils;
+    /** Sub-component rendering interactive forgetting curves with optional confidence intervals */
     retentionChart: RetentionChart;
+    /** Sub-component comparing model predictions against observed review outcomes */
     predictionComparison: PredictionComparison;
+    /** Flag indicating whether the primary static DOM shell has already been mounted */
     rendered: boolean;
 
+    /**
+     * Initializes the MemoryTab controller and child visualization components.
+     * @param dataUtils - Card statistics and scheduler helper instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -31,6 +47,12 @@ export class MemoryTab {
         }
     }
 
+    /**
+     * Renders the complete Memory & Retention view into the target container element.
+     * Builds static layout on initial run and refreshes charts and guidance on subsequent calls.
+     * @param containerId - DOM ID of the container element hosting the memory tab.
+     * @returns void
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -92,8 +114,11 @@ export class MemoryTab {
     }
 
     /**
-     * Fetches FSRS parameters from storage to render the global training status
-     * (whether the user is using default or personalized weights).
+     * Fetches FSRS parameters from browser storage to render the global training status banner
+     * (whether the user is using default cold-start weights or personalized optimized weights).
+     * @param containerId - DOM ID of the container element hosting the status panel.
+     * @returns void
+     * @fires chrome.storage.local.get
      */
     renderPersonalMemoryStatus(containerId: string): void {
         try {
@@ -147,7 +172,9 @@ export class MemoryTab {
 
     /**
      * Determines the optimal next action for the user based on their current 
-     * retention and due card backlog.
+     * retention and due card backlog, rendering an actionable warning or success banner.
+     * @param containerId - DOM ID of the container element hosting the next action banner.
+     * @returns void
      */
     renderNextAction(containerId: string): void {
         try {
@@ -206,7 +233,10 @@ export class MemoryTab {
     }
 
     /**
-     * Binds event listeners to the interactive controls for the retention chart.
+     * Binds event listeners to the interactive controls for the retention chart
+     * (grouping selector, tag filter text input, and confidence interval toggle).
+     * @param container - Root DOM container hosting the memory controls.
+     * @returns void
      */
     private bindEventListeners(container: HTMLElement): void {
         const groupBySelect = container.querySelector('#retention-group-by') as HTMLSelectElement | null;

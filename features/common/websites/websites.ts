@@ -1,5 +1,7 @@
 /**
- * @file features/common/websites/websites.ts
+ * @file Dynamic Whitelisted Websites Configuration Manager
+ * @module features/common/websites/websites
+ * @context Options / Whitelist Management Page (features/common/websites/websites.html)
  * @description Manages whitelist configurations for sites where the extension content scripts are active.
  * Integrates dynamic permissions requests for custom domains, and registers content scripts
  * programmatically using the Chrome Extension Scripting API.
@@ -9,20 +11,33 @@ import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { DEFAULT_WHITELISTED_WEBSITES } from '../constants';
 
+/**
+ * Record representing a whitelisted website domain and its default status.
+ */
 export interface WhitelistedSite {
+    /** Target hostname or domain string (e.g. "leetcode.com") */
     domain: string;
+    /** True if this website is part of the factory default whitelist */
     isDefault: boolean;
 }
 
+/**
+ * Controller class managing the Whitelisted Websites options page.
+ */
 export class WhitelistedWebsitesManager {
+    /** Factory default website records */
     defaultSitesList: WhitelistedSite[];
 
+    /**
+     * Initializes default platforms list from constants.
+     */
     constructor() {
         this.defaultSitesList = DEFAULT_WHITELISTED_WEBSITES.map(s => ({ ...s, isDefault: true }));
     }
 
     /**
      * Initializes whitelist displays and registers default clicks.
+     * @fires chrome.storage.local.get
      */
     init(): void {
         try {
@@ -83,6 +98,8 @@ export class WhitelistedWebsitesManager {
 
     /**
      * Loads authorized website structures from storage and builds whitelist list rows.
+     * @fires chrome.storage.local.get
+     * @fires chrome.storage.local.set
      */
     loadAndRenderSites(): void {
         try {
@@ -154,6 +171,9 @@ export class WhitelistedWebsitesManager {
     /**
      * Validates domain input strings, requests host permission rules,
      * and dynamically registers associated content script matches.
+     * @fires chrome.permissions.request
+     * @fires chrome.scripting.registerContentScripts
+     * @fires chrome.storage.local.set
      */
     handleAddWebsite(): void {
         const input = document.getElementById('domain-input') as HTMLInputElement | null;
@@ -255,6 +275,10 @@ export class WhitelistedWebsitesManager {
 
     /**
      * Revokes host origin permissions and dynamic scripts, then updates storage list.
+     * @param siteDomain - Target domain to delete.
+     * @fires chrome.scripting.unregisterContentScripts
+     * @fires chrome.permissions.remove
+     * @fires chrome.storage.local.set
      */
     handleDeleteWebsite(siteDomain: string): void {
         try {
@@ -320,6 +344,8 @@ export class WhitelistedWebsitesManager {
 
     /**
      * Restores initial hardcoded whitelisted platforms.
+     * @fires chrome.storage.local.get
+     * @fires chrome.storage.local.set
      */
     restoreDefaults(): void {
         try {

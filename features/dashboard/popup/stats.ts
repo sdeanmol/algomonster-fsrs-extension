@@ -1,6 +1,14 @@
 /**
  * @file features/dashboard/popup/stats.ts
  * @description Manages progress tracking, daily goals, gamification elements, and streaking metrics inside the options popup.
+ * Computes live FSRS retrievability retention rates, manages XP leveling, renders SVG daily goal progress rings,
+ * tracks consecutive study day streaks, and triggers canvas confetti celebration effects on reaching milestones.
+ *
+ * Architecture Role: Popup Sub-View Component (Gamification & Retention Statistics).
+ * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
+ * Key Exports:
+ * - {@link StreakResult}: Current and longest streak calculation result.
+ * - {@link StatsComponent}: Sub-view component class managing popup stats, badges, and progress rings.
  */
 
 import { Logger } from '@common/logger';
@@ -20,29 +28,58 @@ import { getLastReviewDate } from '../../common/utils/cardUtils';
 import { Card, StorageData } from '../../../types/domain';
 import AbstractScheduler from '../../tracker/scheduler/scheduler';
 
+/**
+ * Result structure representing consecutive study day streaks.
+ */
 export interface StreakResult {
+    /** Number of consecutive daily reviews active up to today/yesterday. */
     current: number;
+    /** All-time highest consecutive daily streak achieved. */
     longest: number;
 }
 
+/**
+ * Individual particle physics state for HTML5 Canvas milestone celebration animations.
+ */
 interface ConfettiParticle {
+    /** Current X canvas coordinate. */
     x: number;
+    /** Current Y canvas coordinate. */
     y: number;
+    /** Particle width in pixels. */
     w: number;
+    /** Particle height in pixels. */
     h: number;
+    /** Horizontal velocity. */
     vx: number;
+    /** Vertical velocity. */
     vy: number;
+    /** Hex color string. */
     color: string;
+    /** Current rotation angle in degrees. */
     rotation: number;
+    /** Angular velocity in degrees per frame. */
     rotationSpeed: number;
+    /** Current opacity value between 0.0 and 1.0. */
     opacity: number;
+    /** Geometric render shape. */
     shape: 'rect' | 'circle';
 }
 
+/**
+ * Sub-component for the popup dashboard that calculates overall retention,
+ * drives XP progression, and renders interactive daily goal SVG rings and milestone celebrations.
+ */
 export class StatsComponent extends DashboardComponent {
+    /** Target number of cards configured to review per day. */
     dailyGoalTarget: number;
+    /** Best all-time daily review streak recorded. */
     longestStreak: number;
 
+    /**
+     * Initializes the stats component with a coordinator reference.
+     * @param coordinator - Parent dashboard coordinator.
+     */
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
         this.dailyGoalTarget = DEFAULT_DAILY_GOAL;
@@ -52,6 +89,8 @@ export class StatsComponent extends DashboardComponent {
     /**
      * Loads FSRS card data and activity logs, computes overall stats,
      * and renders both the level progression badge and the daily goal progress ring.
+     * @async
+     * @returns Promise resolving when statistics calculations and DOM updates complete.
      */
     async load(): Promise<void> {
         try {

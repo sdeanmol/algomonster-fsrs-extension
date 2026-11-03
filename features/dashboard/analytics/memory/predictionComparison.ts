@@ -1,6 +1,8 @@
 /**
  * @file features/dashboard/analytics/memory/predictionComparison.ts
- * @description Renders chart comparing predicted FSRS memory retention against actual recall.
+ * @description Renders an SVG comparison chart plotting theoretical FSRS predicted memory retention
+ * against actual empirical recall performance across standardized time intervals (0-30 days).
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
@@ -12,16 +14,32 @@ import {
     RETENTION_TIME_POINTS
 } from '../../../common/constants';
 
+/**
+ * Geometric and retrievability point data for comparison curves.
+ */
 export interface ComparisonPoint {
+    /** Elapsed time offset in days */
     t: number;
+    /** Retrievability value (probability between 0.0 and 1.0) */
     R: number;
+    /** Scaled X coordinate in the SVG coordinate space */
     x: number;
+    /** Scaled Y coordinate in the SVG coordinate space */
     y: number;
 }
 
+/**
+ * Visualizes model calibration by comparing expected memory retention (dashed line)
+ * against measured or estimated actual recall (solid line), highlighting algorithm divergence.
+ */
 export class PredictionComparison {
+    /** Data utility instance providing summary statistics and scheduler methods */
     dataUtils: DataUtils;
 
+    /**
+     * Initializes the PredictionComparison component.
+     * @param dataUtils - Card statistics helper instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -32,7 +50,10 @@ export class PredictionComparison {
     }
 
     /**
-     * Main entry point to render the prediction vs actual comparison chart.
+     * Main entry point to render the prediction vs actual comparison chart into the container.
+     * Computes projection points, builds SVG polylines, and injects legend and gap warning.
+     * @param containerId - DOM ID of the container element hosting the comparison.
+     * @returns void
      */
     render(containerId: string): void {
         try {
@@ -65,7 +86,12 @@ export class PredictionComparison {
     }
 
     /**
-     * Calculates the projected retrievability (predicted) and the degraded recall (actual).
+     * Calculates the projected retrievability (predicted) and degraded recall (actual)
+     * across standardized time points, determining whether an advisory gap warning is warranted.
+     * @param timePoints - Array of day offsets (e.g., [0, 1, 3, 7, 14, 30]).
+     * @param xScale - Scaling function converting days to SVG X pixels.
+     * @param yScale - Scaling function converting retrievability to SVG Y pixels.
+     * @returns Object containing predicted points, actual points, delta diff, and explanatory text.
      */
     private calculateChartData(timePoints: number[], xScale: (t: number) => number, yScale: (r: number) => number) {
         const stats = this.dataUtils ? this.dataUtils.getSummaryStats() : null;
@@ -109,7 +135,17 @@ export class PredictionComparison {
     }
 
     /**
-     * Renders the SVG axes, predicted line, and actual line.
+     * Renders the SVG axes, grid lines, predicted line (dashed), and actual line (solid).
+     * @param predPoints - Projected theoretical recall points.
+     * @param actPoints - Observed or estimated empirical recall points.
+     * @param timePoints - Array of discrete evaluation day offsets.
+     * @param xScale - Scaling function converting days to SVG X pixels.
+     * @param yScale - Scaling function converting retrievability to SVG Y pixels.
+     * @param svgW - Total SVG viewbox width.
+     * @param svgH - Total SVG viewbox height.
+     * @param padL - Left axis padding in pixels.
+     * @param padR - Right margin padding in pixels.
+     * @returns Rendered SVG markup string.
      */
     private generateSvgContent(
         predPoints: ComparisonPoint[],
@@ -146,7 +182,10 @@ export class PredictionComparison {
     }
 
     /**
-     * Renders the legend and dynamic gap warning HTML.
+     * Renders the legend and dynamic gap warning HTML banner.
+     * @param gapText - Formatted assessment of model deviation.
+     * @param diff - Delta difference between predicted and actual recall at final evaluation point.
+     * @returns Rendered HTML markup string.
      */
     private generateLegendHTML(gapText: string, diff: number): string {
         return `

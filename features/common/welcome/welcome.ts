@@ -1,5 +1,7 @@
 /**
- * @file features/common/welcome/welcome.ts
+ * @file Interactive First-Run Onboarding Welcome Walkthrough
+ * @module features/common/welcome/welcome
+ * @context Extension Welcome Page (features/common/welcome/welcome.html)
  * @description Controls the step-by-step interactive welcome onboarding workflow.
  * Manages steps pagination, initial theme configuration, and notification permission requests.
  */
@@ -8,10 +10,18 @@ import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { BROWSER_CONFIG } from '@common/browserConfig';
 
+/**
+ * Controller class driving multi-step onboarding wizard screens.
+ */
 export class OnboardingWelcome {
+    /** Active wizard step index (1-based) */
     currentStep: number;
+    /** Total number of wizard steps */
     totalSteps: number;
 
+    /**
+     * Initializes step tracker starting at Step 1 of 4.
+     */
     constructor() {
         this.currentStep = 1;
         this.totalSteps = 4;
@@ -156,6 +166,7 @@ export class OnboardingWelcome {
 
     /**
      * Fetches current theme selection and syncs button state.
+     * @fires chrome.storage.local.get
      */
     syncThemePreference(): void {
         try {
@@ -175,6 +186,7 @@ export class OnboardingWelcome {
 
     /**
      * Navigates visual onboarding cards to target step number.
+     * @param step - Target step number (1 to 4).
      */
     goToStep(step: number): void {
         try {
@@ -226,6 +238,7 @@ export class OnboardingWelcome {
 
     /**
      * Renders UI toggle buttons as active/selected matching requested theme.
+     * @param theme - Theme identifier string ('dark' | 'light').
      */
     setActiveThemeButton(theme: string): void {
         try {
@@ -246,6 +259,8 @@ export class OnboardingWelcome {
 
     /**
      * Persists theme configuration changes and updates UI buttons.
+     * @param theme - Theme identifier string ('dark' | 'light').
+     * @fires chrome.storage.local.set
      */
     setThemePreference(theme: string): void {
         try {
@@ -265,6 +280,7 @@ export class OnboardingWelcome {
 
     /**
      * Checks system notification permissions and toggles onboarding badge indicators.
+     * @fires chrome.storage.local.get
      */
     checkNotificationState(): void {
         try {

@@ -1,3 +1,15 @@
+/**
+ * @file features/tracker/tracker.ts
+ * @description Main Spaced Repetition floating widget interface injected inside target coding domains.
+ * Provides controls for recording approaches, entering study card notes, assigning initial difficulty,
+ * tagging, drag positioning toggles, and executing interactive revision card sessions with hotkeys.
+ * 
+ * Context: Content script environment (injected into whitelisted problem pages).
+ * 
+ * Key Exports:
+ * - `Tracker`: In-page floating widget controller for flashcard review sessions, approaches, and ratings.
+ */
+
 import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
 import { TagInputControl } from '../common/utils/tagInput';
 import { Card, StorageData, ExtensionSettings } from '../../types/domain';
@@ -5,6 +17,9 @@ import { RATING_UI_DEBOUNCE_MS } from '../common/constants';
 import FsrsScheduler from './scheduler/fsrsScheduler';
 import { Logger } from '@common/logger';
 
+/**
+ * Shared in-memory state slice accessed by the tracker.
+ */
 interface AlgoRecallState {
     cards: Card[];
     topicWeights: Record<string, number[]>;
@@ -12,6 +27,9 @@ interface AlgoRecallState {
     extensionSettings?: ExtensionSettings;
 }
 
+/**
+ * Shape of an approach draft record in storage.
+ */
 interface DraftEntry {
     approach?: string;
     tags?: string;
@@ -81,15 +99,26 @@ function getRenderMarkdown(): ((text: string) => string) | undefined {
  * tagging, drag positioning toggles, and executing interactive revision card sessions with hotkeys.
  */
 class Tracker {
+    /** Optional topic tag filter restricting due cards in the active review queue. */
     activeReviewFilter: string | null;
+    /** Current zero-based index of the card being reviewed. */
     reviewIndex: number;
+    /** Total cards queued for review in the active session. */
     totalToReview: number;
+    /** Document keydown event handler for review hotkeys (1-4, Space, Enter). */
     _reviewKeyHandler: ((e: KeyboardEvent) => void) | null;
+    /** Flag tracking whether event listeners are registered. */
     isListenersBound: boolean;
+    /** Timestamp when the current card was displayed to compute review duration. */
     cardStartTime?: number;
+    /** ID of the active card displayed in the widget tab navigation, or '__new__' for creation mode. */
     activeCardId: string | null;
+    /** Short debounce flag preventing duplicate button clicks during rating animations. */
     isRatingDebounced: boolean;
 
+    /**
+     * Initializes default widget state and binds callback handlers.
+     */
     constructor() {
         this.activeReviewFilter = null;
         this.reviewIndex = 0;
@@ -104,7 +133,8 @@ class Tracker {
     }
 
     /**
-     * Helper to retrieve state.
+     * Safely retrieves the shared content script state from `window.AlgoRecall.state`.
+     * @returns {AlgoRecallState}
      */
     get state(): AlgoRecallState {
         try {
@@ -118,7 +148,8 @@ class Tracker {
     }
 
     /**
-     * Helper to retrieve utils.
+     * Safely retrieves content script DOM and title utilities.
+     * @returns {AppUtils}
      */
     get utils(): AppUtils {
         try {
@@ -132,7 +163,8 @@ class Tracker {
     }
 
     /**
-     * Helper to retrieve notifier.
+     * Safely retrieves the in-page notifier controller.
+     * @returns {unknown}
      */
     get notifier(): unknown {
         try {
@@ -146,7 +178,9 @@ class Tracker {
     }
 
     /**
-     * Commits the current cards array to Chrome local storage sync.
+     * Commits the current flashcard collection array to `chrome.storage.local`.
+     * 
+     * @returns {void}
      */
     saveCards(): void {
         const logger = getLogger();
@@ -172,8 +206,10 @@ class Tracker {
     }
 
     /**
-     * Registers a revision event in review activity logs in storage.
-     * Records counts grouped by calendar date string in user's timezone.
+     * Increments the user's daily review count in `fsrsActivity` storage dictionary,
+     * indexed by the current local calendar date string (YYYY-MM-DD).
+     * 
+     * @returns {void}
      */
     logReviewActivity(): void {
         const logger = getLogger();
@@ -214,8 +250,11 @@ class Tracker {
     }
 
     /**
-     * Synchronizes the floating widget UI status to align with page states.
-     * Re-reads active problem card status to toggle note-saving button modes or display rating metrics.
+     * Synchronizes the floating widget UI status to align with the current problem page.
+     * Identifies existing cards matching the canonical URL, updates active navigation tabs,
+     * fills previous approach notes and tags, or loads uncommitted drafts if no card exists.
+     * 
+     * @returns {void}
      */
     refreshWidgetState(): void {
         try {
@@ -394,8 +433,11 @@ class Tracker {
     }
 
     /**
-     * Creates and injects the floating launcher icon and FSRS details container widget
-     * inside the document body. Binds drag handlers, action events, and navigation click list hooks.
+     * Injects the floating launcher icon button and main tracker dialog container into `document.body`.
+     * Configures pointer drag interactions, minimize/close controls, fullscreen editor triggers,
+     * card approach text inputs, and rating submission buttons.
+     * 
+     * @returns {void}
      */
     createUI(): void {
         try {
@@ -913,8 +955,10 @@ class Tracker {
     }
 
     /**
-     * Saves a draft copy of the active editor contents (approach notes + tags)
-     * to local storage, ensuring content is retained during inadvertent navigation.
+     * Debounced auto-save handler persisting in-progress approach notes and tags
+     * to `chrome.storage.local`, ensuring work is never lost during accidental page reloads.
+     * 
+     * @returns {void}
      */
     saveDraft(): void {
         try {
@@ -966,7 +1010,11 @@ class Tracker {
     }
 
     /**
-     * Returns a sorted list of due study cards based on the scheduled FSRS timestamp.
+     * Filters and returns flashcards currently due for spaced repetition review (`due <= now`),
+     * optionally filtered by a specific topic tag, sorted chronologically by due date.
+     * 
+     * @param {string | null} [filterTag] - Optional topic tag filter.
+     * @returns {Card[]} Array of due study cards.
      */
     getDueCards(filterTag?: string | null): Card[] {
         try {
@@ -985,8 +1033,10 @@ class Tracker {
     }
 
     /**
-     * Initiates the revision session sequence. Collects unique tags from due cards
-     * and prompts users with a tag-based topics picker menu if multiple topics are due.
+     * Initiates the review queue workflow. If due cards span multiple topics, displays
+     * a topic filter picker dialog; otherwise, immediately enters the review sequence.
+     * 
+     * @returns {void}
      */
     startReview(): void {
         try {
@@ -1124,7 +1174,11 @@ class Tracker {
     }
 
     /**
-     * Renders the next due card details, binding ratings listeners and key navigation hooks.
+     * Renders the current review card interface: problem title, external link, tags,
+     * "Show Approach" trigger, rating buttons (Again, Hard, Good, Easy), progress bar,
+     * and binds keyboard hotkeys (Space to reveal, 1-4 to rate).
+     * 
+     * @returns {void}
      */
     showCard(): void {
         try {
@@ -1318,8 +1372,13 @@ class Tracker {
     }
 
     /**
-     * Applies the review rating to a target card, calculates new FSRS scheduler values,
-     * updates storage databases, and logs activity increments.
+     * Applies the selected rating score to a card, invokes the FSRS scheduler algorithm
+     * with custom topic weights if matched, updates storage, and logs user activity.
+     * 
+     * @param {Card} card - Card being reviewed.
+     * @param {number} rating - User recall rating (1: Again, 2: Hard, 3: Good, 4: Easy).
+     * @param {number} [timeTaken=0] - Active time spent on card in milliseconds.
+     * @returns {void}
      */
     handleRating(card: Card, rating: number, timeTaken: number = 0): void {
         try {
@@ -1350,7 +1409,10 @@ class Tracker {
     }
 
     /**
-     * Removes global document event listeners for hotkeys bound during card reviews.
+     * Unbinds active document keydown listeners attached during card review sessions.
+     * 
+     * @private
+     * @returns {void}
      */
     private _cleanupReviewKeyboard(): void {
         try {

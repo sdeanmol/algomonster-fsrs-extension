@@ -1,7 +1,9 @@
 /**
- * @file features/common/services/actionService.ts
- * @description Centralized, popup-independent action service coordinating all user-facing
- * commands across both popup UI event listeners and background keyboard shortcuts.
+ * @file Unified Extension Action Dispatcher and Command Service
+ * @module features/common/services/actionService
+ * @context Shared across Background Service Worker (Keyboard Shortcuts) and Popup UI (Action Clicks)
+ * @description Centralized, popup-independent coordinator executing extension actions, navigation routing,
+ * theme toggling, feature switches, due card checks, and data export (NDJSON backup and Anki TSV).
  */
 
 import { Logger } from '@common/logger';
@@ -17,6 +19,9 @@ import { BackupManager } from '../data/backupManager';
 
 export { ACTION_URL_MAP };
 
+/**
+ * Supported command action identifiers executable from keyboard shortcuts or UI buttons.
+ */
 export type CommandActionId =
     | 'check-due-reviews'
     | 'view-due-cards'
@@ -42,30 +47,52 @@ export type CommandActionId =
     | 'open-help'
     | 'rate-extension';
 
+/**
+ * Execution options passed when invoking command actions.
+ */
 export interface ActionExecutionOptions {
+    /** Optional background worker handlers when called from service worker scope */
     background?: {
+        /** Handler to check due cards and optionally schedule notifications */
         checkDueCards?: (reason?: string) => Promise<unknown>;
+        /** Handler to recalculate and update the toolbar action badge */
         updateDueCardsBadge?: () => Promise<number>;
     };
+    /** Callback receiving user status alerts */
     onStatus?: (message: string, isError?: boolean) => void;
 }
 
+/**
+ * Standard structured result envelope returned by `ActionService.executeAction`.
+ * @template T - Type of the result data payload.
+ */
 export interface ActionResult<T = unknown> {
+    /** True if the action executed successfully */
     success: boolean;
+    /** The action identifier that was executed */
     action: CommandActionId;
+    /** Result data payload returned by the action handler */
     data?: T;
+    /** Error message string if execution failed */
     error?: string;
 }
 
-
-
+/**
+ * Service coordinating extension commands and page navigation.
+ */
 export class ActionService {
     /**
-     * Executes an extension command action by ID.
-     * Works consistently in both background service worker and popup UI contexts.
-     * @param {CommandActionId} actionId - The unique command action identifier.
-     * @param {ActionExecutionOptions} [options] - Optional runtime execution context.
-     * @returns {Promise<ActionResult>} Result object indicating success and any payload or error.
+     * Executes an extension command action by its unique ID.
+     * Functions identically in background service worker and popup UI contexts.
+     * @param actionId - The unique command action identifier.
+     * @param options - Optional runtime execution context and handlers.
+     * @returns A promise resolving to an ActionResult object indicating success/payload.
+     * @async
+     * @example
+     * ```ts
+     * const res = await ActionService.executeAction('toggle-theme');
+     * console.log('New theme:', res.data.theme);
+     * ```
      */
     static async executeAction(actionId: CommandActionId, options?: ActionExecutionOptions): Promise<ActionResult> {
         Logger.info('ActionService', `Executing action: ${actionId}`);
@@ -132,7 +159,9 @@ export class ActionService {
     }
 
     /**
-     * Navigates to an internal extension HTML page or external URL in a browser tab.
+     * Opens an internal extension HTML page or external URL in a new or focused browser tab.
+     * @param path - Relative extension page path or absolute web URL.
+     * @returns Promise resolving to the created Tab object, or null on error.
      */
     static openExtensionPage(path: string): Promise<chrome.tabs.Tab | null> {
         return new Promise((resolve) => {
@@ -152,7 +181,8 @@ export class ActionService {
     }
 
     /**
-     * Opens the browser-specific store review page.
+     * Opens the browser-specific web store review listing page in a new tab.
+     * @async
      */
     static async rateExtension(): Promise<void> {
         let url = BROWSER_CONFIG.reviewUrl;
@@ -164,7 +194,10 @@ export class ActionService {
     }
 
     /**
-     * Toggles theme setting between 'dark' and 'light'.
+     * Toggles the UI color theme between 'dark' and 'light' in `chrome.storage.local`.
+     * @returns Promise resolving to the newly activated theme name ('dark' | 'light').
+     * @async
+     * @fires chrome.storage.local.set
      */
     static async toggleTheme(): Promise<'dark' | 'light'> {
         const result = (await chrome.storage.local.get(['theme'])) as StorageData;
@@ -175,7 +208,10 @@ export class ActionService {
     }
 
     /**
-     * Toggles Floating Highlighter Marker Menu in extensionSettings.
+     * Toggles the Floating Highlighter Marker Menu visibility preference in `extensionSettings`.
+     * @returns Promise resolving to the new enabled state boolean.
+     * @async
+     * @fires chrome.storage.local.set
      */
     static async toggleFloatingMarker(): Promise<boolean> {
         const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
@@ -190,7 +226,10 @@ export class ActionService {
     }
 
     /**
-     * Toggles Problem Tracker Launcher in extensionSettings.
+     * Toggles the floating Problem Tracker Launcher button in `extensionSettings`.
+     * @returns Promise resolving to the new enabled state boolean.
+     * @async
+     * @fires chrome.storage.local.set
      */
     static async toggleAlgoLauncher(): Promise<boolean> {
         const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
@@ -205,7 +244,10 @@ export class ActionService {
     }
 
     /**
-     * Toggles Review Reminder Notifications in notificationSettings.
+     * Toggles Review Reminder desktop notifications in `notificationSettings`.
+     * @returns Promise resolving to the new enabled state boolean.
+     * @async
+     * @fires chrome.storage.local.set
      */
     static async toggleNotifications(): Promise<boolean> {
         const result = (await chrome.storage.local.get(['notificationSettings'])) as StorageData;
@@ -220,7 +262,12 @@ export class ActionService {
     }
 
     /**
-     * Triggers an immediate review check and badge update.
+     * Triggers an immediate due card review check and badge count recalculation.
+     * Dispatches runtime message to background worker if executed from UI contexts.
+     * @param options - Execution options containing background handlers if called within service worker.
+     * @returns Promise resolving to the number of currently due cards.
+     * @async
+     * @fires chrome.runtime.sendMessage
      */
     static async checkDueReviews(options?: ActionExecutionOptions): Promise<number> {
         if (options?.background?.checkDueCards && options?.background?.updateDueCardsBadge) {
@@ -245,7 +292,9 @@ export class ActionService {
     }
 
     /**
-     * Exports full data backup using BackupManager or opens the data dashboard export view.
+     * Exports a complete data backup archive using `BackupManager`, falling back to opening
+     * the data dashboard export page if running in a background context without DOM.
+     * @async
      */
     static async exportBackup(): Promise<void> {
         try {
@@ -259,7 +308,10 @@ export class ActionService {
     }
 
     /**
-     * Formats FSRS cards into Anki-compatible TSV text.
+     * Serializes an array of FSRS problem cards into Anki-compatible TSV format.
+     * Includes headers for deck name, note type, tab delimiters, and tags.
+     * @param cards - Array of card entities to format.
+     * @returns Formatted Anki TSV file contents string.
      */
     static formatCardsForAnki(cards: Card[]): string {
         const lines: string[] = [];
@@ -282,7 +334,10 @@ export class ActionService {
     }
 
     /**
-     * Exports cards to Anki format and downloads the file.
+     * Reads all cards from storage, formats them for Anki, and initiates download.
+     * @returns Promise resolving to the number of exported cards.
+     * @throws Error if no cards exist to export.
+     * @async
      */
     static async exportAnki(): Promise<number> {
         const result = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
@@ -300,7 +355,12 @@ export class ActionService {
     }
 
     /**
-     * Downloads a blob via chrome.downloads, falling back to DOM anchor click or opening data page.
+     * Initiates a file download from a Blob via `chrome.downloads.download`,
+     * falling back to DOM anchor click or navigating to the fallback extension page.
+     * @param blob - File data Blob.
+     * @param filename - Target download filename.
+     * @param fallbackPath - Fallback HTML page path if downloads are restricted.
+     * @async
      */
     static async downloadBlobOrFallback(blob: Blob, filename: string, fallbackPath: string): Promise<void> {
         const url = URL.createObjectURL(blob);
@@ -347,7 +407,9 @@ export class ActionService {
     }
 
     /**
-     * Helper to perform a DOM anchor download in an active page context.
+     * Programmatically creates and clicks a temporary `<a>` anchor tag to download a file URL in DOM contexts.
+     * @param url - Object URL or download URL string.
+     * @param filename - Target file name.
      */
     static triggerDomDownload(url: string, filename: string): void {
         const a = document.createElement('a');
@@ -365,4 +427,3 @@ export class ActionService {
         }, 1000);
     }
 }
-

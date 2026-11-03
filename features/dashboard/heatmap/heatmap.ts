@@ -1,8 +1,13 @@
 /**
  * @file features/dashboard/heatmap/heatmap.ts
  * @description Main controller for the dedicated full-screen contribution heatmap page.
- * Manages calendar date cascades, filters (lifetime, yearly, monthly, weekly), SVG cell grids,
- * and handles click events to query historical reviews details for specific days.
+ * Manages calendar date cascades, filters (lifetime, yearly, monthly, weekly), SVG/CSS cell grids,
+ * streak metrics delegation, and handles click events to query historical review details in `data.html`.
+ *
+ * Architecture Role: Heatmap Standalone Page Controller.
+ * Context: Extension Standalone Tab (`features/dashboard/heatmap/heatmap.html`).
+ * Key Exports:
+ * - {@link HeatmapDashboard}: Controller class managing date range queries, filter cascades, and grid rendering.
  */
 
 import { Logger } from '@common/logger';
@@ -11,10 +16,20 @@ import { HeatmapStats } from './heatmap-stats';
 import { StorageData } from '../../../types/domain';
 import { MS_PER_DAY, DAYS_PER_YEAR, HEATMAP_LEVEL_THRESHOLDS, MONTH_NAMES } from '../../common/constants';
 
+/**
+ * Controller for the dedicated full-screen contribution heatmap dashboard.
+ * Renders an interactive GitHub-style contribution grid based on daily review logs,
+ * supporting multiple filter scopes (Lifetime, Year, Month, Day).
+ */
 export class HeatmapDashboard {
+    /** Map of date strings (`YYYY-MM-DD`) to review counts on that day. */
     activityData: Record<string, number>;
+    /** Array of localized month names used for dropdown labels. */
     monthNames: string[];
 
+    /**
+     * Initializes the heatmap controller with empty activity records and month names.
+     */
     constructor() {
         this.activityData = {};
         this.monthNames = [...MONTH_NAMES];
@@ -22,6 +37,7 @@ export class HeatmapDashboard {
 
     /**
      * Initializes activity settings from storage and binds cascaded filter listeners.
+     * @listens chrome.storage.local
      */
     init(): void {
         try {
@@ -330,6 +346,9 @@ export class HeatmapDashboard {
     }
 }
 
+/**
+ * Initializes the heatmap dashboard controller on DOM load.
+ */
 function initHeatmap(): void {
     try {
         const dashboard = new HeatmapDashboard();

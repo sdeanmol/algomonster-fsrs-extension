@@ -1,9 +1,13 @@
 /**
  * @file features/dashboard/popup/rating.ts
- * @description Manages feedback/rating prompts shown to users in the popup options dashboard.
+ * @description Manages store review and feedback prompts shown to users in the popup options dashboard.
+ * Dynamically resolves browser-specific Web Store / Add-on links (Chrome, Firefox AMO, Safari)
+ * from build-time configuration, tracks snooze durations, and handles rating status persistence.
  *
- * Browser-specific store names and review URLs are resolved from BROWSER_CONFIG, which is
- * populated at build time via webpack DefinePlugin. No runtime browser detection is used.
+ * Architecture Role: Popup Sub-View Component (Rating & Store Feedback).
+ * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
+ * Key Exports:
+ * - {@link RatingComponent}: Sub-view component class managing the store review prompt card.
  */
 
 import { Logger } from '@common/logger';
@@ -12,7 +16,15 @@ import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
 
+/**
+ * Sub-component for the popup dashboard that manages extension store rating prompts,
+ * snooze timers, and review links targeted to the user's specific browser runtime.
+ */
 export class RatingComponent extends DashboardComponent {
+    /**
+     * Initializes the rating component with a coordinator reference.
+     * @param coordinator - Parent dashboard coordinator.
+     */
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
     }
@@ -21,6 +33,8 @@ export class RatingComponent extends DashboardComponent {
      * Initializes CWS/AMO feedback banner elements, sets up action button hooks (snooze, rated),
      * and reads rating configurations from local storage.
      * Browser-specific store text and URLs are injected from BROWSER_CONFIG (build-time).
+     * @async
+     * @returns Promise resolving when rating state has been loaded and UI updated.
      */
     async load(): Promise<void> {
         try {

@@ -1,6 +1,9 @@
 /**
  * @file features/dashboard/analytics/memory/retentionChart.ts
- * @description Renders interactive multi-line retention decay charts with confidence bands.
+ * @description Renders interactive multi-line retention decay charts with optional confidence bands
+ * within the memory analytics view. Groups flashcards by tag, deck, or difficulty, plotting FSRS
+ * forgetting trajectories across a 30-day horizon with hoverable data point tooltips.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
@@ -9,14 +12,29 @@ import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 import { ANALYTICS_CHART_COLORS, RETENTION_TIME_POINTS } from '../../../common/constants';
 
+/**
+ * Visualizes memory decay trajectories across flashcard cohorts.
+ * Plots multi-series SVG forgetting curves with optional statistical confidence intervals
+ * and per-point parameter breakdown tooltips.
+ */
 export class RetentionChart {
+    /** Data utility instance providing card collections and query methods */
     dataUtils: DataUtils;
+    /** Active FSRS scheduler instance used for mathematical retrievability projections */
     scheduler: AbstractScheduler | null;
+    /** Current grouping dimension ('tag' | 'deck' | 'difficulty') */
     groupBy: string;
+    /** Flag controlling whether semi-transparent confidence interval bands are drawn */
     showConfidence: boolean;
+    /** Palette of CSS colors used to distinguish different grouped curves */
     chartColors: string[];
+    /** Filter substring applied to tag names when grouping by tag */
     filterTag: string;
 
+    /**
+     * Initializes the RetentionChart component.
+     * @param dataUtils - Card statistics and scheduler helper instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -37,6 +55,11 @@ export class RetentionChart {
         }
     }
 
+    /**
+     * Sets a tag substring filter to limit displayed curves to matching tags.
+     * @param tag - Tag filter string query.
+     * @returns void
+     */
     setFilterTag(tag: string): void {
         try {
             this.filterTag = (tag || '').trim().toLowerCase();
@@ -45,6 +68,11 @@ export class RetentionChart {
         }
     }
 
+    /**
+     * Updates the grouping category used to partition flashcards into separate curves.
+     * @param type - Cohort grouping criterion ('tag', 'deck', or 'difficulty').
+     * @returns void
+     */
     setGroupBy(type: string): void {
         try {
             this.groupBy = type || 'tag';
@@ -53,6 +81,11 @@ export class RetentionChart {
         }
     }
 
+    /**
+     * Toggles visibility of the semi-transparent confidence intervals around curves.
+     * @param show - True to display confidence bands; false to hide.
+     * @returns void
+     */
     setShowConfidence(show: boolean): void {
         try {
             this.showConfidence = Boolean(show);
@@ -64,6 +97,8 @@ export class RetentionChart {
     /**
      * Main entry point to render the retention chart into the given container.
      * It computes group statistics, builds the SVG, and appends the legend.
+     * @param containerId - DOM ID of the container element hosting the chart.
+     * @returns void
      */
     render(containerId: string): void {
         try {
@@ -114,6 +149,7 @@ export class RetentionChart {
     /**
      * Groups cards by the selected criteria (tag, deck, difficulty) and returns 
      * the top 6 groups by count with their average stability and difficulty.
+     * @returns Array of group summary objects sorted by descending card count.
      */
     private calculateGroupStats(): Array<{ name: string; avgStability: number; avgDifficulty: number; count: number }> {
         const groups: Record<string, { stabilities: number[]; count: number; difficulties: number[] }> = {};
@@ -166,6 +202,15 @@ export class RetentionChart {
     /**
      * Generates the SVG strings for the background grid (Y-axis percentages) 
      * and X-axis time labels.
+     * @param svgW - Total SVG viewbox width.
+     * @param svgH - Total SVG viewbox height.
+     * @param padL - Left padding in pixels.
+     * @param padR - Right margin padding in pixels.
+     * @param padT - Top margin padding in pixels.
+     * @param xScale - Scaling function converting days to SVG X pixels.
+     * @param yScale - Scaling function converting retrievability to SVG Y pixels.
+     * @param timePoints - Array of time point days.
+     * @returns Concatenated SVG markup string of axes and labels.
      */
     private generateSvgAxes(svgW: number, svgH: number, padL: number, padR: number, padT: number, xScale: (t: number) => number, yScale: (r: number) => number, timePoints: number[]): string {
         let content = '';
@@ -189,6 +234,12 @@ export class RetentionChart {
     /**
      * Generates the SVG curve, confidence band, and interactive tooltip dots 
      * for a specific group's memory decay.
+     * @param gData - Cohort summary statistics (name, average stability, average difficulty, card count).
+     * @param color - Color assigned to this group's curve.
+     * @param timePoints - Array of day offsets to evaluate.
+     * @param xScale - Scaling function converting days to SVG X pixels.
+     * @param yScale - Scaling function converting retrievability to SVG Y pixels.
+     * @returns Rendered SVG elements for the group's curve, optional band, and dots.
      */
     private generateGroupCurve(gData: { name: string; avgStability: number; avgDifficulty: number; count: number }, color: string, timePoints: number[], xScale: (t: number) => number, yScale: (r: number) => number): string {
         let content = '';
@@ -245,6 +296,8 @@ export class RetentionChart {
 
     /**
      * Generates the legend HTML mapping colors to group names.
+     * @param groupAvgs - Array of cohort groups containing name and card count.
+     * @returns Rendered HTML legend markup string.
      */
     private generateLegendHTML(groupAvgs: Array<{ name: string; count: number }>): string {
         let legendHtml = '<div class="retention-legend">';

@@ -1,9 +1,12 @@
 /**
- * @file background/background.ts
- * @description Extension background service worker (Manifest V3) implemented as an OOP class.
- * Manages background alarms for checking scheduled card due times, schedules/delivers OS notifications,
- * handles custom whitelisted website routing messages, reacts to SPA client-side history state updates,
- * and sends weekly summary digest notifications (R3.6).
+ * @file Manifest V3 Background Service Worker Engine
+ * @module background/background
+ * @context Background Service Worker (Manifest V3 lifecycle)
+ * @description Central event orchestrator and persistent service worker for the extension.
+ * Manages background alarms for due card checking, desktop OS notification scheduling and dispatch,
+ * toolbar badge count updates, Pomodoro timer background ticking and state synchronization,
+ * SPA URL navigation detection via `chrome.webNavigation`, cross-context runtime messaging,
+ * and keyboard shortcut command handling (`chrome.commands`).
  */
 import { Logger } from '@common/logger';
 import {
@@ -54,19 +57,32 @@ import { ActionService, CommandActionId } from '../features/common/services/acti
 
 export type { NotificationSettings, WhitelistedWebsite, PomodoroState, PomodoroSettings, PomodoroStats };
 
+/**
+ * Main service worker singleton coordinating background operations, alarms, and badge counters.
+ */
 export class AlgoRecallBackground {
+    /** Active setInterval timer ID for Pomodoro countdown ticking */
     private pomodoroIntervalId: ReturnType<typeof setInterval> | null = null;
+    /** Cached action title string to avoid redundant `chrome.action.setTitle` calls */
     private _lastPomodoroTitle: string | null = null;
+    /** Cached action badge text string to avoid redundant `chrome.action.setBadgeText` calls */
     private _lastPomodoroBadge: string | null = null;
+    /** Cached action badge color string to avoid redundant `chrome.action.setBadgeBackgroundColor` calls */
     private _lastPomodoroColor: string | null = null;
+    /** Re-entrancy guard preventing concurrent `checkDueCards` executions */
     private isCheckingDueCards: boolean = false;
 
+    /**
+     * Initializes service worker lifecycle hooks, alarm schedules, and badge state.
+     */
     constructor() {
         this.init();
     }
 
     /**
      * Initializes the service worker listeners and settings.
+     * Restores active Pomodoro sessions and recalculates due review badges.
+     * @async
      */
     async init(): Promise<void> {
         Logger.info('Background', 'Initializing background service worker...');
@@ -86,10 +102,16 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Binds all Chrome API event listeners.
-     * Safari-specific: chrome.alarms and chrome.notifications are not supported in Safari
-     * Web Extensions — guards use build-time constants so the branches are eliminated
-     * by tree-shaking in Chrome/Firefox builds.
+     * Binds all Chrome API event listeners for installation, alarms, webNavigation history updates,
+     * storage modifications, runtime messages, notification clicks, and command shortcuts.
+     * Safari-specific: chrome.alarms and chrome.notifications are guarded by build-time flags.
+     * @listens chrome.runtime.onInstalled
+     * @listens chrome.alarms.onAlarm
+     * @listens chrome.webNavigation.onHistoryStateUpdated
+     * @listens chrome.storage.onChanged
+     * @listens chrome.runtime.onMessage
+     * @listens chrome.notifications.onClicked
+     * @listens chrome.commands.onCommand
      */
     bindEvents(): void {
         try {
@@ -116,9 +138,11 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Handles keyboard shortcuts dispatched via the chrome.commands API.
+     * Handles keyboard shortcuts dispatched via the `chrome.commands` API.
      * Centralized command dispatcher decoupling actions from the popup lifecycle.
-     * @param {string} command - Command name registered in manifest.json.
+     * @param command - Command name registered in manifest.json.
+     * @async
+     * @fires chrome.action.setBadgeText
      */
     async handleCommand(command: string): Promise<void> {
         Logger.info('Background', `Received browser keyboard command: ${command}`);
@@ -144,8 +168,13 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Handles extension installation event.
-     * @param {chrome.runtime.InstalledDetails} details - Details of install event.
+     * Handles extension installation or update lifecycle events.
+     * Seeds initial default notification preferences, sets up alarm schedules,
+     * and displays the welcome walkthrough page on first install.
+     * @param details - Details of install event.
+     * @async
+     * @fires chrome.storage.local.set
+     * @fires chrome.tabs.create
      */
     async handleInstalled(details?: chrome.runtime.InstalledDetails): Promise<void> {
         try {
@@ -190,8 +219,9 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Handles incoming background alarm trigger events.
-     * @param {chrome.alarms.Alarm} alarm - Fired alarm details.
+     * Handles incoming background alarm trigger events for review checking, weekly digest,
+     * daily nudge, and Pomodoro cycle completions.
+     * @param alarm - Fired alarm details.
      */
     handleAlarm(alarm: chrome.alarms.Alarm): void {
         try {
@@ -213,8 +243,10 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Handles SPA Client-Side Routing for Highlighter updates.
-     * @param {chrome.webNavigation.WebNavigationSourceCallbackDetails} details - Navigation history update details.
+     * Handles single page application (SPA) client-side history updates via `webNavigation.onHistoryStateUpdated`.
+     * Relays `spa_url_changed` runtime messages to the active tab to restore highlight overlays and launcher widgets.
+     * @param details - Navigation history update details.
+     * @fires chrome.tabs.sendMessage
      */
     handleHistoryStateUpdated(details: chrome.webNavigation.WebNavigationSourceCallbackDetails): void {
         try {
@@ -235,8 +267,11 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Reads user configurations from storage and schedules/reschedules the review check alarms.
-     * No-op on Safari — chrome.alarms is not supported in Safari Web Extensions.
+     * Reads user configurations from storage and schedules or reschedules review check alarms.
+     * No-op on Safari — `chrome.alarms` is not supported in Safari Web Extensions.
+     * @async
+     * @fires chrome.alarms.create
+     * @fires chrome.alarms.clear
      */
     async setupAlarm(): Promise<void> {
         // Safari does not support chrome.alarms.
@@ -287,11 +322,11 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * R3.6: Sets up the weekly summary alarm.
-    /**
-     * R8.3: Sets up the weekly summary digest alarm.
-     * Fires every Monday at 9:00 AM local time (approximately).
+     * Sets up the weekly study digest summary alarm.
+     * Fires recurringly every Monday at 9:00 AM local time.
      * No-op on Safari — chrome.alarms is not supported.
+     * @async
+     * @fires chrome.alarms.create
      */
     async setupWeeklySummaryAlarm(): Promise<void> {
         if (!BROWSER_CONFIG.supportsAlarms) return;
@@ -338,9 +373,10 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * R8.4: Sets up the daily nudge alarm.
-     * Fires every day at 8:00 PM (20:00).
+     * Sets up the daily review reminder nudge alarm firing every day at 8:00 PM (20:00).
      * No-op on Safari — chrome.alarms is not supported.
+     * @async
+     * @fires chrome.alarms.create
      */
     async setupDailyNudgeAlarm(): Promise<void> {
         if (!BROWSER_CONFIG.supportsAlarms) return;
@@ -363,9 +399,10 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Watches for changes in settings to dynamically reschedule the alarm.
-     * @param {{ [key: string]: chrome.storage.StorageChange }} changes - Object describing key storage differences.
-     * @param {string} areaName - The name of the storage area.
+     * Monitors `chrome.storage.onChanged` events to dynamically reschedule alarms and update badge counters.
+     * @param changes - Key differences map.
+     * @param areaName - Storage area name ('local' | 'sync').
+     * @async
      */
     async handleStorageChanged(changes: { [key: string]: chrome.storage.StorageChange }, areaName: string): Promise<void> {
         try {
@@ -387,10 +424,12 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Coordinates background script runtime communication channels.
-     * @param {ExtensionMessage} message - Received payload object.
-     * @param {chrome.runtime.MessageSender} sender - Messaging sender metadata.
-     * @param {(response?: MessageResponse) => void} sendResponse - Callback for routing replies.
+     * Coordinates background script runtime communication channels, dispatching commands
+     * for due card checks, notification testing, fullscreen editors, snooze timers, and Pomodoro states.
+     * @param message - Received payload object.
+     * @param sender - Messaging sender metadata.
+     * @param sendResponse - Callback for routing replies asynchronously.
+     * @returns True if asynchronous response will be delivered via `sendResponse`.
      */
     handleMessage(message: ExtensionMessage, sender: chrome.runtime.MessageSender, sendResponse: (response?: MessageResponse) => void): boolean | void {
         if (!message || typeof message !== 'object') {
@@ -526,6 +565,10 @@ export class AlgoRecallBackground {
     /**
      * Triggers a test notification. Attempts to deliver an in-page DOM alert inside the active tab
      * if it matches whitelisted coding domains; otherwise, triggers a standard system tray OS notification.
+     * @async
+     * @fires chrome.tabs.query
+     * @fires chrome.tabs.sendMessage
+     * @fires chrome.notifications.create
      */
     async showTestNotification(): Promise<void> {
         const result = await chrome.storage.local.get(['notificationSettings']);
@@ -592,6 +635,13 @@ export class AlgoRecallBackground {
     /**
      * Helper to create and clear system tray notifications securely.
      * No-op on Safari — chrome.notifications is not supported in Safari Web Extensions.
+     * @param id - Notification identifier.
+     * @param title - Notification banner title.
+     * @param message - Notification description message.
+     * @param priority - Priority level integer.
+     * @param requireInteraction - Whether user dismissal is required.
+     * @fires chrome.notifications.clear
+     * @fires chrome.notifications.create
      */
     private dispatchSystemNotification(
         id: string,
@@ -645,7 +695,7 @@ export class AlgoRecallBackground {
 
     /**
      * Generates and triggers a standard Google Chrome system tray test notification.
-     * @param {NotificationSettings} settings - Active notification configurations.
+     * @param settings - Active notification configurations.
      */
     createSystemTestNotification(settings: NotificationSettings): void {
         this.dispatchSystemNotification(
@@ -660,6 +710,12 @@ export class AlgoRecallBackground {
     /**
      * Queries the list of scheduled cards in storage, filters due items, and prompts the user.
      * Delivers alerts either through an in-page notification frame or a native system notification.
+     * Respects quiet hours and throttle intervals.
+     * @param source - Optional caller trigger source name (e.g. 'manual', 'snoozeFsrsReviews').
+     * @async
+     * @fires chrome.storage.local.get
+     * @fires chrome.tabs.query
+     * @fires chrome.tabs.sendMessage
      */
     async checkDueCards(source?: string): Promise<void> {
         if (this.isCheckingDueCards) {
@@ -765,8 +821,13 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * UA-024: Updates the extension action icon badge to reflect current due reviews.
+     * Updates the extension action icon badge to reflect current due reviews.
      * Yields to active Pomodoro sessions when running.
+     * @returns Number of cards currently due.
+     * @async
+     * @fires chrome.action.setBadgeText
+     * @fires chrome.action.setBadgeBackgroundColor
+     * @fires chrome.action.setTitle
      */
     async updateDueCardsBadge(): Promise<number> {
         try {
@@ -815,10 +876,12 @@ export class AlgoRecallBackground {
 
     /**
      * Dispatches the review notification to the active tab if whitelisted, or falls back to system notification.
-     * @param {number} dueCount - The number of cards currently due.
-     * @param {string} groupMessage - The message string.
-     * @param {NotificationSettings} settings - Active notification configurations.
-     * @param {WhitelistedWebsite[]} whitelistedWebsites - User configured whitelist.
+     * @param dueCount - The number of cards currently due.
+     * @param groupMessage - The message string.
+     * @param settings - Active notification configurations.
+     * @param whitelistedWebsites - User configured whitelist.
+     * @fires chrome.tabs.query
+     * @fires chrome.tabs.sendMessage
      */
     private dispatchReviewNotification(dueCount: number, groupMessage: string, settings: NotificationSettings, whitelistedWebsites: WhitelistedWebsite[]): void {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
@@ -869,9 +932,10 @@ export class AlgoRecallBackground {
 
     /**
      * Triggers a native system alert signaling due cards are waiting for study.
-     * @param {number} dueCount - The number of cards currently due.
-     * @param {NotificationSettings} settings - Active notification configurations.
-     * @param {string} message - The message string.
+     * @param dueCount - The number of cards currently due.
+     * @param settings - Active notification configurations.
+     * @param message - The message string.
+     * @fires chrome.notifications.create
      */
     createSystemReviewNotification(dueCount: number, settings: NotificationSettings, message?: string): void {
         this.dispatchSystemNotification(
@@ -883,13 +947,12 @@ export class AlgoRecallBackground {
         );
     }
 
-    // ========================================================================
-    // R3.6: Weekly Summary Notification
-    // ========================================================================
-
     /**
      * Computes weekly review statistics and fires a digest notification.
      * Summarizes: reviews this week, active days, current streak, upcoming load.
+     * @param ignoreEnabledCheck - If true, bypasses the user's weekly summary enabled toggle (used for test triggers).
+     * @async
+     * @fires chrome.notifications.create
      */
     async handleWeeklySummary(ignoreEnabledCheck: boolean = false): Promise<void> {
         try {
@@ -950,7 +1013,7 @@ export class AlgoRecallBackground {
             const message = `This week: ${weekReviews} reviews across ${activeDays} day(s).${trendText} Upcoming: ${upcomingDue} cards due next week${currentlyDue > 0 ? `, ${currentlyDue} overdue now` : ''}.`;
 
             const settings: NotificationSettings = result.notificationSettings || {};
-            
+
             this.dispatchSystemNotification(
                 'algo-weekly-summary',
                 '📊 AlgoRecall Weekly Summary',
@@ -967,8 +1030,10 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * R8.4: Motivational nudges. Check if the user has done any reviews today.
-     * If not, send an encouraging push notification to keep the streak alive.
+     * Checks if the user has completed any reviews today.
+     * If not, dispatches an encouraging motivational push notification to keep their daily study streak active.
+     * @async
+     * @fires chrome.notifications.create
      */
     async handleDailyNudge(): Promise<void> {
         try {
@@ -1014,8 +1079,11 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Routes redirection actions when users click a native desktop tray notification.
-     * @param {string} notificationId - The clicked notification ID.
+     * Routes navigation actions when users click a desktop notification banner,
+     * opening the corresponding extension page (Pomodoro, Weekly Summary, or Dashboard).
+     * @param notificationId - Unique identifier of the clicked notification.
+     * @fires chrome.tabs.create
+     * @fires chrome.notifications.clear
      */
     handleNotificationClicked(notificationId: string): void {
         try {
@@ -1042,6 +1110,11 @@ export class AlgoRecallBackground {
     // Persistent Pomodoro Timer Logic
     // ========================================================================
 
+    /**
+     * Resumes active Pomodoro timer countdowns when the background service worker wakes up from sleep.
+     * @async
+     * @fires chrome.storage.local.get
+     */
     async resumePomodoroBackground(): Promise<void> {
         try {
             const result = (await chrome.storage.local.get(['pomodoroState'])) as { pomodoroState?: PomodoroState };
@@ -1064,6 +1137,14 @@ export class AlgoRecallBackground {
         }
     }
 
+    /**
+     * Handles timer commands ('start', 'resume', 'pause', 'reset', 'skip') dispatched from Pomodoro UI components.
+     * Manages background intervals and backup `chrome.alarms` triggers.
+     * @param payload - Action command string and current timer state.
+     * @async
+     * @fires chrome.alarms.create
+     * @fires chrome.alarms.clear
+     */
     async handlePomodoroAction(payload: { command: string; state: PomodoroState }): Promise<void> {
         try {
             const { command, state } = payload;
@@ -1103,6 +1184,14 @@ export class AlgoRecallBackground {
         }
     }
 
+    /**
+     * Starts an active 1-second interval ticking countdown, continuously updating
+     * the toolbar icon badge text with remaining time and setting badge colors.
+     * @param state - Current Pomodoro timer state.
+     * @fires chrome.action.setBadgeText
+     * @fires chrome.action.setBadgeBackgroundColor
+     * @fires chrome.action.setTitle
+     */
     startPomodoroTick(state: PomodoroState): void {
         this.stopPomodoroTick();
 
@@ -1147,6 +1236,9 @@ export class AlgoRecallBackground {
         this.pomodoroIntervalId = setInterval(tick, 1000);
     }
 
+    /**
+     * Halts the active ticking interval and resets the interval ID.
+     */
     stopPomodoroTick(): void {
         try {
             if (this.pomodoroIntervalId) {
@@ -1160,6 +1252,14 @@ export class AlgoRecallBackground {
         }
     }
 
+    /**
+     * Handles completion of a Pomodoro work session or rest break.
+     * Transitions phases (focus -> break / break -> focus), increments daily stats,
+     * updates storage, and triggers completion notifications.
+     * @async
+     * @fires chrome.storage.local.set
+     * @fires chrome.notifications.create
+     */
     async handlePomodoroEnd(): Promise<void> {
         try {
             const result = (await chrome.storage.local.get(['pomodoroState', 'pomodoroSettings', 'pomodoroStats', 'notificationSettings'])) as {

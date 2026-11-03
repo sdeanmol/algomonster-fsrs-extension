@@ -1,25 +1,48 @@
 /**
  * @file features/highlighter/options/highlightOptions.ts
  * @description Manages options page configuration for highlight palettes, default colors, and color picker slots.
+ * Allows users to create custom 5-color palettes, activate color sets, configure the default marker color,
+ * and manage persistence in `chrome.storage.local`.
+ * 
+ * Context: Standalone extension options page (`highlightOptions.html`).
+ * 
+ * Key Exports:
+ * - `Palette`: Interface defining a named color palette with hex color codes.
+ * - `HighlightOptionsManager`: Options controller managing palette CRUD, slot pickers, and storage sync.
  */
 
 import { Logger } from '@common/logger';
 import { StorageData, ExtensionSettings } from '../../../types/domain';
 import { DEFAULT_PALETTES, DEFAULT_EXTENSION_SETTINGS, DEFAULT_HIGHLIGHT_COLOR } from '../../common/constants';
 
+/**
+ * Representation of a named highlight palette containing up to 5 hex color values.
+ */
 export interface Palette {
+    /** Display name of the palette. */
     name: string;
+    /** Array of hex color strings (e.g. ['#f1c40f', '#2ecc71']). */
     colors: string[];
 }
 
 export { ExtensionSettings };
 
+/**
+ * Controller for highlight palettes and annotation preferences options page.
+ */
 export class HighlightOptionsManager {
+    /** Factory default preset palettes. */
     DEFAULT_PALETTES: Palette[];
+    /** Active extension configuration settings. */
     extensionSettings: ExtensionSettings;
+    /** Current working colors in the palette editor form. */
     editorColors: string[];
+    /** Index of the palette currently being edited, or null if creating a new palette. */
     editingIndex: number | null;
 
+    /**
+     * Initializes default properties and empty editor states.
+     */
     constructor() {
         this.DEFAULT_PALETTES = DEFAULT_PALETTES;
         this.extensionSettings = JSON.parse(JSON.stringify(DEFAULT_EXTENSION_SETTINGS));
@@ -30,6 +53,8 @@ export class HighlightOptionsManager {
 
     /**
      * Initializes components and settings properties from Chrome storage.
+     * 
+     * @returns {void}
      */
     init(): void {
         try {
@@ -80,7 +105,9 @@ export class HighlightOptionsManager {
     }
 
     /**
-     * Registers control element action listeners.
+     * Registers control element action listeners for default colors, custom slots, palette saving, and defaults reset.
+     * 
+     * @returns {void}
      */
     bindEvents(): void {
         try {
@@ -272,7 +299,9 @@ export class HighlightOptionsManager {
     }
 
     /**
-     * Helper: Renders input slots for color picker selection dynamically.
+     * Dynamically renders color picker input rows and hex inputs for the palette currently being created or edited.
+     * 
+     * @returns {void}
      */
     renderEditorSlots(): void {
         try {
@@ -362,7 +391,9 @@ export class HighlightOptionsManager {
     }
 
     /**
-     * Helper: Renders list of available/saved custom palettes.
+     * Renders saved palette preview cards with activate, edit, and delete action buttons.
+     * 
+     * @returns {void}
      */
     renderPalettesList(): void {
         try {
@@ -492,8 +523,10 @@ export class HighlightOptionsManager {
     }
 
     /**
-     * Commits current settings back to Chrome storage and re-renders lists.
-     * @param {string} [message=null] - Text message shown inside toast alerts.
+     * Persists updated settings to `chrome.storage.local` and refreshes the palette cards display.
+     * 
+     * @param {string | null} [message=null] - Optional toast message to display upon save.
+     * @returns {void}
      */
     saveSettings(message: string | null = null): void {
         try {
@@ -523,8 +556,10 @@ export class HighlightOptionsManager {
     }
 
     /**
-     * Renders status toast feedback indicators.
-     * @param {string} message - Feedback message.
+     * Renders a temporary floating toast notification in the options UI.
+     * 
+     * @param {string} message - Toast message text.
+     * @returns {void}
      */
     showToast(message: string): void {
         try {

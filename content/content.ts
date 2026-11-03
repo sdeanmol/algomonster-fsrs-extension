@@ -1,3 +1,16 @@
+/**
+ * @file content/content.ts
+ * @description Main content script orchestrator injected into whitelisted coding domains.
+ * Initializes settings, cards, and styling configurations from extension storage, boots
+ * the highlighter and tracker UI overlays, registers click triggers for SPA client-side
+ * navigations, and monitors DOM updates via MutationObserver.
+ * 
+ * Context: Content script environment (runs in isolated world on whitelisted domains).
+ * 
+ * Key Exports:
+ * - `AlgoRecallOrchestrator`: Main orchestrator class managing content script lifecycle and components.
+ */
+
 import { Logger } from '@common/logger';
 import '../features/common/markdown';
 import '../features/tracker/scheduler/scheduler';
@@ -21,13 +34,22 @@ import { DEFAULT_WHITELISTED_WEBSITES, DEFAULT_PALETTES } from '../features/comm
  * registers click triggers for SPA client-side navigations, and monitors DOM updates via MutationObserver.
  */
 export class AlgoRecallOrchestrator {
+    /** Shared in-memory content script runtime state. */
     state: AlgoRecallState;
+    /** DOM helper and tag extraction utilities. */
     utils: typeof Utils;
+    /** In-page notification and alert manager. */
     notifier: typeof Notifier;
+    /** Text highlighter controller for active DOM selections. */
     highlighter: Highlighter;
+    /** Problem tracking floating widget and rating overlay controller. */
     tracker: Tracker;
+    /** MutationObserver monitoring DOM tree alterations during SPA navigations. */
     domObserver: MutationObserver | null;
 
+    /**
+     * Initializes orchestrator references and instantiates component controllers.
+     */
     constructor() {
         Logger.info('ContentScript', 'Orchestrator initializing...');
         const algoGlobal = getAlgoRecallGlobal();
@@ -46,6 +68,11 @@ export class AlgoRecallOrchestrator {
 
     /**
      * Initializes the orchestrator and components.
+     * Loads cards, settings, bookmarks, and parameters from `chrome.storage.local`.
+     * Verifies domain whitelisting before injecting UI widgets.
+     * 
+     * @async
+     * @returns {Promise<void>} Resolves when asynchronous initialization begins.
      */
     async init(): Promise<void> {
         Logger.time('ContentScript', 'Init Storage Load');
@@ -128,7 +155,14 @@ export class AlgoRecallOrchestrator {
     }
 
     /**
-     * Binds general orchestrator events, click/messaging/storage listeners.
+     * Binds general orchestrator events: click listeners for SPA navigation heuristics,
+     * `chrome.storage.onChanged` for live configuration synchronization, and `chrome.runtime.onMessage`
+     * for commands from the background service worker.
+     * 
+     * @listens document#click
+     * @listens chrome.storage.onChanged
+     * @listens chrome.runtime.onMessage
+     * @returns {void}
      */
     bindEvents(): void {
         try {
@@ -178,7 +212,10 @@ export class AlgoRecallOrchestrator {
     }
 
     /**
-     * Sets up the DOM observer to watch for React component re-rendering/navigations.
+     * Sets up the DOM MutationObserver to detect React/Vue dynamic view transitions and SPA route updates.
+     * Re-applies active text highlights and re-creates widget DOM elements if clobbered by host site re-rendering.
+     * 
+     * @returns {void}
      */
     setupMutationObserver(): void {
         try {
@@ -235,9 +272,13 @@ export class AlgoRecallOrchestrator {
     }
 
     /**
-     * Handles chrome.storage.local modification updates dynamically.
-     * @param {Object} changes - Object describing key storage differences.
-     * @param {string} areaName - Storage classification bucket name.
+     * Handles `chrome.storage.onChanged` events, dynamically syncing state updates
+     * (cards, topic weights, highlights, theme, whitelist rules, settings) without requiring tab reload.
+     * 
+     * @param {{ [key: string]: chrome.storage.StorageChange }} changes - Map of changed keys to previous and new values.
+     * @param {string} areaName - Storage namespace classification (e.g., 'local', 'sync').
+     * @listens chrome.storage.onChanged
+     * @returns {void}
      */
     handleStorageChanged(changes: { [key: string]: chrome.storage.StorageChange }, areaName: string): void {
         try {
@@ -331,10 +372,14 @@ export class AlgoRecallOrchestrator {
     }
 
     /**
-     * Handles runtime messages sent from the background worker.
-     * @param {ExtensionMessage} request - Messaging payload dictionary.
-     * @param {chrome.runtime.MessageSender} sender - Sender source details metadata.
-     * @param {Function} sendResponse - Callback function routing replies.
+     * Handles runtime messages sent from the background service worker or popup UI.
+     * Routes actions such as SPA route changes (`spa_url_changed`) and in-page notifications (`show_custom_notification`).
+     * 
+     * @param {ExtensionMessage} request - Message payload containing action discriminator and parameters.
+     * @param {chrome.runtime.MessageSender} sender - Information regarding the sender of the message.
+     * @param {(response?: MessageResponse) => void} sendResponse - Callback function to reply asynchronously.
+     * @listens chrome.runtime.onMessage
+     * @returns {boolean | void}
      */
     handleMessage(request: ExtensionMessage, sender: chrome.runtime.MessageSender, sendResponse: (response?: MessageResponse) => void): boolean | void {
         try {
@@ -367,8 +412,10 @@ export class AlgoRecallOrchestrator {
     }
 
     /**
-     * Centrally updates the floating widgets' layout values when URL adjustments or navigations occur.
-     * Restores launcher buttons and re-reads tag configurations.
+     * Centrally updates floating widgets layout and contents when URL adjustments or SPA navigations occur.
+     * Restores launcher buttons if hidden, refreshes auto-extracted tags, and re-applies active highlights.
+     * 
+     * @returns {void}
      */
     triggerAggressiveUIUpdate(): void {
         try {
@@ -401,8 +448,10 @@ export class AlgoRecallOrchestrator {
     }
 
     /**
-     * Updates visual class names (light-theme toggle) on active extension container elements
-     * to match the user's color scheme settings.
+     * Updates visual class names (such as the `.light-theme` toggle) on active extension container elements
+     * to reflect the user's selected theme preference.
+     * 
+     * @returns {void}
      */
     applyThemeClass(): void {
         try {
@@ -427,7 +476,12 @@ export class AlgoRecallOrchestrator {
     }
 
     /**
-     * Centralized helper to apply global FSRS scheduling parameters
+     * Centralized helper to apply global FSRS scheduling parameters (weights, decay, factor, target retention)
+     * directly onto the active scheduler instance.
+     * 
+     * @private
+     * @param {Partial<FSRSParameters>} params - Partial FSRS parameter payload.
+     * @returns {void}
      */
     private applyFsrsGlobalParams(params: Partial<FSRSParameters>): void {
         if (!params || !this.state.scheduler) return;

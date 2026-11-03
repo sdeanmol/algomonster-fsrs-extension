@@ -1,9 +1,15 @@
 /**
  * @file features/dashboard/studyplan/studyplan.ts
- * @description Exam Countdown Mode controller.
- * Redistributes all FSRS cards evenly across remaining days until exam,
- * prioritizing overdue and low-stability cards. Backs up original due dates
- * for restoration on deactivation.
+ * @description Exam Countdown Mode and study planner controller.
+ * Redistributes all FSRS cards evenly across remaining calendar days until the target exam date,
+ * prioritizing overdue and low-stability cards. Preserves original computed due dates as a backup
+ * so spaced repetition schedules can be restored when exam mode is deactivated.
+ *
+ * Architecture Role: Exam Study Plan Standalone Page Controller.
+ * Context: Extension Standalone Tab (`features/dashboard/studyplan/studyplan.html`).
+ * Key Exports:
+ * - {@link StudyPlanSettings}: Configuration schema for active exam countdown deadlines.
+ * - {@link StudyPlanController}: Controller class managing redistribution logic, previews, and countdown display.
  */
 
 import { Logger } from '@common/logger';
@@ -11,22 +17,43 @@ import { UIUtils } from '../../common/utils/uiUtils';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
 import { Card, StorageData } from '../../../types/domain';
 
+/**
+ * Persistent configuration settings for active Exam Countdown Mode.
+ */
 export interface StudyPlanSettings {
+    /** Whether exam countdown redistribution is currently active. */
     isActive: boolean;
+    /** Target exam date string in ISO format (`YYYY-MM-DD`). */
     examDate: string;
+    /** Calculated or user-constrained daily review quota. */
     dailyTarget: number;
+    /** Epoch timestamp in milliseconds when exam mode was activated. */
     activatedAt: number;
 }
 
+/**
+ * Controller for Exam Countdown Mode, enabling students to compress
+ * and evenly redistribute their entire card inventory ahead of an interview or exam.
+ */
 export class StudyPlanController {
+    /** Complete in-memory card collection loaded from extension storage. */
     allCards: Card[];
+    /** Active exam plan settings, or null if exam mode is inactive. */
     settings: StudyPlanSettings | null;
 
+    /**
+     * Initializes the controller with empty cards array and null settings.
+     */
     constructor() {
         this.allCards = [];
         this.settings = null;
     }
 
+    /**
+     * Bootstraps study plan UI by registering event listeners and loading cards
+     * and plan settings from local storage.
+     * @listens chrome.storage.local
+     */
     init(): void {
         try {
             this.bindEvents();
@@ -57,6 +84,9 @@ export class StudyPlanController {
         }
     }
 
+    /**
+     * Binds input change and click listeners for the exam configuration form and activation buttons.
+     */
     bindEvents(): void {
         try {
             const examDateInput = document.getElementById('exam-date-input') as HTMLInputElement | null;
@@ -115,6 +145,11 @@ export class StudyPlanController {
         }
     }
 
+    /**
+     * Formats a Date object into an ISO date string (`YYYY-MM-DD`) in local time.
+     * @param date - Date to convert.
+     * @returns Formatted ISO date string.
+     */
     formatDate(date: Date): string {
         try {
             return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -434,6 +469,9 @@ export class StudyPlanController {
     }
 }
 
+/**
+ * Initializes the study plan controller on DOM load.
+ */
 function initStudyPlan(): void {
     try {
         const controller = new StudyPlanController();

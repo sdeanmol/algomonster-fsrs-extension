@@ -1,3 +1,15 @@
+/**
+ * @file features/highlighter/manager/highlights.ts
+ * @description Manages the highlights repository dashboard interface.
+ * Provides full-text search, color filtering, page-level sorting, clipboard copy,
+ * highlight deletion, and Markdown export features for persisted text annotations.
+ * 
+ * Context: Standalone highlights dashboard tab (`highlights.html`) within the Chrome extension.
+ * 
+ * Key Exports:
+ * - `HighlightsManager`: Controller managing highlight display, search filtering, deletion, and exports.
+ */
+
 import { Logger } from '@common/logger';
 import { HighlightsHelpers } from './highlights-helpers';
 import { HighlightMark, BookmarkItem, StorageData } from '../../../types/domain';
@@ -10,14 +22,26 @@ try {
     Logger.error('HighlightsManager', `Error initializing window.AlgoRecall: ${errorMessage}`, { err });
 }
 
+/**
+ * Controller for the highlights management and export dashboard.
+ */
 export class HighlightsManager {
+    /** Cached collection of all highlight marks loaded from storage. */
     loadedMarks: HighlightMark[];
+    /** Cached collection of all bookmarks used for page title resolution. */
     loadedBookmarks: BookmarkItem[];
+    /** Active search query string filtering annotations. */
     searchQuery: string;
+    /** Active hex color string filtering annotations, or null for all colors. */
     activeColorFilter: string | null;
+    /** Target page URL filter, or 'all' for all web pages. */
     activePageFilter: string;
+    /** Current sort criterion ('newest' | 'oldest' | 'longest' | 'shortest' | 'title'). */
     sortOption: string;
 
+    /**
+     * Initializes default filter, search, and sorting states.
+     */
     constructor() {
         this.loadedMarks = [];
         this.loadedBookmarks = [];
@@ -28,10 +52,18 @@ export class HighlightsManager {
         this.sortOption = 'newest';
     }
 
+    /**
+     * Accessor returning the helper utility class.
+     * @returns {typeof HighlightsHelpers}
+     */
     get helpers(): typeof HighlightsHelpers {
         return window.AlgoRecall.HighlightsHelpers || HighlightsHelpers;
     }
 
+    /**
+     * Initializes the highlights manager, loading storage items and attaching DOM listeners.
+     * @returns {void}
+     */
     init(): void {
         try {
             this.loadHighlights();
@@ -43,6 +75,12 @@ export class HighlightsManager {
         }
     }
 
+    /**
+     * Registers UI event listeners for search queries, page filtering dropdowns,
+     * sorting options, refresh triggers, and Markdown export actions.
+     * 
+     * @returns {void}
+     */
     bindEvents(): void {
         try {
             const refreshBtn = document.getElementById('refresh-btn');
@@ -139,6 +177,11 @@ export class HighlightsManager {
         }
     }
 
+    /**
+     * Retrieves saved highlight marks and bookmarks from `chrome.storage.local` and triggers view rendering.
+     * 
+     * @returns {void}
+     */
     loadHighlights(): void {
         try {
             if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
@@ -171,6 +214,11 @@ export class HighlightsManager {
         }
     }
 
+    /**
+     * Builds and populates the web page filter `<select>` dropdown with unique URLs and titles.
+     * 
+     * @returns {void}
+     */
     populateWebpageSelect(): void {
         try {
             const select = document.getElementById('webpage-select') as HTMLSelectElement | null;
@@ -200,6 +248,11 @@ export class HighlightsManager {
         }
     }
 
+    /**
+     * Renders clickable color swatch filter bubbles based on the unique colors present in saved marks.
+     * 
+     * @returns {void}
+     */
     renderColorFilters(): void {
         try {
             const container = document.getElementById('color-filters-container');
@@ -246,6 +299,11 @@ export class HighlightsManager {
         }
     }
 
+    /**
+     * Filters the full list of marks against current search query, color filter, and target URL constraints.
+     * 
+     * @returns {HighlightMark[]} Array of filtered highlight annotations.
+     */
     getFilteredMarks(): HighlightMark[] {
         return this.loadedMarks.filter(mark => {
             const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
@@ -270,6 +328,11 @@ export class HighlightsManager {
         });
     }
 
+    /**
+     * Applies active filters and sorting order, generating highlight card DOM elements with actions.
+     * 
+     * @returns {void}
+     */
     filterAndRender(): void {
         try {
             const container = document.getElementById('highlights-container');
@@ -405,6 +468,12 @@ export class HighlightsManager {
         }
     }
 
+    /**
+     * Prompts for user confirmation and removes the specified highlight mark from `chrome.storage.local`.
+     * 
+     * @param {string} markId - ID or creation timestamp string of the highlight to delete.
+     * @returns {void}
+     */
     deleteHighlight(markId: string): void {
         try {
             if (confirm("Are you sure you want to delete this highlight?")) {
@@ -442,6 +511,12 @@ export class HighlightsManager {
         }
     }
 
+    /**
+     * Compiles all currently filtered highlights into a formatted Markdown document and initiates file download.
+     * Uses `chrome.downloads` when supported, or an invisible `<a>` element download click fallback.
+     * 
+     * @returns {void}
+     */
     exportHighlightsToMarkdown(): void {
         try {
             const filtered = this.getFilteredMarks();

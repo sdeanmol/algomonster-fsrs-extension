@@ -1,6 +1,20 @@
 /**
  * @file features/dashboard/analytics/utils/dataUtils.ts
- * @description Shared utilities for aggregating and calculating FSRS data.
+ * @description Central mathematical aggregation engine for the Analytics Dashboard SPA.
+ * Calculates summary metrics, learning velocities, tag mastery, lapse/recovery rates,
+ * review time patterns, exam readiness projections, and future memory decay simulations.
+ *
+ * Architecture Role: Analytics Statistical Modeling & Aggregation Engine.
+ * Context: Extension Standalone Tab (`features/dashboard/analytics/analytics.html`).
+ * Key Exports:
+ * - {@link SummaryStats}: High-level inventory, due count, and retention KPI summary.
+ * - {@link LearningVelocity}: Velocity trends and sparkline arrays (new cards, graduated, reviews).
+ * - {@link TagStats}: Per-tag retention, stability, and difficulty breakdown.
+ * - {@link PerformanceStats}: Lapsed vs successfully recovered card collections.
+ * - {@link ReviewTimeInsights}: Time-of-day behavioral correlation with recall accuracy.
+ * - {@link ExamReadinessStats}: Future date target readiness metrics and at-risk tag list.
+ * - {@link FutureMemorySimulationStats}: Simulated memory decay projections over 30, 90, 180+ days.
+ * - {@link DataUtils}: Core mathematical engine class consuming card histories and scheduler projections.
  */
 
 import { Logger } from '@common/logger';
@@ -9,105 +23,209 @@ import { Card, ReviewLog } from '../../../../types/domain';
 import { MS_PER_DAY, MS_PER_WEEK, RECOVERED_STABILITY_THRESHOLD, GRADUATED_STABILITY_THRESHOLD, RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '../../../common/constants';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
+/**
+ * Top-level inventory and retrievability metrics summary.
+ */
 export interface SummaryStats {
+    /** Total cards tracked across all categories. */
     totalCards: number;
+    /** Number of cards that have been reviewed at least once (stability > 0). */
     reviewedCards: number;
+    /** Lifetime total repetition reviews across all cards. */
     totalReps: number;
+    /** Lifetime total lapses across all cards. */
     totalLapses: number;
+    /** Raw repetition-based retention percentage `(reps - lapses) / reps * 100`. */
     retention: number;
+    /** Model-derived FSRS retrievability retention percentage. */
     trueRetention: number;
+    /** Average stability in days across reviewed cards. */
     avgStability: number;
+    /** Total reviews logged in the `fsrsActivity` calendar map. */
     totalActivityReviews: number;
+    /** Total cards currently due for review right now. */
     due: number;
+    /** Cards scheduled to be due today or already overdue. */
     dueToday: number;
+    /** Current consecutive active daily study streak. */
     streak: number;
 }
 
+/**
+ * Velocity rates and 7-day sparkline trend data points for study momentum.
+ */
 export interface LearningVelocity {
+    /** Average new cards introduced per day over the last 7 days. */
     newCardsPerDay: string;
+    /** Percentage change in new card rate vs previous 7-day window. */
     newCardsTrend: number;
+    /** Daily count of new cards introduced over the last 7 days. */
     sparklineNew: number[];
+    /** Count of cards graduating to stability >= threshold in the last 7 days. */
     graduatedPerWeek: number;
+    /** Percentage change in graduated card rate vs previous window. */
     graduatedTrend: number;
+    /** Daily count of graduating cards over the last 7 days. */
     sparklineGrad: number[];
+    /** Average reviews completed per day over the last 7 days. */
     reviewsPerDay: string;
+    /** Percentage change in review volume vs previous 7-day window. */
     reviewsTrend: number;
+    /** Daily review counts over the last 7 days. */
     sparklineRev: number[];
 }
 
+/**
+ * Topic tag retention, stability, and workload metrics.
+ */
 export interface TagStats {
+    /** Problem topic tag name. */
     tag: string;
+    /** Total cards tagged with this label. */
     count: number;
+    /** Historic raw retention percentage `(reps - lapses) / reps * 100`. */
     retention: number;
+    /** FSRS computed retrievability retention percentage. */
     trueRetention: number;
+    /** Mean stability in days for this tag. */
     avgStability: number;
+    /** Cumulative lapses logged across cards with this tag. */
     lapses: number;
+    /** Number of cards currently due under this tag. */
     due: number;
 }
 
+/**
+ * Categorized collections of cards requiring attention or successfully rehabilitated.
+ */
 export interface PerformanceStats {
+    /** Cards that have lapsed (lapses >= 1). */
     lapsed: Card[];
+    /** Cards that previously lapsed but regained stability >= threshold. */
     recovered: Card[];
 }
 
+/**
+ * Time-of-day behavioral study patterns correlating hour/time buckets with recall accuracy.
+ */
 export interface ReviewTimeInsights {
+    /** Whether card review logs contain valid timestamp data. */
     hasTimeData: boolean;
+    /** Array of time bucket metrics (e.g. morning, afternoon, evening, night). */
     data: Array<{
+        /** Time bucket name string. */
         bucket: string;
+        /** Total reviews performed during this time period. */
         reviews: number;
+        /** Retention accuracy percentage for reviews in this bucket. */
         retention: number;
+        /** Mean duration spent per card in milliseconds, or null if untracked. */
         avgDurationMs: number | null;
     }>;
 }
 
+/**
+ * Topic breakdown for targeted exam readiness predictions.
+ */
 export interface ExamReadinessTagResult {
+    /** Topic tag name. */
     tag: string;
+    /** Total cards with this tag. */
     count: number;
+    /** Cards reviewed under this tag. */
     reviewedCount: number;
+    /** Projected retention rate on the target exam date. */
     expectedRecall: number;
+    /** Mean stability in days. */
     avgStability: number;
+    /** Textual readiness assessment ('Ready', 'Needs Work', 'At Risk'). */
     status: string;
+    /** CSS class styling the status badge. */
     statusClass: string;
 }
 
+/**
+ * Composite readiness metrics projecting recall probabilities for a target exam date.
+ */
 export interface ExamReadinessStats {
+    /** Number of calendar days ahead being evaluated. */
     daysAhead: number;
+    /** Target exam date object. */
     targetDate: Date;
+    /** Projected overall inventory recall percentage on target date. */
     overallRecall: number;
+    /** Total cards in inventory. */
     totalCards: number;
+    /** Number of cards reviewed at least once. */
     reviewedCards: number;
+    /** Count of cards projected to fall below acceptable retrievability. */
     atRiskCount: number;
+    /** Topic-by-topic readiness breakdowns. */
     tags: ExamReadinessTagResult[];
 }
 
+/**
+ * Single day projection point on the simulated memory decay curve.
+ */
 export interface SimulationCurvePoint {
+    /** Day offset index from today (0 to 180+). */
     day: number;
+    /** Estimated recall probability percentage on this day without reviews. */
     retention: number;
 }
 
+/**
+ * Forecast simulation modeling memory decay if all reviews were stopped.
+ */
 export interface FutureMemorySimulationStats {
+    /** Estimated overall retention today. */
     today: number;
+    /** Projected retention in 30 days without reviews. */
     d30: number;
+    /** Projected retention in 90 days without reviews. */
     d90: number;
+    /** Projected retention in 180 days without reviews. */
     d180: number;
+    /** Custom duration evaluation metrics. */
     custom: {
+        /** Evaluated custom day offset. */
         days: number;
+        /** Projected retention on custom day. */
         retention: number;
+        /** Projected number of forgotten cards on custom day. */
         forgottenCount: number;
+        /** Total cards evaluated. */
         totalCards: number;
     };
+    /** Plotted data points along the simulated forgetting curve. */
     curvePoints: SimulationCurvePoint[];
+    /** Total card count evaluated. */
     totalCards: number;
+    /** Number of reviewed cards included in the simulation. */
     reviewedCards: number;
 }
 
+/**
+ * Central statistical aggregator and mathematical projection engine for extension analytics.
+ */
 export class DataUtils {
+    /** Card collection loaded from storage. */
     cards: Card[];
+    /** Daily review activity map from storage. */
     activity: Record<string, number>;
+    /** Optional active FSRS scheduler instance for retrievability calculations. */
     scheduler: AbstractScheduler | null;
+    /** Reference current date timestamp. */
     today: Date;
+    /** Midnight timestamp of the current date for day boundary comparisons. */
     todayStart: Date;
 
+    /**
+     * Initializes DataUtils with cards, activity history, and optional scheduler engine.
+     * @param cards - Collection of FSRS cards.
+     * @param activity - Daily activity review counts.
+     * @param scheduler - Active scheduler instance for retrievability projection.
+     */
     constructor(cards: Card[], activity: Record<string, number>, scheduler: AbstractScheduler | null) {
         try {
             this.cards = cards || [];
@@ -140,7 +258,9 @@ export class DataUtils {
     }
 
     /**
-     * Get basic summary statistics
+     * Computes top-level inventory counters, raw/FSRS retrievability retention,
+     * due counts, and active daily study streaks.
+     * @returns {@link SummaryStats} object containing overall deck metrics.
      */
     getSummaryStats(): SummaryStats {
         try {
@@ -227,7 +347,9 @@ export class DataUtils {
     }
 
     /**
-     * Get learning velocity metrics
+     * Calculates 7-day study momentum, new card introduction rate, card graduation velocities,
+     * and percentage trends vs the prior 7-day window.
+     * @returns {@link LearningVelocity} object containing velocity averages, trends, and sparkline arrays.
      */
     getLearningVelocity(): LearningVelocity {
         try {
@@ -335,7 +457,9 @@ export class DataUtils {
     }
 
     /**
-     * Group cards by tag and calculate stats
+     * Groups cards by topic tag and computes tag-specific retention, true retrievability,
+     * stability, lapse frequency, and active due counts.
+     * @returns Array of {@link TagStats} sorted descending by card count.
      */
     getStatsByTag(): TagStats[] {
         try {
@@ -393,7 +517,9 @@ export class DataUtils {
     }
     
     /**
-     * Get lapse leaderboard / recovery stats
+     * Segregates cards into lapsed patterns requiring remediation and recovered cards
+     * that successfully regained high stability after lapses.
+     * @returns {@link PerformanceStats} containing arrays of lapsed and recovered cards.
      */
     getPerformanceStats(): PerformanceStats {
         try {
@@ -422,7 +548,9 @@ export class DataUtils {
     }
 
     /**
-     * Format date to YYYY-MM-DD
+     * Formats a Date instance as an ISO `YYYY-MM-DD` string in local timezone.
+     * @param date - Date to convert.
+     * @returns `YYYY-MM-DD` date key string.
      */
     formatDateKey(date: Date): string {
         try {
@@ -434,6 +562,10 @@ export class DataUtils {
         }
     }
     
+    /**
+     * Calculates the active consecutive daily study streak from activity records.
+     * @returns Number of consecutive days reviewed up to today/yesterday.
+     */
     calculateCurrentStreak(): number {
         try {
             let streak = 0;
@@ -468,6 +600,11 @@ export class DataUtils {
         }
     }
     
+    /**
+     * Correlates historical review timestamps across 4 time-of-day buckets (morning, afternoon,
+     * evening, night) with grading performance and duration.
+     * @returns {@link ReviewTimeInsights} object containing time bucket breakdown.
+     */
     getReviewTimeInsights(): ReviewTimeInsights {
         try {
             const times: Record<string, { reviews: number; reps: number; lapses: number; duration: number; durationCount: number }> = {
@@ -539,6 +676,8 @@ export class DataUtils {
     /**
      * Calculates projected Exam Readiness recall rates per tag and overall deck
      * based on FSRS memory decay for a target exam date N days ahead.
+     * @param [daysAhead=12] - Number of days into the future to project recall.
+     * @returns {@link ExamReadinessStats} composite readiness predictions.
      */
     getExamReadinessStats(daysAhead: number = 12): ExamReadinessStats {
         try {
@@ -648,6 +787,9 @@ export class DataUtils {
 
     /**
      * Calculates Future Memory Simulation data predicting decay if user stops studying.
+     * Evaluates fixed intervals (30, 90, 180 days) plus a user-controlled slider day target.
+     * @param [customDays=45] - Specific day offset requested by the simulation slider.
+     * @returns {@link FutureMemorySimulationStats} containing retention decay benchmarks and curve coordinates.
      */
     getFutureMemorySimulation(customDays: number = 45): FutureMemorySimulationStats {
         try {

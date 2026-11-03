@@ -1,6 +1,13 @@
 /**
  * @file features/dashboard/popup/notifications.ts
  * @description Controls notification and reminder configuration panels inside the dashboard popup.
+ * Manages permission requests, reminder frequencies, quiet hours schedules, sticky notifications,
+ * pinned badge count toggles, and test notification triggers.
+ *
+ * Architecture Role: Popup Sub-View Component (Notifications & Scheduling).
+ * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
+ * Key Exports:
+ * - {@link NotificationsComponent}: Sub-view component class managing notification preferences and tests.
  */
 
 import { Logger } from '@common/logger';
@@ -9,13 +16,24 @@ import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData, NotificationSettings, MessageResponse } from '../../../types/domain';
 import { DEFAULT_NOTIFICATION_SETTINGS } from '../../common/constants';
 
+/**
+ * Sub-component for the popup dashboard managing background notification settings,
+ * permission status detection, quiet hours intervals, and test alerts.
+ */
 export class NotificationsComponent extends DashboardComponent {
+    /**
+     * Initializes notifications component with reference to parent coordinator.
+     * @param coordinator - Parent dashboard coordinator.
+     */
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
     }
 
     /**
-     * Required implementation of abstract load from DashboardComponent
+     * Required implementation of abstract load from DashboardComponent.
+     * Loads settings from storage and validates browser notification permissions.
+     * @async
+     * @returns Promise resolving when settings and permissions have loaded.
      */
     async load(): Promise<void> {
         try {

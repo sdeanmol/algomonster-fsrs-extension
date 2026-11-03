@@ -1,15 +1,27 @@
 /**
  * @file features/dashboard/analytics/overview/miniForecast.ts
- * @description Component for rendering the mini 7-day upcoming review forecast strip.
+ * @description Component for rendering the mini 7-day upcoming review forecast strip
+ * within the analytics overview dashboard. Displays clickable daily review load tiles
+ * that open filtered card queue lists via Chrome tabs.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
 import { MS_PER_DAY, DAY_NAMES_SHORT } from '../../../common/constants';
 
+/**
+ * Visualizes a compact 7-day upcoming review workload forecast.
+ * Provides interactive tiles linking to specific date queues and the full 30-day forecast page.
+ */
 export class MiniForecast {
+    /** Data utility instance for card due dates and collection queries */
     dataUtils: DataUtils;
 
+    /**
+     * Initializes the MiniForecast component.
+     * @param dataUtils - Card statistics helper instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -19,6 +31,13 @@ export class MiniForecast {
         }
     }
 
+    /**
+     * Renders the 7-day mini forecast bar into the specified container element
+     * and attaches click listeners to navigate to filtered card lists.
+     * @param containerId - DOM ID of the container element hosting the forecast.
+     * @returns void
+     * @fires chrome.tabs.create
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -55,6 +74,12 @@ export class MiniForecast {
         }
     }
 
+    /**
+     * Aggregates cards into day-offset buckets (0 = today, 1 = tomorrow, ..., 6 = in 6 days),
+     * folding any overdue cards into the today bucket.
+     * @param todayStart - Start-of-day Date instance for today.
+     * @returns Mapping of day offset (0-6) to due card count.
+     */
     private calculateDueCounts(todayStart: Date): Record<number, number> {
         const dueCounts: Record<number, number> = {};
         let pastDueCount = 0;
@@ -77,6 +102,13 @@ export class MiniForecast {
         return dueCounts;
     }
 
+    /**
+     * Generates HTML markup for each of the 7 daily forecast cards.
+     * @param todayStart - Start-of-day Date instance for today.
+     * @param dueCounts - Count of due cards keyed by day offset.
+     * @param dayNames - Array of abbreviated weekday names.
+     * @returns Concatenated HTML string of day cards.
+     */
     private buildForecastStrip(todayStart: Date, dueCounts: Record<number, number>, dayNames: string[]): string {
         let forecastStrip = '';
         for (let i = 0; i < 7; i++) {
@@ -103,6 +135,13 @@ export class MiniForecast {
         return forecastStrip;
     }
 
+    /**
+     * Attaches click handlers to the 30-day forecast link and individual day cards,
+     * opening new Chrome tabs with appropriately filtered parameters.
+     * @param container - Root container element hosting the forecast strip.
+     * @returns void
+     * @fires chrome.tabs.create
+     */
     private bindEventListeners(container: HTMLElement): void {
         const fullForecastLink = container.querySelector('#full-forecast-link');
         if (fullForecastLink) {

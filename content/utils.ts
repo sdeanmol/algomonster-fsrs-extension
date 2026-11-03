@@ -1,15 +1,42 @@
+/**
+ * @file content/utils.ts
+ * @description General helper utilities for in-page content scripts.
+ * Contains DOM serialization routines for highlights persistence across tab reloads,
+ * dynamic theme styling injections (CSS Custom Highlights API), and heuristic parsing
+ * of problem tags and titles across coding environments (LeetCode, AlgoMonster, AtCoder).
+ * 
+ * Context: Content script isolation layer (runs inside target web pages within the extension context).
+ * 
+ * Key Exports:
+ * - `DOMMeta`: Interface describing serialized DOM text node path coordinates.
+ * - `HighlightMetaSource`: Interface pairing start and end coordinates for text range reconstruction.
+ * - `Utils`: Utility class providing static DOM pathing, styling, tag inference, and title extraction helpers.
+ */
+
 import { Logger } from '@common/logger';
 import { AlgoRecallState, getAlgoRecallGlobal } from './state';
 
+/**
+ * Serialized DOM coordinates representing the location of a text boundary point in the DOM tree.
+ */
 export interface DOMMeta {
+    /** Lowercase tag name of the parent element (e.g., 'p', 'div', 'span'). */
     parentTagName: string;
+    /** Zero-based index of the target node among its parent's child nodes. */
     parentIndex: number;
+    /** Character offset within the text node. */
     textOffset: number;
+    /** Array of child indices from the document root down to the parent element. */
     parentDomPath: number[];
 }
 
+/**
+ * Coordinates pairing the start and end boundary points required to rebuild a DOM `Range`.
+ */
 export interface HighlightMetaSource {
+    /** Boundary coordinates for the start of the highlighted text range. */
     startMeta: DOMMeta;
+    /** Boundary coordinates for the end of the highlighted text range. */
     endMeta: DOMMeta;
 }
 

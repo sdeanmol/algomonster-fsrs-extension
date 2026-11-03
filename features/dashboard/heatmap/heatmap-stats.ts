@@ -2,23 +2,41 @@
  * @file features/dashboard/heatmap/heatmap-stats.ts
  * @description Computes study streak statistics and renders the statistics card panels
  * inside the full-screen heatmap page.
+ *
+ * Architecture Role: Heatmap Streak & Cadence Statistics Engine.
+ * Context: Extension Standalone Tab (`features/dashboard/heatmap/heatmap.html`).
+ * Key Exports:
+ * - {@link StreakStatsResult}: Metrics output containing current streak, longest streak, active days, and max reviews.
+ * - {@link HeatmapStats}: Static utility class computing streaks and rendering KPI cards.
  */
 
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { MS_PER_DAY } from '../../common/constants';
 
+/**
+ * Calculated streak and activity statistics derived from user review logs.
+ */
 export interface StreakStatsResult {
+    /** Current consecutive days with at least one review completed (active today or yesterday). */
     currentStreak: number;
+    /** All-time longest consecutive daily review streak. */
     longestStreak: number;
+    /** Total number of unique calendar days on which reviews occurred. */
     activeDays: number;
+    /** Highest number of reviews completed in a single calendar day. */
     maxReviews: number;
 }
 
+/**
+ * Utility class providing mathematical streak calculation algorithms
+ * and DOM rendering for the KPI stat cards on the heatmap page.
+ */
 export class HeatmapStats {
     /**
      * Calculates current streak, longest streak, active days, and max reviews in a day,
      * and renders the corresponding HTML templates into the stats container.
+     * @param activityData - Map of ISO date strings (`YYYY-MM-DD`) to daily review counts.
      */
     static renderStatsDashboard(activityData: Record<string, number>): void {
         try {
@@ -77,6 +95,8 @@ export class HeatmapStats {
     /**
      * Calculates current and historical maximum streaks, active days,
      * and maximum daily review load metrics from the global activity data.
+     * @param activityData - Map of ISO date strings (`YYYY-MM-DD`) to daily review counts.
+     * @returns {@link StreakStatsResult} containing streak and activity metrics.
      */
     static getStreakStats(activityData: Record<string, number>): StreakStatsResult {
         try {

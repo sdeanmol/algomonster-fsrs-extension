@@ -1,6 +1,13 @@
 /**
  * @file features/dashboard/popup/search.ts
- * @description Renders filtered card quick search items matching text query and topic tag fields.
+ * @description Quick card search component within the popup dashboard.
+ * Provides a debounced text search input and tag filter dropdown to quickly locate
+ * tracked algorithms, view status badges (Due vs Safe), and launch problem URLs.
+ *
+ * Architecture Role: Popup Sub-View Component (Quick Problem Search).
+ * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
+ * Key Exports:
+ * - {@link QuickSearchComponent}: Sub-view component class managing the quick search input and result list.
  */
 
 import { Logger } from '@common/logger';
@@ -9,10 +16,20 @@ import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { Card, StorageData } from '../../../types/domain';
 import { SEARCH_DEBOUNCE_MS, SEARCH_MAX_RESULTS } from '../../common/constants';
 
+/**
+ * Sub-component for the popup dashboard providing debounced problem search
+ * with tag filtering and direct external link navigation.
+ */
 export class QuickSearchComponent extends DashboardComponent {
+    /** In-memory cache of all tracked FSRS cards for instant query filtering. */
     quickSearchCards: Card[];
+    /** Timeout handle for debouncing user input keystrokes. */
     quickSearchDebounce: ReturnType<typeof setTimeout> | null;
 
+    /**
+     * Initializes the quick search component with a coordinator reference.
+     * @param coordinator - Parent dashboard coordinator.
+     */
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
         this.quickSearchCards = [];
@@ -21,6 +38,9 @@ export class QuickSearchComponent extends DashboardComponent {
 
     /**
      * Initializes quick search input and tag selectors from the dashboard.
+     * Loads cards from storage and populates unique tags into dropdown options.
+     * @async
+     * @returns Promise resolving when cards and tag dropdown options have loaded.
      */
     async load(): Promise<void> {
         try {

@@ -1,34 +1,66 @@
 /**
  * @file features/tracker/editor/editor.ts
- * @description Manages the markdown notes editor panel.
- * Provides real-time rendering previews, auto-save triggers,
- * and updates review card approach files or fallback draft directories.
+ * @description Manages the markdown notes and problem approach editor panel.
+ * Provides real-time Markdown rendering previews, automatic background debounced saving,
+ * and synchronizes changes to existing card records or standalone URL draft notes.
+ * 
+ * Context: Standalone editor tab (`editor.html`) within the Chrome extension.
+ * 
+ * Key Exports:
+ * - `DraftEntry`: Interface defining the shape of unassociated problem approach drafts.
+ * - `BookmarkEntry`: Minimal interface representing a bookmarked problem entry.
+ * - `EditorManager`: Main editor controller class handling DOM events, previews, and persistence.
  */
+
 import { Markdown } from '@common/markdown';
 import { Logger } from '@common/logger';
 import { UIUtils } from '@common/utils/uiUtils';
 import { Card, StorageData } from '../../../types/domain';
 
-interface DraftEntry {
+/**
+ * Shape of an uncommitted approach draft stored for a problem URL without an existing card.
+ */
+export interface DraftEntry {
+    /** Markdown text describing the algorithmic approach or solution notes. */
     approach?: string;
+    /** Big-O time complexity notation (e.g., 'O(N log N)'). */
     timeComplexity?: string;
+    /** Big-O space complexity notation (e.g., 'O(1)'). */
     spaceComplexity?: string;
+    /** Catch-all for forward compatibility with future metadata. */
     [key: string]: unknown;
 }
 
-interface BookmarkEntry {
+/**
+ * Minimal representation of a bookmarked problem entry for title resolution.
+ */
+export interface BookmarkEntry {
+    /** Target URL of the bookmarked problem. */
     url: string;
+    /** Optional friendly title of the bookmarked page. */
     title?: string;
 }
 
+/**
+ * Controller for the Markdown notes and approach editor page.
+ */
 export class EditorManager {
+    /** Raw problem URL passed via query parameters. */
     problemUrl: string;
+    /** Cleaned URL stripped of hash and query fragments. */
     cleanUrl: string;
+    /** Card ID if an existing card is being edited. */
     cardId: string;
+    /** Whether the edited notes belong to an existing FSRS card or a draft. */
     isCardExisting: boolean;
+    /** Debounce timer reference for auto-saving typed input. */
     autoSaveTimer: ReturnType<typeof setTimeout> | null;
+    /** Active toggle status between Markdown editing and rendered preview modes. */
     isPreviewMode: boolean;
 
+    /**
+     * Initializes default properties for the editor controller.
+     */
     constructor() {
         this.problemUrl = '';
         this.cleanUrl = '';
@@ -39,7 +71,10 @@ export class EditorManager {
     }
 
     /**
-     * Initializes parameters and binds element events.
+     * Initializes editor parameters from URL query arguments, loads content from storage,
+     * and sets up UI event listeners.
+     * 
+     * @returns {void}
      */
     init(): void {
         try {
@@ -71,7 +106,10 @@ export class EditorManager {
     }
 
     /**
-     * Retrieves current FSRS cards, drafts, and bookmarks to fill editor textfields.
+     * Retrieves stored cards, bookmarks, and drafts from `chrome.storage.local` to populate
+     * the markdown textarea, complexity inputs, and title displays.
+     * 
+     * @returns {void}
      */
     loadContent(): void {
         try {
@@ -150,7 +188,10 @@ export class EditorManager {
     }
 
     /**
-     * Hooks listeners to editor button controls, textareas, and window lifecycle updates.
+     * Binds input debounce triggers for auto-saving, button click handlers,
+     * live Markdown preview toggling, and unload save handlers.
+     * 
+     * @returns {void}
      */
     bindEvents(): void {
         const triggerAutoSave = () => {
@@ -247,7 +288,12 @@ export class EditorManager {
     }
 
     /**
-     * Saves current text field content as card approach data or fallback drafts.
+     * Persists current markdown text and complexity notes to `chrome.storage.local`.
+     * If editing an existing card, modifies the card entry in `fsrsCards`; otherwise, saves
+     * into the `approachDrafts` dictionary keyed by clean problem URL.
+     * 
+     * @param {() => void} [callback] - Optional completion callback executed after storage write.
+     * @returns {void}
      */
     saveContent(callback?: () => void): void {
         try {
@@ -325,7 +371,10 @@ export class EditorManager {
     }
 
     /**
-     * Normalizes complex raw URLs into short hostnames for labels.
+     * Normalizes a raw URL into a concise hostname + pathname string for interface display.
+     * 
+     * @param {string} url - Full URL to format.
+     * @returns {string} Cleaned display string.
      */
     getCleanDisplayUrl(url: string): string {
         try {
@@ -339,7 +388,10 @@ export class EditorManager {
     }
 
     /**
-     * Renders status feedback messages using temporary toasts.
+     * Displays a brief status feedback toast in the editor view.
+     * 
+     * @param {string} message - Toast message text.
+     * @returns {void}
      */
     showToast(message: string): void {
         try {

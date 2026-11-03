@@ -1,23 +1,42 @@
 /**
  * @file features/dashboard/analytics/overview/memoryHealth.ts
- * @description Component for rendering the overall Memory Health score, status ring, and metrics.
+ * @description Component for rendering the overall Memory Health score, radial status ring,
+ * and key performance metrics (retention, lapses, stability, review streak) within the analytics overview.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, SummaryStats } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
+/**
+ * Summary statistics shape required for computing and rendering the Memory Health card.
+ */
 export interface MemoryHealthInputStats {
+    /** Measured FSRS true retention percentage (0-100) */
     trueRetention?: number;
+    /** Fallback retention percentage if trueRetention is uncalculated */
     retention?: number;
+    /** Number of consecutive active study days */
     streak?: number;
+    /** Cumulative count of card lapses across the entire deck */
     totalLapses?: number;
+    /** Average memory stability across all cards in days */
     avgStability?: number;
 }
 
+/**
+ * Visualizes overall deck memory health using an animated SVG radial progress ring
+ * and a summary grid of foundational retention and consistency metrics.
+ */
 export class MemoryHealth {
+    /** Data utility instance for querying summary metrics and active scheduler configurations */
     dataUtils: DataUtils;
 
+    /**
+     * Initializes the MemoryHealth component.
+     * @param dataUtils - Card statistics helper instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -27,6 +46,11 @@ export class MemoryHealth {
         }
     }
 
+    /**
+     * Calculates health scores, builds the radial SVG ring, and injects the memory health card into the container.
+     * @param containerId - DOM ID of the container element hosting memory health.
+     * @returns void
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -68,12 +92,22 @@ export class MemoryHealth {
         }
     }
 
+    /**
+     * Extracts or derives the numerical health score from the summary statistics object.
+     * @param stats - Measured study and retention metrics.
+     * @returns Memory health score between 0 and 100.
+     */
     private calculateHealthScore(stats: MemoryHealthInputStats): number {
         if (stats.trueRetention && stats.trueRetention > 0) return stats.trueRetention;
         if (stats.retention && stats.retention > 0) return stats.retention;
         return 0;
     }
 
+    /**
+     * Retrieves the target requested retention percentage configured in the active FSRS scheduler,
+     * defaulting to 90% if not explicitly configured.
+     * @returns Target retention percentage (0-100).
+     */
     private getTargetRetention(): number {
         const sched = this.dataUtils.scheduler as (AbstractScheduler & { requestRetention?: number }) | null;
         if (sched && sched.requestRetention) {
@@ -82,6 +116,19 @@ export class MemoryHealth {
         return 90;
     }
 
+    /**
+     * Builds the complete HTML card markup containing the SVG radial ring,
+     * textual status assessment, and 4-metric footer grid.
+     * @param healthScore - Calculated score value out of 100.
+     * @param statusText - Qualitative rating ('Excellent', 'Good', 'Needs Attention', or 'Need Data').
+     * @param statusClass - CSS class name for styling the status badge and ring stroke.
+     * @param trend - Trend indicator string with directional arrow.
+     * @param trendMsg - Narrative feedback advice.
+     * @param trendClass - CSS class name applied to trend text.
+     * @param svgCircle - Rendered SVG radial gauge markup string.
+     * @param stats - Underlying metric inputs.
+     * @returns Rendered HTML card markup string.
+     */
     private buildHealthCard(
         healthScore: number,
         statusText: string,

@@ -1,3 +1,15 @@
+/**
+ * @file content/notifications.ts
+ * @description In-page interactive alert and review notification overlay system.
+ * Injects custom floating toast notifications directly into host DOM, enabling users
+ * to review due cards, snooze notifications, or dismiss alerts without leaving the page.
+ * 
+ * Context: Content script isolation layer (injected into whitelisted problem solving tabs).
+ * 
+ * Key Exports:
+ * - `Notifier`: Static notification controller class managing toast rendering, animations, and actions.
+ */
+
 import { Logger } from '@common/logger';
 import { AlgoRecallState, getAlgoRecallGlobal } from './state';
 import { MessageResponse } from '../types/domain';
@@ -13,10 +25,13 @@ export class Notifier {
     /**
      * Creates and appends an interactive custom floating notification popup card inside the current tab body.
      * Auto-dismisses standard alert flags after 6 seconds; review reminder flags remain sticky.
+     * 
      * @param {string} title - The header title string of the notification.
      * @param {string} message - Descriptive text message.
-     * @param {string} type - Notification type: 'review' (displays review options) or 'test'/other (simple alert).
+     * @param {string} type - Notification type: 'review' (displays review/snooze options) or 'test'/other (simple alert).
      * @param {number} [count] - Optional counter indicating total due review items.
+     * @fires chrome.runtime.sendMessage Sends `snooze_notification` message when the user clicks snooze.
+     * @returns {void}
      */
     static showPageNotification(title: string, message: string, type: string, count?: number): void {
         try {

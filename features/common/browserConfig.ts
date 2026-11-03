@@ -1,59 +1,55 @@
 /**
- * @file features/common/browserConfig.ts
- * @description Build-time browser configuration injected at bundle time via webpack DefinePlugin.
- * Provides browser-specific strings (store names, review URLs) without any runtime browser detection.
- *
- * The values of __BROWSER_TARGET__, __STORE_NAME__, __STORE_REVIEW_URL__ are replaced at build
- * time by webpack DefinePlugin using the TARGET_BROWSER env var (build:chrome / build:firefox /
- * build:safari).
- *
- * Do NOT add runtime browser detection here. All values must be statically determinable at build time.
- *
- * Safari-specific notes:
- *   - Safari Web Extensions do not support chrome.notifications, chrome.alarms, or chrome.downloads.
- *   - The review URL points to the Mac App Store page where the containing app is listed.
- *   - Graceful degradation guards live in background.ts / popup.ts / highlights.ts / backupManager.ts.
+ * @file Static Build-Time Browser Configuration
+ * @module features/common/browserConfig
+ * @context Shared across Background, Content Scripts, Popup UI, and Dashboard
+ * @description Provides build-time injected configuration parameters distinguishing Chrome,
+ * Firefox, and Safari extension targets (via Webpack DefinePlugin). Allows dead code elimination
+ * for browser-specific feature gates (e.g. notifications, alarms, and downloads) without runtime branching.
  */
 
 declare const __BROWSER_TARGET__: string;
 declare const __STORE_REVIEW_URL__: string;
 declare const __STORE_NAME__: string;
 
+/** Supported browser distribution targets */
 export type BrowserTarget = 'chrome' | 'firefox' | 'safari';
 
+/**
+ * Interface detailing browser metadata, store URLs, and feature support capabilities.
+ */
 export interface BrowserConfig {
-    /** The build target browser identifier */
+    /** The build target browser identifier ('chrome' | 'firefox' | 'safari') */
     target: BrowserTarget;
-    /** Human-readable browser name */
+    /** Human-readable browser brand name (e.g. "Chrome", "Firefox", "Safari") */
     displayName: string;
-    /** Browser extension store name */
+    /** Extension web store / marketplace name */
     storeName: string;
-    /** URL to the extension's review/rating page on the store */
+    /** URL to the extension's review/rating listing page */
     reviewUrl: string;
-    /** Store-specific rating prompt text */
+    /** Store-specific call-to-action text requesting user review */
     ratingPromptText: string;
-    /** Store-specific rating button label */
+    /** Store-specific button label for review actions */
     ratingButtonLabel: string;
     /**
-     * Whether chrome.notifications is supported in this build target.
-     * false for Safari — use this flag to guard notification calls.
+     * Whether `chrome.notifications` is supported in this build target.
+     * Evaluates to false for Safari builds.
      */
     supportsNotifications: boolean;
     /**
-     * Whether chrome.alarms is supported in this build target.
-     * false for Safari — use this flag to guard alarm calls.
+     * Whether `chrome.alarms` is supported in this build target.
+     * True across Chrome, Firefox, and Safari (Safari 14+).
      */
     supportsAlarms: boolean;
     /**
-     * Whether chrome.downloads is supported in this build target.
-     * false for Safari — use this flag to guard download calls.
+     * Whether `chrome.downloads` is supported in this build target.
+     * Evaluates to false for Safari builds.
      */
     supportsDownloads: boolean;
 }
 
 /**
- * Browser configuration resolved at build time.
- * All string values are injected by webpack DefinePlugin — no runtime branching.
+ * Immutable browser configuration resolved statically at build time.
+ * Injected at compile time by Webpack DefinePlugin using `TARGET_BROWSER`.
  */
 export const BROWSER_CONFIG: BrowserConfig = {
     target: __BROWSER_TARGET__ as BrowserTarget,
@@ -79,7 +75,6 @@ export const BROWSER_CONFIG: BrowserConfig = {
     supportsNotifications: __BROWSER_TARGET__ !== 'safari',
     supportsAlarms: true, // Supported across Chrome, Firefox, and Safari
     supportsDownloads: __BROWSER_TARGET__ !== 'safari',
-
 };
 
 export default BROWSER_CONFIG;

@@ -1,7 +1,10 @@
 /**
- * @file features/common/data/backupManager.ts
- * @description Highly optimized backup and restoration manager for AlgoRecall.
- * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
+ * @file Optimized Streaming Backup and Restoration Service
+ * @module features/common/data/backupManager
+ * @context Shared across Options/Data Management Pages and Background Services
+ * @description Manages Gzip-compressed, URL-deduplicated NDJSON backup exports and imports.
+ * Streams data line-by-line via Web Streams, computes 32-bit FNV-1a integrity checksums,
+ * validates schema conformance, and supports seamless migration from legacy uncompressed JSON archives.
  */
 import { Logger } from '@common/logger';
 import { ensureCardIds } from '../utils/cardUtils';
@@ -21,20 +24,31 @@ import {
 import { BROWSER_CONFIG } from '../browserConfig';
 import { VALID_BACKUP_RECORD_TYPES, FNV_OFFSET_BASIS_32, FNV_PRIME_32 } from '../constants';
 
+/** Data payload of a serialized page record */
 export type BackupPageData = PageRecord['data'];
+/** Serialized card entity payload */
 export type BackupCardData = CardRecordData;
+/** Serialized bookmark record payload */
 export type BackupBookmarkData = BookmarkRecordData;
+/** Serialized text highlight mark payload */
 export type BackupMarkData = MarkRecordData;
+/** Serialized page description cache payload */
 export type BackupPageContentData = PageContentRecordData;
+/** Summary record count map from the backup header */
 export type BackupCounts = BackupHeaderRecord['data']['counts'];
+/** Header record type */
 export type BackupHeader = BackupHeaderRecord;
+/** Footer record type */
 export type BackupFooter = FooterRecord;
+/** Union of all valid line record types */
 export type BackupLine = BackupRecord;
 
 const VALID_RECORD_TYPES: ReadonlySet<string> = VALID_BACKUP_RECORD_TYPES;
 
 /**
  * Validates whether a parsed JSON object is a conforming BackupRecord line.
+ * @param parsed - Unknown object parsed from a backup line.
+ * @returns True if parsed matches the BackupRecord discriminated union.
  */
 export function isValidBackupRecord(parsed: unknown): parsed is BackupRecord {
     try {
@@ -56,14 +70,19 @@ export function isValidBackupRecord(parsed: unknown): parsed is BackupRecord {
  * Incremental 32-bit FNV-1a Hasher for integrity verification.
  */
 export class Fnv1aHasher {
+    /** Running 32-bit hash value */
     hash: number;
 
+    /**
+     * Initializes the hasher with the FNV offset basis.
+     */
     constructor() {
         this.hash = FNV_OFFSET_BASIS_32;
     }
 
     /**
-     * Feed a string into the hasher.
+     * Feeds an input string into the rolling hash computation.
+     * @param str - Input string to process.
      */
     update(str: string): void {
         try {
@@ -79,7 +98,8 @@ export class Fnv1aHasher {
     }
 
     /**
-     * Retrieve the final hex checksum digest.
+     * Retrieves the final 8-character hex checksum digest.
+     * @returns 8-character hex string.
      */
     digest(): string {
         try {
@@ -95,6 +115,9 @@ export class Fnv1aHasher {
 
 /**
  * Generator helper to read line-by-line from a stream of bytes.
+ * @param stream - Readable byte stream to decode and split on newlines.
+ * @returns AsyncGenerator yielding trimmed or buffered string lines.
+ * @throws Error if stream reading fails.
  */
 export async function* readLines(stream: ReadableStream<Uint8Array>): AsyncGenerator<string, void, unknown> {
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -134,10 +157,17 @@ export async function* readLines(stream: ReadableStream<Uint8Array>): AsyncGener
     }
 }
 
+/**
+ * Core backup manager coordinating streaming backup exports and imports.
+ */
 export class BackupManager {
     /**
      * Exports all user data into a compressed, deduplicated backup file.
      * Yields output chunks using a ReadableStream and triggers a download.
+     * @async
+     * @fires chrome.storage.local.get
+     * @fires chrome.downloads.download
+     * @throws Error if storage retrieval, compression, or download generation fails.
      */
     static async exportBackup(): Promise<void> {
         Logger.time('Backup', 'exportBackup');
@@ -402,6 +432,11 @@ export class BackupManager {
     /**
      * Imports a backup file. Auto-detects Gzip/Text, performs schema version checks,
      * validates checksum, and hydrates local storage atomically.
+     * @param file - Backup file selected by the user.
+     * @param onStatus - Status reporting callback for progress updates.
+     * @async
+     * @fires chrome.storage.local.set
+     * @throws Error if file reading or checksum validation fails.
      */
     static async importBackup(file: File, onStatus: (msg: string, isError?: boolean) => void): Promise<void> {
         Logger.time('Backup', 'importBackup');
@@ -580,6 +615,11 @@ export class BackupManager {
     /**
      * Reads through the backup file stream without executing database writes,
      * ensuring formatting constraints and the checksum match.
+     * @param file - Backup file to validate.
+     * @param isGzip - Whether the file has Gzip magic bytes.
+     * @returns Validation report containing V2 status, header, and counts.
+     * @async
+     * @throws Error if stream contains corrupted JSON or checksum mismatch.
      */
     static async validateStream(file: File, isGzip: boolean): Promise<{ isV2: boolean; header?: BackupHeaderRecord; counts?: BackupCounts }> {
         try {
@@ -664,6 +704,10 @@ export class BackupManager {
 
     /**
      * Handles legacy JSON formatting structure and migrates it successfully to local storage.
+     * @param file - Legacy uncompressed JSON backup file.
+     * @param onStatus - Status reporting callback.
+     * @returns Promise resolving when legacy data is migrated into storage.
+     * @fires chrome.storage.local.set
      */
     static importLegacy(file: File, onStatus: (msg: string, isError?: boolean) => void): Promise<void> {
         return new Promise((resolve, reject) => {

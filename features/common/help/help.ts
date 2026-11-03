@@ -1,18 +1,33 @@
+/**
+ * @file Interactive Help Center Single Page Application
+ * @module features/common/help/help
+ * @context Extension Help Page (features/common/help/help.html)
+ * @description Controls the in-extension user documentation, FAQ, guide navigation,
+ * dynamic browser/store policy branding, URL hash routing (#tab-id), and live keyword search filtering.
+ */
+
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { BROWSER_CONFIG } from '@common/browserConfig';
 
 /**
- * @file features/common/help/help.ts
- * @description Controller for AlgoRecall interactive Help Center, tab navigation, and live search.
+ * Controller class governing Help Center tabs, search, and browser-specific branding.
  */
 export class HelpCenterSPA {
+    /** Identifier of the currently active documentation tab (e.g. 'overview', 'shortcuts') */
     currentTab: string;
 
+    /**
+     * Initializes default tab selection to 'overview'.
+     */
     constructor() {
         this.currentTab = 'overview';
     }
 
+    /**
+     * Bootstraps Help Center tabs from URL query parameters or hash fragments,
+     * binds event handlers, and renders browser-specific policy text.
+     */
     init(): void {
         try {
             const urlParams = new URLSearchParams(window.location.search);
@@ -32,7 +47,8 @@ export class HelpCenterSPA {
     }
 
     /**
-     * Dynamically renders browser and store-specific text in help center.
+     * Dynamically injects browser and marketplace brand names (Chrome Web Store, Firefox Add-ons, App Store)
+     * into store policy labels based on `BROWSER_CONFIG`.
      */
     renderBrowserSpecificContent(): void {
         try {
@@ -50,7 +66,7 @@ export class HelpCenterSPA {
     }
 
     /**
-     * Tab switching logic
+     * Attaches click handlers to tab navigation buttons (`.tab-btn`) and internal cross-tab links (`[data-switch-tab]`).
      */
     bindTabNavigation(): void {
         try {
@@ -89,6 +105,11 @@ export class HelpCenterSPA {
         }
     }
 
+    /**
+     * Switches the active documentation pane, resetting inline searches and updating ARIA attributes.
+     * @param tabId - Target tab identifier string.
+     * @param shouldScrollTabList - Whether to scroll the active tab button into view within the tab bar.
+     */
     switchTab(tabId: string, shouldScrollTabList: boolean = true): void {
         try {
             this.currentTab = tabId;
@@ -123,7 +144,8 @@ export class HelpCenterSPA {
     }
 
     /**
-     * Smoothly scrolls the active tab button into view inside role="tablist"
+     * Smoothly scrolls the active tab button into center alignment inside the tab bar container.
+     * @param tabId - Target tab identifier.
      */
     smoothScrollToTab(tabId: string): void {
         try {
@@ -159,7 +181,8 @@ export class HelpCenterSPA {
     }
 
     /**
-     * Reads tab identifier from URL hash (e.g., #privacy or #tab-privacy)
+     * Parses the current window URL hash (e.g. `#shortcuts` or `#tab-shortcuts`) to find a matching tab ID.
+     * @returns Extracted tab ID string or null if absent/invalid.
      */
     getTabFromHash(): string | null {
         try {
@@ -175,7 +198,7 @@ export class HelpCenterSPA {
     }
 
     /**
-     * Listens for hash changes in window to switch tabs dynamically
+     * Listens for `hashchange` browser events and triggers tab switching.
      */
     bindHashNavigation(): void {
         try {
@@ -192,7 +215,7 @@ export class HelpCenterSPA {
     }
 
     /**
-     * Live search filter across all cards and how-to guides
+     * Binds input event listeners to `#help-search-input` for real-time document filtering.
      */
     bindSearchFilter(): void {
         try {
@@ -212,6 +235,11 @@ export class HelpCenterSPA {
         }
     }
 
+    /**
+     * Filters help cards and guides across all panes matching the search keyword,
+     * highlighting matching tab headers and revealing panes containing matches.
+     * @param query - Search keyword substring.
+     */
     filterContent(query: string): void {
         try {
             const allCards = document.querySelectorAll('.card, .gamify-card, .strategy-card');
@@ -261,7 +289,7 @@ export class HelpCenterSPA {
     }
 
     /**
-     * Close guide button
+     * Binds click listener to close the Help Center tab via `chrome.tabs.remove` or `window.close`.
      */
     bindCloseButton(): void {
         try {
@@ -291,6 +319,9 @@ export class HelpCenterSPA {
     }
 }
 
+/**
+ * Bootstrap entry function initializing `HelpCenterSPA` upon DOM readiness.
+ */
 function initHelpCenter(): void {
     try {
         const helpCenter = new HelpCenterSPA();

@@ -1,6 +1,14 @@
 /**
  * @file features/tracker/scheduler/fsrsOptimizerFast.ts
- * @description Lightweight JavaScript optimizer for personalized FSRS weights.
+ * @description Lightweight pure JavaScript fallback optimizer for personalized FSRS weights.
+ * Applies heuristic gradient descent on initial stability parameters (w[0]-w[3]) when
+ * WebAssembly/WASI bindings are unavailable or encounter runtime errors.
+ * 
+ * Context: Standalone configuration tab (`fsrsConfig.html`) or background fallback worker.
+ * 
+ * Key Exports:
+ * - `EligibilityResult`: Metric interface representing review history volume and readiness.
+ * - `FsrsOptimizerFast`: Fast heuristic stochastic gradient descent optimizer.
  */
 
 import { Card } from '../../../types/domain';
@@ -19,24 +27,43 @@ declare global {
     }
 }
 
+/**
+ * Historical review qualification metrics for fallback optimization.
+ */
 export interface EligibilityResult {
+    /** Whether review count meets the threshold. */
     eligible: boolean;
+    /** Total recorded review count. */
     count: number;
+    /** Qualification threshold required. */
     threshold: number;
+    /** Unique cards reviewed multiple times. */
     uniqueCards?: number;
 }
 
+/**
+ * Pure JavaScript heuristic optimizer for tuning initial FSRS stabilities and difficulty anchors.
+ */
 export class FsrsOptimizerFast {
+    /** Learning rate scaling step size during gradient updates. */
     learningRate: number;
+    /** Total number of optimization iterations. */
     epochs: number;
 
+    /**
+     * Initializes default learning rate and epoch count.
+     */
     constructor() {
         this.learningRate = OPTIMIZER_DEFAULT_LEARNING_RATE;
         this.epochs = OPTIMIZER_DEFAULT_EPOCHS;
     }
 
     /**
-     * Checks if there's enough history to optimize.
+     * Evaluates history to confirm if enough multi-review cards exist to run optimization.
+     * 
+     * @param {Card[]} history - Array of study cards.
+     * @param {number} [threshold=OPTIMIZER_DEFAULT_THRESHOLD] - Required review count threshold.
+     * @returns {EligibilityResult} Eligibility result metrics.
      */
     computeEligibility(history: Card[], threshold: number = OPTIMIZER_DEFAULT_THRESHOLD): EligibilityResult {
         if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
@@ -64,6 +91,14 @@ export class FsrsOptimizerFast {
      * Highly simplified heuristic stochastic gradient descent for FSRS weights.
      * Tunes initial stability weights (w[0]-w[3]) based on empirical retention vs target retention.
      * Used as a fallback because WASM binding for exact log-loss gradient descent can fail on certain MV3 environments.
+     * 
+     * @async
+     * @param {Card[]} history - Array of cards with review histories.
+     * @param {number[]} currentWeights - Starting 17-parameter weights baseline.
+     * @param {number} [targetRetention=DEFAULT_FSRS_REQUEST_RETENTION] - Target memory retention rate.
+     * @param {((current: number, total: number) => void) | null} [onProgress=null] - Optional progress notification callback.
+     * @returns {Promise<number[]>} Array of updated weights.
+     * @throws {Error} If optimization calculations throw.
      */
     async trainWeights(
         history: Card[],

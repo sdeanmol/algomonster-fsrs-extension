@@ -1,62 +1,117 @@
 /**
  * @file features/dashboard/summary/summaryGenerator.ts
  * @description Pure dynamic summary generator for Weekly and Monthly FSRS performance reports.
- * Calculates stats on-the-fly without database or backup persistence.
+ * Calculates review counts, retrievability retention rates, topic mastery distributions,
+ * daily review activity points, and actionable performance insights on-the-fly.
+ *
+ * Architecture Role: Summary Analytics and Reporting Engine.
+ * Context: Shared UI Calculation Helper.
+ * Key Exports:
+ * - {@link TopicMastery}: Metrics interface for mastery under a specific topic tag.
+ * - {@link SummaryInsight}: Structured recommendation or feedback item.
+ * - {@link DailyActivityPoint}: Timestamped activity data point for charts.
+ * - {@link SummaryReport}: Complete weekly/monthly digest data model.
+ * - {@link generateSummaryReport}: Main calculation function generating digest reports.
  */
 
 import { Card } from '../../../types/domain';
 
+/**
+ * Retention and volume metrics calculated for an individual problem topic tag.
+ */
 export interface TopicMastery {
+    /** Problem tag or category name. */
     tag: string;
+    /** Total reviews completed under this tag during the period. */
     totalReviews: number;
+    /** Number of reviews graded Successful (Rating > 1). */
     successReviews: number;
+    /** Percentage of reviews graded Successful (0-100%). */
     retentionRate: number;
 }
 
+/**
+ * Actionable insight or recommendation derived from study trends.
+ */
 export interface SummaryInsight {
+    /** Insight sentiment: positive reinforcement, warning alert, or neutral info. */
     type: 'positive' | 'warning' | 'info';
+    /** Emoji or icon badge representing the insight category. */
     icon: string;
+    /** Short summary headline. */
     title: string;
+    /** Explanatory description detailing the metric and actionable advice. */
     description: string;
 }
 
+/**
+ * Discrete daily review count data point used to plot digest activity charts.
+ */
 export interface DailyActivityPoint {
+    /** Localized short date string (e.g. "Mar 12"). */
     dateStr: string;
+    /** ISO date string in local timezone (`YYYY-MM-DD`). */
     fullDate: string;
+    /** Number of reviews completed on this calendar day. */
     count: number;
 }
 
+/**
+ * Complete consolidated summary report structure for weekly or monthly digest views.
+ */
 export interface SummaryReport {
+    /** Timeframe duration: 'weekly' (7 days) or 'monthly' (30 days). */
     period: 'weekly' | 'monthly';
+    /** Human-readable period header (e.g. "Weekly Digest"). */
     periodLabel: string;
+    /** Localized start date text. */
     startDateStr: string;
+    /** Localized end date text. */
     endDateStr: string;
 
     // Primary KPIs
+    /** Total cards reviewed within current period window. */
     totalReviews: number;
+    /** Total cards reviewed during the preceding comparison period window. */
     prevPeriodReviews: number;
+    /** Percentage change in review volume compared to previous period (+/- %). */
     reviewsChangePct: number;
 
+    /** Current period recall accuracy percentage (0-100%). */
     retentionRate: number;
+    /** Preceding period recall accuracy percentage (0-100%). */
     prevRetentionRate: number;
+    /** Difference between current and previous retention percentages. */
     retentionChangeDiff: number;
 
+    /** Number of new cards introduced and reviewed for the first time during period. */
     newCardsLearned: number;
+    /** Number of unique calendar days with review activity logged. */
     activeDays: number;
+    /** Total calendar days in the period (7 or 30). */
     totalDaysInPeriod: number;
+    /** Longest consecutive daily study streak achieved during this period. */
     longestStreakInPeriod: number;
+    /** Number of cards classified as leeches (3+ lapses). */
     leechCount: number;
+    /** Average memory stability in days across cards with stability > 0. */
     avgStability: number;
 
     // Detailed Breakdown
+    /** Ordered daily activity metrics for column chart visualization. */
     dailyActivity: DailyActivityPoint[];
+    /** Top 5 topic tags sorted by highest retention and review volume. */
     topTopics: TopicMastery[];
+    /** Lowest 5 topic tags sorted by lowest retention rates. */
     weakestTopics: TopicMastery[];
+    /** Dynamic rule-based insights and suggestions. */
     insights: SummaryInsight[];
 }
 
 /**
- * Formats a Date instance as YYYY-MM-DD string using local timezone
+ * Formats a Date instance as YYYY-MM-DD string using local timezone.
+ * @param d - Date object to format.
+ * @returns Formatted ISO date string (`YYYY-MM-DD`).
  */
 function toLocalDateString(d: Date): string {
     const year = d.getFullYear();
@@ -312,15 +367,27 @@ function calculateTopicMastery(topicStats: Record<string, { total: number; succe
     return { topTopics, weakestTopics };
 }
 
+/**
+ * Parameters used by {@link generateInsights} to synthesize rule-based advice.
+ */
 interface InsightsConfig {
+    /** Period retention percentage. */
     retentionRate: number;
+    /** Velocity change percentage vs prior period. */
     reviewsChangePct: number;
+    /** Total reviews in current period. */
     currentTotalReviews: number;
+    /** Total reviews in prior period. */
     prevTotalReviews: number;
+    /** Identified weakest topic tags. */
     weakestTopics: TopicMastery[];
+    /** Count of lapsed leech cards. */
     leechCount: number;
+    /** Active days in current period. */
     activeDays: number;
+    /** Total days in period (7 or 30). */
     daysInPeriod: number;
+    /** Period name string ('weekly' or 'monthly'). */
     period: string;
 }
 

@@ -1,20 +1,38 @@
 /**
  * @file features/dashboard/analytics/memory/confidenceBand.ts
- * @description Helper class for rendering SVG confidence interval bands around retention decay curves.
+ * @description Helper class for calculating and rendering semi-transparent SVG polygon confidence interval
+ * bands around retention decay curves, reflecting statistical sample size variance.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
 
+/**
+ * Geometric coordinates and memory parameters for a single point along a retention decay curve.
+ */
 export interface PointR {
+    /** Elapsed time offset in days */
     t: number;
+    /** Retrievability value (probability of recall between 0.0 and 1.0) */
     R: number;
+    /** Scaled X coordinate within the SVG viewBox */
     x: number;
+    /** Scaled Y coordinate within the SVG viewBox */
     y: number;
 }
 
+/**
+ * Utility for generating SVG polygons representing statistical confidence intervals
+ * surrounding retention decay curves based on sample size (n).
+ */
 export class ConfidenceBand {
     /**
-     * Renders an SVG polygon representing a confidence interval around a curve.
+     * Renders an SVG polygon element representing an empirical confidence interval around a retention curve.
+     * Computes top and bottom envelope bounds where margin narrows with larger sample sizes (n).
+     * @param points - Array of calculated retention coordinates along the curve.
+     * @param color - Fill color for the semi-transparent polygon (e.g. hex or CSS variable).
+     * @param n - Number of cards represented in this curve group (determines interval width).
+     * @returns Rendered SVG polygon element string, or empty string if invalid input.
      */
     static renderBand(points: PointR[], color: string, n: number): string {
         try {

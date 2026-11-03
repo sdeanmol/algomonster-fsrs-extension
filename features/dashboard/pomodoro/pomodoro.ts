@@ -1,7 +1,17 @@
 /**
  * @file features/dashboard/pomodoro/pomodoro.ts
- * @description Pomodoro Study Timer UI controller.
- * Syncs visually with the background service worker which handles the true timer state.
+ * @description Pomodoro Study Timer UI controller and visual renderer.
+ * Synchronizes timer countdown state with the background service worker, renders
+ * animated SVG progress rings, manages phase switching (focus -> shortBreak -> longBreak),
+ * and tracks daily study time and session counts.
+ *
+ * Architecture Role: Pomodoro Standalone Page Controller.
+ * Context: Extension Standalone Tab (`features/dashboard/pomodoro/pomodoro.html`).
+ * Key Exports:
+ * - {@link PomodoroSettings}: Configurable phase durations and cycle thresholds.
+ * - {@link PomodoroState}: Shared timer execution and session state object.
+ * - {@link PomodoroStats}: Daily aggregated study session counters.
+ * - {@link PomodoroTimer}: Controller class managing tick intervals, DOM updates, and background sync.
  */
 
 import { Logger } from '@common/logger';
@@ -9,40 +19,79 @@ import { UIUtils } from '../../common/utils/uiUtils';
 import { StorageData } from '../../../types/domain';
 import { DEFAULT_POMODORO_SETTINGS } from '../../common/constants';
 
+/**
+ * User-configurable duration and interval settings for the Pomodoro timer.
+ */
 export interface PomodoroSettings {
+    /** Duration of focus / work sessions in minutes. */
     focusDuration: number;
+    /** Duration of short break sessions in minutes. */
     shortBreakDuration: number;
+    /** Duration of long break sessions in minutes. */
     longBreakDuration: number;
+    /** Number of focus sessions required before triggering a long break. */
     sessionsBeforeLongBreak: number;
 }
 
+/**
+ * Live execution and synchronization state of the Pomodoro timer.
+ */
 export interface PomodoroState {
+    /** Current operating state: 'idle', 'running', or 'paused'. */
     state: 'idle' | 'running' | 'paused';
+    /** Current interval phase: 'focus', 'shortBreak', or 'longBreak'. */
     phase: 'focus' | 'shortBreak' | 'longBreak';
+    /** 1-based index of the active focus session within current cycle. */
     currentSession: number;
+    /** Seconds remaining until the active interval expires. */
     timeRemaining: number;
+    /** Total duration of the active interval in seconds. */
     totalTime: number;
+    /** Epoch timestamp in milliseconds when active interval should end, or null. */
     targetEndTime: number | null;
 }
 
+/**
+ * Aggregated daily performance metrics for completed Pomodoro sessions.
+ */
 export interface PomodoroStats {
+    /** Total focus sessions completed today. */
     sessionsToday?: number;
+    /** Total focus minutes accumulated today. */
     focusMinutesToday?: number;
+    /** Formatted date string (`toLocaleDateString`) indicating when stats were last recorded. */
     lastDate?: string;
 }
 
+/**
+ * Pomodoro timer controller managing SVG countdown visualization,
+ * UI controls (start, pause, reset, skip), and background alarm synchronization.
+ */
 export class PomodoroTimer {
+    /** Configured interval lengths and cycle thresholds. */
     settings: PomodoroSettings;
+    /** Timer running status: 'idle', 'running', or 'paused'. */
     state: 'idle' | 'running' | 'paused';
+    /** Active session phase: 'focus', 'shortBreak', or 'longBreak'. */
     phase: 'focus' | 'shortBreak' | 'longBreak';
+    /** 1-based session counter within the current cycle. */
     currentSession: number;
+    /** Remaining seconds in the current phase. */
     timeRemaining: number;
+    /** Total seconds allocated to the current phase. */
     totalTime: number;
+    /** Target completion epoch timestamp in milliseconds, or null if idle/paused. */
     targetEndTime: number | null;
+    /** Handle for the 1-second visual countdown interval. */
     intervalId: ReturnType<typeof setInterval> | null;
+    /** Number of focus sessions completed today. */
     todaySessions: number;
+    /** Total focus minutes logged today. */
     todayFocusMinutes: number;
 
+    /**
+     * Initializes default Pomodoro timer properties and settings defaults.
+     */
     constructor() {
         this.settings = { ...DEFAULT_POMODORO_SETTINGS };
 
@@ -58,6 +107,12 @@ export class PomodoroTimer {
         this.todayFocusMinutes = 0;
     }
 
+    /**
+     * Initializes timer by loading persistent settings and state from storage,
+     * registering storage change listeners, and syncing visual indicators.
+     * @listens chrome.storage.local
+     * @listens chrome.storage.onChanged
+     */
     init(): void {
         try {
             chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result: StorageData & {
@@ -139,6 +194,9 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Resets internal countdown and session state back to default focus phase.
+     */
     resetState(): void {
         try {
             this.state = 'idle';
@@ -152,6 +210,10 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Generates a serializable snapshot of the current timer execution state.
+     * @returns Serializable {@link PomodoroState} object.
+     */
     getStateObj(): PomodoroState {
         try {
             return {
@@ -176,6 +238,10 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Synchronizes local UI timer properties with incoming background state updates.
+     * @param newState - New PomodoroState received from storage or message event.
+     */
     syncState(newState: PomodoroState | undefined): void {
         try {
             if (!newState) return;
@@ -208,6 +274,9 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Attaches click handlers to start, pause, reset, skip, and save settings buttons.
+     */
     bindEvents(): void {
         try {
             document.getElementById('start-btn')?.addEventListener('click', () => {
@@ -250,6 +319,9 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Populates settings modal input fields with values from `this.settings`.
+     */
     loadSettingsUI(): void {
         try {
             const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
@@ -266,6 +338,10 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Reads updated durations from settings modal inputs and persists them to storage.
+     * @fires chrome.storage.local.set
+     */
     saveSettings(): void {
         try {
             const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
@@ -298,6 +374,10 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Resolves the configured duration in minutes for the active phase.
+     * @returns Phase length in minutes.
+     */
     getPhaseDuration(): number {
         try {
             switch (this.phase) {
@@ -313,6 +393,11 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Starts or resumes timer countdown, saving state to storage and sending command to background worker.
+     * @fires chrome.storage.local.set
+     * @fires chrome.runtime.sendMessage
+     */
     start(): void {
         try {
             if (this.state === 'running') return;
@@ -333,6 +418,11 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Pauses active countdown, saving remaining time and notifying background worker.
+     * @fires chrome.storage.local.set
+     * @fires chrome.runtime.sendMessage
+     */
     pause(): void {
         try {
             if (this.state !== 'running') return;
@@ -356,6 +446,11 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Resets timer to initial focus state, saving state and notifying background worker.
+     * @fires chrome.storage.local.set
+     * @fires chrome.runtime.sendMessage
+     */
     reset(): void {
         try {
             this.resetState();
@@ -373,6 +468,11 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Skips current phase immediately to the subsequent cycle stage (e.g. Focus -> Break).
+     * @fires chrome.storage.local.set
+     * @fires chrome.runtime.sendMessage
+     */
     skip(): void {
         try {
             if (this.phase === 'focus') {
@@ -408,6 +508,9 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Starts 1-second interval loop updating the clock display and SVG ring.
+     */
     startVisualInterval(): void {
         try {
             this.stopVisualInterval();
@@ -441,6 +544,9 @@ export class PomodoroTimer {
         }
     }
     
+    /**
+     * Stops and clears the 1-second visual timer update interval.
+     */
     stopVisualInterval(): void {
         try {
             if (this.intervalId) {
@@ -452,6 +558,9 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Updates the main digital clock text (MM:SS) and window title.
+     */
     updateDisplay(): void {
         try {
             const minutes = Math.floor(this.timeRemaining / 60);
@@ -470,6 +579,9 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Updates strokeDashoffset on the SVG countdown ring based on elapsed time ratio.
+     */
     updateRing(): void {
         try {
             const ring = document.getElementById('timer-ring-fill');
@@ -492,6 +604,9 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Highlights the active phase pill ('focus', 'shortBreak', or 'longBreak').
+     */
     updatePhaseIndicator(): void {
         try {
             const pills: Record<string, HTMLElement | null> = {
@@ -513,6 +628,9 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Updates cycle progress dots indicating how many sessions have been completed.
+     */
     updateSessionDots(): void {
         try {
             const dotsContainer = document.getElementById('session-dots');
@@ -537,6 +655,9 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Formats and updates the daily completed sessions and focus time stat labels.
+     */
     updateTodayStats(): void {
         try {
             const sessionsEl = document.getElementById('today-sessions');
@@ -558,6 +679,9 @@ export class PomodoroTimer {
     }
 }
 
+/**
+ * Initializes Pomodoro controller and attaches to global window scope on DOM load.
+ */
 function initPomodoro(): void {
     try {
         const win = window as unknown as { pomodoro?: PomodoroTimer };

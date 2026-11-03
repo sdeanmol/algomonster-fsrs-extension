@@ -1,18 +1,31 @@
 /**
  * @file features/dashboard/analytics/memory/futureMemorySimulation.ts
- * @description Interactive Future Memory Simulation component predicting memory decay
- * if a user stops studying (Today, 30d, 90d, 180d, and interactive day slider).
+ * @description Interactive Future Memory Simulation component predicting deck-wide retention decay
+ * if a user ceases studying. Features milestone snapshots (Today, 30d, 90d, 180d), an interactive
+ * slider to simulate hypothetical day pauses, and an SVG decay trajectory curve.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, FutureMemorySimulationStats } from '../utils/dataUtils';
 
+/**
+ * Visualizes projected memory decay over time under a zero-review scenario.
+ * Allows users to scrub through 0 to 180 simulated days to assess forgetfulness risks.
+ */
 export class FutureMemorySimulation {
+    /** Data utility instance providing decay simulations and card counts */
     dataUtils: DataUtils;
+    /** Current day offset selected on the interactive scrubber slider */
     sliderDays: number;
+    /** Cached DOM container ID used for re-rendering on slider input */
     lastContainerId: string;
 
+    /**
+     * Initializes the FutureMemorySimulation component with default 45-day slider offset.
+     * @param dataUtils - Card statistics helper instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -27,7 +40,10 @@ export class FutureMemorySimulation {
     }
 
     /**
-     * Main entry point to render the future memory simulation.
+     * Main entry point to render the future memory simulation into the target container.
+     * Generates snapshot cards, slider controls, and the SVG decay trajectory.
+     * @param containerId - DOM ID of the container element hosting the simulation.
+     * @returns void
      */
     render(containerId: string): void {
         try {
@@ -68,6 +84,12 @@ export class FutureMemorySimulation {
         }
     }
 
+    /**
+     * Calculates SVG path coordinates for the decay line, area fill gradient, and active slider dot.
+     * @param points - Array of projected day offsets and retention percentages.
+     * @param currentRetentionVal - Simulated retention at current slider position.
+     * @returns Object containing SVG path strings and dot position coordinates.
+     */
     generateCurveSvgPath(points: Array<{ day: number; retention: number }>, currentRetentionVal: number): { svgPathD: string; areaPathD: string; currentX: number; currentY: number } {
         try {
             const svgW = 900, svgH = 250;
@@ -115,6 +137,10 @@ export class FutureMemorySimulation {
         }
     }
 
+    /**
+     * Binds input event listeners to the interactive range slider to trigger real-time re-renders.
+     * @returns void
+     */
     bindEvents(): void {
         try {
             const slider = document.getElementById('sim-days-range') as HTMLInputElement | null;
@@ -138,7 +164,9 @@ export class FutureMemorySimulation {
     }
 
     /**
-     * Generates HTML for the metric cards showing static snapshots at Today, 30d, 90d, 180d.
+     * Generates HTML for the metric cards showing static snapshots at Today, 30d, 90d, and 180d milestones.
+     * @param data - Full simulation results across default time intervals.
+     * @returns Rendered HTML grid of snapshot metric cards.
      */
     private buildSimulationCardsHTML(data: FutureMemorySimulationStats): string {
         return `
@@ -204,6 +232,8 @@ export class FutureMemorySimulation {
 
     /**
      * Generates HTML for the interactive day slider and dynamic projections.
+     * @param data - Full simulation results containing custom slider projection.
+     * @returns Rendered HTML interactive box string.
      */
     private buildInteractiveSliderHTML(data: FutureMemorySimulationStats): string {
         return `
@@ -233,6 +263,11 @@ export class FutureMemorySimulation {
 
     /**
      * Generates HTML for the SVG chart depicting the decay trajectory.
+     * @param svgPathD - SVG stroke path definition string for the decay line.
+     * @param areaPathD - SVG fill path definition string for the gradient fill.
+     * @param currentX - Scaled X coordinate for the active day scrubber marker dot.
+     * @param currentY - Scaled Y coordinate for the active day scrubber marker dot.
+     * @returns Rendered HTML chart container markup string.
      */
     private buildChartHTML(svgPathD: string, areaPathD: string, currentX: number, currentY: number): string {
         return `
