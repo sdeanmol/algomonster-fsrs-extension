@@ -6,6 +6,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { DEFAULT_THEME } from './constants';
 
 interface ThemeSyncClass {
     applyTheme(theme: string): void;
@@ -62,7 +63,7 @@ export class ThemeSync {
                         }
                         if (!result.theme) {
                             const prefersLight = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-                            const initialTheme = prefersLight ? 'light' : 'dark';
+                            const initialTheme = prefersLight ? 'light' : DEFAULT_THEME;
                             this.applyTheme(initialTheme);
                             chrome.storage.local.set({ theme: initialTheme });
                         } else {

@@ -7,6 +7,7 @@ import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { Card, StorageData } from '../../../types/domain';
+import { SEARCH_DEBOUNCE_MS, SEARCH_MAX_RESULTS } from '../../common/constants';
 
 export class QuickSearchComponent extends DashboardComponent {
     quickSearchCards: Card[];
@@ -73,7 +74,7 @@ export class QuickSearchComponent extends DashboardComponent {
                             } catch (renderErr) {
             UIUtils.catchError('QuickSearchComponent', 'Error in debounced quick search render', renderErr);
         }
-                        }, 150);
+                        }, SEARCH_DEBOUNCE_MS);
                     } catch (err) {
             UIUtils.catchError('QuickSearchComponent', 'Error in quick search input listener', err);
         }
@@ -133,7 +134,7 @@ export class QuickSearchComponent extends DashboardComponent {
             });
 
             const totalMatches = filtered.length;
-            const maxDisplay = 5;
+            const maxDisplay = SEARCH_MAX_RESULTS;
             const displayCards = filtered.slice(0, maxDisplay);
 
             if (displayCards.length === 0) {

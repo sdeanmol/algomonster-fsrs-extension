@@ -6,6 +6,11 @@
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
+import {
+    DEFAULT_FSRS_DECAY,
+    DEFAULT_FSRS_FACTOR,
+    RETENTION_TIME_POINTS
+} from '../../../common/constants';
 
 export class PredictionComparison {
     dataUtils: DataUtils;
@@ -35,7 +40,7 @@ export class PredictionComparison {
             const xScale = (t: number) => padL + (t / 30) * chartW;
             const yScale = (r: number) => padT + (1 - r) * chartH;
             
-            const timePoints = [0, 1, 3, 7, 14, 21, 30];
+            const timePoints = RETENTION_TIME_POINTS;
 
             // 1. Calculate the prediction points and actual recall points
             const data = this.calculateChartData(timePoints, xScale, yScale);
@@ -58,8 +63,8 @@ export class PredictionComparison {
     private calculateChartData(timePoints: number[], xScale: (t: number) => number, yScale: (r: number) => number) {
         const stats = this.dataUtils ? this.dataUtils.getSummaryStats() : null;
         const avgStability = (stats && stats.avgStability > 0) ? stats.avgStability : 10;
-        const decay = -0.5;
-        const factor = 19 / 81;
+        const decay = DEFAULT_FSRS_DECAY;
+        const factor = DEFAULT_FSRS_FACTOR;
 
         const sched = this.dataUtils ? (this.dataUtils.scheduler as (AbstractScheduler & { getProjectedRetrievability?: (stability: number, days: number) => number }) | null) : null;
 

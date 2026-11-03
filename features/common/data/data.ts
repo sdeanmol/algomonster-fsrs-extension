@@ -3,7 +3,7 @@ import { UIUtils } from '../utils/uiUtils';
 import { ensureCardIds } from '../utils/cardUtils';
 import { TagInputControl } from '../utils/tagInput';
 import { Card, StorageData, UserSettings } from '../../../types/domain';
-import { PLATFORM_NAMES } from '../constants';
+import { PLATFORM_NAMES, MONTH_NAMES } from '../constants';
 
 /**
  * @file features/common/data/data.ts
@@ -385,7 +385,7 @@ export class FSRSDataDashboard {
                 let dateDisplay = this.targetDate;
                 if (this.targetDate.length === 7) {
                     const [y, m] = this.targetDate.split('-');
-                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                    const monthNames = MONTH_NAMES;
                     dateDisplay = `${monthNames[parseInt(m, 10) - 1]} ${y}`;
                 } else if (this.targetDate.length === 10) {
                     const [y, m, d] = this.targetDate.split('-');

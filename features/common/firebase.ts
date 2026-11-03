@@ -2,16 +2,10 @@ import { initializeApp, FirebaseApp, FirebaseOptions } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { Logger } from '@common/logger';
+import { DEFAULT_FIREBASE_CONFIG } from './constants';
 
 // TODO: Replace with your actual Firebase config object from the Firebase Console
-const firebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaSyDummyKeyForDevelopment1234567890",
-  authDomain: "algorecall-fsrs-dev.firebaseapp.com",
-  projectId: "algorecall-fsrs-dev",
-  storageBucket: "algorecall-fsrs-dev.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdef1234567890"
-};
+const firebaseConfig: FirebaseOptions = DEFAULT_FIREBASE_CONFIG;
 
 // Initialize Firebase with exception handling
 let app: FirebaseApp;

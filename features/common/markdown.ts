@@ -5,6 +5,7 @@
 
 import DOMPurify from 'dompurify';
 import { Logger } from '@common/logger';
+import { MARKDOWN_PURIFY_OPTIONS } from './constants';
 
 interface MarkedOptions {
     breaks?: boolean;
@@ -56,10 +57,7 @@ function getMarkedInstance(): MarkedLibrary | undefined {
     return undefined;
 }
 
-const PURIFY_OPTIONS = {
-    FORBID_TAGS: ['form', 'input', 'button', 'select', 'textarea', 'script', 'iframe', 'object', 'embed', 'style', 'link', 'meta'],
-    FORBID_ATTR: ['style']
-};
+const PURIFY_OPTIONS = MARKDOWN_PURIFY_OPTIONS;
 
 function sanitizeHtml(html: string): string {
     try {

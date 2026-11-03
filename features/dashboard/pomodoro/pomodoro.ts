@@ -7,6 +7,7 @@
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { StorageData } from '../../../types/domain';
+import { DEFAULT_POMODORO_SETTINGS } from '../../common/constants';
 
 export interface PomodoroSettings {
     focusDuration: number;
@@ -43,12 +44,7 @@ export class PomodoroTimer {
     todayFocusMinutes: number;
 
     constructor() {
-        this.settings = {
-            focusDuration: 25,
-            shortBreakDuration: 5,
-            longBreakDuration: 15,
-            sessionsBeforeLongBreak: 4
-        };
+        this.settings = { ...DEFAULT_POMODORO_SETTINGS };
 
         this.state = 'idle';
         this.phase = 'focus';

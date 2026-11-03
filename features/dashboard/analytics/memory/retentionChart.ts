@@ -7,6 +7,7 @@ import { UIUtils } from '../../../common/utils/uiUtils';
 import { ConfidenceBand } from './confidenceBand';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
+import { ANALYTICS_CHART_COLORS, RETENTION_TIME_POINTS } from '../../../common/constants';
 
 export class RetentionChart {
     dataUtils: DataUtils;
@@ -23,11 +24,7 @@ export class RetentionChart {
             this.groupBy = 'tag';
             this.showConfidence = false;
             
-            this.chartColors = [
-                '#a8c7fa', '#81c995', '#fde293', '#f28b82',
-                '#c4a8fa', '#8ecae6', '#f4a261', '#e76f51',
-                '#90be6d', '#f9c74f', '#43aa8b', '#577590'
-            ];
+            this.chartColors = [...ANALYTICS_CHART_COLORS];
             this.filterTag = '';
         } catch (err) {
             UIUtils.catchError('RetentionChart', 'Error initializing RetentionChart constructor', err);
@@ -35,7 +32,7 @@ export class RetentionChart {
             this.scheduler = dataUtils ? dataUtils.scheduler : null;
             this.groupBy = 'tag';
             this.showConfidence = false;
-            this.chartColors = ['#a8c7fa', '#81c995', '#fde293', '#f28b82'];
+            this.chartColors = [...ANALYTICS_CHART_COLORS];
             this.filterTag = '';
         }
     }
@@ -80,7 +77,7 @@ export class RetentionChart {
                 return;
             }
 
-            const timePoints = [0, 1, 3, 7, 14, 21, 30];
+            const timePoints = RETENTION_TIME_POINTS;
             const svgW = 900, svgH = 250;
             const padL = 50, padR = 20, padT = 20, padB = 40;
             const chartW = svgW - padL - padR;

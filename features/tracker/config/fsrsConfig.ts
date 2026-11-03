@@ -10,6 +10,12 @@ import FsrsOptimizerFast from '../scheduler/fsrsOptimizerFast';
 import { Card, FSRSParameters, StorageData } from '../../../types/domain';
 import { Logger } from '@common/logger';
 import { UIUtils } from '@common/utils/uiUtils';
+import {
+    DEFAULT_FSRS_W,
+    DEFAULT_FSRS_DECAY,
+    DEFAULT_FSRS_FACTOR,
+    DEFAULT_FSRS_REQUEST_RETENTION
+} from '@common/constants';
 
 export interface WeightHelpDetail {
     title: string;
@@ -35,10 +41,10 @@ export class FSRSConfigManager {
 
     constructor() {
         this.currentMode = 'simple';
-        this.defaultWeights = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
-        this.defaultDecay = -0.5;
-        this.defaultFactor = 0.234567;
-        this.defaultRetention = 0.90;
+        this.defaultWeights = [...DEFAULT_FSRS_W];
+        this.defaultDecay = DEFAULT_FSRS_DECAY;
+        this.defaultFactor = DEFAULT_FSRS_FACTOR;
+        this.defaultRetention = DEFAULT_FSRS_REQUEST_RETENTION;
 
         this.weightsHelpDetails = [
             {

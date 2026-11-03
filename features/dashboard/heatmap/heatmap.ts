@@ -9,7 +9,7 @@ import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { HeatmapStats } from './heatmap-stats';
 import { StorageData } from '../../../types/domain';
-import { MS_PER_DAY, DAYS_PER_YEAR, HEATMAP_LEVEL_THRESHOLDS } from '../../common/constants';
+import { MS_PER_DAY, DAYS_PER_YEAR, HEATMAP_LEVEL_THRESHOLDS, MONTH_NAMES } from '../../common/constants';
 
 export class HeatmapDashboard {
     activityData: Record<string, number>;
@@ -17,7 +17,7 @@ export class HeatmapDashboard {
 
     constructor() {
         this.activityData = {};
-        this.monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        this.monthNames = [...MONTH_NAMES];
     }
 
     /**

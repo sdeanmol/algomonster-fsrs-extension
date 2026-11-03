@@ -8,6 +8,7 @@
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
+import { FORECAST_DAYS_TO_SHOW, DAY_NAMES_SHORT } from '../../common/constants';
 
 export class ForecastDashboard {
     extensionSettings: ExtensionSettings;
@@ -50,7 +51,7 @@ export class ForecastDashboard {
         try {
             const now = new Date();
             const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const daysToShow = 30;
+            const daysToShow = FORECAST_DAYS_TO_SHOW;
 
             const dueCounts: Record<number, number> = {};
             let pastDueCount = 0;
@@ -107,7 +108,7 @@ export class ForecastDashboard {
             if (!calendar) return;
             calendar.innerHTML = '';
 
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const dayNames = DAY_NAMES_SHORT;
             dayNames.forEach(name => {
                 const header = document.createElement('div');
                 header.className = 'cal-header';

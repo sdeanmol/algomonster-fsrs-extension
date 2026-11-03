@@ -5,7 +5,7 @@
 
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
-import { MS_PER_DAY } from '../../../common/constants';
+import { MS_PER_DAY, DAY_NAMES_SHORT } from '../../../common/constants';
 
 export class MiniForecast {
     dataUtils: DataUtils;
@@ -26,7 +26,7 @@ export class MiniForecast {
 
             const now = new Date();
             const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const dayNames = DAY_NAMES_SHORT;
 
             const dueCounts = this.calculateDueCounts(todayStart);
             const forecastStrip = this.buildForecastStrip(todayStart, dueCounts, dayNames);

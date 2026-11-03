@@ -25,7 +25,10 @@ import {
     ALARM_DAILY_PERIOD_MIN,
     ALARM_WEEKLY_PERIOD_MIN,
     SNOOZE_DEFAULT_MINUTES,
-    DEFAULT_WHITELISTED_WEBSITES
+    DEFAULT_WHITELISTED_WEBSITES,
+    DEFAULT_NOTIFICATION_SETTINGS,
+    DEFAULT_POMODORO_SETTINGS,
+    DEFAULT_POMODORO_STATS
 } from '../features/common/constants';
 import { BROWSER_CONFIG } from '../features/common/browserConfig';
 import { ActionService, CommandActionId } from '../features/common/services/actionService';
@@ -153,12 +156,7 @@ export class AlgoRecallBackground {
             }
             let settings = result.notificationSettings;
             if (!settings) {
-                settings = {
-                    enabled: true,
-                    frequency: '60',
-                    priority: '2',
-                    requireInteraction: true
-                };
+                settings = { ...DEFAULT_NOTIFICATION_SETTINGS };
                 await chrome.storage.local.set({ notificationSettings: settings });
                 if (chrome.runtime.lastError) {
                     Logger.error('Background', `Storage set error in handleInstalled: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
@@ -251,12 +249,7 @@ export class AlgoRecallBackground {
             if (chrome.runtime.lastError) {
                 Logger.error('Background', `Storage get error in setupAlarm: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
             }
-            const settings: NotificationSettings = result.notificationSettings || {
-                enabled: true,
-                frequency: '60',
-                priority: '2',
-                requireInteraction: true
-            };
+            const settings: NotificationSettings = result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS };
 
             await chrome.alarms.clear('checkFsrsReviews');
             await chrome.alarms.clear('snoozeFsrsReviews');
@@ -539,12 +532,7 @@ export class AlgoRecallBackground {
         if (chrome.runtime.lastError) {
             Logger.error('Background', `Storage get error in showTestNotification: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
         }
-        const settings: NotificationSettings = result.notificationSettings || {
-            enabled: true,
-            frequency: '60',
-            priority: '2',
-            requireInteraction: true
-        };
+        const settings: NotificationSettings = result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS };
 
         return new Promise<void>((resolve) => {
             try {
@@ -688,12 +676,7 @@ export class AlgoRecallBackground {
             if (chrome.runtime.lastError) {
                 Logger.error('Background', `Storage get error in checkDueCards: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
             }
-            const settings: NotificationSettings = result.notificationSettings || {
-                enabled: true,
-                frequency: '60',
-                priority: '2',
-                requireInteraction: true
-            };
+            const settings: NotificationSettings = result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS };
             const whitelistedWebsites: WhitelistedWebsite[] = result.whitelistedWebsites || DEFAULT_WHITELISTED_WEBSITES;
 
             // Enforce minimum interval to bypass MV3 alarm bugs (like frequent re-triggering upon wake-up)
@@ -1194,7 +1177,7 @@ export class AlgoRecallBackground {
             this.stopPomodoroTick();
 
             // Track stats
-            const stats: PomodoroStats = result.pomodoroStats || { sessionsToday: 0, focusMinutesToday: 0, lastDate: new Date().toLocaleDateString() };
+            const stats: PomodoroStats = result.pomodoroStats || { ...DEFAULT_POMODORO_STATS, lastDate: new Date().toLocaleDateString() };
             if (stats.lastDate !== new Date().toLocaleDateString()) {
                 stats.sessionsToday = 0;
                 stats.focusMinutesToday = 0;
@@ -1203,12 +1186,12 @@ export class AlgoRecallBackground {
 
             if (state.phase === 'focus') {
                 stats.sessionsToday++;
-                const settings: PomodoroSettings = result.pomodoroSettings || { focusDuration: 25, sessionsBeforeLongBreak: 4, shortBreakDuration: 5, longBreakDuration: 15 };
+                const settings: PomodoroSettings = result.pomodoroSettings || { ...DEFAULT_POMODORO_SETTINGS };
                 stats.focusMinutesToday += settings.focusDuration;
             }
 
             // Advance Phase
-            const settings: PomodoroSettings = result.pomodoroSettings || { sessionsBeforeLongBreak: 4, focusDuration: 25, shortBreakDuration: 5, longBreakDuration: 15 };
+            const settings: PomodoroSettings = result.pomodoroSettings || { ...DEFAULT_POMODORO_SETTINGS };
             if (state.phase === 'focus') {
                 if (state.currentSession >= settings.sessionsBeforeLongBreak) {
                     state.phase = 'longBreak';

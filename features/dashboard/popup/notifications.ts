@@ -7,6 +7,7 @@ import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData, NotificationSettings, MessageResponse } from '../../../types/domain';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../../common/constants';
 
 export class NotificationsComponent extends DashboardComponent {
     constructor(coordinator: DashboardCoordinator) {
@@ -113,13 +114,7 @@ export class NotificationsComponent extends DashboardComponent {
 
         try {
             const result = (await chrome.storage.local.get(['notificationSettings'])) as StorageData & { notificationSettings?: NotificationSettings };
-            const settings = result.notificationSettings || {
-                enabled: true,
-                frequency: '60',
-                priority: '2',
-                requireInteraction: true,
-                badgeEnabled: true
-            };
+            const settings = result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS };
             updateNotificationUI(settings);
         } catch (error) {
             UIUtils.catchError('NotificationsComponent', 'Error loading notification settings', error);

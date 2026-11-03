@@ -19,6 +19,7 @@ import {
     FooterRecord
 } from '../../../types/backup';
 import { BROWSER_CONFIG } from '../browserConfig';
+import { VALID_BACKUP_RECORD_TYPES, FNV_OFFSET_BASIS_32, FNV_PRIME_32 } from '../constants';
 
 export type BackupPageData = PageRecord['data'];
 export type BackupCardData = CardRecordData;
@@ -30,18 +31,7 @@ export type BackupHeader = BackupHeaderRecord;
 export type BackupFooter = FooterRecord;
 export type BackupLine = BackupRecord;
 
-const VALID_RECORD_TYPES: ReadonlySet<string> = new Set<BackupRecordType>([
-    'header',
-    'page',
-    'card',
-    'mark',
-    'bookmark',
-    'pagecontent',
-    'activity',
-    'weights',
-    'settings',
-    'footer'
-]);
+const VALID_RECORD_TYPES: ReadonlySet<string> = VALID_BACKUP_RECORD_TYPES;
 
 /**
  * Validates whether a parsed JSON object is a conforming BackupRecord line.
@@ -69,7 +59,7 @@ export class Fnv1aHasher {
     hash: number;
 
     constructor() {
-        this.hash = 0x811c9dc5;
+        this.hash = FNV_OFFSET_BASIS_32;
     }
 
     /**
@@ -79,7 +69,7 @@ export class Fnv1aHasher {
         try {
             for (let i = 0; i < str.length; i++) {
                 this.hash ^= str.charCodeAt(i);
-                this.hash = (this.hash * 0x01000193) >>> 0;
+                this.hash = (this.hash * FNV_PRIME_32) >>> 0;
             }
         } catch (err) {
             // Comment: Catch hasher string update error

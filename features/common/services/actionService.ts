@@ -7,7 +7,15 @@
 import { Logger } from '@common/logger';
 import { Card, StorageData } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../browserConfig';
+import {
+    ACTION_URL_MAP,
+    DEFAULT_EXTENSION_SETTINGS,
+    DEFAULT_NOTIFICATION_SETTINGS,
+    DEFAULT_THEME
+} from '../constants';
 import { BackupManager } from '../data/backupManager';
+
+export { ACTION_URL_MAP };
 
 export type CommandActionId =
     | 'check-due-reviews'
@@ -49,26 +57,7 @@ export interface ActionResult<T = unknown> {
     error?: string;
 }
 
-/**
- * Mapping of navigation command IDs to extension-relative HTML page targets.
- */
-export const ACTION_URL_MAP: Record<string, string> = {
-    'open-analytics': 'features/dashboard/analytics/analytics.html',
-    'open-pomodoro': 'features/dashboard/pomodoro/pomodoro.html',
-    'open-study-plan': 'features/dashboard/studyplan/studyplan.html',
-    'open-forecast': 'features/dashboard/forecast/forecast.html',
-    'open-history': 'features/dashboard/history/history.html',
-    'open-heatmap': 'features/dashboard/heatmap/heatmap.html',
-    'view-all-cards': 'features/common/data/data.html?view=total',
-    'view-due-cards': 'features/common/data/data.html?view=due',
-    'view-retention-cards': 'features/common/data/data.html?view=retention',
-    'open-highlights-manager': 'features/highlighter/manager/highlights.html',
-    'open-highlights-options': 'features/highlighter/options/highlightOptions.html',
-    'open-summary': 'features/dashboard/summary/summary.html',
-    'open-websites-manager': 'features/common/websites/websites.html',
-    'open-fsrs-config': 'features/tracker/config/fsrsConfig.html',
-    'open-help': 'features/common/help/help.html',
-};
+
 
 export class ActionService {
     /**
@@ -179,7 +168,7 @@ export class ActionService {
      */
     static async toggleTheme(): Promise<'dark' | 'light'> {
         const result = (await chrome.storage.local.get(['theme'])) as StorageData;
-        const currentTheme = result.theme || 'dark';
+        const currentTheme = result.theme || DEFAULT_THEME;
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
         await chrome.storage.local.set({ theme: newTheme });
         return newTheme;
@@ -190,11 +179,11 @@ export class ActionService {
      */
     static async toggleFloatingMarker(): Promise<boolean> {
         const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-        const settings = result.extensionSettings || {
-            defaultHighlightColor: '#f1c40f',
-            recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71']
-        };
-        const newValue = settings.showMarkerPopup !== undefined ? !settings.showMarkerPopup : false;
+        const settings = result.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
+        const currentVal = settings.showMarkerPopup !== undefined
+            ? settings.showMarkerPopup
+            : (DEFAULT_EXTENSION_SETTINGS.showMarkerPopup ?? true);
+        const newValue = !currentVal;
         settings.showMarkerPopup = newValue;
         await chrome.storage.local.set({ extensionSettings: settings });
         return newValue;
@@ -205,11 +194,11 @@ export class ActionService {
      */
     static async toggleAlgoLauncher(): Promise<boolean> {
         const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-        const settings = result.extensionSettings || {
-            defaultHighlightColor: '#f1c40f',
-            recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71']
-        };
-        const newValue = settings.showLauncher !== undefined ? !settings.showLauncher : false;
+        const settings = result.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
+        const currentVal = settings.showLauncher !== undefined
+            ? settings.showLauncher
+            : (DEFAULT_EXTENSION_SETTINGS.showLauncher ?? true);
+        const newValue = !currentVal;
         settings.showLauncher = newValue;
         await chrome.storage.local.set({ extensionSettings: settings });
         return newValue;
@@ -220,8 +209,11 @@ export class ActionService {
      */
     static async toggleNotifications(): Promise<boolean> {
         const result = (await chrome.storage.local.get(['notificationSettings'])) as StorageData;
-        const settings = result.notificationSettings || { priority: '2' };
-        const newValue = settings.enabled !== false ? false : true;
+        const settings = result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS };
+        const currentVal = settings.enabled !== undefined
+            ? settings.enabled
+            : (DEFAULT_NOTIFICATION_SETTINGS.enabled ?? true);
+        const newValue = !currentVal;
         settings.enabled = newValue;
         await chrome.storage.local.set({ notificationSettings: settings });
         return newValue;

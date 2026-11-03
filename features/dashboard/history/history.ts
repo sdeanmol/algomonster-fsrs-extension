@@ -8,6 +8,7 @@
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { Card, StorageData, ExtensionSettings, ReviewLog } from '../../../types/domain';
+import { MONTH_NAMES } from '../../common/constants';
 
 export class FSRSHistoryDashboard {
     activityData: Record<string, number>;
@@ -23,7 +24,7 @@ export class FSRSHistoryDashboard {
         this.currentView = 'year';
         this.selectedYear = null;
         this.selectedMonth = null;
-        this.monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        this.monthNames = [...MONTH_NAMES];
     }
 
     init(): void {

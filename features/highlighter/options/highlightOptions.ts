@@ -5,7 +5,7 @@
 
 import { Logger } from '@common/logger';
 import { StorageData, ExtensionSettings } from '../../../types/domain';
-import { DEFAULT_PALETTES, DEFAULT_EXTENSION_SETTINGS } from '../../common/constants';
+import { DEFAULT_PALETTES, DEFAULT_EXTENSION_SETTINGS, DEFAULT_HIGHLIGHT_COLOR } from '../../common/constants';
 
 export interface Palette {
     name: string;
@@ -53,7 +53,7 @@ export class HighlightOptionsManager {
                     }
 
                     // Set up General Options UI
-                    const defaultColor = this.extensionSettings.defaultHighlightColor || '#f1c40f';
+                    const defaultColor = this.extensionSettings.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
                     const defaultColorInput = document.getElementById('default-color') as HTMLInputElement | null;
                     const defaultHexInput = document.getElementById('default-hex') as HTMLInputElement | null;
 

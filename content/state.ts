@@ -8,7 +8,7 @@
 import { Card, HighlightMark, BookmarkItem, ExtensionSettings } from '../types/domain';
 import AbstractScheduler from '../features/tracker/scheduler/scheduler';
 import { Logger } from '@common/logger';
-import { DEFAULT_PALETTES } from '../features/common/constants';
+import { DEFAULT_PALETTES, DEFAULT_EXTENSION_SETTINGS, DEFAULT_THEME } from '../features/common/constants';
 
 export interface AlgoRecallState {
     scheduler: AbstractScheduler;
@@ -79,7 +79,7 @@ algoGlobal.state = {
     topicWeights: {},
 
     // Active theme indicator
-    currentTheme: 'dark',
+    currentTheme: DEFAULT_THEME,
 
     // --- Highlighter State ---
     // Saved user text highlight models
@@ -93,12 +93,7 @@ algoGlobal.state = {
 
     // User settings layout preferences
     extensionSettings: {
-        defaultHighlightColor: '#f1c40f',
-        recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
-        showMarkerPopup: true,
-        showLauncher: true,
-        activePaletteIndex: 0,
-        palettes: DEFAULT_PALETTES
+        ...DEFAULT_EXTENSION_SETTINGS
     },
 
     // Set tracking registered custom CSS Highlights to avoid double DOM element styling

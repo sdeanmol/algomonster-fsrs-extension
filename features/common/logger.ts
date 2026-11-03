@@ -12,8 +12,10 @@ export interface LogEntry {
     data: string | null | Record<string, unknown>;
 }
 
+import { LOGGER_MAX_BUFFER_SIZE } from './constants';
+
 // In-Memory Bounded Ring Buffer for rapid export / runtime inspection
-const MAX_BUFFER_SIZE = 1000;
+const MAX_BUFFER_SIZE = LOGGER_MAX_BUFFER_SIZE;
 const memoryLogBuffer: LogEntry[] = [];
 
 export class LoggerClass {

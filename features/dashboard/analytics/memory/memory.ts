@@ -8,6 +8,7 @@ import { RetentionChart } from './retentionChart';
 import { PredictionComparison } from './predictionComparison';
 import { DataUtils } from '../utils/dataUtils';
 import { StorageData } from '../../../../types/domain';
+import { DEFAULT_FSRS_REQUEST_RETENTION, RETENTION_DROP_THRESHOLD } from '../../../common/constants';
 
 export class MemoryTab {
     dataUtils: DataUtils;
@@ -157,7 +158,7 @@ export class MemoryTab {
 
             const requestedRetention = this.dataUtils.scheduler
                 ? Math.round(this.dataUtils.scheduler.getDefaultRequestRetention() * 100)
-                : 90;
+                : Math.round(DEFAULT_FSRS_REQUEST_RETENTION * 100);
             const actualRetention = stats.retention || 0;
 
             const retentionDrop = requestedRetention - actualRetention;
@@ -174,7 +175,7 @@ export class MemoryTab {
                         </div>
                     </div>
                 `;
-            } else if (retentionDrop > 5 && actualRetention > 0) {
+            } else if (retentionDrop > RETENTION_DROP_THRESHOLD && actualRetention > 0) {
                 container.innerHTML = `
                     <div class="actionable-insight-banner warning" style="margin-bottom:0;">
                         <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

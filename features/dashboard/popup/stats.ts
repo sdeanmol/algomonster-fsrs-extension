@@ -5,7 +5,16 @@
 
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
-import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING, DUE_CARDS_THRESHOLD_WARNING } from '@common/constants';
+import {
+    RECALL_THRESHOLD_GOOD,
+    RECALL_THRESHOLD_WARNING,
+    DUE_CARDS_THRESHOLD_WARNING,
+    DEFAULT_DAILY_GOAL,
+    STREAK_MILESTONES,
+    REVIEW_MILESTONES,
+    CONFETTI_COLORS,
+    CONFETTI_PARTICLE_COUNT
+} from '@common/constants';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
 import { Card, StorageData } from '../../../types/domain';
@@ -36,7 +45,7 @@ export class StatsComponent extends DashboardComponent {
 
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
-        this.dailyGoalTarget = 10;
+        this.dailyGoalTarget = DEFAULT_DAILY_GOAL;
         this.longestStreak = 0;
     }
 
@@ -52,7 +61,7 @@ export class StatsComponent extends DashboardComponent {
             };
             const cards: Card[] = result.fsrsCards || [];
             const activity: Record<string, number> = result.fsrsActivity || {};
-            this.dailyGoalTarget = typeof result.dailyGoalTarget === 'number' ? result.dailyGoalTarget : 10;
+            this.dailyGoalTarget = typeof result.dailyGoalTarget === 'number' ? result.dailyGoalTarget : DEFAULT_DAILY_GOAL;
             const storedLongestStreak = typeof result.longestStreak === 'number' ? result.longestStreak : 0;
             const lastCelebratedMilestone = typeof result.lastCelebratedMilestone === 'number' ? result.lastCelebratedMilestone : 0;
             const studyPlanSettings = result.studyPlanSettings || null;
@@ -230,8 +239,8 @@ export class StatsComponent extends DashboardComponent {
             }
 
             // Milestone Detection & Celebration
-            const streakMilestones = [7, 14, 30, 50, 100, 365];
-            const reviewMilestones = [50, 100, 250, 500, 1000, 5000];
+            const streakMilestones = STREAK_MILESTONES;
+            const reviewMilestones = REVIEW_MILESTONES;
 
             let newMilestone: { type: string; value: number } | null = null;
             for (const milestone of streakMilestones) {
@@ -579,19 +588,9 @@ export class StatsComponent extends DashboardComponent {
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
 
-            const colors = [
-                '#a8c7fa',
-                '#f9ab00',
-                '#81c995',
-                '#f28b82',
-                '#c58af9',
-                '#4ecdc4',
-                '#ff6b6b',
-                '#ffe66d',
-            ];
-
+            const colors = CONFETTI_COLORS;
             const particles: ConfettiParticle[] = [];
-            const particleCount = 60;
+            const particleCount = CONFETTI_PARTICLE_COUNT;
 
             for (let i = 0; i < particleCount; i++) {
                 particles.push({

@@ -5,7 +5,7 @@
 
 import { Logger } from '@common/logger';
 import { HighlightMark, DOMMeta, ExtensionSettings, BookmarkItem, Card } from '../../types/domain';
-import { DEFAULT_EXTENSION_SETTINGS, DEFAULT_PALETTES } from '../common/constants';
+import { DEFAULT_EXTENSION_SETTINGS, DEFAULT_PALETTES, DEFAULT_HIGHLIGHT_COLOR } from '../common/constants';
 
 export interface HighlighterState {
     currentTheme?: string;
@@ -45,7 +45,7 @@ export class Highlighter {
                 };
             };
             this.state = (win.AlgoRecall && win.AlgoRecall.state) ? win.AlgoRecall.state : {
-                extensionSettings: {},
+                extensionSettings: { ...DEFAULT_EXTENSION_SETTINGS },
                 marks: [],
                 bookmarks: [],
                 pagecontents: [],
@@ -61,7 +61,7 @@ export class Highlighter {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error in Highlighter constructor: ${errorMessage}`, { err });
             this.state = {
-                extensionSettings: {},
+                extensionSettings: { ...DEFAULT_EXTENSION_SETTINGS },
                 marks: [],
                 bookmarks: [],
                 pagecontents: [],
@@ -480,7 +480,7 @@ export class Highlighter {
             });
 
             // Default Highlight Color Swatch (towards the end of all swatches)
-            const defaultHighlightColor = this.state.extensionSettings?.defaultHighlightColor || DEFAULT_EXTENSION_SETTINGS.defaultHighlightColor;
+            const defaultHighlightColor = this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
             const defaultSwatch = document.createElement('div');
             defaultSwatch.className = 'algo-color-swatch algo-default-swatch';
             defaultSwatch.id = 'algo-default-color-swatch';
@@ -532,7 +532,7 @@ export class Highlighter {
             picker.id = 'algo-color-picker';
             picker.setAttribute('aria-label', 'Custom highlight color');
             picker.title = 'Custom Color Picker';
-            const defaultPickerValue = currentColor || this.state.extensionSettings?.defaultHighlightColor || DEFAULT_EXTENSION_SETTINGS.defaultHighlightColor;
+            const defaultPickerValue = currentColor || this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
             picker.value = defaultPickerValue;
 
             const cacheSelection = () => {

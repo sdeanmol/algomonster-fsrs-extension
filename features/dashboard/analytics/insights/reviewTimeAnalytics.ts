@@ -5,16 +5,12 @@
 
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
+import { TIME_OF_DAY_BUCKET_NAMES } from '../../../common/constants';
 
 export class ReviewTimeAnalytics {
     dataUtils: DataUtils;
 
-    private readonly nameMap: Record<string, string> = {
-        morning: 'Morning (5AM - 12PM)',
-        afternoon: 'Afternoon (12PM - 5PM)',
-        evening: 'Evening (5PM - 9PM)',
-        night: 'Night (9PM - 5AM)'
-    };
+    private readonly nameMap: Record<string, string> = TIME_OF_DAY_BUCKET_NAMES;
 
     constructor(dataUtils: DataUtils) {
         try {
