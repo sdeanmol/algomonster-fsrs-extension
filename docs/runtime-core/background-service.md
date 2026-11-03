@@ -147,6 +147,21 @@ Before firing desktop review notifications (`checkDueCards`), `AlgoRecallBackgro
 
 This logic only runs on Chrome/Firefox where `chrome.notifications` is available. On Safari the entire notification path is skipped before reaching the quiet hours check.
 
+```mermaid
+flowchart TD
+    A["Alarm / Trigger: checkDueCards()"] --> B{"BROWSER_CONFIG.supportsNotifications?"}
+    B -- "No (Safari)" --> C["Skip notifications silently / Update badge only"]
+    B -- "Yes (Chrome, Firefox)" --> D["Read notificationSettings from storage"]
+    D --> E{"Are notifications enabled?"}
+    E -- "No" --> F["Suppress notification"]
+    E -- "Yes" --> G{"quietHoursEnabled == true?"}
+    G -- "Yes" --> H{"Current time within [quietHoursStart, quietHoursEnd]?"}
+    H -- "Yes" --> I["Quiet Hours active: Suppress sound and alert"]
+    H -- "No" --> J["Dispatch chrome.notifications.create()"]
+    G -- "No" --> J
+    J --> K["Desktop notification displayed to user"]
+```
+
 ---
 
 ## ⌨️ Commands API & Headless Action Dispatcher (`handleCommand`)
@@ -173,6 +188,36 @@ async handleCommand(command: string): Promise<void> {
 ```
 
 * **Decoupled Execution**: Because popup HTML/DOM contexts are transient and torn down when dismissed, `handleCommand` passes background function references (`checkDueCards`, `updateDueCardsBadge`) directly into [`ActionService`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/services/actionService.ts), ensuring complete functionality without depending on open UI views.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Browser as Chrome/Firefox/Safari
+    participant SW as AlgoRecallBackground (SW)
+    participant AS as ActionService
+    participant ST as chrome.storage.local
+    participant Tabs as chrome.tabs
+
+    User->>Browser: Press command hotkey
+    Browser->>SW: chrome.commands.onCommand.addListener(command)
+    activate SW
+    SW->>SW: handleCommand(command)
+    SW->>AS: executeAction(command, { background: { checkDueCards, updateDueCardsBadge } })
+    activate AS
+    alt Command requires navigation (open-*)
+        AS->>Tabs: chrome.tabs.create({ url })
+    else Command toggles state (toggle-*)
+        AS->>ST: Read current value & invert setting
+        ST-->>SW: storage.onChanged updates runtime
+    else Command checks reviews (check-due-reviews)
+        AS->>SW: Invoke background.checkDueCards()
+        AS->>SW: Invoke background.updateDueCardsBadge()
+    end
+    AS-->>SW: Action execution result { success: true }
+    deactivate AS
+    deactivate SW
+```
 
 ---
 

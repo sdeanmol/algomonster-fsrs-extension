@@ -36,6 +36,46 @@ features/dashboard/analytics/
     └── reviewTimeAnalytics.ts         # Morning/Afternoon/Evening/Night performance
 ```
 
+```mermaid
+graph TD
+    subgraph UI_Controller ["UI Controller: analytics.ts"]
+        T1["Overview Tab"]
+        T2["Memory Tab"]
+        T3["Readiness Tab"]
+        T4["Tags Tab"]
+        T5["Performance Tab"]
+        T6["Insights Tab"]
+    end
+
+    subgraph Core_Aggregator ["Core Aggregator"]
+        DU["DataUtils (dataUtils.ts)"]
+        SC["chrome.storage.local (fsrsCards)"]
+    end
+
+    subgraph Analytical_Views ["Analytical Views & Charts"]
+        O1["Memory Health & Sparkline Velocity"]
+        O2["True Retention Chart & Simulation Slider"]
+        O3["Exam Readiness & Risk Categorization"]
+        O4["Tag Coverage & Retention Bar Chart"]
+        O5["Lapse Leaderboard & Recovery Tracker"]
+        O6["Time-of-Day Efficiency Matrix"]
+    end
+
+    SC --> DU
+    DU --> T1
+    DU --> T2
+    DU --> T3
+    DU --> T4
+    DU --> T5
+    DU --> T6
+    T1 --> O1
+    T2 --> O2
+    T3 --> O3
+    T4 --> O4
+    T5 --> O5
+    T6 --> O6
+```
+
 ---
 
 ## 🧮 Core Analytics Algorithms (`dataUtils.ts`)
@@ -45,6 +85,22 @@ features/dashboard/analytics/
   $$\text{Retention} = \frac{\text{Total Reps} - \text{Total Lapses}}{\text{Total Reps}} \times 100$$
 * **True Retention (Retrievability Weighting)**: Calculates active retrievability $R(t)$ for each card at current timestamp $t$:
   $$\text{True Retention} = \frac{1}{N_{\text{reviewed}}} \sum_{i=1}^{N_{\text{reviewed}}} R_i(t) \times 100$$
+
+```mermaid
+flowchart TD
+    subgraph Observed_Retention ["Observed Retention"]
+        A1["Sum Total Reps across all cards"] --> B1["Count Total Lapses (Rating: Again)"]
+        B1 --> C1["Calculate (Reps - Lapses) / Reps"]
+        C1 --> D1["Observed % (Static historical ratio)"]
+    end
+
+    subgraph True_Retention ["True Retention (Active Decay)"]
+        A2["For each reviewed card i at timestamp now"] --> B2["Calculate elapsed days: t = (now - last_review)"]
+        B2 --> C2["Compute Retrievability: R_i(t) = (1 + factor * t / S)^(-decay)"]
+        C2 --> D2["Compute Arithmetic Mean across N cards"]
+        D2 --> E2["True Retention % (Dynamic current recall probability)"]
+    end
+```
 
 ### 2. Learning Velocity & Trends (`learningVelocity.ts`)
 Tracks 7-day sliding window counts of new cards created, graduated cards (stability $> 21.0$ days), and total reviews:
@@ -77,6 +133,17 @@ Predicts memory retention decay assuming the user stops reviewing altogether:
 * Evaluates memory decay at $t \in [0, 15, 30, 45, 60, 90, 120, 150, 180]$ days.
 * Computes forgotten card count ($R_i(t) < 0.70$).
 * Renders interactive slider allowing custom date predictions.
+
+```mermaid
+flowchart LR
+    A["User drags Simulation Slider: t in [0, 180] days"] --> B["Compute target timestamp: t_target = now + t"]
+    B --> C["For each card: evaluate R_i(t_target) based on stability S_i"]
+    C --> D{"Check R_i(t_target)"}
+    D -- "R >= 70%" --> E["Classify: Retained Card"]
+    D -- "R < 70%" --> F["Classify: Forgotten Card"]
+    E --> G["Update Retention Curve Chart & Metrics Bar"]
+    F --> G
+```
 
 ---
 

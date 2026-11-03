@@ -53,6 +53,46 @@ The Pomodoro module provides a focus timer synchronized between the frontend UI 
 3. **Service Worker Alarm**: A `pomodoroEnd` Chrome alarm is scheduled so that if the background worker goes idle, Chrome wakes it up at exact timer expiration.
 4. **Phase Transitions**: Focus (25 min) $\rightarrow$ Short Break (5 min) $\rightarrow$ Long Break (15 min after 4 sessions).
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as Pomodoro UI (pomodoro.html)
+    participant ST as chrome.storage.local
+    participant BG as Background Service Worker
+    participant AL as Chrome Alarms (pomodoroEnd)
+
+    User->>UI: Click "Start Focus" (25 min)
+    UI->>ST: Save pomodoroState (state: 'running', targetEndTime, phase: 'focus')
+    ST-->>BG: chrome.storage.onChanged event
+    BG->>BG: startPomodoroTick() (Updates badge text every second)
+    BG->>AL: chrome.alarms.create("pomodoroEnd", { when: targetEndTime })
+    
+    alt User reloads or closes UI tab
+        BG-->>BG: Ticker continues updating action icon badge ("24m", "23m"...)
+    end
+
+    AL-->>BG: Alarm triggers when timer reaches 0
+    BG->>ST: Update pomodoroState to 'break' (5 min)
+    BG->>BG: Clear tick timer & dispatch completion notification
+    ST-->>UI: Storage sync event updates active UI tab view
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Focus: User clicks Start
+    Focus --> ShortBreak: 25 min elapsed (Sessions 1-3)
+    Focus --> LongBreak: 25 min elapsed (Session 4 complete)
+    ShortBreak --> Focus: 5 min break elapsed / User Start
+    LongBreak --> Focus: 15 min long break elapsed / User Start
+    Focus --> Paused: User clicks Pause
+    Paused --> Focus: User clicks Resume
+    Focus --> Idle: User clicks Reset
+    ShortBreak --> Idle: User clicks Reset
+    LongBreak --> Idle: User clicks Reset
+```
+
 ---
 
 ## 📊 Forecast & Review Workload (`forecast.ts`)
@@ -101,6 +141,35 @@ The extension registers 24 commands conforming to Chromium's hard limit of at mo
   * **Firefox**: Static slug opening Firefox Add-ons (`addons.mozilla.org`) reviews.
   * **Safari**: Direct Mac App Store (`apps.apple.com`) product review page routing.
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Browser as Browser Window
+    participant Key as Chrome Commands API
+    participant Popup as Popup UI (popup.html)
+    participant BG as Background Service Worker
+    participant AS as ActionService
+    participant ST as chrome.storage.local
+    participant Tabs as Chrome Tabs API
+
+    alt Triggered via Native Keyboard Shortcut
+        User->>Browser: Press hotkey (e.g. Alt+Shift+D)
+        Browser->>Key: chrome.commands.onCommand
+        Key->>BG: handleCommand("view-due-cards")
+        BG->>AS: executeAction("view-due-cards", { background: hooks })
+    else Triggered via Popup UI Click
+        User->>Popup: Click "View Due Queue" button
+        Popup->>AS: executeAction("view-due-cards")
+    end
+
+    activate AS
+    AS->>AS: Resolve ACTION_URL_MAP ("features/common/data/data.html?view=due")
+    AS->>Tabs: chrome.tabs.create({ url })
+    AS-->>User: Desired view opened in browser tab
+    deactivate AS
+```
+
 ---
 
 ## 🏷️ Due Cards Badge Counter & Preferences
@@ -108,6 +177,17 @@ The extension registers 24 commands conforming to Chromium's hard limit of at mo
 * **Dynamic Action Badge**: The extension action icon dynamically reflects the real-time count of due review cards (`updateDueCardsBadge()`).
 * **User Toggle Control (`badgeEnabled`)**: Users can toggle badge counter visibility on or off in the Popup Notification Settings panel, persisting to `notificationSettings.badgeEnabled` in `chrome.storage.local`.
 * **Instant Sync**: Toggling the preference immediately updates or clears the toolbar badge without requiring a browser reload.
+
+```mermaid
+flowchart TD
+    A["Trigger: Card Reviewed / Storage Changed / Alarm Tick"] --> B["Compute count: cards where due <= Date.now()"]
+    B --> C{"Check notificationSettings.badgeEnabled"}
+    C -- "badgeEnabled: true" --> D{"Is count > 0?"}
+    D -- "Yes" --> E["chrome.action.setBadgeText({ text: String(count) })"]
+    D -- "No (0 cards due)" --> F["chrome.action.setBadgeText({ text: '' })"]
+    C -- "badgeEnabled: false" --> F
+    E --> G["Set badge background color: #e74c3c"]
+```
 
 ---
 

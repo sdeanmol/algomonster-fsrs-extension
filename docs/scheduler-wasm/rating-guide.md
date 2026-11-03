@@ -21,16 +21,20 @@ FSRS categorizes cards into four distinct states (`State` enum: `0` to `3`):
 
 The `ts-fsrs` engine automatically evaluates the card's current state and the user's rating (`Again`, `Hard`, `Good`, `Easy`) to compute the next state, stability ($S$), difficulty ($D$), and next due interval ($I$).
 
-```
-                       [ Rating: Easy (4) ]
-             +---------------------------------------+
-             |                                       v
-[ New (0) ] --+--> [ Learning (1) ] ------> [ Review (2) ] <----+
- (Creation)     [ Again / Hard / Good ]   (Steps complete) |      |
-                                                           |      | Relearning
-                                            Rating: Again  |      | steps complete
-                                              (Lapse)      v      |
-                                                   [ Relearning (3) ]
+```mermaid
+stateDiagram-v2
+    [*] --> New: Problem Created
+    New --> Learning: Rating: Again / Hard / Good
+    New --> Review: Rating: Easy (Immediate Graduation)
+    
+    Learning --> Learning: Rating: Again / Hard
+    Learning --> Review: Rating: Good / Easy (Steps Complete)
+    
+    Review --> Review: Rating: Hard / Good / Easy (Interval Expands)
+    Review --> Relearning: Rating: Again (Lapse Occurs)
+    
+    Relearning --> Relearning: Rating: Again
+    Relearning --> Review: Rating: Good / Easy (Re-Graduation)
 ```
 
 ### Detailed Transition Rules
@@ -100,18 +104,22 @@ In technical subjects (Data Structures, Algorithms, System Design), flashcards t
 
 ### Decision Flowchart for Partial Recall
 
-```
-Did you remember the CORE ALGORITHMIC LOGIC & PATTERN?
-  |
-  +---> NO  --> [ Press AGAIN (1) ]
-  |             (Reason: Missing the core logic means you would fail the interview/test)
-  |
-  +---> YES --> Did you stumble on minor implementation / non-critical details?
-                  |
-                  +---> YES --> [ Press HARD (2) ]
-                  |             (Reason: You retained the main concept, but recall wasn't smooth)
-                  |
-                  +---> NO  --> [ Press GOOD (3) ]
+```mermaid
+flowchart TD
+    A["Reviewing Problem: Evaluate Recall Mastery"] --> B{"Did you remember the CORE ALGORITHMIC LOGIC & PATTERN?"}
+    
+    B -- "NO: Unacceptable Partial Recall" --> C["🔴 Press AGAIN (1)"]
+    C -.-> C1["Missing core logic means failure in an interview/test"]
+    
+    B -- "YES: Core Logic Intact" --> D{"Did you stumble on minor implementation / non-critical details?"}
+    
+    D -- "YES: High Mental Strain" --> E["🟡 Press HARD (2)"]
+    E -.-> E1["Retained main concept, but recall was slow or hesitated"]
+    
+    D -- "NO: Clean Execution" --> F{"Was it trivial or instantaneous (< 5s)?"}
+    
+    F -- "NO: Normal Effort" --> G["🟢 Press GOOD (3) - Target Standard"]
+    F -- "YES: Zero Effort" --> H["🔵 Press EASY (4)"]
 ```
 
 ---

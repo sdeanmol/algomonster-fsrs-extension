@@ -32,6 +32,35 @@ export class Fnv1aHasher {
 }
 ```
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Page as Data UI (data.html)
+    participant BM as BackupManager
+    participant Hash as Fnv1aHasher
+    participant Stream as CompressionStream('gzip')
+    participant ST as chrome.storage.local
+    participant DL as Browser Downloads / Anchor Click
+
+    User->>Page: Click "Export Full Backup (.jsonl.gz)"
+    activate BM
+    Page->>BM: exportData({ compress: true })
+    BM->>ST: Fetch all records (cards, marks, bookmarks, settings)
+    BM->>BM: Build URL deduplication map (u: pageId)
+    BM->>BM: Emit header record
+    loop For each record line
+        BM->>Hash: update(lineString)
+        BM->>Stream: write(encodedBytes)
+    end
+    BM->>Hash: digest() -> 8-character hex checksum
+    BM->>Stream: write(footerRecord: { checksum, count })
+    Stream-->>BM: Compressed Blob
+    BM->>DL: Trigger download ("algorecall_backup_TIMESTAMP.jsonl.gz")
+    deactivate BM
+    DL-->>User: Gzipped file saved locally
+```
+
 ---
 
 ## 🌐 Website Whitelisting & Domain Routing (`websites.ts`)
@@ -69,6 +98,24 @@ The markdown rendering utility (`features/common/markdown.ts`) formats problem s
    ```
 3. **Defense-in-Depth Fallback**: If DOMPurify is unavailable in a minimalist execution environment, a strict regex replacement strips all dangerous active and executable elements before DOM insertion.
 
+```mermaid
+flowchart TD
+    A["Raw Markdown Note / Approach Input"] --> B["Marked.js GitHub-Flavored Parser (breaks: true)"]
+    B --> C["Raw Generated HTML String"]
+    C --> D{"DOMPurify Library Loaded?"}
+    
+    D -- "Yes (Standard Path)" --> E["DOMPurify.sanitize(html, MARKDOWN_PURIFY_OPTIONS)"]
+    E --> F["Strip forbidden tags: script, iframe, form, button..."]
+    F --> G["Strip forbidden attributes: style, onload, onerror..."]
+    
+    D -- "No (Hardened Fallback)" --> H["Strict Regex Element Stripping"]
+    H --> I["Remove executable scripts and active event attributes"]
+    
+    F --> J["Add security attrs to links: target='_blank', rel='noopener noreferrer'"]
+    I --> J
+    J --> K["Safe HTML string ready for innerHTML injection"]
+```
+
 ---
 
 ## 📐 Centralized Domain Constants (`constants.ts`)
@@ -82,6 +129,44 @@ AlgoRecall enforces a strict single-source-of-truth pattern through [`features/c
 * **Calendars & Time Buckets**: `DAY_NAMES_SHORT`, `MONTH_NAMES`, and `TIME_OF_DAY_BUCKET_NAMES` for review analytics.
 * **Gamification Milestones**: `DEFAULT_DAILY_GOAL = 10`, `STREAK_MILESTONES`, `REVIEW_MILESTONES`, and `CONFETTI_COLORS`.
 * **Search & Workload Limits**: `SEARCH_DEBOUNCE_MS = 150`, `SEARCH_MAX_RESULTS = 5`, and `FORECAST_DAYS_TO_SHOW = 30`.
+
+```mermaid
+flowchart TD
+    subgraph Constants_Source ["Single Source of Truth: constants.ts"]
+        C1["FSRS Defaults: DEFAULT_FSRS_W, Decay, Factor"]
+        C2["Extension & Notification Defaults: DEFAULT_EXTENSION_SETTINGS"]
+        C3["Pomodoro Settings: DEFAULT_POMODORO_SETTINGS"]
+        C4["Navigation Map: ACTION_URL_MAP"]
+        C5["Gamification: STREAK_MILESTONES, CONFETTI_COLORS"]
+        C6["Limits & Delays: SEARCH_DEBOUNCE_MS, FORECAST_DAYS_TO_SHOW"]
+    end
+
+    subgraph Runtime_Consumers ["Runtime Consumers"]
+        BG["Background Service Worker (background.ts)"]
+        CS["Content Script Orchestrator (content.ts)"]
+        AS["Action Service & Commands (actionService.ts)"]
+        POP["Toolbar Popup (popup.ts)"]
+        ED["Fullscreen Editor (editor.ts)"]
+        HL["Highlighter Manager (highlighter.ts)"]
+        AN["Analytics Engine (analytics.ts)"]
+    end
+
+    C1 --> CS
+    C1 --> ED
+    C1 --> AN
+    C2 --> BG
+    C2 --> POP
+    C2 --> CS
+    C3 --> BG
+    C3 --> POP
+    C4 --> AS
+    C4 --> BG
+    C4 --> POP
+    C5 --> POP
+    C5 --> AN
+    C6 --> POP
+    C6 --> CS
+```
 
 ---
 
@@ -119,6 +204,17 @@ The Help Center is an interactive Single-Page Application (SPA) providing compre
   * The tab navigation container (`.tabs-container[role="tablist"]`) enforces `scroll-behavior: smooth` and `-webkit-overflow-scrolling: touch`.
   * `smoothScrollToTab(tabId)` dynamically calculates the tab button's horizontal offset relative to the scroll container (`tabBtn.offsetLeft - (container.clientWidth / 2) + (tabBtn.clientWidth / 2)`) and executes smooth centering.
   * Ensures that when navigating directly to off-screen tabs (such as the Privacy tab on narrow screens or laptops), the tablist automatically scrolls smoothly to bring the active button into prominent view.
+
+```mermaid
+flowchart LR
+    A["User navigates to help.html#privacy or ?tab=privacy"] --> B["Parse URL query / hash in help.ts"]
+    B --> C["Resolve target tabId: 'privacy'"]
+    C --> D["Activate tab button (aria-selected='true') & show tab panel"]
+    D --> E["Call smoothScrollToTab('privacy')"]
+    E --> F["Compute center offset: btn.offsetLeft - (container.width / 2) + (btn.width / 2)"]
+    F --> G["Execute smooth horizontal scroll in .tabs-container[role='tablist']"]
+    G --> H["Target tab is centered and prominently displayed"]
+```
 
 ---
 

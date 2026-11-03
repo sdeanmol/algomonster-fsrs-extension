@@ -82,6 +82,32 @@ export interface ReviewLog {
 }
 ```
 
+```mermaid
+flowchart TD
+    A["User submits rating (Again / Hard / Good / Easy)"] --> B{"Is card reviewed < 60s ago?"}
+    
+    B -- "No: Standard Review" --> C["Capture preState snapshot of card"]
+    C --> D["Execute FSRS calculateNextState()"]
+    D --> E["Append ReviewLog entry with preState"]
+    E --> F["Save updated card to chrome.storage.local"]
+    F --> G["Display 5s Undo Toast on page"]
+    
+    B -- "Yes: Rapid Re-Review" --> H{"Is new rating == previous rating?"}
+    H -- "Yes: Duplicate Submission" --> I["Suppress FSRS recalculation"]
+    I --> J["Add elapsed duration to current ReviewLog"]
+    J --> F
+    
+    H -- "No: Immediate Correction" --> K["Pop previous ReviewLog from history"]
+    K --> L["Restore card stability, difficulty & reps from preState"]
+    L --> D
+    
+    G --> M{"User clicks Undo button?"}
+    M -- "Yes" --> N["Restore card state from preState"]
+    N --> O["Remove last ReviewLog & clear toast"]
+    O --> F
+    M -- "No (5s timeout)" --> P["Dismiss toast & finalize review"]
+```
+
 ---
 
 ## 🚀 Problem Tracker Launcher Button & Visibility Control
@@ -91,6 +117,22 @@ The in-page quick launcher button (`algo-fsrs-launcher`) floats along the edge o
 * **User Configurable Toggle (`showLauncher`)**: Users can disable the floating launcher button from the extension popup options.
 * **Storage Synchronization**: Listens for changes to `extensionSettings.showLauncher`. When toggled to `false`, the button is smoothly hidden (`display: none`) and click listeners are suspended.
 * **Non-Visual Access**: When the visual launcher is hidden, cards and review panels can still be accessed seamlessly through browser keyboard shortcuts or the extension popup.
+
+```mermaid
+flowchart LR
+    A["Page Navigation / MutationObserver"] --> B{"Is domain whitelisted?"}
+    B -- "No" --> C["Exit / Do not mount UI"]
+    B -- "Yes" --> D["Read extensionSettings.showLauncher"]
+    D --> E{"showLauncher == true?"}
+    E -- "Yes" --> F["Mount #algo-fsrs-launcher on DOM edge"]
+    F --> G["Listen for user click"]
+    G --> H["Toggle #algo-fsrs-container overlay"]
+    E -- "No" --> I["Set launcher display: none"]
+    I --> J["Await keyboard shortcut or popup command"]
+    
+    K["User toggles showLauncher in Popup"] --> L["chrome.storage.onChanged event"]
+    L --> D
+```
 
 ---
 
@@ -102,6 +144,20 @@ The Editor UI handles standalone card creation and modification. Key features in
 * Time and space complexity fields ($O(N)$, $O(1)$).
 * Interactive tag management with auto-suggestions.
 * **AlgoRecall Brand Identity**: Integrated header pill with official branding and version badge.
+
+```mermaid
+flowchart LR
+    A["User types in Approach textarea"] --> B["Debounced input event (150ms)"]
+    B --> C["Pass raw string to renderMarkdown()"]
+    C --> D["Marked.js parses GitHub-flavored markdown"]
+    D --> E["Raw HTML generated"]
+    E --> F["DOMPurify sanitization (FORBID_TAGS: script, iframe, form...)"]
+    F --> G{"DOMPurify available?"}
+    G -- "Yes" --> H["Sanitized safe HTML string"]
+    G -- "No (fallback)" --> I["Strict Regex element stripping"]
+    I --> H
+    H --> J["Inject into #approach-preview container"]
+```
 
 ---
 

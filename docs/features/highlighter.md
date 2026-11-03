@@ -124,6 +124,21 @@ export interface HighlightMark {
 }
 ```
 
+```mermaid
+flowchart TD
+    A["Page Loads / SPA History Change"] --> B["Fetch HighlightMarks from chrome.storage.local"]
+    B --> C["For each HighlightMark: read startMeta & endMeta"]
+    C --> D["Attempt exact DOM XPath query using path & offset"]
+    D --> E{"Node found & text matches textSnippet?"}
+    E -- "Yes (Exact Match)" --> F["Reconstruct DOM Range"]
+    E -- "No (DOM Mutated)" --> G["Execute fuzzy text search across surrounding parent nodes"]
+    G --> H{"Fuzzy match found?"}
+    H -- "Yes" --> I["Calculate recomputed offsets & rebuild Range"]
+    H -- "No" --> J["Mark Range unresolved & log warning"]
+    F & I --> K["Register Range with CSS.highlights.set()"]
+    K --> L["Native highlight rendered without DOM wrapper pollution"]
+```
+
 ---
 
 ## 🔗 Linking Highlights to FSRS Cards
@@ -132,6 +147,17 @@ Highlighters can be directly linked to active FSRS cards (`linkHighlightToCard`)
 * Extracts selected text, category prefix, and optional notes.
 * Formats note as a markdown blockquote (`> **Key Insight:** ...`).
 * Appends content directly to card's `approach` markdown field or active problem draft (`approachDrafts`).
+
+```mermaid
+flowchart LR
+    A["User clicks #algo-link-card-btn on Tooltip"] --> B["Extract text, category & optional note"]
+    B --> C["Format Markdown: > **[Category]:** [Text] \n > [Note]"]
+    C --> D{"Active problem card exists?"}
+    D -- "Card exists in storage" --> E["Append formatted snippet to card.approach"]
+    D -- "No card created yet" --> F["Save snippet to approachDrafts[url] in storage"]
+    E & F --> G["Notify Content Script Orchestrator / Editor"]
+    G --> H["Show success checkmark & preview in Editor"]
+```
 
 ---
 
