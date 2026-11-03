@@ -3,7 +3,7 @@ const CopyPlugin = require('copy-webpack-plugin');
 const webpack = require('webpack');
 
 // Standard ignore patterns for static asset copying
-const ignorePatterns = ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'];
+const ignorePatterns = ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts', '**/*.tsx'];
 
 // Browser-specific store configuration injected at build time
 const BROWSER_STORE_CONFIG = {
@@ -32,7 +32,7 @@ module.exports = (env) => {
   mode: 'production',
   entry: {
     // Bundles
-    config: './features/tracker/config/fsrsConfig.ts',
+    config: './features/tracker/config/fsrsConfig.tsx',
     fsrsScheduler: './features/tracker/scheduler/fsrsScheduler.ts',
 
     // Core Extension Scripts
@@ -41,15 +41,15 @@ module.exports = (env) => {
 
     // Common & Page Scripts
     'features/common/theme-sync': './features/common/theme-sync.ts',
-    'features/common/websites/websites': './features/common/websites/websites.ts',
-    'features/common/data/data': './features/common/data/data.ts',
-    'features/common/help/help': './features/common/help/help.ts',
-    'features/common/welcome/welcome': './features/common/welcome/welcome.ts',
+    'features/common/websites/websites': './features/common/websites/websites.tsx',
+    'features/common/data/data': './features/common/data/data.tsx',
+    'features/common/help/help': './features/common/help/help.tsx',
+    'features/common/welcome/welcome': './features/common/welcome/welcome.tsx',
 
     // Feature UIs
-    'features/highlighter/manager/highlights': './features/highlighter/manager/highlights.ts',
-    'features/highlighter/options/highlightOptions': './features/highlighter/options/highlightOptions.ts',
-    'features/tracker/editor/editor': './features/tracker/editor/editor.ts',
+    'features/highlighter/manager/highlights': './features/highlighter/manager/highlights.tsx',
+    'features/highlighter/options/highlightOptions': './features/highlighter/options/highlightOptions.tsx',
+    'features/tracker/editor/editor': './features/tracker/editor/editor.tsx',
 
     // Dashboard UIs
     'features/dashboard/popup/popup': './features/dashboard/popup/popup.ts',
@@ -76,7 +76,7 @@ module.exports = (env) => {
   module: {
     rules: [
       {
-        test: /\.ts$/,
+        test: /\.(ts|tsx)$/,
         use: {
           loader: 'ts-loader',
           options: {
@@ -102,9 +102,9 @@ module.exports = (env) => {
     ]
   },
   resolve: {
-    extensions: ['.ts', '.js'],
+    extensions: ['.ts', '.tsx', '.js', '.jsx'],
     extensionAlias: {
-      '.js': ['.ts', '.js']
+      '.js': ['.ts', '.tsx', '.js', '.jsx']
     },
     alias: {
       '@common': path.resolve(__dirname, 'features/common'),

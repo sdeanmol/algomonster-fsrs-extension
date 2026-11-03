@@ -1,3 +1,4 @@
+import { h, Fragment, render, VNode } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { ensureCardIds } from '../utils/cardUtils';
@@ -13,7 +14,309 @@ import { PLATFORM_NAMES, MONTH_NAMES } from '../constants';
  * Supports keyword search, multi-factor filtering (status, tag, platform, FSRS memory state),
  * column sorting, bulk actions (delete, retag, reschedule), inline card modal editing,
  * card deletion with undo toasts, and visual memory retention/state distribution analytics.
+ * Migrated to Preact with TypeScript for modular, accessible table components.
  */
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CardsTableEmptyStateProps {
+    isFilterActive: boolean;
+    onClearFilters?: () => void;
+}
+
+/**
+ * Preact component for the empty state placeholder when no cards match filters.
+ */
+export function CardsTableEmptyState({
+    isFilterActive,
+    onClearFilters
+}: CardsTableEmptyStateProps): VNode {
+    const message = isFilterActive
+        ? 'No problem patterns match your selected filters.'
+        : 'No problem patterns tracked yet. Solve problems on LeetCode or AlgoMonster to build your spaced repetition deck!';
+
+    return (
+        <div
+            className="empty-state-card"
+            style={{
+                textAlign: 'center',
+                padding: '48px 24px',
+                background: 'var(--md-surface)',
+                border: '1px dashed var(--md-border)',
+                borderRadius: '12px',
+                margin: '20px 0'
+            }}
+        >
+            <svg
+                className="svg-icon"
+                viewBox="0 0 24 24"
+                style={{ width: '48px', height: '48px', stroke: 'var(--md-text-subtle)', marginBottom: '12px' }}
+                aria-hidden="true"
+            >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <h4 style={{ margin: '0 0 8px 0', color: 'var(--md-text-high)', fontSize: '16px' }}>
+                {isFilterActive ? 'No Matching Patterns' : 'No Patterns Found'}
+            </h4>
+            <p style={{ margin: '0 auto', color: 'var(--md-text-med)', fontSize: '13px', maxWidth: '400px' }}>
+                {message}
+            </p>
+            {isFilterActive && onClearFilters && (
+                <button
+                    id="empty-clear-filters-btn"
+                    className="btn btn-secondary"
+                    style={{ marginTop: '12px', cursor: 'pointer' }}
+                    onClick={onClearFilters}
+                >
+                    Clear Filters
+                </button>
+            )}
+        </div>
+    );
+}
+
+export interface CardsTableRowProps {
+    card: Card;
+    isChecked: boolean;
+    showLapses?: boolean;
+    stateLabel: string;
+    onToggleCheck?: (cardId: string, checked: boolean) => void;
+    onEdit?: (cardId: string) => void;
+    onDelete?: (cardId: string) => void;
+}
+
+/**
+ * Preact component for an individual problem card table row.
+ */
+export function CardsTableRow({
+    card,
+    isChecked,
+    showLapses = true,
+    stateLabel,
+    onToggleCheck,
+    onEdit,
+    onDelete
+}: CardsTableRowProps): VNode {
+    const now = Date.now();
+    const isPastDue = card.due <= now;
+    const reps = card.reps || 0;
+    const lapses = card.lapses || 0;
+    const state = card.state || 0;
+    const isLeech = lapses >= 3;
+    const stabilityFormatted = card.stability > 0 ? `${card.stability.toFixed(1)}d` : 'New';
+    const difficultyFormatted = card.difficulty > 0 ? `${card.difficulty.toFixed(1)}/10` : 'N/A';
+    const stateClass = `state-${state}`;
+
+    return (
+        <tr className={`${isChecked ? 'row-selected' : ''} ${isLeech ? 'row-leech' : ''}`}>
+            <td className="td-checkbox">
+                <input
+                    type="checkbox"
+                    className="card-checkbox row-checkbox"
+                    data-id={card.id || ''}
+                    checked={isChecked}
+                    onChange={(e) => {
+                        if (card.id && onToggleCheck) {
+                            onToggleCheck(card.id, (e.target as HTMLInputElement).checked);
+                        }
+                    }}
+                />
+            </td>
+            <td style={{ whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: '220px' }}>
+                <a href={card.problemUrl || '#'} target="_blank" rel="noopener noreferrer">
+                    {card.problemTitle || 'Untitled'}
+                </a>
+            </td>
+            <td className="td-tags" style={{ whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: '140px' }}>
+                {(card.tags || []).map((t) => (
+                    <span key={t} className="tag">{t}</span>
+                ))}
+            </td>
+            <td>
+                {isPastDue ? (
+                    <span className="badge badge-due">Due Now</span>
+                ) : (
+                    <span className="badge badge-safe">{new Date(card.due).toLocaleDateString()}</span>
+                )}
+            </td>
+            <td>
+                <span className={`badge badge-state ${stateClass}`}>
+                    {stateLabel}{isLeech ? ' (Leech)' : ''}
+                </span>
+            </td>
+            <td className="td-reviews">{reps}</td>
+            <td>{stabilityFormatted}</td>
+            <td>{difficultyFormatted}</td>
+            {showLapses && (
+                <td className="td-lapses">
+                    {lapses >= 3 ? (
+                        <span className="badge badge-leech" title="Leech Card: Forgotten 3+ times. Consider rewriting your solution approach note!">
+                            ⚡ {lapses} (Leech)
+                        </span>
+                    ) : lapses > 0 ? (
+                        <span className="badge badge-lapsed" title={`${lapses} lapse(s) recorded`}>
+                            ⚠️ {lapses}
+                        </span>
+                    ) : (
+                        <span className="text-subtle">&mdash;</span>
+                    )}
+                </td>
+            )}
+            <td className="td-actions">
+                <div className="actions-wrapper">
+                    <button
+                        className="edit-card-btn"
+                        data-id={card.id || ''}
+                        title="Edit Card"
+                        aria-label="Edit Card"
+                        onClick={() => {
+                            if (card.id && onEdit) onEdit(card.id);
+                        }}
+                    >
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', stroke: 'currentColor' }}>
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                    </button>
+                    <button
+                        className="delete-card-btn"
+                        data-id={card.id || ''}
+                        title="Remove Card from Reviews"
+                        aria-label="Remove Card from Reviews"
+                        onClick={() => {
+                            if (card.id && onDelete) onDelete(card.id);
+                        }}
+                    >
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', stroke: 'currentColor' }}>
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    );
+}
+
+export interface CardsTableProps {
+    cards: Card[];
+    selectedCardIds: Set<string>;
+    showLapses?: boolean;
+    isFilterActive?: boolean;
+    getStateLabel: (state: number) => string;
+    onToggleSelectAll?: (checked: boolean) => void;
+    onToggleCard?: (cardId: string, checked: boolean) => void;
+    onEditCard?: (cardId: string) => void;
+    onDeleteCard?: (cardId: string) => void;
+    onClearFilters?: () => void;
+}
+
+/**
+ * Preact component rendering the responsive problem patterns table.
+ */
+export function CardsTable({
+    cards,
+    selectedCardIds,
+    showLapses = true,
+    isFilterActive = false,
+    getStateLabel,
+    onToggleSelectAll,
+    onToggleCard,
+    onEditCard,
+    onDeleteCard,
+    onClearFilters
+}: CardsTableProps): VNode {
+    if (cards.length === 0) {
+        return <CardsTableEmptyState isFilterActive={isFilterActive} onClearFilters={onClearFilters} />;
+    }
+
+    const allChecked = cards.length > 0 && cards.every((c) => Boolean(c.id && selectedCardIds.has(c.id)));
+
+    return (
+        <div className="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th className="th-checkbox">
+                            <input
+                                type="checkbox"
+                                id="select-all-checkbox"
+                                className="card-checkbox"
+                                checked={allChecked}
+                                onChange={(e) => {
+                                    if (onToggleSelectAll) {
+                                        onToggleSelectAll((e.target as HTMLInputElement).checked);
+                                    }
+                                }}
+                            />
+                        </th>
+                        <th>Problem Title</th>
+                        <th className="th-tags">Tags</th>
+                        <th>Next Due</th>
+                        <th>State</th>
+                        <th className="th-reviews">Reviews</th>
+                        <th>Stability</th>
+                        <th>Difficulty</th>
+                        {showLapses && <th className="th-lapses">Lapses</th>}
+                        <th className="th-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {cards.map((card) => (
+                        <CardsTableRow
+                            key={card.id || card.problemUrl}
+                            card={card}
+                            isChecked={Boolean(card.id && selectedCardIds.has(card.id))}
+                            showLapses={showLapses}
+                            stateLabel={getStateLabel(card.state || 0)}
+                            onToggleCheck={onToggleCard}
+                            onEdit={onEditCard}
+                            onDelete={onDeleteCard}
+                        />
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+export interface BulkActionsBarProps {
+    selectedCount: number;
+    onDelete: () => void;
+    onRetag: () => void;
+    onReschedule: () => void;
+    onDeselect: () => void;
+}
+
+/**
+ * Preact component for the floating multi-selection bulk actions bar.
+ */
+export function BulkActionsBar({
+    selectedCount,
+    onDelete,
+    onRetag,
+    onReschedule,
+    onDeselect
+}: BulkActionsBarProps): VNode {
+    return (
+        <div id="bulk-actions-bar" style={{ display: selectedCount > 0 ? 'flex' : 'none' }}>
+            <span id="bulk-count">{selectedCount}</span>
+            <button id="bulk-delete-btn" onClick={onDelete}>Delete Selected</button>
+            <button id="bulk-retag-btn" onClick={onRetag}>Retag Selected</button>
+            <button id="bulk-reschedule-btn" onClick={onReschedule}>Reschedule Selected</button>
+            <button id="bulk-deselect-btn" onClick={onDeselect}>Deselect All</button>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATA DASHBOARD CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+
 export class FSRSDataDashboard {
     /** In-memory cache of all FSRS cards retrieved from storage */
     allCards: Card[];
@@ -114,8 +417,8 @@ export class FSRSDataDashboard {
                     // Run initial render
                     this.filterAndRender();
                 } catch (innerErr) {
-            UIUtils.catchError('DataDashboard', 'Error rendering data dashboard', innerErr);
-        }
+                    UIUtils.catchError('DataDashboard', 'Error rendering data dashboard', innerErr);
+                }
             });
         } catch (err) {
             UIUtils.catchError('DataDashboard', 'Failed storage get in DataDashboard init', err);
@@ -135,8 +438,8 @@ export class FSRSDataDashboard {
                         this.searchQuery = (e.target as HTMLInputElement).value.trim();
                         this.filterAndRender();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in search input handler', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error in search input handler', err);
+                    }
                 });
             }
 
@@ -147,8 +450,8 @@ export class FSRSDataDashboard {
                         this.selectedTag = (e.target as HTMLSelectElement).value;
                         this.filterAndRender();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in tag select handler', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error in tag select handler', err);
+                    }
                 });
             }
 
@@ -159,8 +462,8 @@ export class FSRSDataDashboard {
                         this.selectedStatus = (e.target as HTMLSelectElement).value;
                         this.filterAndRender();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in status select handler', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error in status select handler', err);
+                    }
                 });
             }
 
@@ -171,8 +474,8 @@ export class FSRSDataDashboard {
                         this.selectedPlatform = (e.target as HTMLSelectElement).value;
                         this.filterAndRender();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in platform select handler', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error in platform select handler', err);
+                    }
                 });
             }
 
@@ -183,8 +486,8 @@ export class FSRSDataDashboard {
                         this.selectedState = (e.target as HTMLSelectElement).value;
                         this.filterAndRender();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in state select handler', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error in state select handler', err);
+                    }
                 });
             }
 
@@ -195,8 +498,8 @@ export class FSRSDataDashboard {
                         this.sortBy = (e.target as HTMLSelectElement).value;
                         this.filterAndRender();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in sort select handler', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error in sort select handler', err);
+                    }
                 });
             }
 
@@ -217,8 +520,8 @@ export class FSRSDataDashboard {
                     try {
                         this.bulkDelete();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in bulk delete click handler', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error in bulk delete click handler', err);
+                    }
                 });
             }
 
@@ -228,8 +531,8 @@ export class FSRSDataDashboard {
                     try {
                         this.bulkRetag();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in bulk retag click handler', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error in bulk retag click handler', err);
+                    }
                 });
             }
 
@@ -239,8 +542,8 @@ export class FSRSDataDashboard {
                     try {
                         this.bulkReschedule();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in bulk reschedule click handler', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error in bulk reschedule click handler', err);
+                    }
                 });
             }
 
@@ -252,8 +555,8 @@ export class FSRSDataDashboard {
                         this.updateBulkActionsBar();
                         this.filterAndRender();
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error deselecting bulk cards', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error deselecting bulk cards', err);
+                    }
                 });
             }
 
@@ -312,8 +615,6 @@ export class FSRSDataDashboard {
             if (!platformSelect) return;
 
             platformSelect.innerHTML = '<option value="all">All Platforms</option>';
-
-
 
             const platforms = new Set<string>();
             this.allCards.forEach((card: Card) => {
@@ -518,9 +819,6 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Resets all search and filter dropdowns to their default states.
-     */
-    /**
      * Resets all search queries and filter dropdown values to their default states ('all' / 'due-asc')
      * and triggers a re-render.
      */
@@ -668,11 +966,13 @@ export class FSRSDataDashboard {
             const sorted = [...cards];
             switch (this.sortBy) {
                 case 'due-asc':
-                    return sorted.sort((a, b) => (a.due || 0) - (b.due || 0));
+                    return sorted.sort((a, b) => a.due - b.due);
                 case 'due-desc':
-                    return sorted.sort((a, b) => (b.due || 0) - (a.due || 0));
+                    return sorted.sort((a, b) => b.due - a.due);
                 case 'difficulty-desc':
                     return sorted.sort((a, b) => (b.difficulty || 0) - (a.difficulty || 0));
+                case 'difficulty-asc':
+                    return sorted.sort((a, b) => (a.difficulty || 0) - (b.difficulty || 0));
                 case 'stability-desc':
                     return sorted.sort((a, b) => (b.stability || 0) - (a.stability || 0));
                 case 'stability-asc':
@@ -680,65 +980,64 @@ export class FSRSDataDashboard {
                 case 'lapses-desc':
                     return sorted.sort((a, b) => (b.lapses || 0) - (a.lapses || 0));
                 case 'created-desc':
-                case 'created-asc':
                     return sorted.sort((a, b) => {
-                        const getCreated = (card: Card) => {
-                            const log = (card as Card & { historyLog?: (number | { date: number })[] }).historyLog;
-                            return log && log.length > 0 ? (typeof log[0] === 'number' ? log[0] : log[0].date) : 0;
-                        };
-                        const aCreated = getCreated(a);
-                        const bCreated = getCreated(b);
-                        return this.sortBy === 'created-desc' ? bCreated - aCreated : aCreated - bCreated;
+                        const aCreated = a.createdAt || (a.historyLog && a.historyLog[0] && (typeof a.historyLog[0] === 'object' ? a.historyLog[0].date : a.historyLog[0])) || 0;
+                        const bCreated = b.createdAt || (b.historyLog && b.historyLog[0] && (typeof b.historyLog[0] === 'object' ? b.historyLog[0].date : b.historyLog[0])) || 0;
+                        return (bCreated as number) - (aCreated as number);
                     });
                 default:
                     return sorted;
             }
         } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error sorting cards', err, { sortBy: this.sortBy });
+            UIUtils.catchError('DataDashboard', 'Error sorting cards', err);
             return cards;
         }
     }
 
     /**
-     * Displays a temporary notification banner with an undo action button, allowing the user
-     * to immediately restore a recently deleted problem card.
-     * @param message - Notice message detailing which item was removed.
-     * @param onUndo - Callback invoked if the user clicks the undo button.
+     * Displays a temporary toast notification with an Undo button for soft-deleting cards.
+     * Automatically dismisses after 5 seconds if not clicked.
+     * @param message - Text to show in the toast.
+     * @param onUndo - Callback executed if the user clicks Undo.
      */
     showUndoToast(message: string, onUndo: () => void): void {
         try {
             const toast = document.getElementById('undo-toast');
-            const text = document.getElementById('undo-toast-text');
+            const textEl = document.getElementById('undo-toast-text');
             const undoBtn = document.getElementById('undo-action-btn');
-            if (!toast || !text || !undoBtn) return;
+
+            if (!toast || !textEl || !undoBtn) return;
 
             if (this.undoTimer) {
                 clearTimeout(this.undoTimer);
                 this.undoTimer = null;
             }
 
-            text.textContent = message;
+            textEl.textContent = message;
             toast.style.display = 'flex';
-
-            const handleUndoClick = () => {
-                toast.style.display = 'none';
-                if (this.undoTimer) {
-                    clearTimeout(this.undoTimer);
-                    this.undoTimer = null;
-                }
-                onUndo();
-            };
 
             const newUndoBtn = undoBtn.cloneNode(true) as HTMLElement;
             undoBtn.parentNode?.replaceChild(newUndoBtn, undoBtn);
-            newUndoBtn.addEventListener('click', handleUndoClick);
+
+            newUndoBtn.addEventListener('click', () => {
+                try {
+                    onUndo();
+                    toast.style.display = 'none';
+                    if (this.undoTimer) {
+                        clearTimeout(this.undoTimer);
+                        this.undoTimer = null;
+                    }
+                } catch (err) {
+                    UIUtils.catchError('DataDashboard', 'Error in undo click handler', err);
+                }
+            });
 
             this.undoTimer = setTimeout(() => {
                 try {
                     toast.style.display = 'none';
                     this.undoTimer = null;
-                } catch (tErr) {
-                    UIUtils.catchError('DataDashboard', 'Error hiding undo toast', tErr);
+                } catch (err) {
+                    UIUtils.catchError('DataDashboard', 'Error dismissing undo toast', err);
                 }
             }, 5000);
         } catch (err) {
@@ -747,47 +1046,40 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Binds click handlers to row delete buttons, removing the card from storage
-     * and prompting with an undo toast.
-     * @fires chrome.storage.local.set
+     * Attaches click handlers to all inline card deletion buttons in the table.
+     * Removes the card from local state and storage, and shows an undo toast.
      */
     bindDeleteButtons(): void {
         try {
             document.querySelectorAll('.delete-card-btn').forEach(btn => {
                 btn.addEventListener('click', (e: Event) => {
                     try {
-                        e.stopPropagation();
-                        const cardId = (e.currentTarget as HTMLElement).getAttribute('data-id');
+                        const target = e.currentTarget as HTMLElement;
+                        const cardId = target.getAttribute('data-id');
                         if (!cardId) return;
+
                         const cardIndex = this.allCards.findIndex(c => c.id === cardId);
                         if (cardIndex === -1) return;
 
                         const deletedCard = this.allCards[cardIndex];
+                        const problemTitle = deletedCard.problemTitle || 'Card';
+
                         this.allCards.splice(cardIndex, 1);
                         this.selectedCardIds.delete(cardId);
-                        chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
-                            try {
-                                if (UIUtils.checkStorageError('DataDashboard', 'Error deleting card from storage', { cardId })) return;
-                                this.populateTagsFilter();
-                                this.populatePlatformFilter();
-                                this.updateBulkActionsBar();
-                                this.filterAndRender();
+                        this.updateBulkActionsBar();
+                        this.filterAndRender();
 
-                                this.showUndoToast(`Deleted "${deletedCard.problemTitle || 'pattern'}".`, () => {
-                                    this.allCards.splice(cardIndex, 0, deletedCard);
-                                    chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
-                                        this.populateTagsFilter();
-                                        this.populatePlatformFilter();
-                                        this.filterAndRender();
-                                        UIUtils.showToast("Pattern restored!");
-                                    });
-                                });
-                            } catch (callbackErr) {
-                                UIUtils.catchError('DataDashboard', 'Error in delete card callback', callbackErr, { cardId });
-                            }
+                        chrome.storage.local.set({ fsrsCards: this.allCards });
+
+                        this.showUndoToast(`Deleted "${problemTitle}"`, () => {
+                            this.allCards.splice(cardIndex, 0, deletedCard);
+                            chrome.storage.local.set({ fsrsCards: this.allCards });
+                            this.populateTagsFilter();
+                            this.populatePlatformFilter();
+                            this.filterAndRender();
                         });
                     } catch (err) {
-                        UIUtils.catchError('DataDashboard', 'Error in delete button click listener', err);
+                        UIUtils.catchError('DataDashboard', 'Error deleting single card', err);
                     }
                 });
             });
@@ -797,57 +1089,66 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Binds change listeners to table row checkboxes and the master select-all checkbox,
-     * maintaining `selectedCardIds` and toggling the bulk actions toolbar.
+     * Binds event listeners to the select-all master checkbox and individual row checkboxes.
+     * Synchronizes selection state with `selectedCardIds` and updates the bulk action bar.
      */
     bindCheckboxes(): void {
         try {
             const selectAll = document.getElementById('select-all-checkbox') as HTMLInputElement | null;
             if (selectAll) {
-                selectAll.addEventListener('change', (e: Event) => {
+                selectAll.addEventListener('change', () => {
                     try {
-                        const target = e.target as HTMLInputElement;
-                        const allCheckboxes = document.querySelectorAll('.row-checkbox');
-                        allCheckboxes.forEach((cb: Element) => {
-                            const checkbox = cb as HTMLInputElement;
-                            checkbox.checked = target.checked;
-                            const cardId = checkbox.dataset.id;
-                            if (cardId) {
-                                if (target.checked) {
-                                    this.selectedCardIds.add(cardId);
+                        const isChecked = selectAll.checked;
+                        const rowCheckboxes = document.querySelectorAll('.row-checkbox') as NodeListOf<HTMLInputElement>;
+                        rowCheckboxes.forEach(cb => {
+                            cb.checked = isChecked;
+                            const id = cb.getAttribute('data-id');
+                            if (id) {
+                                if (isChecked) {
+                                    this.selectedCardIds.add(id);
                                 } else {
-                                    this.selectedCardIds.delete(cardId);
+                                    this.selectedCardIds.delete(id);
                                 }
                             }
-                            checkbox.closest('tr')?.classList.toggle('row-selected', target.checked);
+                            const row = cb.closest('tr');
+                            if (row) {
+                                row.classList.toggle('row-selected', isChecked);
+                            }
                         });
                         this.updateBulkActionsBar();
                     } catch (err) {
-                        UIUtils.catchError('DataDashboard', 'Error in select all checkbox handler', err);
+                        UIUtils.catchError('DataDashboard', 'Error in select-all change handler', err);
                     }
                 });
             }
 
-            document.querySelectorAll('.row-checkbox').forEach((cb: Element) => {
+            document.querySelectorAll('.row-checkbox').forEach(cb => {
                 cb.addEventListener('change', (e: Event) => {
                     try {
-                        const target = e.target as HTMLInputElement;
-                        const cardId = target.dataset.id;
-                        if (cardId) {
+                        const target = e.currentTarget as HTMLInputElement;
+                        const id = target.getAttribute('data-id');
+                        const row = target.closest('tr');
+
+                        if (id) {
                             if (target.checked) {
-                                this.selectedCardIds.add(cardId);
+                                this.selectedCardIds.add(id);
                             } else {
-                                this.selectedCardIds.delete(cardId);
+                                this.selectedCardIds.delete(id);
                             }
                         }
-                        target.closest('tr')?.classList.toggle('row-selected', target.checked);
-                        this.updateBulkActionsBar();
 
-                        const allCheckboxes = document.querySelectorAll('.row-checkbox');
-                        const allChecked = [...allCheckboxes].every((c: Element) => (c as HTMLInputElement).checked);
-                        if (selectAll) selectAll.checked = allChecked;
+                        if (row) {
+                            row.classList.toggle('row-selected', target.checked);
+                        }
+
+                        if (selectAll) {
+                            const allRows = document.querySelectorAll('.row-checkbox') as NodeListOf<HTMLInputElement>;
+                            selectAll.checked = allRows.length > 0 && Array.from(allRows).every(r => r.checked);
+                        }
+
+                        this.updateBulkActionsBar();
                     } catch (err) {
-                        UIUtils.catchError('DataDashboard', 'Error in row checkbox handler', err);
+                        UIUtils.catchError('DataDashboard', 'Error in row checkbox change handler', err);
                     }
                 });
             });
@@ -857,21 +1158,17 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Updates the floating bulk actions bar visibility and updates the count badge
-     * to reflect the current size of `selectedCardIds`.
+     * Updates visibility and count display on the floating bulk actions toolbar.
      */
     updateBulkActionsBar(): void {
         try {
             const bar = document.getElementById('bulk-actions-bar');
             const countEl = document.getElementById('bulk-count');
-            if (!bar) return;
-
             const count = this.selectedCardIds.size;
-            if (count > 0) {
-                bar.style.display = 'flex';
-                if (countEl) countEl.textContent = String(count);
-            } else {
-                bar.style.display = 'none';
+
+            if (bar && countEl) {
+                countEl.textContent = String(count);
+                bar.style.display = count > 0 ? 'flex' : 'none';
             }
         } catch (err) {
             UIUtils.catchError('DataDashboard', 'Error updating bulk actions bar', err);
@@ -879,42 +1176,47 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Deletes all currently selected cards from storage after prompting the user for confirmation.
-     * @fires chrome.storage.local.set
+     * Prompts confirmation and deletes all currently selected cards from memory and storage.
+     * Displays an undo toast allowing bulk restoration.
      */
     bulkDelete(): void {
         try {
             const count = this.selectedCardIds.size;
             if (count === 0) return;
 
-            if (confirm(`Are you sure you want to delete ${count} selected card(s)? This cannot be undone.`)) {
-                this.allCards = this.allCards.filter(c => Boolean(c.id && !this.selectedCardIds.has(c.id)));
-                this.selectedCardIds.clear();
-                chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
-                    try {
-                        if (chrome.runtime?.lastError) {
-                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                            Logger.error('DataDashboard', `Error in bulk delete storage set: ${errorMessage}`, { error: chrome.runtime.lastError });
-                            return;
-                        }
-                        this.populateTagsFilter();
-                        this.populatePlatformFilter();
-                        this.updateBulkActionsBar();
-                        this.filterAndRender();
-                    } catch (callbackErr) {
-            UIUtils.catchError('DataDashboard', 'Error in bulk delete callback', callbackErr);
-        }
+            if (!confirm(`Are you sure you want to delete ${count} selected card(s)?`)) return;
+
+            const deletedCards: { card: Card; originalIndex: number }[] = [];
+            this.allCards.forEach((c, idx) => {
+                if (c.id && this.selectedCardIds.has(c.id)) {
+                    deletedCards.push({ card: c, originalIndex: idx });
+                }
+            });
+
+            this.allCards = this.allCards.filter(c => !c.id || !this.selectedCardIds.has(c.id));
+            this.selectedCardIds.clear();
+            this.updateBulkActionsBar();
+            this.filterAndRender();
+
+            chrome.storage.local.set({ fsrsCards: this.allCards });
+
+            this.showUndoToast(`Deleted ${count} card(s)`, () => {
+                deletedCards.sort((a, b) => a.originalIndex - b.originalIndex);
+                deletedCards.forEach(({ card, originalIndex }) => {
+                    this.allCards.splice(originalIndex, 0, card);
                 });
-            }
+                chrome.storage.local.set({ fsrsCards: this.allCards });
+                this.populateTagsFilter();
+                this.populatePlatformFilter();
+                this.filterAndRender();
+            });
         } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in bulkDelete', err);
+            UIUtils.catchError('DataDashboard', 'Error during bulk delete', err);
         }
     }
 
     /**
-     * Prompts the user for a new set of comma-delimited tags and applies them to all
-     * currently selected cards, replacing their existing tags.
-     * @fires chrome.storage.local.set
+     * Prompts the user for comma-separated tags and appends them to all selected cards.
      */
     bulkRetag(): void {
         try {
@@ -944,17 +1246,16 @@ export class FSRSDataDashboard {
                     this.updateBulkActionsBar();
                     this.filterAndRender();
                 } catch (callbackErr) {
-            UIUtils.catchError('DataDashboard', 'Error in bulk retag callback', callbackErr);
-        }
+                    UIUtils.catchError('DataDashboard', 'Error in bulk retag callback', callbackErr);
+                }
             });
         } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in bulkRetag', err);
+            UIUtils.catchError('DataDashboard', 'Error during bulk retag', err);
         }
     }
 
     /**
-     * Reschedules all currently selected cards to be due immediately (sets `due = Date.now()`).
-     * @fires chrome.storage.local.set
+     * Reschedules all selected cards to be due now upon confirmation.
      */
     bulkReschedule(): void {
         try {
@@ -980,8 +1281,8 @@ export class FSRSDataDashboard {
                         this.updateBulkActionsBar();
                         this.filterAndRender();
                     } catch (callbackErr) {
-            UIUtils.catchError('DataDashboard', 'Error in bulk reschedule callback', callbackErr);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error in bulk reschedule callback', callbackErr);
+                    }
                 });
             }
         } catch (err) {
@@ -990,19 +1291,21 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Binds click events to individual card row edit buttons, opening the modal editor for that card.
+     * Attaches click handlers to inline card edit buttons.
      */
     bindEditButtons(): void {
         try {
             document.querySelectorAll('.edit-card-btn').forEach(btn => {
                 btn.addEventListener('click', (e: Event) => {
                     try {
-                        e.stopPropagation();
-                        const cardId = (e.currentTarget as HTMLElement).getAttribute('data-id');
-                        if (cardId) this.openEditModal(cardId);
+                        const target = e.currentTarget as HTMLElement;
+                        const cardId = target.getAttribute('data-id');
+                        if (cardId) {
+                            this.openEditModal(cardId);
+                        }
                     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error in edit button click listener', err);
-        }
+                        UIUtils.catchError('DataDashboard', 'Error opening edit modal for card', err);
+                    }
                 });
             });
         } catch (err) {
@@ -1011,51 +1314,56 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Gathers and returns a sorted array of all unique tags present across stored cards.
-     * @returns Array of unique tag strings.
+     * Collects all unique tag strings present across the entire card database.
+     * @returns Sorted array of unique tag names.
      */
     getDatabaseTags(): string[] {
-        const tagsSet = new Set<string>();
-        (this.allCards || []).forEach((c: Card) => {
-            if (c.tags && Array.isArray(c.tags)) {
-                c.tags.forEach(t => tagsSet.add(t));
-            }
-        });
-        return Array.from(tagsSet).sort();
+        try {
+            const tags = new Set<string>();
+            this.allCards.forEach(c => {
+                if (c.tags && Array.isArray(c.tags)) {
+                    c.tags.forEach(t => tags.add(t));
+                }
+            });
+            return Array.from(tags).sort();
+        } catch (err) {
+            UIUtils.catchError('DataDashboard', 'Error getting database tags', err);
+            return [];
+        }
     }
 
     /**
-     * Opens the inline edit modal pre-populated with problem title, tag chips,
-     * approach notes, and time/space complexity fields for the specified card.
-     * @param cardId - Unique ID of the card to edit.
+     * Opens the inline card editor modal populated with the target card's data.
+     * @param cardId - Unique identifier of the card to edit.
      */
     openEditModal(cardId: string): void {
         try {
             const card = this.allCards.find(c => c.id === cardId);
             if (!card) return;
 
-            (document.getElementById('edit-card-id') as HTMLInputElement).value = cardId;
-            (document.getElementById('edit-title') as HTMLInputElement).value = card.problemTitle || '';
-            const editTagsInput = document.getElementById('edit-tags') as HTMLInputElement | null;
-            if (editTagsInput) {
-                TagInputControl.attach(editTagsInput, {
-                    getSuggestions: () => this.getDatabaseTags()
-                });
-                editTagsInput.value = (card.tags || []).join(', ');
-            }
-            (document.getElementById('edit-approach') as HTMLTextAreaElement).value = card.approach || '';
-            (document.getElementById('edit-time-complexity') as HTMLInputElement).value = card.timeComplexity || '';
-            (document.getElementById('edit-space-complexity') as HTMLInputElement).value = card.spaceComplexity || '';
-
             const overlay = document.getElementById('inline-edit-overlay');
+            const idInput = document.getElementById('edit-card-id') as HTMLInputElement | null;
+            const titleInput = document.getElementById('edit-title') as HTMLInputElement | null;
+            const tagsInput = document.getElementById('edit-tags') as HTMLInputElement | null;
+            const approachInput = document.getElementById('edit-approach') as HTMLTextAreaElement | null;
+            const tcInput = document.getElementById('edit-time-complexity') as HTMLInputElement | null;
+            const scInput = document.getElementById('edit-space-complexity') as HTMLInputElement | null;
+
+            if (idInput) idInput.value = card.id || '';
+            if (titleInput) titleInput.value = card.problemTitle || '';
+            if (tagsInput) tagsInput.value = (card.tags || []).join(', ');
+            if (approachInput) approachInput.value = card.approach || '';
+            if (tcInput) tcInput.value = card.timeComplexity || '';
+            if (scInput) scInput.value = card.spaceComplexity || '';
+
             if (overlay) overlay.style.display = 'flex';
         } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error opening edit modal', err, { cardId });
+            UIUtils.catchError('DataDashboard', 'Error opening edit modal', err);
         }
     }
 
     /**
-     * Hides the inline edit modal overlay without saving changes.
+     * Closes and hides the inline card editor modal overlay.
      */
     closeEditModal(): void {
         try {
@@ -1067,35 +1375,38 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Extracts values from the edit modal inputs, updates the target card in `allCards`,
-     * persists the modified cards collection to `chrome.storage.local`, and refreshes the view.
-     * @fires chrome.storage.local.set
+     * Saves user modifications made in the inline editor modal back to the in-memory card and storage.
      */
     saveCardEdit(): void {
         try {
-            const cardId = (document.getElementById('edit-card-id') as HTMLInputElement).value;
+            const idInput = document.getElementById('edit-card-id') as HTMLInputElement | null;
+            const titleInput = document.getElementById('edit-title') as HTMLInputElement | null;
+            const tagsInput = document.getElementById('edit-tags') as HTMLInputElement | null;
+            const approachInput = document.getElementById('edit-approach') as HTMLTextAreaElement | null;
+            const tcInput = document.getElementById('edit-time-complexity') as HTMLInputElement | null;
+            const scInput = document.getElementById('edit-space-complexity') as HTMLInputElement | null;
+
+            const cardId = idInput?.value;
+            if (!cardId) return;
+
             const card = this.allCards.find(c => c.id === cardId);
             if (!card) return;
 
-            card.problemTitle = (document.getElementById('edit-title') as HTMLInputElement).value.trim() || card.problemTitle;
-            card.tags = (document.getElementById('edit-tags') as HTMLInputElement).value.split(',').map(t => t.trim()).filter(t => t.length > 0);
-            card.approach = (document.getElementById('edit-approach') as HTMLTextAreaElement).value;
-            card.timeComplexity = (document.getElementById('edit-time-complexity') as HTMLInputElement).value.trim();
-            card.spaceComplexity = (document.getElementById('edit-space-complexity') as HTMLInputElement).value.trim();
+            if (titleInput) card.problemTitle = titleInput.value.trim() || card.problemTitle;
+            if (tagsInput) {
+                card.tags = tagsInput.value.split(',')
+                    .map(t => t.trim().toLowerCase())
+                    .filter(t => t.length > 0);
+            }
+            if (approachInput) card.approach = approachInput.value;
+            if (tcInput) card.timeComplexity = tcInput.value.trim();
+            if (scInput) card.spaceComplexity = scInput.value.trim();
 
             chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
-                try {
-                    if (chrome.runtime?.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('DataDashboard', `Error saving card edit to storage: ${errorMessage}`, { cardId, error: chrome.runtime.lastError });
-                        return;
-                    }
-                    this.closeEditModal();
-                    this.populateTagsFilter();
-                    this.filterAndRender();
-                } catch (callbackErr) {
-            UIUtils.catchError('DataDashboard', 'Error in save card edit callback', callbackErr, { cardId });
-        }
+                this.closeEditModal();
+                this.populateTagsFilter();
+                this.populatePlatformFilter();
+                this.filterAndRender();
             });
         } catch (err) {
             UIUtils.catchError('DataDashboard', 'Error saving card edit', err);
@@ -1103,99 +1414,83 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Renders analytical overview charts above the table, including card state breakdowns
-     * (New, Learning, Review, Lapsed) and top tag frequency distribution bars.
-     * @param cards - Collection of filtered cards to compute metrics for.
+     * Computes memory retention statistics, FSRS state distributions, and top tags,
+     * and renders visual distribution meters in the collapsible `#analytics-panel`.
+     * @param cards - Collection of cards to summarize.
      */
     renderAnalyticsPanel(cards: Card[]): void {
         try {
             const panel = document.getElementById('analytics-panel');
             if (!panel) return;
 
-            const showCharts = this.extensionSettings && this.extensionSettings.showCharts !== undefined
-                ? this.extensionSettings.showCharts
-                : true;
-
-            if (this.currentView !== 'total' || cards.length === 0 || !showCharts) {
-                panel.style.display = 'none';
+            const total = cards.length;
+            if (total === 0) {
+                panel.innerHTML = '<p class="analytics-empty">Add cards to view retention metrics.</p>';
                 return;
             }
 
-            panel.style.display = 'grid';
             panel.innerHTML = '';
 
-            let newCount = 0;
-            let learningCount = 0;
-            let reviewCount = 0;
-            let lapsedCount = 0;
-
-            cards.forEach((c: Card) => {
-                const reps = c.reps || 0;
-                const stability = c.stability || 0;
-                const lapses = c.lapses || 0;
-
-                if (lapses > 0) lapsedCount++;
-                else if (reps === 0) newCount++;
-                else if (reps > 0 && stability < 3) learningCount++;
-                else if (reps > 0 && stability >= 3) reviewCount++;
-            });
-
-            const total = cards.length;
-            const newPct = Math.round((newCount / total) * 100) || 0;
-            const learningPct = Math.round((learningCount / total) * 100) || 0;
-            const reviewPct = Math.round((reviewCount / total) * 100) || 0;
-            const lapsedPct = Math.round((lapsedCount / total) * 100) || 0;
-
+            const states = { New: 0, Learning: 0, Review: 0, Relearning: 0 };
             const tagCounts: Record<string, number> = {};
-            cards.forEach((c: Card) => {
-                if (c.tags && Array.isArray(c.tags)) {
-                    c.tags.forEach((t: string) => {
-                        tagCounts[t] = (tagCounts[t] || 0) + 1;
-                    });
-                }
+
+            cards.forEach(c => {
+                const state = c.state || 0;
+                if (state === 0) states.New++;
+                else if (state === 1) states.Learning++;
+                else if (state === 2) states.Review++;
+                else if (state === 3) states.Relearning++;
+
+                (c.tags || []).forEach(t => {
+                    tagCounts[t] = (tagCounts[t] || 0) + 1;
+                });
             });
-
-            const sortedTags = Object.entries(tagCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 4);
-
-            const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
 
             const stateCard = document.createElement('div');
             stateCard.className = 'analytics-card';
             stateCard.innerHTML = `
-                <h3 class="analytics-card-title">Card States Breakdown</h3>
-                <div class="stacked-bar">
-                    ${newCount > 0 ? `<div class="bar-segment seg-new" style="width: ${newPct}%;" title="New: ${newCount} cards (${newPct}%)"></div>` : ''}
-                    ${learningCount > 0 ? `<div class="bar-segment seg-learning" style="width: ${learningPct}%;" title="Learning: ${learningCount} cards (${learningPct}%)"></div>` : ''}
-                    ${reviewCount > 0 ? `<div class="bar-segment seg-review" style="width: ${reviewPct}%;" title="Review: ${reviewCount} cards (${reviewPct}%)"></div>` : ''}
-                    ${lapsedCount > 0 ? `<div class="bar-segment seg-lapsed" style="width: ${lapsedPct}%;" title="Lapsed: ${lapsedCount} cards (${lapsedPct}%)"></div>` : ''}
-                </div>
-                <div class="analytics-legend">
-                    <div class="legend-item"><span class="legend-dot dot-new"></span> New: <strong>${newCount}</strong> <span class="legend-pct">(${newPct}%)</span></div>
-                    <div class="legend-item"><span class="legend-dot dot-learning"></span> Learning: <strong>${learningCount}</strong> <span class="legend-pct">(${learningPct}%)</span></div>
-                    <div class="legend-item"><span class="legend-dot dot-review"></span> Review: <strong>${reviewCount}</strong> <span class="legend-pct">(${reviewPct}%)</span></div>
-                    <div class="legend-item"><span class="legend-dot dot-lapsed"></span> Lapsed: <strong>${lapsedCount}</strong> <span class="legend-pct">(${lapsedPct}%)</span></div>
+                <h3 class="analytics-card-title">FSRS Memory State Distribution</h3>
+                <div class="distribution-bars">
+                    <div class="dist-row">
+                        <span class="dist-label">Review (Mature)</span>
+                        <div class="dist-track"><div class="dist-fill fill-review" style="width: ${(states.Review / total * 100).toFixed(1)}%;"></div></div>
+                        <span class="dist-val">${states.Review}</span>
+                    </div>
+                    <div class="dist-row">
+                        <span class="dist-label">Learning</span>
+                        <div class="dist-track"><div class="dist-fill fill-learning" style="width: ${(states.Learning / total * 100).toFixed(1)}%;"></div></div>
+                        <span class="dist-val">${states.Learning}</span>
+                    </div>
+                    <div class="dist-row">
+                        <span class="dist-label">Relearning (Lapsed)</span>
+                        <div class="dist-track"><div class="dist-fill fill-relearning" style="width: ${(states.Relearning / total * 100).toFixed(1)}%;"></div></div>
+                        <span class="dist-val">${states.Relearning}</span>
+                    </div>
+                    <div class="dist-row">
+                        <span class="dist-label">New</span>
+                        <div class="dist-track"><div class="dist-fill fill-new" style="width: ${(states.New / total * 100).toFixed(1)}%;"></div></div>
+                        <span class="dist-val">${states.New}</span>
+                    </div>
                 </div>
             `;
 
             const tagsCard = document.createElement('div');
             tagsCard.className = 'analytics-card';
 
+            const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
             let tagsHtml = '';
+
             if (sortedTags.length === 0) {
-                tagsHtml = '<div class="empty-analytics-msg">No tags added yet.</div>';
+                tagsHtml = '<p class="text-subtle" style="font-size:12px; margin:0;">No tags assigned yet.</p>';
             } else {
-                tagsHtml = '<div class="tags-bars-container">';
+                tagsHtml = '<div class="distribution-bars">';
                 sortedTags.forEach(([tag, count]) => {
-                    const pct = Math.round((count / maxTagCount) * 100);
+                    const pct = (count / total * 100).toFixed(1);
                     tagsHtml += `
-                        <div class="tag-bar-row">
-                            <span class="tag-bar-name" title="${tag}">${tag}</span>
-                            <div class="tag-bar-track">
-                                <div class="tag-bar-fill" style="width: ${pct}%;"></div>
-                            </div>
-                            <span class="tag-bar-value">${count}</span>
+                        <div class="dist-row">
+                            <span class="dist-label">${tag}</span>
+                            <div class="dist-track"><div class="dist-fill fill-tag" style="width: ${pct}%;"></div></div>
+                            <span class="dist-val">${count}</span>
                         </div>
                     `;
                 });
@@ -1218,13 +1513,13 @@ export class FSRSDataDashboard {
 /**
  * Bootstrap entry function creating and initializing the data dashboard instance on DOM readiness.
  */
-function initDataDashboard(): void {
+export function initDataDashboard(): void {
     try {
         const dashboard = new FSRSDataDashboard();
         dashboard.init();
     } catch (err) {
-            UIUtils.catchError('DataDashboard', 'Error instantiating FSRSDataDashboard', err);
-        }
+        UIUtils.catchError('DataDashboard', 'Error instantiating FSRSDataDashboard', err);
+    }
 }
 
 if (typeof document !== 'undefined') {
@@ -1233,4 +1528,13 @@ if (typeof document !== 'undefined') {
     } else {
         initDataDashboard();
     }
+}
+
+// Augment CommonJS exports to preserve backward compatibility for tests and callers
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).FSRSDataDashboard = FSRSDataDashboard;
+    (module.exports as any).CardsTable = CardsTable;
+    (module.exports as any).CardsTableRow = CardsTableRow;
+    (module.exports as any).CardsTableEmptyState = CardsTableEmptyState;
+    (module.exports as any).BulkActionsBar = BulkActionsBar;
 }

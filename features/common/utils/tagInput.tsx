@@ -1,5 +1,5 @@
 /**
- * @file Interactive Chip-Based Tag Input Control with Autocomplete
+ * @file Interactive Chip-Based Tag Input Control with Autocomplete (Preact)
  * @module features/common/utils/tagInput
  * @context Shared across Content Script Review Overlays and Dashboard Edit Modals
  * @description Transforms standard HTML input elements into interactive chip tag lists
@@ -7,6 +7,7 @@
  * and bidirectional value synchronization with the underlying input element.
  */
 
+import { h, render, Fragment, JSX } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from './uiUtils';
 
@@ -20,6 +21,110 @@ export interface TagInputOptions {
     placeholder?: string;
     /** Callback triggered whenever tags are added or removed */
     onTagsChange?: (tags: string[]) => void;
+}
+
+/**
+ * Preact Component for rendering an individual tag chip.
+ */
+export function TagChip({
+    tag,
+    onRemove
+}: {
+    tag: string;
+    onRemove: () => void;
+}): JSX.Element {
+    return (
+        <span className="tag-chip">
+            <span className="tag-chip-text">{tag}</span>
+            <span
+                className="tag-chip-remove"
+                role="button"
+                aria-label={`Remove tag ${tag}`}
+                tabIndex={-1}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove();
+                }}
+            >
+                <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </span>
+        </span>
+    );
+}
+
+/**
+ * Preact Component for rendering the tag chips list.
+ */
+export function TagChipsList({
+    tags,
+    onRemove
+}: {
+    tags: string[];
+    onRemove: (index: number) => void;
+}): JSX.Element {
+    return (
+        <Fragment>
+            {tags.map((tag, idx) => (
+                <TagChip key={`${tag}-${idx}`} tag={tag} onRemove={() => onRemove(idx)} />
+            ))}
+        </Fragment>
+    );
+}
+
+/**
+ * Preact Component for rendering autocomplete suggestion list.
+ */
+export function TagSuggestionsList({
+    suggestions,
+    query,
+    highlightedIndex,
+    onHover,
+    onSelect
+}: {
+    suggestions: string[];
+    query: string;
+    highlightedIndex: number;
+    onHover: (index: number) => void;
+    onSelect: (suggestion: string) => void;
+}): JSX.Element {
+    return (
+        <Fragment>
+            {suggestions.map((suggestion, idx) => {
+                const matchPos = suggestion.toLowerCase().indexOf(query.toLowerCase());
+                let content: JSX.Element | string;
+                if (matchPos >= 0) {
+                    const before = suggestion.substring(0, matchPos);
+                    const match = suggestion.substring(matchPos, matchPos + query.length);
+                    const after = suggestion.substring(matchPos + query.length);
+                    content = (
+                        <Fragment>
+                            {before}
+                            <strong className="tag-match">{match}</strong>
+                            {after}
+                        </Fragment>
+                    );
+                } else {
+                    content = suggestion;
+                }
+                return (
+                    <div
+                        key={suggestion}
+                        className={`tag-suggestion-item ${idx === highlightedIndex ? 'highlighted' : ''}`}
+                        onMouseEnter={() => onHover(idx)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onSelect(suggestion);
+                        }}
+                    >
+                        {content}
+                    </div>
+                );
+            })}
+        </Fragment>
+    );
 }
 
 /**
@@ -70,16 +175,6 @@ export class TagInputControl {
     /**
      * Attaches a TagInputControl instance to a target input element, or retrieves
      * an existing instance if already attached.
-     * @param targetInput - The HTMLInputElement to convert into chip tags.
-     * @param options - Autocomplete and configuration options.
-     * @returns The active TagInputControl instance.
-     * @example
-     * ```ts
-     * const control = TagInputControl.attach(tagsInputElement, {
-     *     getSuggestions: () => ['Array', 'Dynamic Programming', 'Graph', 'Tree'],
-     *     onTagsChange: (tags) => console.log('Updated tags:', tags)
-     * });
-     * ```
      */
     public static attach(targetInput: HTMLInputElement, options: TagInputOptions = {}): TagInputControl {
         const existing = (targetInput as unknown as { __tagInputControl?: TagInputControl }).__tagInputControl;
@@ -221,33 +316,16 @@ export class TagInputControl {
     }
 
     /**
-     * Re-renders tag chip elements in the chips container.
+     * Re-renders tag chip elements via Preact.
      */
     private renderChips(): void {
-        this.chipsContainerEl.innerHTML = '';
-        this.tags.forEach((tag, index) => {
-            const chip = document.createElement('span');
-            chip.className = 'tag-chip';
-
-            const label = document.createElement('span');
-            label.className = 'tag-chip-text';
-            label.textContent = tag;
-
-            const removeBtn = document.createElement('span');
-            removeBtn.className = 'tag-chip-remove';
-            removeBtn.setAttribute('role', 'button');
-            removeBtn.setAttribute('aria-label', `Remove tag ${tag}`);
-            removeBtn.setAttribute('tabindex', '-1');
-            removeBtn.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-            removeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.removeTagAt(index);
-            });
-
-            chip.appendChild(label);
-            chip.appendChild(removeBtn);
-            this.chipsContainerEl.appendChild(chip);
-        });
+        render(
+            <TagChipsList
+                tags={this.tags}
+                onRemove={(index) => this.removeTagAt(index)}
+            />,
+            this.chipsContainerEl
+        );
 
         if (this.tags.length > 0) {
             this.inlineInputEl.placeholder = '';
@@ -367,7 +445,6 @@ export class TagInputControl {
 
     /**
      * Executes autocomplete query against `options.getSuggestions()` and displays matching dropdown.
-     * @async
      */
     private async triggerAutocomplete(): Promise<void> {
         const query = this.inlineInputEl.value.trim().toLowerCase();
@@ -400,38 +477,24 @@ export class TagInputControl {
     }
 
     /**
-     * Renders autocomplete suggestion items with matched text highlighting.
-     * @param query - Search substring being matched.
+     * Renders autocomplete suggestion items via Preact.
      */
     private renderDropdown(query: string): void {
-        this.dropdownEl.innerHTML = '';
-        this.suggestions.forEach((suggestion, idx) => {
-            const item = document.createElement('div');
-            item.className = `tag-suggestion-item ${idx === this.highlightedIndex ? 'highlighted' : ''}`;
-            
-            // Highlight matching portion
-            const matchPos = suggestion.toLowerCase().indexOf(query.toLowerCase());
-            if (matchPos >= 0) {
-                const before = suggestion.substring(0, matchPos);
-                const match = suggestion.substring(matchPos, matchPos + query.length);
-                const after = suggestion.substring(matchPos + query.length);
-                item.innerHTML = `${this.escapeHtml(before)}<strong class="tag-match">${this.escapeHtml(match)}</strong>${this.escapeHtml(after)}`;
-            } else {
-                item.textContent = suggestion;
-            }
-
-            item.addEventListener('mouseenter', () => {
-                this.highlightedIndex = idx;
-                this.updateDropdownHighlight();
-            });
-
-            item.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.addTag(suggestion);
-            });
-
-            this.dropdownEl.appendChild(item);
-        });
+        render(
+            <TagSuggestionsList
+                suggestions={this.suggestions}
+                query={query}
+                highlightedIndex={this.highlightedIndex}
+                onHover={(idx) => {
+                    this.highlightedIndex = idx;
+                    this.updateDropdownHighlight();
+                }}
+                onSelect={(suggestion) => {
+                    this.addTag(suggestion);
+                }}
+            />,
+            this.dropdownEl
+        );
 
         this.dropdownEl.style.display = 'block';
         this.isOpen = true;
@@ -453,7 +516,6 @@ export class TagInputControl {
 
     /**
      * Moves highlighted suggestion index up or down by step.
-     * @param dir - Direction step (+1 or -1).
      */
     private navigateDropdown(dir: number): void {
         if (!this.isOpen || this.suggestions.length === 0) return;
@@ -466,18 +528,10 @@ export class TagInputControl {
      */
     private closeDropdown(): void {
         this.dropdownEl.style.display = 'none';
-        this.dropdownEl.innerHTML = '';
+        render(null, this.dropdownEl);
         this.isOpen = false;
         this.highlightedIndex = -1;
         this.suggestions = [];
     }
-
-    /**
-     * Escapes HTML characters in text for safe string interpolation.
-     * @param str - Input string.
-     * @returns Escaped HTML string.
-     */
-    private escapeHtml(str: string): string {
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
 }
+

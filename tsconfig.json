@@ -19,6 +19,8 @@
     "strictNullChecks": true,
     "noImplicitThis": true,
     "baseUrl": ".",
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "paths": {
       "@common/*": [
         "features/common/*"
@@ -33,7 +35,9 @@
   },
   "include": [
     "**/*.ts",
-    "**/*.js"
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx"
   ],
   "exclude": [
     "node_modules",

@@ -1,8 +1,9 @@
 /**
- * @file features/highlighter/highlighter.ts
+ * @file features/highlighter/highlighter.tsx
  * @description In-page text selection highlighter, floating tooltip UI, and CSS Custom Highlights API manager.
  * Detects user text selections, displays anchored color swatch tooltips, manages note annotations,
  * links highlights to flashcard problem approaches, and restores highlight ranges across page sessions.
+ * Migrated to Preact with TypeScript for modular, accessible tooltip UI rendering.
  * 
  * Context: Content script environment (injected into target web pages within the extension context).
  * 
@@ -11,8 +12,16 @@
  * - `HighlighterUtils`: Helper utilities interface for DOM range serialization and title extraction.
  * - `ApproachDraft`: Draft notes interface for uncommitted problem approaches.
  * - `Highlighter`: Main highlighter controller class managing DOM marks, tooltips, and storage persistence.
+ * - `HighlighterTypeSelector`: Preact component for annotation type selection.
+ * - `HighlighterSwatches`: Preact component for palette swatches and default color selection.
+ * - `HighlighterColorPicker`: Preact component for native custom color picker.
+ * - `HighlighterDeleteButton`: Preact component for highlight deletion.
+ * - `HighlighterNotesSection`: Preact component for category and note annotations.
+ * - `HighlighterTooltipView`: Preact container component for the floating highlighter tooltip.
  */
 
+import { h, Fragment, render, ComponentChildren, VNode } from 'preact';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { HighlightMark, DOMMeta, ExtensionSettings, BookmarkItem, Card } from '../../types/domain';
 import { DEFAULT_EXTENSION_SETTINGS, DEFAULT_PALETTES, DEFAULT_HIGHLIGHT_COLOR } from '../common/constants';
@@ -74,6 +83,416 @@ export interface ApproachDraft {
     [key: string]: unknown;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface HighlighterTypeSelectorProps {
+    activeType?: string;
+    onSelectType: (type: string) => void;
+}
+
+/**
+ * Preact component for annotation type selection ('highlight' vs 'underline').
+ */
+export function HighlighterTypeSelector({ activeType = 'highlight', onSelectType }: HighlighterTypeSelectorProps): VNode {
+    const [currentType, setCurrentType] = useState<string>(activeType);
+
+    const handleSelect = (t: string, e: Event) => {
+        setCurrentType(t);
+        const target = e.currentTarget as HTMLElement | null;
+        const container = target?.closest('.algo-type-selector');
+        if (container) {
+            const btns = container.querySelectorAll('.algo-type-btn');
+            btns.forEach((btn) => {
+                const isMatch = (btn.textContent || '').trim().toLowerCase() === t.toLowerCase();
+                btn.setAttribute('aria-checked', isMatch.toString());
+                btn.setAttribute('tabindex', isMatch ? '0' : '-1');
+                (btn as HTMLElement).style.background = isMatch ? 'var(--w-primary-container, #3498db)' : 'var(--w-bg-dark, #333)';
+                (btn as HTMLElement).style.color = isMatch ? 'var(--w-on-primary-container, #fff)' : 'var(--w-text-med, #ccc)';
+            });
+        }
+        onSelectType(t);
+    };
+
+    const types = ['highlight', 'underline'];
+
+    return (
+        <div
+            className="algo-type-selector"
+            role="radiogroup"
+            aria-label="Highlight Type"
+            style={{
+                display: 'flex',
+                width: '100%',
+                marginBottom: '12px',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                border: '1px solid var(--w-border, #444)'
+            }}
+        >
+            {types.map((t) => {
+                const isActive = t === currentType;
+                return (
+                    <button
+                        key={t}
+                        type="button"
+                        className="algo-type-btn"
+                        role="radio"
+                        aria-checked={isActive ? 'true' : 'false'}
+                        tabIndex={isActive ? 0 : -1}
+                        style={{
+                            flex: '1',
+                            padding: '8px 0',
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            border: 'none',
+                            outline: 'none',
+                            background: isActive ? 'var(--w-primary-container, #3498db)' : 'var(--w-bg-dark, #333)',
+                            color: isActive ? 'var(--w-on-primary-container, #fff)' : 'var(--w-text-med, #ccc)'
+                        }}
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleSelect(t, e);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleSelect(t, e);
+                            }
+                        }}
+                    >
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+export interface HighlighterSwatchesProps {
+    paletteColors: string[];
+    defaultHighlightColor: string;
+    currentColor: string | null;
+    onSelectColor: (color: string) => void;
+}
+
+/**
+ * Preact component for color swatches, including the default color swatch.
+ */
+export function HighlighterSwatches({
+    paletteColors,
+    defaultHighlightColor,
+    currentColor,
+    onSelectColor
+}: HighlighterSwatchesProps): VNode {
+    const handleSwatchKeyDown = (e: KeyboardEvent, color: string) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectColor(color);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            const next = (e.currentTarget as HTMLElement).nextElementSibling as HTMLElement | null;
+            if (next && typeof next.focus === 'function') next.focus();
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            const prev = (e.currentTarget as HTMLElement).previousElementSibling as HTMLElement | null;
+            if (prev && typeof prev.focus === 'function') prev.focus();
+        }
+    };
+
+    return (
+        <Fragment>
+            {paletteColors.map((color) => {
+                const isActive = color === currentColor;
+                return (
+                    <div
+                        key={color}
+                        className={`algo-color-swatch ${isActive ? 'active' : ''}`}
+                        role="button"
+                        aria-label={`Highlight with color ${color}`}
+                        title={`Color: ${color}`}
+                        tabIndex={0}
+                        style={{ background: color }}
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            onSelectColor(color);
+                        }}
+                        onKeyDown={(e) => handleSwatchKeyDown(e as unknown as KeyboardEvent, color)}
+                    />
+                );
+            })}
+
+            {/* Default Highlight Color Swatch */}
+            <div
+                className={`algo-color-swatch algo-default-swatch ${defaultHighlightColor === currentColor ? 'active' : ''}`}
+                id="algo-default-color-swatch"
+                role="button"
+                aria-label={`Highlight with default color ${defaultHighlightColor}`}
+                title={`Default Color: ${defaultHighlightColor}`}
+                tabIndex={0}
+                data-default-color={defaultHighlightColor}
+                style={{ background: defaultHighlightColor }}
+                onMouseDown={(e) => {
+                    e.preventDefault();
+                    onSelectColor(defaultHighlightColor);
+                }}
+                onKeyDown={(e) => handleSwatchKeyDown(e as unknown as KeyboardEvent, defaultHighlightColor)}
+            />
+        </Fragment>
+    );
+}
+
+export interface HighlighterColorPickerProps {
+    currentColor: string | null;
+    defaultHighlightColor: string;
+    onColorInput: (color: string) => void;
+    onColorChange: (color: string) => void;
+    onCacheSelection: () => void;
+    onBlur: () => void;
+}
+
+/**
+ * Preact component for the custom HTML color picker input.
+ */
+export function HighlighterColorPicker({
+    currentColor,
+    defaultHighlightColor,
+    onColorInput,
+    onColorChange,
+    onCacheSelection,
+    onBlur
+}: HighlighterColorPickerProps): VNode {
+    const pickerRef = useRef<HTMLInputElement>(null);
+    const initialValue = currentColor || defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
+    const [pickerVal, setPickerVal] = useState<string>(initialValue);
+
+    const handlePointerDown = (e: MouseEvent | PointerEvent) => {
+        e.stopPropagation();
+        onCacheSelection();
+    };
+
+    return (
+        <input
+            ref={pickerRef}
+            type="color"
+            id="algo-color-picker"
+            aria-label="Custom highlight color"
+            title="Custom Color Picker"
+            value={pickerVal}
+            onPointerDown={handlePointerDown}
+            onMouseDown={handlePointerDown}
+            onClick={handlePointerDown}
+            onPointerUp={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+            onInput={(e) => {
+                const newColor = (e.target as HTMLInputElement).value;
+                setPickerVal(newColor);
+                onColorInput(newColor);
+            }}
+            onChange={(e) => {
+                const newColor = (e.target as HTMLInputElement).value;
+                onColorChange(newColor);
+            }}
+            onBlur={() => {
+                onBlur();
+            }}
+        />
+    );
+}
+
+export interface HighlighterDeleteButtonProps {
+    onDelete: () => void;
+}
+
+/**
+ * Preact component for deleting an existing highlight annotation.
+ */
+export function HighlighterDeleteButton({ onDelete }: HighlighterDeleteButtonProps): VNode {
+    return (
+        <div
+            className="algo-delete-btn"
+            role="button"
+            aria-label="Delete Highlight"
+            tabIndex={0}
+            onMouseDown={(e) => {
+                e.preventDefault();
+                onDelete();
+            }}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onDelete();
+                }
+            }}
+        >
+            <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }}>
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+            </svg>
+        </div>
+    );
+}
+
+export interface HighlighterNotesSectionProps {
+    mark: HighlightMark | undefined;
+    onSaveCategory: (category: string) => void;
+    onSaveNote: (note: string) => void;
+    onLinkCard: () => void;
+}
+
+/**
+ * Preact component for category selection, text note annotation, and card linking.
+ */
+export function HighlighterNotesSection({
+    mark,
+    onSaveCategory,
+    onSaveNote,
+    onLinkCard
+}: HighlighterNotesSectionProps): VNode {
+    const linkBtnRef = useRef<HTMLButtonElement>(null);
+    const categories = ['', 'Key Insight', 'Gotcha', 'Edge Case', 'Pattern'];
+
+    const handleLinkClick = () => {
+        onLinkCard();
+        const btn = linkBtnRef.current;
+        if (btn) {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '✓';
+            btn.style.color = '#2ecc71';
+            setTimeout(() => {
+                try {
+                    btn.innerHTML = originalHtml;
+                    btn.style.color = '';
+                } catch {
+                    // Ignore reset error
+                }
+            }, 1500);
+        }
+    };
+
+    return (
+        <div className="algo-note-section">
+            <select
+                className="algo-category-select"
+                value={mark?.category || ''}
+                onChange={(e) => onSaveCategory((e.target as HTMLSelectElement).value)}
+            >
+                {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                        {cat || 'No Category'}
+                    </option>
+                ))}
+            </select>
+
+            <input
+                type="text"
+                className="algo-note-input"
+                placeholder="Add note..."
+                value={mark?.note || ''}
+                maxLength={200}
+                onInput={(e) => onSaveNote((e.target as HTMLInputElement).value)}
+            />
+
+            <button
+                ref={linkBtnRef}
+                type="button"
+                className="algo-link-btn"
+                title="Link Highlight to Card"
+                aria-label="Link Highlight to Card"
+                onClick={handleLinkClick}
+            >
+                <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }}>
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+            </button>
+        </div>
+    );
+}
+
+export interface HighlighterTooltipViewProps {
+    existingMarkId: string | null;
+    currentColor: string | null;
+    activeType: string;
+    paletteColors: string[];
+    defaultHighlightColor: string;
+    mark: HighlightMark | undefined;
+    onSelectType: (type: string) => void;
+    onSelectColor: (color: string) => void;
+    onColorInput: (color: string) => void;
+    onColorChange: (color: string) => void;
+    onColorBlur: () => void;
+    onCacheSelection: () => void;
+    onDelete: () => void;
+    onSaveCategory: (category: string) => void;
+    onSaveNote: (note: string) => void;
+    onLinkCard: () => void;
+}
+
+/**
+ * Preact container view rendering all sub-components inside the floating tooltip.
+ */
+export function HighlighterTooltipView(props: HighlighterTooltipViewProps): VNode {
+    return (
+        <Fragment>
+            {!props.existingMarkId && (
+                <HighlighterTypeSelector
+                    activeType={props.activeType}
+                    onSelectType={props.onSelectType}
+                />
+            )}
+
+            <div
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    flexWrap: 'wrap'
+                }}
+            >
+                <HighlighterSwatches
+                    paletteColors={props.paletteColors}
+                    defaultHighlightColor={props.defaultHighlightColor}
+                    currentColor={props.currentColor}
+                    onSelectColor={props.onSelectColor}
+                />
+
+                <HighlighterColorPicker
+                    currentColor={props.currentColor}
+                    defaultHighlightColor={props.defaultHighlightColor}
+                    onColorInput={props.onColorInput}
+                    onColorChange={props.onColorChange}
+                    onCacheSelection={props.onCacheSelection}
+                    onBlur={props.onColorBlur}
+                />
+
+                {props.existingMarkId && (
+                    <Fragment>
+                        <div className="algo-tooltip-divider" />
+                        <HighlighterDeleteButton onDelete={props.onDelete} />
+                    </Fragment>
+                )}
+            </div>
+
+            {props.existingMarkId && (
+                <HighlighterNotesSection
+                    mark={props.mark}
+                    onSaveCategory={props.onSaveCategory}
+                    onSaveNote={props.onSaveNote}
+                    onLinkCard={props.onLinkCard}
+                />
+            )}
+        </Fragment>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HIGHLIGHTER CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Controller for in-page text selection highlights, floating action tooltips, and CSS Custom Highlights.
  */
@@ -84,6 +503,8 @@ export class Highlighter {
     utils: HighlighterUtils;
     /** Flag tracking whether document pointer and keyboard listeners have been bound. */
     isHighlighterListenersBound: boolean = false;
+    /** Active annotation type ('highlight' or 'underline') for new marks. */
+    activeType: string = 'highlight';
 
     /**
      * Initializes the highlighter controller, attaching to `window.AlgoRecall.state` if available.
@@ -158,7 +579,6 @@ export class Highlighter {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error creating highlighter UI: ${errorMessage}`, { err });
-            // Comment: Catch UI creation error gracefully
         }
     }
 
@@ -170,7 +590,10 @@ export class Highlighter {
     removeHighlighterUI(): void {
         try {
             const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (tooltip) tooltip.remove();
+            if (tooltip) {
+                render(null, tooltip);
+                tooltip.remove();
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error removing highlighter UI: ${errorMessage}`, { err });
@@ -334,7 +757,6 @@ export class Highlighter {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error binding events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event listener binding error
         }
     }
 
@@ -440,84 +862,6 @@ export class Highlighter {
             if (this.state.isColorPickerOpen) return;
             const tooltip = document.getElementById('algo-highlight-tooltip');
             if (!tooltip) return;
-            tooltip.innerHTML = '';
-
-            let activeType = 'highlight';
-
-            // 1. Add Type Selector for New Annotations
-            if (!existingMarkId) {
-                const typeContainer = document.createElement('div');
-                typeContainer.className = 'algo-type-selector';
-                typeContainer.style.display = 'flex';
-                typeContainer.style.width = '100%';
-                typeContainer.style.marginBottom = '12px';
-                typeContainer.style.borderRadius = '8px';
-                typeContainer.style.overflow = 'hidden';
-                typeContainer.style.border = '1px solid var(--w-border, #444)';
-                typeContainer.setAttribute('role', 'radiogroup');
-                typeContainer.setAttribute('aria-label', 'Highlight Type');
-
-                const types = ['highlight', 'underline'];
-                const typeBtns: Record<string, HTMLButtonElement> = {};
-
-                types.forEach((t) => {
-                    const btn = document.createElement('button');
-                    btn.textContent = t.charAt(0).toUpperCase() + t.slice(1);
-                    btn.className = 'algo-type-btn';
-                    btn.style.flex = '1';
-                    btn.style.padding = '8px 0';
-                    btn.style.fontSize = '12px';
-                    btn.style.fontWeight = '500';
-                    btn.style.cursor = 'pointer';
-                    btn.style.border = 'none';
-                    btn.style.outline = 'none';
-
-                    const isActive = t === 'highlight';
-                    btn.style.background = isActive ? 'var(--w-primary-container, #3498db)' : 'var(--w-bg-dark, #333)';
-                    btn.style.color = isActive ? 'var(--w-on-primary-container, #fff)' : 'var(--w-text-med, #ccc)';
-
-                    btn.setAttribute('role', 'radio');
-                    btn.setAttribute('aria-checked', isActive.toString());
-                    btn.setAttribute('tabindex', isActive ? '0' : '-1');
-
-                    const setActiveType = (typeVal: string) => {
-                        activeType = typeVal;
-                        types.forEach((type) => {
-                            const isBtnActive = type === typeVal;
-                            if (typeBtns[type]) {
-                                typeBtns[type].style.background = isBtnActive ? 'var(--w-primary-container, #3498db)' : 'var(--w-bg-dark, #333)';
-                                typeBtns[type].style.color = isBtnActive ? 'var(--w-on-primary-container, #fff)' : 'var(--w-text-med, #ccc)';
-                                typeBtns[type].setAttribute('aria-checked', isBtnActive.toString());
-                                typeBtns[type].setAttribute('tabindex', isBtnActive ? '0' : '-1');
-                            }
-                        });
-                    };
-
-                    btn.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setActiveType(t);
-                    });
-
-                    btn.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setActiveType(t);
-                        }
-                    });
-                    typeBtns[t] = btn;
-                    typeContainer.appendChild(btn);
-                });
-                tooltip.appendChild(typeContainer);
-            }
-
-            // 2. Swatches and Input Controls Container
-            const actionsContainer = document.createElement('div');
-            actionsContainer.style.display = 'flex';
-            actionsContainer.style.alignItems = 'center';
-            actionsContainer.style.gap = '8px';
-            actionsContainer.style.width = '100%';
-            actionsContainer.style.flexWrap = 'wrap';
 
             const activeIndex = this.state.extensionSettings?.activePaletteIndex || 0;
             const activePalette = (this.state.extensionSettings?.palettes && this.state.extensionSettings.palettes.length > activeIndex)
@@ -525,148 +869,32 @@ export class Highlighter {
                 : { colors: DEFAULT_PALETTES[0].colors };
 
             const paletteColors = activePalette.colors || [];
-
-            paletteColors.forEach((color: string) => {
-                const swatch = document.createElement('div');
-                swatch.className = 'algo-color-swatch';
-                swatch.style.background = color;
-                swatch.title = `Color: ${color}`;
-                swatch.setAttribute('role', 'button');
-                swatch.setAttribute('aria-label', `Highlight with color ${color}`);
-                swatch.setAttribute('tabindex', '0');
-
-                if (color === currentColor) {
-                    swatch.classList.add('active');
-                }
-
-                const handleSwatchClick = () => {
-                    try {
-                        if (existingMarkId) this.updateHighlightColor(existingMarkId, color);
-                        else this.saveHighlight(color, activeType);
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Highlighter', `Error handling swatch click for ${color}: ${errorMessage}`, { color, err });
-                    }
-                };
-
-                swatch.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    handleSwatchClick();
-                });
-
-                swatch.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleSwatchClick();
-                    } else if (e.key === 'ArrowRight') {
-                        e.preventDefault();
-                        const next = swatch.nextElementSibling as HTMLElement | null;
-                        if (next && typeof next.focus === 'function') next.focus();
-                    } else if (e.key === 'ArrowLeft') {
-                        e.preventDefault();
-                        const prev = swatch.previousElementSibling as HTMLElement | null;
-                        if (prev && typeof prev.focus === 'function') prev.focus();
-                    }
-                });
-                actionsContainer.appendChild(swatch);
-            });
-
-            // Default Highlight Color Swatch (towards the end of all swatches)
             const defaultHighlightColor = this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
-            const defaultSwatch = document.createElement('div');
-            defaultSwatch.className = 'algo-color-swatch algo-default-swatch';
-            defaultSwatch.id = 'algo-default-color-swatch';
-            defaultSwatch.style.background = defaultHighlightColor;
-            defaultSwatch.title = `Default Color: ${defaultHighlightColor}`;
-            defaultSwatch.setAttribute('role', 'button');
-            defaultSwatch.setAttribute('aria-label', `Highlight with default color ${defaultHighlightColor}`);
-            defaultSwatch.setAttribute('tabindex', '0');
-            defaultSwatch.setAttribute('data-default-color', defaultHighlightColor);
 
-            if (defaultHighlightColor === currentColor) {
-                defaultSwatch.classList.add('active');
-            }
+            const existingMark = existingMarkId
+                ? this.state.marks.find((m: HighlightMark) => (m.id || m.createdAt.toString()) === existingMarkId)
+                : undefined;
 
-            const handleDefaultSwatchClick = () => {
+            const handleSelectType = (typeVal: string) => {
+                this.activeType = typeVal;
+            };
+
+            const handleSelectColor = (color: string) => {
                 try {
-                    if (existingMarkId) this.updateHighlightColor(existingMarkId, defaultHighlightColor);
-                    else this.saveHighlight(defaultHighlightColor, activeType);
+                    if (existingMarkId) {
+                        this.updateHighlightColor(existingMarkId, color);
+                    } else {
+                        this.saveHighlight(color, this.activeType);
+                    }
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Highlighter', `Error handling default swatch click for ${defaultHighlightColor}: ${errorMessage}`, { defaultHighlightColor, err });
+                    Logger.error('Highlighter', `Error handling select color ${color}: ${errorMessage}`, { color, err });
                 }
             };
 
-            defaultSwatch.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                handleDefaultSwatchClick();
-            });
-
-            defaultSwatch.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleDefaultSwatchClick();
-                } else if (e.key === 'ArrowRight') {
-                    e.preventDefault();
-                    const next = defaultSwatch.nextElementSibling as HTMLElement | null;
-                    if (next && typeof next.focus === 'function') next.focus();
-                } else if (e.key === 'ArrowLeft') {
-                    e.preventDefault();
-                    const prev = defaultSwatch.previousElementSibling as HTMLElement | null;
-                    if (prev && typeof prev.focus === 'function') prev.focus();
-                }
-            });
-            actionsContainer.appendChild(defaultSwatch);
-
-            // 3. Custom Color Picker
-            const picker = document.createElement('input');
-            picker.type = 'color';
-            picker.id = 'algo-color-picker';
-            picker.setAttribute('aria-label', 'Custom highlight color');
-            picker.title = 'Custom Color Picker';
-            const defaultPickerValue = currentColor || this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
-            picker.value = defaultPickerValue;
-
-            const cacheSelection = () => {
-                const selection = window.getSelection();
-                if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
-                    this.state.savedRange = selection.getRangeAt(0).cloneRange();
-                }
-                this.state.isColorPickerOpen = true;
-                if (tooltip) tooltip.setAttribute('data-picker-open', 'true');
-                if (this.state.hideTooltipTimer) {
-                    clearTimeout(this.state.hideTooltipTimer);
-                    this.state.hideTooltipTimer = null;
-                }
-            };
-
-            picker.addEventListener('pointerdown', (e) => {
-                e.stopPropagation();
-                cacheSelection();
-            });
-
-            picker.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                cacheSelection();
-            });
-
-            picker.addEventListener('click', (e) => {
-                e.stopPropagation();
-                cacheSelection();
-            });
-
-            picker.addEventListener('pointerup', (e) => {
-                e.stopPropagation();
-            });
-
-            picker.addEventListener('mouseup', (e) => {
-                e.stopPropagation();
-            });
-
-            picker.addEventListener('input', (e: Event) => {
+            const handleColorInput = (newColor: string) => {
                 try {
-                    const newColor = (e.target as HTMLInputElement).value;
-
+                    const defaultSwatch = tooltip.querySelector('#algo-default-color-swatch') as HTMLElement | null;
                     if (defaultSwatch) {
                         defaultSwatch.style.background = newColor;
                         defaultSwatch.title = `Default Color: ${newColor}`;
@@ -680,15 +908,15 @@ export class Highlighter {
                     } else if (this.state.activeCreationMarkId) {
                         this.updateHighlightColor(this.state.activeCreationMarkId, newColor);
                     } else {
-                        this.saveHighlight(newColor, activeType);
+                        this.saveHighlight(newColor, this.activeType);
                     }
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Highlighter', `Error in custom color picker input: ${errorMessage}`, { err });
                 }
-            });
+            };
 
-            picker.addEventListener('change', () => {
+            const handleColorChange = (newColor: string) => {
                 try {
                     setTimeout(() => {
                         this.state.isColorPickerOpen = false;
@@ -700,17 +928,31 @@ export class Highlighter {
                             const selection = window.getSelection();
                             if (selection) selection.removeAllRanges();
                         } else {
-                            this.renderTooltipColors(existingMarkId, picker.value);
+                            this.renderTooltipColors(existingMarkId, newColor);
                         }
                     }, 50);
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Highlighter', `Error in picker change handler: ${errorMessage}`, { err });
                 }
-            });
+            };
 
-            picker.addEventListener('blur', () => {
+            const handleCacheSelection = () => {
+                const selection = window.getSelection();
+                if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+                    this.state.savedRange = selection.getRangeAt(0).cloneRange();
+                }
+                this.state.isColorPickerOpen = true;
+                if (tooltip) tooltip.setAttribute('data-picker-open', 'true');
+                if (this.state.hideTooltipTimer) {
+                    clearTimeout(this.state.hideTooltipTimer);
+                    this.state.hideTooltipTimer = null;
+                }
+            };
+
+            const handleColorBlur = () => {
                 setTimeout(() => {
+                    const picker = tooltip.querySelector('#algo-color-picker');
                     if (document.activeElement !== picker) {
                         this.state.isColorPickerOpen = false;
                         if (tooltip) tooltip.removeAttribute('data-picker-open');
@@ -718,124 +960,57 @@ export class Highlighter {
                         this.state.activeCreationMarkId = null;
                     }
                 }, 250);
-            });
+            };
 
-            actionsContainer.appendChild(picker);
-
-            // 4. Delete Button (when editing existing highlight)
-            if (existingMarkId) {
-                const divider = document.createElement('div');
-                divider.className = 'algo-tooltip-divider';
-                actionsContainer.appendChild(divider);
-
-                const deleteBtn = document.createElement('div');
-                deleteBtn.className = 'algo-delete-btn';
-                deleteBtn.setAttribute('role', 'button');
-                deleteBtn.setAttribute('aria-label', 'Delete Highlight');
-                deleteBtn.setAttribute('tabindex', '0');
-                deleteBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path></svg>`;
-
-                const handleDelete = () => {
-                    try {
+            const handleDelete = () => {
+                try {
+                    if (existingMarkId) {
                         this.deleteHighlight(existingMarkId);
                         this.renderTooltipColors();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Highlighter', `Error handling delete button click: ${errorMessage}`, { existingMarkId, err });
                     }
-                };
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('Highlighter', `Error handling delete button click: ${errorMessage}`, { existingMarkId, err });
+                }
+            };
 
-                deleteBtn.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    handleDelete();
-                });
+            const handleSaveCategory = (category: string) => {
+                if (existingMarkId) this.saveMarkCategory(existingMarkId, category);
+            };
 
-                deleteBtn.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleDelete();
-                    }
-                });
-                actionsContainer.appendChild(deleteBtn);
-            }
+            const handleSaveNote = (noteText: string) => {
+                if (existingMarkId) this.saveMarkNote(existingMarkId, noteText);
+            };
 
-            tooltip.appendChild(actionsContainer);
+            const handleLinkCard = () => {
+                if (existingMarkId) this.linkHighlightToCard(existingMarkId);
+            };
 
-            // 5. Notes & Category Section (when editing existing mark)
-            if (existingMarkId) {
-                const existingMark = this.state.marks.find((m: HighlightMark) => (m.id || m.createdAt.toString()) === existingMarkId);
-                const noteSection = document.createElement('div');
-                noteSection.className = 'algo-note-section';
-
-                const categorySelect = document.createElement('select');
-                categorySelect.className = 'algo-category-select';
-                const categories = ['', 'Key Insight', 'Gotcha', 'Edge Case', 'Pattern'];
-                categories.forEach((cat) => {
-                    const opt = document.createElement('option');
-                    opt.value = cat;
-                    opt.textContent = cat || 'No Category';
-                    categorySelect.appendChild(opt);
-                });
-                categorySelect.value = existingMark?.category || '';
-                categorySelect.addEventListener('change', (e: Event) => {
-                    try {
-                        this.saveMarkCategory(existingMarkId, (e.target as HTMLSelectElement).value);
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Highlighter', `Error in category select change listener: ${errorMessage}`, { err });
-                    }
-                });
-                noteSection.appendChild(categorySelect);
-
-                const noteInput = document.createElement('input');
-                noteInput.type = 'text';
-                noteInput.className = 'algo-note-input';
-                noteInput.placeholder = 'Add note...';
-                noteInput.value = existingMark?.note || '';
-                noteInput.maxLength = 200;
-                noteInput.addEventListener('input', (e: Event) => {
-                    try {
-                        this.saveMarkNote(existingMarkId, (e.target as HTMLInputElement).value);
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Highlighter', `Error in note input listener: ${errorMessage}`, { err });
-                    }
-                });
-                noteSection.appendChild(noteInput);
-
-                const linkBtn = document.createElement('button');
-                linkBtn.className = 'algo-link-btn';
-                linkBtn.title = 'Link Highlight to Card';
-                linkBtn.setAttribute('aria-label', 'Link Highlight to Card');
-                linkBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
-                linkBtn.addEventListener('click', () => {
-                    try {
-                        this.linkHighlightToCard(existingMarkId);
-                        const originalHtml = linkBtn.innerHTML;
-                        linkBtn.innerHTML = '✓';
-                        linkBtn.style.color = '#2ecc71';
-                        setTimeout(() => {
-                            try {
-                                linkBtn.innerHTML = originalHtml;
-                                linkBtn.style.color = '';
-                            } catch (resetErr) {
-                                const errorMessage = resetErr instanceof Error ? resetErr.message : String(resetErr);
-                                Logger.error('Highlighter', `Error resetting link button HTML: ${errorMessage}`, { resetErr });
-                            }
-                        }, 1500);
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Highlighter', `Error in link button click listener: ${errorMessage}`, { err });
-                    }
-                });
-                noteSection.appendChild(linkBtn);
-
-                tooltip.appendChild(noteSection);
-            }
+            // Mount Preact Component inside the tooltip DOM element
+            render(
+                <HighlighterTooltipView
+                    existingMarkId={existingMarkId}
+                    currentColor={currentColor}
+                    activeType={this.activeType}
+                    paletteColors={paletteColors}
+                    defaultHighlightColor={defaultHighlightColor}
+                    mark={existingMark}
+                    onSelectType={handleSelectType}
+                    onSelectColor={handleSelectColor}
+                    onColorInput={handleColorInput}
+                    onColorChange={handleColorChange}
+                    onColorBlur={handleColorBlur}
+                    onCacheSelection={handleCacheSelection}
+                    onDelete={handleDelete}
+                    onSaveCategory={handleSaveCategory}
+                    onSaveNote={handleSaveNote}
+                    onLinkCard={handleLinkCard}
+                />,
+                tooltip
+            );
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error rendering tooltip colors: ${errorMessage}`, { existingMarkId, currentColor, err });
-            // Comment: Non-fatal tooltip render catch
         }
     }
 
@@ -1118,7 +1293,6 @@ export class Highlighter {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Failed saving highlight: ${errorMessage}`, { color, type, err });
-            // Comment: Non-fatal highlight saving catch, host page interaction continues
         }
     }
 
@@ -1169,7 +1343,6 @@ export class Highlighter {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error deleting highlight ${markId}: ${errorMessage}`, { markId, err });
-            // Comment: Catch highlight deletion error gracefully
         }
     }
 
@@ -1270,4 +1443,15 @@ try {
 } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     Logger.error('Highlighter', `Error attaching Highlighter to window.AlgoRecall: ${errorMessage}`, { err });
+}
+
+// Augment CommonJS exports to preserve backward compatibility for tests and callers
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).Highlighter = Highlighter;
+    (module.exports as any).HighlighterTooltipView = HighlighterTooltipView;
+    (module.exports as any).HighlighterTypeSelector = HighlighterTypeSelector;
+    (module.exports as any).HighlighterSwatches = HighlighterSwatches;
+    (module.exports as any).HighlighterColorPicker = HighlighterColorPicker;
+    (module.exports as any).HighlighterDeleteButton = HighlighterDeleteButton;
+    (module.exports as any).HighlighterNotesSection = HighlighterNotesSection;
 }

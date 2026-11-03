@@ -1,14 +1,53 @@
 /**
- * @file Interactive Help Center Single Page Application
+ * @file Interactive Help Center Single Page Application (Preact)
  * @module features/common/help/help
  * @context Extension Help Page (features/common/help/help.html)
  * @description Controls the in-extension user documentation, FAQ, guide navigation,
  * dynamic browser/store policy branding, URL hash routing (#tab-id), and live keyword search filtering.
  */
 
+import { h, render, JSX } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { BROWSER_CONFIG } from '@common/browserConfig';
+
+export interface HelpTabItem {
+    id: string;
+    label: string;
+}
+
+/**
+ * Preact Component for rendering the accessible Help Center tab bar.
+ */
+export function HelpTabBar({
+    tabs,
+    activeTab,
+    onSelect
+}: {
+    tabs: HelpTabItem[];
+    activeTab: string;
+    onSelect: (tabId: string) => void;
+}): JSX.Element {
+    return (
+        <nav className="tabs-container" role="tablist">
+            {tabs.map((tab) => {
+                const isActive = tab.id === activeTab;
+                return (
+                    <button
+                        key={tab.id}
+                        className={`tab-btn ${isActive ? 'active' : ''}`}
+                        data-tab={tab.id}
+                        role="tab"
+                        aria-selected={isActive ? 'true' : 'false'}
+                        onClick={() => onSelect(tab.id)}
+                    >
+                        {tab.label}
+                    </button>
+                );
+            })}
+        </nav>
+    );
+}
 
 /**
  * Controller class governing Help Center tabs, search, and browser-specific branding.
@@ -259,8 +298,6 @@ export class HelpCenterSPA {
             }
 
             // Search mode: show matching cards and reveal their tab panes
-            let matchFound = false;
-
             tabPanes.forEach(pane => {
                 let paneHasMatch = false;
                 const cardsInPane = pane.querySelectorAll('.card, .gamify-card, .strategy-card');
@@ -273,7 +310,6 @@ export class HelpCenterSPA {
                 });
 
                 pane.classList.toggle('active', paneHasMatch);
-                if (paneHasMatch) matchFound = true;
             });
 
             // Highlight tabs containing matches
@@ -338,3 +374,4 @@ if (typeof document !== 'undefined') {
         initHelpCenter();
     }
 }
+

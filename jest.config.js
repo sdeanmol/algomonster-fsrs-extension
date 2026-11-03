@@ -53,7 +53,7 @@ module.exports = {
     __STORE_REVIEW_URL__: 'https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews'
   },
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: {
         module: 'esnext',
         isolatedModules: true
@@ -65,10 +65,10 @@ module.exports = {
         plugins: [require.resolve('./tests/mocks/importMetaPlugin.js')]
       }
     }],
-    '^.+\\.js$': 'babel-jest'
+    '^.+\\.(js|jsx|mjs)$': 'babel-jest'
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!(@napi-rs|@emnapi)/)' 
+    '/node_modules/(?!(@napi-rs|@emnapi|preact)/)' 
   ],
   moduleNameMapper: {
     '^@common/(.*)$': '<rootDir>/features/common/$1',
@@ -77,7 +77,7 @@ module.exports = {
     '\\.(css|less|scss)$': '<rootDir>/tests/mocks/styleMock.js',
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
-  moduleFileExtensions: ['ts', 'js', 'json', 'node'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   reporters: [
     "default",
     ["jest-html-reporter", {

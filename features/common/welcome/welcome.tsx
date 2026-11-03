@@ -1,14 +1,47 @@
 /**
- * @file Interactive First-Run Onboarding Welcome Walkthrough
+ * @file Interactive First-Run Onboarding Welcome Walkthrough (Preact)
  * @module features/common/welcome/welcome
  * @context Extension Welcome Page (features/common/welcome/welcome.html)
  * @description Controls the step-by-step interactive welcome onboarding workflow.
  * Manages steps pagination, initial theme configuration, and notification permission requests.
  */
 
+import { h, render, JSX } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { BROWSER_CONFIG } from '@common/browserConfig';
+
+export interface StepIndicatorProps {
+    currentStep: number;
+    totalSteps: number;
+    onSelectStep?: (step: number) => void;
+}
+
+/**
+ * Preact Component for rendering the wizard step indicator dots.
+ */
+export function StepIndicators({
+    currentStep,
+    totalSteps,
+    onSelectStep
+}: StepIndicatorProps): JSX.Element {
+    const dots = [];
+    for (let i = 1; i <= totalSteps; i++) {
+        const isActive = i === currentStep;
+        dots.push(
+            <div
+                key={i}
+                id={`dot-${i}`}
+                className={`dot ${isActive ? 'active' : ''}`}
+                aria-current={isActive ? 'step' : undefined}
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectStep && onSelectStep(i)}
+            />
+        );
+    }
+    return <div className="step-dots-container" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>{dots}</div>;
+}
 
 /**
  * Controller class driving multi-step onboarding wizard screens.
@@ -334,3 +367,4 @@ if (typeof document !== 'undefined') {
         initWelcome();
     }
 }
+

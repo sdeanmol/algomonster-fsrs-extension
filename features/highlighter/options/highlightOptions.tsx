@@ -1,5 +1,5 @@
 /**
- * @file features/highlighter/options/highlightOptions.ts
+ * @file features/highlighter/options/highlightOptions.tsx (Preact)
  * @description Manages options page configuration for highlight palettes, default colors, and color picker slots.
  * Allows users to create custom 5-color palettes, activate color sets, configure the default marker color,
  * and manage persistence in `chrome.storage.local`.
@@ -8,9 +8,12 @@
  * 
  * Key Exports:
  * - `Palette`: Interface defining a named color palette with hex color codes.
+ * - `PaletteEditorSlots`: Preact component rendering color slot pickers.
+ * - `PalettesList`: Preact component rendering saved palette cards.
  * - `HighlightOptionsManager`: Options controller managing palette CRUD, slot pickers, and storage sync.
  */
 
+import { h, render, Fragment, JSX } from 'preact';
 import { Logger } from '@common/logger';
 import { StorageData, ExtensionSettings } from '../../../types/domain';
 import { DEFAULT_PALETTES, DEFAULT_EXTENSION_SETTINGS, DEFAULT_HIGHLIGHT_COLOR } from '../../common/constants';
@@ -26,6 +29,120 @@ export interface Palette {
 }
 
 export { ExtensionSettings };
+
+/**
+ * Preact Component for rendering the color slot editor rows.
+ */
+export function PaletteEditorSlots({
+    colors,
+    onColorChange,
+    onDeleteSlot
+}: {
+    colors: string[];
+    onColorChange: (index: number, newColor: string) => void;
+    onDeleteSlot: (index: number) => void;
+}): JSX.Element {
+    return (
+        <Fragment>
+            {colors.map((color, idx) => (
+                <div key={idx} className="slot-row">
+                    <input
+                        type="color"
+                        className="color-picker"
+                        value={color}
+                        onInput={(e: Event) => {
+                            const target = e.target as HTMLInputElement;
+                            onColorChange(idx, target.value);
+                        }}
+                    />
+                    <input
+                        type="text"
+                        className="color-hex"
+                        value={color.toUpperCase()}
+                        maxLength={7}
+                        onChange={(e: Event) => {
+                            const target = e.target as HTMLInputElement;
+                            let val = target.value.trim();
+                            if (!val.startsWith('#')) val = '#' + val;
+                            if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
+                                onColorChange(idx, val);
+                                target.value = val.toUpperCase();
+                            } else {
+                                target.value = color.toUpperCase();
+                            }
+                        }}
+                    />
+                    {colors.length > 1 && (
+                        <button
+                            className="btn-danger"
+                            title="Remove color"
+                            aria-label={`Remove color slot ${idx + 1}`}
+                            onClick={() => onDeleteSlot(idx)}
+                        >
+                            <svg className="svg-icon" style={{ width: '12px', height: '12px', stroke: 'currentColor' }} viewBox="0 0 24 24">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
+            ))}
+        </Fragment>
+    );
+}
+
+/**
+ * Preact Component for rendering the list of saved palette preview cards.
+ */
+export function PalettesList({
+    palettes,
+    activePaletteIndex,
+    onActivate,
+    onEdit,
+    onDelete
+}: {
+    palettes: Palette[];
+    activePaletteIndex?: number;
+    onActivate: (index: number) => void;
+    onEdit: (index: number) => void;
+    onDelete: (index: number) => void;
+}): JSX.Element {
+    return (
+        <Fragment>
+            {palettes.map((palette, idx) => {
+                const isActive = idx === activePaletteIndex;
+                return (
+                    <div key={`${palette.name}-${idx}`} className={`palette-card${isActive ? ' active' : ''}`}>
+                        <div className="palette-card-header">
+                            <div className="palette-title-wrapper">
+                                <span className="palette-name">{palette.name}</span>
+                                {isActive && <span className="active-tag">Active</span>}
+                            </div>
+                        </div>
+                        <div className="palette-colors">
+                            {palette.colors.map((col, cIdx) => (
+                                <div key={cIdx} className="color-bubble" style={{ backgroundColor: col }} />
+                            ))}
+                        </div>
+                        <div className="palette-actions">
+                            {!isActive && (
+                                <button className="btn-action btn-action-activate" onClick={() => onActivate(idx)}>
+                                    Activate
+                                </button>
+                            )}
+                            <button className="btn-action btn-action-edit" onClick={() => onEdit(idx)}>
+                                Edit
+                            </button>
+                            <button className="btn-action btn-action-delete" onClick={() => onDelete(idx)}>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                );
+            })}
+        </Fragment>
+    );
+}
 
 /**
  * Controller for highlight palettes and annotation preferences options page.
@@ -48,19 +165,17 @@ export class HighlightOptionsManager {
         this.extensionSettings = JSON.parse(JSON.stringify(DEFAULT_EXTENSION_SETTINGS));
 
         this.editorColors = [...this.extensionSettings.recentColors!];
-        this.editingIndex = null; // null if creating, index number if editing
+        this.editingIndex = null;
     }
 
     /**
      * Initializes components and settings properties from Chrome storage.
-     * 
-     * @returns {void}
      */
     init(): void {
         try {
             chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
                 try {
-                    if (chrome.runtime.lastError) {
+                    if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                         Logger.error('HighlightOptions', `Storage error fetching extensionSettings: ${errorMessage}`, { error: chrome.runtime.lastError });
                         return;
@@ -94,20 +209,16 @@ export class HighlightOptionsManager {
                 } catch (innerErr) {
                     const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
                     Logger.error('HighlightOptions', `Error rendering options UI from storage: ${errorMessage}`, { innerErr });
-                    // Comment: Non-fatal options UI render error
                 }
             });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightOptions', `Error initializing HighlightOptionsManager: ${errorMessage}`, { err });
-            // Comment: Catch options init failure gracefully
         }
     }
 
     /**
      * Registers control element action listeners for default colors, custom slots, palette saving, and defaults reset.
-     * 
-     * @returns {void}
      */
     bindEvents(): void {
         try {
@@ -171,7 +282,6 @@ export class HighlightOptionsManager {
                             this.showToast("A palette can have a maximum of 5 colors.");
                             return;
                         }
-                        // Add default color as new slot color
                         this.editorColors.push('#3498db');
                         this.renderEditorSlots();
                     } catch (err) {
@@ -228,7 +338,6 @@ export class HighlightOptionsManager {
                             palettes[this.editingIndex] = { name, colors: [...this.editorColors] };
                             this.showToast("Palette updated successfully!");
 
-                            // Update active cached state if editing active palette
                             if (this.editingIndex === this.extensionSettings.activePaletteIndex) {
                                 this.extensionSettings.recentColors = [...this.editorColors];
                             }
@@ -294,89 +403,30 @@ export class HighlightOptionsManager {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightOptions', `Error binding events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event binding catch
         }
     }
 
     /**
-     * Dynamically renders color picker input rows and hex inputs for the palette currently being created or edited.
-     * 
-     * @returns {void}
+     * Dynamically renders color picker input rows via Preact.
      */
     renderEditorSlots(): void {
         try {
             const container = document.getElementById('palette-slots-container');
             if (!container) return;
-            container.innerHTML = '';
 
-            this.editorColors.forEach((color, idx) => {
-                const row = document.createElement('div');
-                row.className = 'slot-row';
-
-                const picker = document.createElement('input');
-                picker.type = 'color';
-                picker.className = 'color-picker';
-                picker.value = color;
-                picker.addEventListener('input', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        this.editorColors[idx] = target.value;
-                        const hexInput = row.querySelector('.color-hex') as HTMLInputElement | null;
-                        if (hexInput) hexInput.value = target.value.toUpperCase();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightOptions', `Error in color picker input handler for slot ${idx}: ${errorMessage}`, { idx, err });
-                    }
-                });
-
-                const hexInput = document.createElement('input');
-                hexInput.type = 'text';
-                hexInput.className = 'color-hex';
-                hexInput.value = color.toUpperCase();
-                hexInput.maxLength = 7;
-                hexInput.addEventListener('change', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        let val = target.value.trim();
-                        if (!val.startsWith('#')) val = '#' + val;
-                        if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
-                            picker.value = val;
-                            this.editorColors[idx] = val;
-                            target.value = val.toUpperCase();
-                        } else {
-                            this.showToast("Invalid hex code");
-                            target.value = this.editorColors[idx].toUpperCase();
-                        }
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightOptions', `Error in hex input handler for slot ${idx}: ${errorMessage}`, { idx, err });
-                    }
-                });
-
-                row.appendChild(picker);
-                row.appendChild(hexInput);
-
-                // Delete slot action (require at least 1 color)
-                if (this.editorColors.length > 1) {
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'btn-danger';
-                    delBtn.innerHTML = `<svg class="svg-icon" style="width:12px; height:12px; stroke:currentColor;" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
-                    delBtn.title = 'Remove color';
-                    delBtn.setAttribute('aria-label', `Remove color slot ${idx + 1}`);
-                    delBtn.addEventListener('click', () => {
-                        try {
-                            this.editorColors.splice(idx, 1);
-                            this.renderEditorSlots();
-                        } catch (err) {
-                            const errorMessage = err instanceof Error ? err.message : String(err);
-                            Logger.error('HighlightOptions', `Error deleting slot at index ${idx}: ${errorMessage}`, { idx, err });
-                        }
-                    });
-                    row.appendChild(delBtn);
-                }
-
-                container.appendChild(row);
-            });
+            render(
+                <PaletteEditorSlots
+                    colors={this.editorColors}
+                    onColorChange={(idx, newColor) => {
+                        this.editorColors[idx] = newColor;
+                    }}
+                    onDeleteSlot={(idx) => {
+                        this.editorColors.splice(idx, 1);
+                        this.renderEditorSlots();
+                    }}
+                />,
+                container
+            );
 
             // Toggle button visibility based on slots length
             const addBtn = document.getElementById('add-slot-btn');
@@ -386,20 +436,16 @@ export class HighlightOptionsManager {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightOptions', `Error rendering editor slots: ${errorMessage}`, { err });
-            // Comment: Non-fatal editor slots rendering error
         }
     }
 
     /**
-     * Renders saved palette preview cards with activate, edit, and delete action buttons.
-     * 
-     * @returns {void}
+     * Renders saved palette preview cards via Preact.
      */
     renderPalettesList(): void {
         try {
             const container = document.getElementById('palettes-list-container');
             if (!container) return;
-            container.innerHTML = '';
 
             const palettes = this.extensionSettings.palettes || [];
             const countEl = document.getElementById('palette-count');
@@ -407,96 +453,33 @@ export class HighlightOptionsManager {
                 countEl.textContent = `${palettes.length} / 50`;
             }
 
-            palettes.forEach((palette, idx) => {
-                const isActive = idx === this.extensionSettings.activePaletteIndex;
-
-                const card = document.createElement('div');
-                card.className = `palette-card${isActive ? ' active' : ''}`;
-
-                const header = document.createElement('div');
-                header.className = 'palette-card-header';
-
-                const titleWrapper = document.createElement('div');
-                titleWrapper.className = 'palette-title-wrapper';
-
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'palette-name';
-                nameSpan.textContent = palette.name;
-                titleWrapper.appendChild(nameSpan);
-
-                if (isActive) {
-                    const activeTag = document.createElement('span');
-                    activeTag.className = 'active-tag';
-                    activeTag.textContent = 'Active';
-                    titleWrapper.appendChild(activeTag);
-                }
-
-                header.appendChild(titleWrapper);
-                card.appendChild(header);
-
-                // Color preview bubbles
-                const colorsDiv = document.createElement('div');
-                colorsDiv.className = 'palette-colors';
-                palette.colors.forEach(col => {
-                    const bubble = document.createElement('div');
-                    bubble.className = 'color-bubble';
-                    bubble.style.backgroundColor = col;
-                    colorsDiv.appendChild(bubble);
-                });
-                card.appendChild(colorsDiv);
-
-                // Actions
-                const actions = document.createElement('div');
-                actions.className = 'palette-actions';
-
-                if (!isActive) {
-                    const activateBtn = document.createElement('button');
-                    activateBtn.className = 'btn-action btn-action-activate';
-                    activateBtn.textContent = 'Activate';
-                    activateBtn.addEventListener('click', () => {
-                        try {
-                            this.extensionSettings.activePaletteIndex = idx;
-                            this.extensionSettings.recentColors = [...palette.colors];
-                            this.saveSettings("Palette activated!");
-                        } catch (err) {
-                            const errorMessage = err instanceof Error ? err.message : String(err);
-                            Logger.error('HighlightOptions', `Error activating palette at index ${idx}: ${errorMessage}`, { idx, err });
-                        }
-                    });
-                    actions.appendChild(activateBtn);
-                }
-
-                const editBtn = document.createElement('button');
-                editBtn.className = 'btn-action btn-action-edit';
-                editBtn.textContent = 'Edit';
-                editBtn.addEventListener('click', () => {
-                    try {
+            render(
+                <PalettesList
+                    palettes={palettes}
+                    activePaletteIndex={this.extensionSettings.activePaletteIndex}
+                    onActivate={(idx) => {
+                        this.extensionSettings.activePaletteIndex = idx;
+                        this.extensionSettings.recentColors = [...palettes[idx].colors];
+                        this.saveSettings("Palette activated!");
+                    }}
+                    onEdit={(idx) => {
                         this.editingIndex = idx;
                         const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
-                        if (nameInput) nameInput.value = palette.name;
-                        this.editorColors = [...palette.colors];
+                        if (nameInput) nameInput.value = palettes[idx].name;
+                        this.editorColors = [...palettes[idx].colors];
                         this.renderEditorSlots();
                         const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
                         if (saveBtn) {
                             saveBtn.textContent = '💾 Update Palette';
-                            saveBtn.disabled = !palette.name.trim();
+                            saveBtn.disabled = !palettes[idx].name.trim();
                         }
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightOptions', `Error editing palette at index ${idx}: ${errorMessage}`, { idx, err });
-                    }
-                });
-                actions.appendChild(editBtn);
-
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'btn-action btn-action-delete';
-                deleteBtn.textContent = 'Delete';
-                deleteBtn.addEventListener('click', () => {
-                    try {
+                    }}
+                    onDelete={(idx) => {
                         if (palettes.length <= 1) {
                             this.showToast("Cannot delete the only remaining palette.");
                             return;
                         }
+                        const isActive = idx === this.extensionSettings.activePaletteIndex;
                         this.extensionSettings.palettes!.splice(idx, 1);
                         if (isActive) {
                             this.extensionSettings.activePaletteIndex = 0;
@@ -505,28 +488,18 @@ export class HighlightOptionsManager {
                             this.extensionSettings.activePaletteIndex--;
                         }
                         this.saveSettings("Palette deleted.");
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightOptions', `Error deleting palette at index ${idx}: ${errorMessage}`, { idx, err });
-                    }
-                });
-                actions.appendChild(deleteBtn);
-
-                card.appendChild(actions);
-                container.appendChild(card);
-            });
+                    }}
+                />,
+                container
+            );
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightOptions', `Error rendering palettes list: ${errorMessage}`, { err });
-            // Comment: Non-fatal palettes list rendering error
         }
     }
 
     /**
      * Persists updated settings to `chrome.storage.local` and refreshes the palette cards display.
-     * 
-     * @param {string | null} [message=null] - Optional toast message to display upon save.
-     * @returns {void}
      */
     saveSettings(message: string | null = null): void {
         try {
@@ -551,15 +524,11 @@ export class HighlightOptionsManager {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightOptions', `Error saving settings: ${errorMessage}`, { err });
-            // Comment: Non-fatal save settings catch
         }
     }
 
     /**
      * Renders a temporary floating toast notification in the options UI.
-     * 
-     * @param {string} message - Toast message text.
-     * @returns {void}
      */
     showToast(message: string): void {
         try {
@@ -599,3 +568,4 @@ if (typeof document !== 'undefined') {
         initHighlightOptions();
     }
 }
+

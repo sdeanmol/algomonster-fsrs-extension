@@ -1,5 +1,5 @@
 /**
- * @file features/highlighter/manager/highlights.ts
+ * @file features/highlighter/manager/highlights.tsx (Preact)
  * @description Manages the highlights repository dashboard interface.
  * Provides full-text search, color filtering, page-level sorting, clipboard copy,
  * highlight deletion, and Markdown export features for persisted text annotations.
@@ -7,9 +7,13 @@
  * Context: Standalone highlights dashboard tab (`highlights.html`) within the Chrome extension.
  * 
  * Key Exports:
+ * - `ColorFilterBubbles`: Preact component for color filter swatches.
+ * - `HighlightCardView`: Preact component for an individual highlight item.
+ * - `HighlightsListView`: Preact component for the filtered highlights stream.
  * - `HighlightsManager`: Controller managing highlight display, search filtering, deletion, and exports.
  */
 
+import { h, render, Fragment, JSX } from 'preact';
 import { Logger } from '@common/logger';
 import { HighlightsHelpers } from './highlights-helpers';
 import { HighlightMark, BookmarkItem, StorageData } from '../../../types/domain';
@@ -20,6 +24,187 @@ try {
 } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     Logger.error('HighlightsManager', `Error initializing window.AlgoRecall: ${errorMessage}`, { err });
+}
+
+/**
+ * Preact component for color filter swatches.
+ */
+export function ColorFilterBubbles({
+    colors,
+    activeColor,
+    onToggleColor
+}: {
+    colors: string[];
+    activeColor: string | null;
+    onToggleColor: (color: string) => void;
+}): JSX.Element {
+    if (colors.length === 0) {
+        return <span style={{ fontSize: '12px', color: '#666' }}>No colors</span>;
+    }
+    return (
+        <Fragment>
+            {colors.map((color) => {
+                const isActive = activeColor === color;
+                return (
+                    <div
+                        key={color}
+                        className={`color-filter-bubble ${isActive ? 'active' : ''}`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => onToggleColor(color)}
+                    />
+                );
+            })}
+        </Fragment>
+    );
+}
+
+/**
+ * Preact component for an individual highlight card.
+ */
+export function HighlightCardView({
+    mark,
+    pageTitle,
+    searchQuery,
+    onCopy,
+    onDelete
+}: {
+    mark: HighlightMark;
+    pageTitle: string;
+    searchQuery: string;
+    onCopy: (text: string) => void;
+    onDelete: (id: string) => void;
+}): JSX.Element {
+    const markId = mark.id || mark.createdAt.toString();
+    const dateString = new Date(mark.createdAt).toLocaleDateString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    const markType = mark.type || 'highlight';
+    const formattedSnippet = HighlightsHelpers.highlightSearchMatch(mark.text, searchQuery);
+
+    return (
+        <div className="highlight-card" style={{ borderLeftColor: mark.color }}>
+            <div className="highlight-content">
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--md-text-low)', marginBottom: '6px', display: 'flex', alignItems: 'center' }}>
+                    {markType === 'underline' ? (
+                        <Fragment>
+                            <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '12px', height: '12px', marginRight: '4px' }}>
+                                <path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3" />
+                                <line x1="4" y1="21" x2="20" y2="21" />
+                            </svg>
+                            {' '}Underline
+                        </Fragment>
+                    ) : (
+                        <Fragment>
+                            <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '12px', height: '12px', marginRight: '4px' }}>
+                                <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" />
+                                <line x1="16" y1="8" x2="2" y2="22" />
+                                <line x1="17.5" y1="15" x2="9" y2="6.5" />
+                            </svg>
+                            {' '}Highlight
+                        </Fragment>
+                    )}
+                </div>
+                <div
+                    className="highlight-text"
+                    style={markType === 'underline' ? { textDecoration: 'underline', textDecorationColor: mark.color } : undefined}
+                    dangerouslySetInnerHTML={{ __html: `"${formattedSnippet}"` }}
+                />
+                {mark.note && (
+                    <div className="highlight-note-preview">
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '11px', height: '11px', stroke: 'var(--md-text-low)' }}>
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                        {' '}{mark.note}
+                    </div>
+                )}
+                <div className="highlight-meta">
+                    <a href={mark.url} target="_blank" rel="noreferrer" className="highlight-url">
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '13px', height: '13px' }}>
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                        </svg>
+                        <span>{pageTitle}</span>
+                    </a>
+                    <span className="highlight-date">
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '13px', height: '13px', stroke: 'var(--md-text-low)' }}>
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                            <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        <span>{dateString}</span>
+                    </span>
+                </div>
+            </div>
+            <div className="card-actions">
+                <button
+                    className="action-btn action-btn-copy"
+                    data-text={mark.text}
+                    title="Copy text to clipboard"
+                    aria-label="Copy text to clipboard"
+                    onClick={() => onCopy(mark.text)}
+                >
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', stroke: 'currentColor' }}>
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                    </svg>
+                </button>
+                <button
+                    className="action-btn action-btn-delete"
+                    data-id={markId}
+                    title="Delete Highlight"
+                    aria-label="Delete Highlight"
+                    onClick={() => onDelete(markId)}
+                >
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', stroke: 'currentColor' }}>
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Preact component rendering the filtered highlights list or empty state.
+ */
+export function HighlightsListView({
+    marks,
+    bookmarks,
+    searchQuery,
+    onCopy,
+    onDelete
+}: {
+    marks: HighlightMark[];
+    bookmarks: BookmarkItem[];
+    searchQuery: string;
+    onCopy: (text: string) => void;
+    onDelete: (id: string) => void;
+}): JSX.Element {
+    if (marks.length === 0) {
+        return <div className="empty-state">No matching highlights found. Try adjusting your search or filters.</div>;
+    }
+    return (
+        <Fragment>
+            {marks.map((mark) => {
+                const bookmark = bookmarks.find(b => b.url === mark.url);
+                const title = bookmark && bookmark.title ? bookmark.title : mark.url;
+                const markId = mark.id || mark.createdAt.toString();
+                return (
+                    <HighlightCardView
+                        key={markId}
+                        mark={mark}
+                        pageTitle={title}
+                        searchQuery={searchQuery}
+                        onCopy={onCopy}
+                        onDelete={onDelete}
+                    />
+                );
+            })}
+        </Fragment>
+    );
 }
 
 /**
@@ -54,7 +239,6 @@ export class HighlightsManager {
 
     /**
      * Accessor returning the helper utility class.
-     * @returns {typeof HighlightsHelpers}
      */
     get helpers(): typeof HighlightsHelpers {
         return window.AlgoRecall.HighlightsHelpers || HighlightsHelpers;
@@ -62,7 +246,6 @@ export class HighlightsManager {
 
     /**
      * Initializes the highlights manager, loading storage items and attaching DOM listeners.
-     * @returns {void}
      */
     init(): void {
         try {
@@ -71,15 +254,12 @@ export class HighlightsManager {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Error initializing HighlightsManager: ${errorMessage}`, { err });
-            // Comment: Non-fatal initialization setup catch
         }
     }
 
     /**
      * Registers UI event listeners for search queries, page filtering dropdowns,
      * sorting options, refresh triggers, and Markdown export actions.
-     * 
-     * @returns {void}
      */
     bindEvents(): void {
         try {
@@ -173,14 +353,11 @@ export class HighlightsManager {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Error binding events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event binding catch
         }
     }
 
     /**
      * Retrieves saved highlight marks and bookmarks from `chrome.storage.local` and triggers view rendering.
-     * 
-     * @returns {void}
      */
     loadHighlights(): void {
         try {
@@ -204,20 +381,16 @@ export class HighlightsManager {
                 } catch (innerErr) {
                     const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
                     Logger.error('HighlightsManager', `Error rendering highlights manager: ${errorMessage}`, { innerErr });
-                    // Comment: Non-fatal UI rendering error
                 }
             });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Failed to fetch highlights storage: ${errorMessage}`, { err });
-            // Comment: Catch storage retrieval failure gracefully
         }
     }
 
     /**
      * Builds and populates the web page filter `<select>` dropdown with unique URLs and titles.
-     * 
-     * @returns {void}
      */
     populateWebpageSelect(): void {
         try {
@@ -244,65 +417,39 @@ export class HighlightsManager {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Error populating webpage select: ${errorMessage}`, { err });
-            // Comment: Non-fatal select populating error
         }
     }
 
     /**
-     * Renders clickable color swatch filter bubbles based on the unique colors present in saved marks.
-     * 
-     * @returns {void}
+     * Renders clickable color swatch filter bubbles via Preact.
      */
     renderColorFilters(): void {
         try {
             const container = document.getElementById('color-filters-container');
             if (!container) return;
-            container.innerHTML = '';
 
             const uniqueColors = [...new Set(this.loadedMarks.map(m => m.color).filter(Boolean))];
 
-            if (uniqueColors.length === 0) {
-                container.innerHTML = '<span style="font-size: 12px; color: #666;">No colors</span>';
-                return;
-            }
-
-            uniqueColors.forEach(color => {
-                const bubble = document.createElement('div');
-                bubble.className = 'color-filter-bubble';
-                bubble.style.backgroundColor = color;
-                
-                if (this.activeColorFilter === color) {
-                    bubble.classList.add('active');
-                }
-
-                bubble.addEventListener('click', () => {
-                    try {
-                        if (this.activeColorFilter === color) {
-                            this.activeColorFilter = null;
-                        } else {
-                            this.activeColorFilter = color;
-                        }
+            render(
+                <ColorFilterBubbles
+                    colors={uniqueColors}
+                    activeColor={this.activeColorFilter}
+                    onToggleColor={(color) => {
+                        this.activeColorFilter = this.activeColorFilter === color ? null : color;
                         this.renderColorFilters();
                         this.filterAndRender();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightsManager', `Error toggling color filter '${color}': ${errorMessage}`, { color, err });
-                    }
-                });
-
-                container.appendChild(bubble);
-            });
+                    }}
+                />,
+                container
+            );
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Error rendering color filters: ${errorMessage}`, { err });
-            // Comment: Non-fatal color filter rendering error
         }
     }
 
     /**
      * Filters the full list of marks against current search query, color filter, and target URL constraints.
-     * 
-     * @returns {HighlightMark[]} Array of filtered highlight annotations.
      */
     getFilteredMarks(): HighlightMark[] {
         return this.loadedMarks.filter(mark => {
@@ -317,8 +464,8 @@ export class HighlightsManager {
             const matchesQuery = !this.searchQuery || 
                                  markText.includes(q) || 
                                  pageTitle.includes(q) || 
-                                 markUrl.includes(q) ||
-                                 markNote.includes(q) ||
+                                 markUrl.includes(q) || 
+                                 markNote.includes(q) || 
                                  markCategory.includes(q);
 
             const matchesColor = !this.activeColorFilter || mark.color === this.activeColorFilter;
@@ -329,9 +476,7 @@ export class HighlightsManager {
     }
 
     /**
-     * Applies active filters and sorting order, generating highlight card DOM elements with actions.
-     * 
-     * @returns {void}
+     * Applies active filters and sorting order, generating highlight card DOM elements with actions via Preact.
      */
     filterAndRender(): void {
         try {
@@ -374,105 +519,24 @@ export class HighlightsManager {
                 }
             }
 
-            container.innerHTML = '';
-            if (filtered.length === 0) {
-                container.innerHTML = `<div class="empty-state">No matching highlights found. Try adjusting your search or filters.</div>`;
-                return;
-            }
-
-            filtered.forEach(mark => {
-                const markId = mark.id || mark.createdAt.toString();
-                const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
-                const pageTitle = bookmark && bookmark.title ? bookmark.title : mark.url;
-
-                const card = document.createElement('div');
-                card.className = 'highlight-card';
-                card.style.borderLeftColor = mark.color;
-
-                const dateString = new Date(mark.createdAt).toLocaleDateString(undefined, {
-                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                });
-
-                const formattedSnippet = this.helpers.highlightSearchMatch(mark.text, this.searchQuery);
-                
-                const markType = mark.type || 'highlight';
-                let typeIcon = '';
-                if (markType === 'underline') {
-                    typeIcon = '<svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; margin-right:4px;"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"></path><line x1="4" y1="21" x2="20" y2="21"></line></svg> Underline';
-                } else {
-                    typeIcon = '<svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; margin-right:4px;"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="6.5"></line></svg> Highlight';
-                }
-
-                card.innerHTML = `
-                    <div class="highlight-content">
-                        <div style="font-size: 11px; text-transform: uppercase; color: var(--md-text-low); margin-bottom: 6px; display: flex; align-items: center;">
-                            ${typeIcon}
-                        </div>
-                        <div class="highlight-text" style="${markType === 'underline' ? `text-decoration: underline; text-decoration-color: ${mark.color};` : ''}">"${formattedSnippet}"</div>
-                        ${mark.note ? `<div class="highlight-note-preview"><svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px; stroke: var(--md-text-low);"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> ${this.helpers.escapeHtml(mark.note)}</div>` : ''}
-                        <div class="highlight-meta">
-                            <a href="${mark.url}" target="_blank" class="highlight-url">
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="width:13px; height:13px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                                <span>${pageTitle}</span>
-                            </a>
-                            <span class="highlight-date">
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="width:13px; height:13px; stroke: var(--md-text-low);"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                                <span>${dateString}</span>
-                            </span>
-                        </div>
-                    </div>
-                    <div class="card-actions">
-                        <button class="action-btn action-btn-copy" data-text="${this.helpers.escapeHtml(mark.text)}" title="Copy text to clipboard" aria-label="Copy text to clipboard">
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-                        </button>
-                        <button class="action-btn action-btn-delete" data-id="${markId}" title="Delete Highlight" aria-label="Delete Highlight">
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        </button>
-                    </div>
-                `;
-
-                container.appendChild(card);
-            });
-
-            container.querySelectorAll('.action-btn-copy').forEach(btn => {
-                btn.addEventListener('click', (e: Event) => {
-                    try {
-                        const target = e.currentTarget as HTMLElement;
-                        const text = target.getAttribute('data-text') || '';
-                        this.helpers.copyToClipboard(text);
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightsManager', `Error in copy highlight button handler: ${errorMessage}`, { err });
-                    }
-                });
-            });
-
-            container.querySelectorAll('.action-btn-delete').forEach(btn => {
-                btn.addEventListener('click', (e: Event) => {
-                    try {
-                        const target = e.currentTarget as HTMLElement;
-                        const targetId = target.getAttribute('data-id');
-                        if (targetId) {
-                            this.deleteHighlight(targetId);
-                        }
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightsManager', `Error in delete highlight button handler: ${errorMessage}`, { err });
-                    }
-                });
-            });
+            render(
+                <HighlightsListView
+                    marks={filtered}
+                    bookmarks={this.loadedBookmarks}
+                    searchQuery={this.searchQuery}
+                    onCopy={(text) => this.helpers.copyToClipboard(text)}
+                    onDelete={(id) => this.deleteHighlight(id)}
+                />,
+                container
+            );
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Error filtering and rendering highlights: ${errorMessage}`, { err });
-            // Comment: Non-fatal highlight list render failure
         }
     }
 
     /**
      * Prompts for user confirmation and removes the specified highlight mark from `chrome.storage.local`.
-     * 
-     * @param {string} markId - ID or creation timestamp string of the highlight to delete.
-     * @returns {void}
      */
     deleteHighlight(markId: string): void {
         try {
@@ -513,9 +577,6 @@ export class HighlightsManager {
 
     /**
      * Compiles all currently filtered highlights into a formatted Markdown document and initiates file download.
-     * Uses `chrome.downloads` when supported, or an invisible `<a>` element download click fallback.
-     * 
-     * @returns {void}
      */
     exportHighlightsToMarkdown(): void {
         try {
@@ -576,7 +637,6 @@ export class HighlightsManager {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Error exporting highlights to Markdown: ${errorMessage}`, { err });
-            // Comment: Non-fatal export error
         }
     }
 }
@@ -607,3 +667,4 @@ if (typeof document !== 'undefined') {
         initHighlightsManager();
     }
 }
+

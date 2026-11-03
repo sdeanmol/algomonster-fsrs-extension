@@ -1,5 +1,5 @@
 /**
- * @file Dynamic Whitelisted Websites Configuration Manager
+ * @file Dynamic Whitelisted Websites Configuration Manager (Preact)
  * @module features/common/websites/websites
  * @context Options / Whitelist Management Page (features/common/websites/websites.html)
  * @description Manages whitelist configurations for sites where the extension content scripts are active.
@@ -7,6 +7,7 @@
  * programmatically using the Chrome Extension Scripting API.
  */
 
+import { h, render, Fragment, JSX } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { DEFAULT_WHITELISTED_WEBSITES } from '../constants';
@@ -19,6 +20,71 @@ export interface WhitelistedSite {
     domain: string;
     /** True if this website is part of the factory default whitelist */
     isDefault: boolean;
+}
+
+/**
+ * Preact Component for rendering the whitelisted sites list.
+ */
+export function WhitelistedSitesList({
+    sites,
+    onDelete
+}: {
+    sites: WhitelistedSite[];
+    onDelete: (domain: string) => void;
+}): JSX.Element {
+    if (sites.length === 0) {
+        return (
+            <li style={{ justifyContent: 'center', color: 'var(--md-text-low)', fontStyle: 'italic' }}>
+                No whitelisted websites. Add one to get started!
+            </li>
+        );
+    }
+
+    return (
+        <Fragment>
+            {sites.map((site) => {
+                const monogram = site.domain.substring(0, 1).toUpperCase();
+                return (
+                    <li key={site.domain}>
+                        <div className="site-name-wrapper">
+                            <div
+                                className="site-icon-fallback"
+                                style={
+                                    site.isDefault
+                                        ? undefined
+                                        : { color: 'var(--md-success)', borderColor: 'rgba(30, 142, 62, 0.15)' }
+                                }
+                            >
+                                {monogram}
+                            </div>
+                            <span>{site.domain}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                            {site.isDefault && (
+                                <span className="site-badge protected" style={{ marginRight: '8px' }}>
+                                    Default
+                                </span>
+                            )}
+                            <button
+                                className="delete-site-btn"
+                                data-site={site.domain}
+                                title="Delete platform whitelisting"
+                                aria-label="Delete platform whitelisting"
+                                onClick={() => onDelete(site.domain)}
+                            >
+                                <svg className="svg-icon" viewBox="0 0 24 24">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                    <line x1="10" y1="11" x2="10" y2="17" />
+                                    <line x1="14" y1="11" x2="14" y2="17" />
+                                </svg>
+                            </button>
+                        </div>
+                    </li>
+                );
+            })}
+        </Fragment>
+    );
 }
 
 /**
@@ -97,7 +163,7 @@ export class WhitelistedWebsitesManager {
     }
 
     /**
-     * Loads authorized website structures from storage and builds whitelist list rows.
+     * Loads authorized website structures from storage and renders via Preact.
      * @fires chrome.storage.local.get
      * @fires chrome.storage.local.set
      */
@@ -118,47 +184,14 @@ export class WhitelistedWebsitesManager {
                         });
                     }
 
-                    if (sites.length === 0) {
-                        list.innerHTML = `<li style="justify-content: center; color: var(--md-text-low); font-style: italic;">No whitelisted websites. Add one to get started!</li>`;
-                        return;
-                    }
-
-                    list.innerHTML = sites.map(site => {
-                        const monogram = site.domain.substring(0, 1).toUpperCase();
-                        const badge = site.isDefault 
-                            ? `<span class="site-badge protected" style="margin-right: 8px;">Default</span>` 
-                            : ``;
-                        const colorClass = site.isDefault ? '' : 'style="color: var(--md-success); border-color: rgba(30, 142, 62, 0.15);"';
-                        return `
-                            <li>
-                                <div class="site-name-wrapper">
-                                    <div class="site-icon-fallback" ${colorClass}>${monogram}</div>
-                                    <span>${site.domain}</span>
-                                </div>
-                                <div style="display: flex; align-items: center;">
-                                    ${badge}
-                                    <button class="delete-site-btn" data-site="${site.domain}" title="Delete platform whitelisting" aria-label="Delete platform whitelisting">
-                                        <svg class="svg-icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                    </button>
-                                </div>
-                            </li>
-                        `;
-                    }).join('');
-
-                    // Link delete buttons
-                    document.querySelectorAll('.delete-site-btn').forEach(btn => {
-                        btn.addEventListener('click', (e: Event) => {
-                            try {
-                                const button = e.currentTarget as HTMLElement;
-                                const siteDomain = button.getAttribute('data-site');
-                                if (siteDomain) {
-                                    this.handleDeleteWebsite(siteDomain);
-                                }
-                            } catch (err) {
-                                UIUtils.catchError('WhitelistedWebsites', 'Error in delete site button click', err);
-                            }
-                        });
-                    });
+                    // Render through Preact
+                    render(
+                        <WhitelistedSitesList
+                            sites={sites}
+                            onDelete={(domain) => this.handleDeleteWebsite(domain)}
+                        />,
+                        list
+                    );
                 } catch (innerErr) {
                     UIUtils.catchError('WhitelistedWebsites', 'Error rendering whitelisted sites', innerErr);
                 }
@@ -398,6 +431,9 @@ export default WhitelistedWebsitesManager;
 try {
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = WhitelistedWebsitesManager;
+        (module.exports as any).default = WhitelistedWebsitesManager;
+        (module.exports as any).WhitelistedWebsitesManager = WhitelistedWebsitesManager;
+        (module.exports as any).WhitelistedSitesList = WhitelistedSitesList;
     } else if (typeof window !== 'undefined') {
         (window as unknown as { WhitelistedWebsitesManager?: typeof WhitelistedWebsitesManager }).WhitelistedWebsitesManager = WhitelistedWebsitesManager;
     }
