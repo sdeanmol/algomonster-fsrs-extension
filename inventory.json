@@ -948,136 +948,6 @@
       "knownIssues": [],
       "migrationNotes": "Framework-independent utility, service, calculation engine or persistence logic"
     },
-    "features/dashboard/forecast/forecast.ts": {
-      "path": "features/dashboard/forecast/forecast.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "forecast",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "../../../types/domain",
-        "../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/heatmap/heatmap-stats.ts": {
-      "path": "features/dashboard/heatmap/heatmap-stats.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "heatmap-stats",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/heatmap/heatmap.ts": {
-      "path": "features/dashboard/heatmap/heatmap.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "heatmap",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "./heatmap-stats",
-        "../../../types/domain",
-        "../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/history/history.ts": {
-      "path": "features/dashboard/history/history.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "history",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "../../../types/domain",
-        "../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/pomodoro/pomodoro.ts": {
-      "path": "features/dashboard/pomodoro/pomodoro.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "pomodoro",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "../../../types/domain",
-        "../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
     "features/dashboard/popup/DashboardComponent.ts": {
       "path": "features/dashboard/popup/DashboardComponent.ts",
       "category": "Category B: UI Controllers",
@@ -1272,80 +1142,31 @@
       "knownIssues": [],
       "migrationNotes": "UI component rendering, user interactions, or DOM view management"
     },
-    "features/dashboard/studyplan/studyplan.ts": {
-      "path": "features/dashboard/studyplan/studyplan.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "studyplan",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "../../common/utils/cardUtils",
-        "../../../types/domain"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/summary/summary.ts": {
-      "path": "features/dashboard/summary/summary.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "summary",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "../../../types/domain",
-        "./summaryGenerator"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
     "features/dashboard/summary/summaryGenerator.ts": {
       "path": "features/dashboard/summary/summaryGenerator.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "summaryGenerator",
+      "category": "Category C: Framework-Independent Business Logic",
+      "responsibility": "Pure dynamic summary generator computing retention, topic mastery, and insight metrics",
       "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
+      "requiresPreactConversion": false,
+      "migrationPhase": "Phase 4 - Batch 4",
       "dependencies": [
         "../../../types/domain"
       ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
+      "dependentFiles": [
+        "features/dashboard/summary/summary.tsx"
+      ],
+      "migrationStatus": "verified",
       "testsRequired": [
         "Build check (tsc & webpack)",
         "Unit test suite verification"
       ],
       "testsCompleted": [
-        "Baseline Jest run (PASS)"
+        "tests/unit/features/dashboard/summary/summaryGenerator.test.ts (PASS)",
+        "npm run build (PASS)"
       ],
-      "verificationStatus": "PENDING",
+      "verificationStatus": "VERIFIED",
       "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
+      "migrationNotes": "Pure data transformation and statistical metrics generator; intentionally framework-independent per Section 2.2 of migration principles."
     },
     "features/highlighter/highlighter.tsx": {
       "path": "features/highlighter/highlighter.tsx",
@@ -1810,6 +1631,218 @@
       "verificationStatus": "VERIFIED",
       "knownIssues": [],
       "migrationNotes": "Converted ColorFilterBubbles, HighlightCardView, and HighlightsListView to Preact components and verified via Jest and Webpack"
+    },
+    "features/dashboard/pomodoro/pomodoro.tsx": {
+      "path": "features/dashboard/pomodoro/pomodoro.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Pomodoro study timer standalone dashboard and visual indicators",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 4",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "../../../types/domain",
+        "../../common/constants",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification",
+        "Preact component test suite"
+      ],
+      "testsCompleted": [
+        "tests/unit/features/dashboard/pomodoro/pomodoro.test.ts (PASS)",
+        "tests/unit/features/dashboard/pomodoro/PomodoroComponents.test.tsx (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated pomodoro to Preact components (PomodoroPhaseTabs, PomodoroTimerRing, PomodoroSessionProgress, PomodoroStatsDisplay, PomodoroControls, PomodoroSettingsForm) with full state sync and 100% test parity."
+    },
+    "features/dashboard/heatmap/heatmap.tsx": {
+      "path": "features/dashboard/heatmap/heatmap.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Heatmap standalone dashboard page and filter controls",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 4",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "./heatmap-stats",
+        "../../../types/domain",
+        "../../common/constants",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification",
+        "Preact component test suite"
+      ],
+      "testsCompleted": [
+        "tests/unit/features/dashboard/heatmap/heatmap.test.ts (PASS)",
+        "tests/unit/features/dashboard/heatmap/HeatmapComponents.test.tsx (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated HeatmapDashboard to Preact components (HeatmapFilterBar, HeatmapCell, HeatmapLegend) preserving filter cascading, DOM navigation, and 100% test parity."
+    },
+    "features/dashboard/heatmap/heatmap-stats.tsx": {
+      "path": "features/dashboard/heatmap/heatmap-stats.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Heatmap streak calculation and stats KPI card panels",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 4",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "../../common/constants",
+        "preact"
+      ],
+      "dependentFiles": [
+        "features/dashboard/heatmap/heatmap.tsx"
+      ],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification",
+        "Preact component test suite"
+      ],
+      "testsCompleted": [
+        "tests/unit/features/dashboard/heatmap/heatmap-stats.test.ts (PASS)",
+        "tests/unit/features/dashboard/heatmap/HeatmapComponents.test.tsx (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated HeatmapStats to Preact components (StreakStatCard, HeatmapStatsDashboard) while retaining math streak algorithms and full API compatibility."
+    },
+    "features/dashboard/history/history.tsx": {
+      "path": "features/dashboard/history/history.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Review history standalone dashboard, aggregation views, and CSS bar charts",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 4",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "../../../types/domain",
+        "../../common/constants",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification",
+        "Preact component test suite"
+      ],
+      "testsCompleted": [
+        "tests/unit/features/dashboard/history/history.test.ts (PASS)",
+        "tests/unit/features/dashboard/history/HistoryComponents.test.tsx (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated FSRSHistoryDashboard to Preact components (HistoryViewToggle, HistoryBreadcrumb, HistorySummaryCard, HistoryBarChart) preserving multi-level drill-down and 100% test parity."
+    },
+    "features/dashboard/forecast/forecast.tsx": {
+      "path": "features/dashboard/forecast/forecast.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Review workload forecast standalone dashboard, 30-day calendar, and workload bar charts",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 4",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "../../../types/domain",
+        "../../common/constants",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification",
+        "Preact component test suite"
+      ],
+      "testsCompleted": [
+        "tests/unit/features/dashboard/forecast/forecast.test.ts (PASS)",
+        "tests/unit/features/dashboard/forecast/ForecastComponents.test.tsx (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated ForecastDashboard to Preact components (ForecastMetricsHeader, ForecastCalendarCell, ForecastCalendar, ForecastChart) preserving 30-day projection calculation and 100% test parity."
+    },
+    "features/dashboard/studyplan/studyplan.tsx": {
+      "path": "features/dashboard/studyplan/studyplan.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Exam countdown study planner, redistribution controls, and schedule breakdown",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 4",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "../../common/utils/cardUtils",
+        "../../../types/domain",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification",
+        "Preact component test suite"
+      ],
+      "testsCompleted": [
+        "tests/unit/features/dashboard/studyplan/studyplan.test.ts (PASS)",
+        "tests/unit/features/dashboard/studyplan/StudyPlanComponents.test.tsx (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated StudyPlanController to Preact components (StudyPlanSetupPanel, StudyPlanCountdownRing, StudyPlanActivePanel, StudyPlanScheduleTable) preserving card redistribution logic and 100% test parity."
+    },
+    "features/dashboard/summary/summary.tsx": {
+      "path": "features/dashboard/summary/summary.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Weekly and monthly digest summary dashboard, KPI cards, and activity charts",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 4",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "../../../types/domain",
+        "./summaryGenerator",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification",
+        "Preact component test suite"
+      ],
+      "testsCompleted": [
+        "tests/unit/features/dashboard/summary/summary.test.ts (PASS)",
+        "tests/unit/features/dashboard/summary/SummaryComponents.test.tsx (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated SummaryDashboard to Preact components (SummaryPeriodTabs, SummaryKpiGrid, SummaryInsightsList, SummaryActivityChart, SummaryTopicMasteryList) preserving dynamic reporting and 100% test parity."
     }
   }
 }

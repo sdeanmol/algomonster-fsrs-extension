@@ -54,12 +54,12 @@ module.exports = (env) => {
     // Dashboard UIs
     'features/dashboard/popup/popup': './features/dashboard/popup/popup.ts',
     'features/dashboard/analytics/analytics': './features/dashboard/analytics/analytics.ts',
-    'features/dashboard/heatmap/heatmap': './features/dashboard/heatmap/heatmap.ts',
-    'features/dashboard/pomodoro/pomodoro': './features/dashboard/pomodoro/pomodoro.ts',
-    'features/dashboard/history/history': './features/dashboard/history/history.ts',
-    'features/dashboard/forecast/forecast': './features/dashboard/forecast/forecast.ts',
-    'features/dashboard/studyplan/studyplan': './features/dashboard/studyplan/studyplan.ts',
-    'features/dashboard/summary/summary': './features/dashboard/summary/summary.ts'
+    'features/dashboard/heatmap/heatmap': './features/dashboard/heatmap/heatmap.tsx',
+    'features/dashboard/pomodoro/pomodoro': './features/dashboard/pomodoro/pomodoro.tsx',
+    'features/dashboard/history/history': './features/dashboard/history/history.tsx',
+    'features/dashboard/forecast/forecast': './features/dashboard/forecast/forecast.tsx',
+    'features/dashboard/studyplan/studyplan': './features/dashboard/studyplan/studyplan.tsx',
+    'features/dashboard/summary/summary': './features/dashboard/summary/summary.tsx'
   },
   output: {
     path: buildPath,

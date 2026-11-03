@@ -1,17 +1,23 @@
 /**
- * @file features/dashboard/studyplan/studyplan.ts
+ * @file features/dashboard/studyplan/studyplan.tsx
  * @description Exam Countdown Mode and study planner controller.
  * Redistributes all FSRS cards evenly across remaining calendar days until the target exam date,
  * prioritizing overdue and low-stability cards. Preserves original computed due dates as a backup
  * so spaced repetition schedules can be restored when exam mode is deactivated.
+ * Migrated to Preact with TypeScript for modular setup and countdown panels.
  *
  * Architecture Role: Exam Study Plan Standalone Page Controller.
  * Context: Extension Standalone Tab (`features/dashboard/studyplan/studyplan.html`).
  * Key Exports:
- * - {@link StudyPlanSettings}: Configuration schema for active exam countdown deadlines.
- * - {@link StudyPlanController}: Controller class managing redistribution logic, previews, and countdown display.
+ * - `StudyPlanSettings`: Configuration schema for active exam countdown deadlines.
+ * - `StudyPlanSetupPanel`: Preact component for date selection and preview.
+ * - `StudyPlanCountdownRing`: Preact component rendering circular deadline dial.
+ * - `StudyPlanActivePanel`: Preact component for active countdown metrics and controls.
+ * - `StudyPlanScheduleTable`: Preact component rendering daily schedule breakdown.
+ * - `StudyPlanController`: Controller class managing redistribution logic, previews, and countdown display.
  */
 
+import { h, VNode } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
@@ -30,6 +36,248 @@ export interface StudyPlanSettings {
     /** Epoch timestamp in milliseconds when exam mode was activated. */
     activatedAt: number;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface StudyPlanSetupPanelProps {
+    examDateMin: string;
+    daysLeft: number;
+    totalCards: number;
+    dailyTarget: number;
+    showPreview: boolean;
+    onExamDateChange: (e: Event) => void;
+    onDailyLimitChange: (e: Event) => void;
+    onActivate: () => void;
+}
+
+/**
+ * Preact component for configuring exam deadline date and daily study quota.
+ */
+export function StudyPlanSetupPanel({
+    examDateMin,
+    daysLeft,
+    totalCards,
+    dailyTarget,
+    showPreview,
+    onExamDateChange,
+    onDailyLimitChange,
+    onActivate
+}: StudyPlanSetupPanelProps): VNode {
+    return (
+        <div id="setup-panel" className="setup-panel">
+            <div className="input-group">
+                <label htmlFor="exam-date-input">Target Exam Date</label>
+                <input
+                    type="date"
+                    id="exam-date-input"
+                    className="input-field"
+                    min={examDateMin}
+                    onChange={onExamDateChange}
+                    onInput={onExamDateChange}
+                />
+            </div>
+            <div className="input-group">
+                <label htmlFor="daily-limit-input">Max Daily Reviews (Optional)</label>
+                <input
+                    type="number"
+                    id="daily-limit-input"
+                    className="input-field"
+                    placeholder="Auto-calculated"
+                    min={1}
+                    onInput={onDailyLimitChange}
+                />
+            </div>
+
+            <div
+                id="setup-preview"
+                className="setup-preview"
+                style={{ display: showPreview ? 'block' : 'none' }}
+            >
+                <div className="preview-stat">
+                    <span>Days Remaining:</span>
+                    <strong id="preview-days">{daysLeft}</strong>
+                </div>
+                <div className="preview-stat">
+                    <span>Total Cards:</span>
+                    <strong id="preview-total">{totalCards}</strong>
+                </div>
+                <div className="preview-stat">
+                    <span>Daily Target:</span>
+                    <strong id="preview-daily">{dailyTarget}</strong>
+                </div>
+            </div>
+
+            <button
+                id="activate-btn"
+                className="btn btn-primary btn-block"
+                disabled={!showPreview}
+                onClick={onActivate}
+            >
+                Activate Exam Mode
+            </button>
+        </div>
+    );
+}
+
+export interface StudyPlanCountdownRingProps {
+    daysLeft: number;
+    progress: number;
+    title: string;
+    examDateFormatted: string;
+}
+
+/**
+ * Preact component rendering SVG countdown ring and deadline label.
+ */
+export function StudyPlanCountdownRing({
+    daysLeft,
+    progress,
+    title,
+    examDateFormatted
+}: StudyPlanCountdownRingProps): VNode {
+    const circumference = 2 * Math.PI * 52;
+    const offset = circumference - (progress * circumference);
+    const ringClass = daysLeft <= 3 ? 'urgent' : (daysLeft <= 7 ? 'warning' : '');
+
+    return (
+        <div className="countdown-ring-container">
+            <svg className="countdown-ring" viewBox="0 0 120 120">
+                <circle className="ring-bg" cx="60" cy="60" r="52" />
+                <circle
+                    id="countdown-ring-fill"
+                    className={`ring-fill ${ringClass}`}
+                    cx="60"
+                    cy="60"
+                    r="52"
+                    strokeDasharray={String(circumference)}
+                    strokeDashoffset={String(offset)}
+                />
+            </svg>
+            <div className="countdown-text">
+                <span id="countdown-days" className="countdown-number">{daysLeft}</span>
+                <span id="countdown-title" className="countdown-label">{title}</span>
+                <span id="countdown-exam-date" className="countdown-date">{examDateFormatted}</span>
+            </div>
+        </div>
+    );
+}
+
+export interface StudyPlanActivePanelProps {
+    totalCards: number;
+    dailyTarget: number;
+    completedCards: number;
+    daysLeft: number;
+    progress: number;
+    title: string;
+    examDateFormatted: string;
+    onDeactivate: () => void;
+}
+
+/**
+ * Preact component rendering active exam mode dashboard and metrics.
+ */
+export function StudyPlanActivePanel({
+    totalCards,
+    dailyTarget,
+    completedCards,
+    daysLeft,
+    progress,
+    title,
+    examDateFormatted,
+    onDeactivate
+}: StudyPlanActivePanelProps): VNode {
+    return (
+        <div id="active-panel" className="active-panel">
+            <StudyPlanCountdownRing
+                daysLeft={daysLeft}
+                progress={progress}
+                title={title}
+                examDateFormatted={examDateFormatted}
+            />
+
+            <div className="active-stats-grid">
+                <div className="stat-card">
+                    <span className="stat-label">Total Cards</span>
+                    <span id="active-total-cards" className="stat-value">{totalCards}</span>
+                </div>
+                <div className="stat-card">
+                    <span className="stat-label">Daily Target</span>
+                    <span id="active-daily-target" className="stat-value">{dailyTarget}</span>
+                </div>
+                <div className="stat-card">
+                    <span className="stat-label">Reviewed</span>
+                    <span id="active-completed" className="stat-value">{completedCards}</span>
+                </div>
+            </div>
+
+            <button
+                id="deactivate-btn"
+                className="btn btn-secondary btn-block"
+                onClick={onDeactivate}
+            >
+                Deactivate Exam Mode
+            </button>
+        </div>
+    );
+}
+
+export interface StudyPlanScheduleRow {
+    dayIndex: number;
+    dateFormatted: string;
+    cardsCount: number;
+    status: 'Done' | 'Today' | 'Upcoming';
+    isToday: boolean;
+    isPast: boolean;
+}
+
+export interface StudyPlanScheduleTableProps {
+    rows: StudyPlanScheduleRow[];
+}
+
+/**
+ * Preact component rendering schedule table rows for upcoming review quotas.
+ */
+export function StudyPlanScheduleTable({ rows }: StudyPlanScheduleTableProps): VNode {
+    return (
+        <table className="schedule-table">
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Date</th>
+                    <th>Cards</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="schedule-body">
+                {rows.map((row) => (
+                    <tr
+                        key={row.dayIndex}
+                        className={row.isToday ? 'today-row' : (row.isPast ? 'past-row' : '')}
+                    >
+                        <td>Day {row.dayIndex}</td>
+                        <td>{row.dateFormatted}</td>
+                        <td>{row.cardsCount}</td>
+                        <td>
+                            <span
+                                className={`badge badge-${
+                                    row.status === 'Done' ? 'complete' : (row.status === 'Today' ? 'today' : 'upcoming')
+                                }`}
+                            >
+                                {row.status}
+                            </span>
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STUDY PLAN CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Controller for Exam Countdown Mode, enabling students to compress
@@ -488,3 +736,12 @@ if (typeof document !== 'undefined') {
         initStudyPlan();
     }
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).StudyPlanController = StudyPlanController;
+    (module.exports as any).StudyPlanSetupPanel = StudyPlanSetupPanel;
+    (module.exports as any).StudyPlanCountdownRing = StudyPlanCountdownRing;
+    (module.exports as any).StudyPlanActivePanel = StudyPlanActivePanel;
+    (module.exports as any).StudyPlanScheduleTable = StudyPlanScheduleTable;
+}
+

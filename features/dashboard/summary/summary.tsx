@@ -1,19 +1,255 @@
 /**
- * @file features/dashboard/summary/summary.ts
+ * @file features/dashboard/summary/summary.tsx
  * @description Controller for the dynamic Weekly and Monthly Digest Summary page.
  * Aggregates study metrics, retention trends, leech patterns, topic mastery distributions,
  * and generates actionable study insights.
+ * Migrated to Preact with TypeScript for modular summary cards, charts, and topic bars.
  *
  * Architecture Role: Summary Digest Standalone Page Controller.
  * Context: Extension Standalone Tab (`features/dashboard/summary/summary.html`).
  * Key Exports:
- * - {@link SummaryDashboard}: Master controller class managing timeframe tabs and digest rendering.
+ * - `SummaryPeriodTabs`: Preact component for weekly vs monthly period switching.
+ * - `SummaryKpiGrid`: Preact component for KPI metric cards and trend badges.
+ * - `SummaryInsightsList`: Preact component for smart recommendation callouts.
+ * - `SummaryActivityChart`: Preact component for daily review activity bar chart.
+ * - `SummaryTopicMasteryList`: Preact component for topic mastery and weak topics progress bars.
+ * - `SummaryDashboard`: Master controller class managing timeframe tabs and digest rendering.
  */
 
+import { h, VNode } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { StorageData, Card } from '../../../types/domain';
-import { generateSummaryReport, SummaryReport, TopicMastery, SummaryInsight } from './summaryGenerator';
+import { generateSummaryReport, SummaryReport, TopicMastery, SummaryInsight, DailyActivityPoint } from './summaryGenerator';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SummaryPeriodTabsProps {
+    currentPeriod: 'weekly' | 'monthly';
+    onSelectPeriod: (period: 'weekly' | 'monthly') => void;
+}
+
+/**
+ * Preact component for switching between Weekly and Monthly digest timeframes.
+ */
+export function SummaryPeriodTabs({ currentPeriod, onSelectPeriod }: SummaryPeriodTabsProps): VNode {
+    const isWeekly = currentPeriod === 'weekly';
+
+    return (
+        <div className="period-tabs" role="tablist">
+            <button
+                id="period-weekly-btn"
+                className={`tab-btn ${isWeekly ? 'active' : ''}`}
+                role="tab"
+                aria-selected={isWeekly ? 'true' : 'false'}
+                onClick={() => onSelectPeriod('weekly')}
+            >
+                Weekly Digest
+            </button>
+            <button
+                id="period-monthly-btn"
+                className={`tab-btn ${!isWeekly ? 'active' : ''}`}
+                role="tab"
+                aria-selected={!isWeekly ? 'true' : 'false'}
+                onClick={() => onSelectPeriod('monthly')}
+            >
+                Monthly Digest
+            </button>
+        </div>
+    );
+}
+
+export interface SummaryKpiGridProps {
+    report: SummaryReport;
+    currentPeriod: 'weekly' | 'monthly';
+}
+
+/**
+ * Preact component rendering top-level KPI cards and trend percentage badges.
+ */
+export function SummaryKpiGrid({ report, currentPeriod }: SummaryKpiGridProps): VNode {
+    const reviewsDiff = report.reviewsChangePct;
+    const reviewsSign = reviewsDiff > 0 ? '+' : '';
+    const reviewsTrendClass = reviewsDiff > 0 ? 'up' : reviewsDiff < 0 ? 'down' : 'neutral';
+
+    const retentionDiff = report.retentionChangeDiff;
+    const retentionSign = retentionDiff > 0 ? '+' : '';
+    const retentionTrendClass = retentionDiff > 0 ? 'up' : retentionDiff < 0 ? 'down' : 'neutral';
+    const activeDaysPct = Math.round((report.activeDays / report.totalDaysInPeriod) * 100);
+
+    return (
+        <div className="kpi-grid">
+            <div className="kpi-card">
+                <div className="kpi-header">
+                    <span className="kpi-label">Total Reviews</span>
+                    <span id="kpi-reviews-trend" className={`kpi-badge ${reviewsTrendClass}`}>
+                        {reviewsSign}{reviewsDiff}%
+                    </span>
+                </div>
+                <div id="kpi-reviews" className="kpi-value">{report.totalReviews}</div>
+                <div id="kpi-reviews-sub" className="kpi-sub">
+                    vs {report.prevPeriodReviews} in prev {currentPeriod === 'weekly' ? 'week' : 'month'}
+                </div>
+            </div>
+
+            <div className="kpi-card">
+                <div className="kpi-header">
+                    <span className="kpi-label">Retention Rate</span>
+                    <span id="kpi-retention-trend" className={`kpi-badge ${retentionTrendClass}`}>
+                        {retentionSign}{retentionDiff}%
+                    </span>
+                </div>
+                <div id="kpi-retention" className="kpi-value">{report.retentionRate}%</div>
+                <div id="kpi-retention-sub" className="kpi-sub">
+                    prev period: {report.prevRetentionRate}%
+                </div>
+            </div>
+
+            <div className="kpi-card">
+                <div className="kpi-header">
+                    <span className="kpi-label">New Cards Learned</span>
+                </div>
+                <div id="kpi-new-cards" className="kpi-value">{report.newCardsLearned}</div>
+                <div className="kpi-sub">Introduced this period</div>
+            </div>
+
+            <div className="kpi-card">
+                <div className="kpi-header">
+                    <span className="kpi-label">Active Days</span>
+                </div>
+                <div id="kpi-active-days" className="kpi-value">
+                    {report.activeDays}/{report.totalDaysInPeriod}
+                </div>
+                <div id="kpi-active-days-sub" className="kpi-sub">
+                    {activeDaysPct}% active days
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export interface SummaryInsightsListProps {
+    insights: SummaryInsight[];
+}
+
+/**
+ * Preact component rendering smart recommendations and observational callouts.
+ */
+export function SummaryInsightsList({ insights }: SummaryInsightsListProps): VNode {
+    if (insights.length === 0) {
+        return (
+            <div id="insights-container" className="insights-container">
+                <div className="empty-state">No specific recommendations for this period.</div>
+            </div>
+        );
+    }
+
+    return (
+        <div id="insights-container" className="insights-container">
+            {insights.map((insight, idx) => (
+                <div key={idx} className={`insight-item ${insight.type}`}>
+                    <span className="insight-icon">{insight.icon}</span>
+                    <div className="insight-content">
+                        <span className="insight-title">{insight.title}</span>
+                        <span className="insight-desc">{insight.description}</span>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+export interface SummaryActivityChartProps {
+    dailyActivity: DailyActivityPoint[];
+    isMonthly: boolean;
+}
+
+/**
+ * Preact component rendering daily review activity columns and date labels.
+ */
+export function SummaryActivityChart({ dailyActivity, isMonthly }: SummaryActivityChartProps): VNode {
+    const maxCount = Math.max(...dailyActivity.map(a => a.count), 1);
+    const totalPoints = dailyActivity.length;
+
+    return (
+        <div id="activity-chart-container" className="chart-bars-container">
+            {dailyActivity.map((pt, idx) => {
+                const heightPct = pt.count > 0 ? Math.max(Math.round((pt.count / maxCount) * 100), 10) : 0;
+                const showLabel = !isMonthly || idx % 5 === 0 || idx === totalPoints - 1;
+
+                return (
+                    <div
+                        key={idx}
+                        className="chart-bar-wrapper"
+                        title={`${pt.fullDate}: ${pt.count} review(s)`}
+                    >
+                        <div
+                            className={`chart-bar ${pt.count === 0 ? 'zero' : ''}`}
+                            style={{ height: `${heightPct}%` }}
+                        />
+                        <span className={`chart-label ${showLabel ? '' : 'hidden-label'}`}>
+                            {showLabel ? pt.dateStr : ''}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+export interface SummaryTopicMasteryListProps {
+    title: string;
+    containerId: string;
+    topics: TopicMastery[];
+}
+
+/**
+ * Preact component rendering topic mastery percentage bars.
+ */
+export function SummaryTopicMasteryList({
+    title,
+    containerId,
+    topics
+}: SummaryTopicMasteryListProps): VNode {
+    if (topics.length === 0) {
+        return (
+            <div className="topic-card">
+                <h3>{title}</h3>
+                <div id={containerId}>
+                    <div className="empty-state">No topic data logged in this timeframe.</div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="topic-card">
+            <h3>{title}</h3>
+            <div id={containerId}>
+                {topics.map((t) => {
+                    const fillClass = t.retentionRate >= 80 ? 'high' : t.retentionRate >= 60 ? 'medium' : 'low';
+                    return (
+                        <div key={t.tag} className="topic-row">
+                            <div className="topic-header">
+                                <span className="topic-name">{t.tag}</span>
+                                <span className="topic-stats">{t.retentionRate}% ({t.successReviews}/{t.totalReviews})</span>
+                            </div>
+                            <div className="topic-bar-bg">
+                                <div className={`topic-bar-fill ${fillClass}`} style={{ width: `${t.retentionRate}%` }} />
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUMMARY DASHBOARD CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Controller for the Weekly & Monthly Study Digest dashboard.
@@ -282,4 +518,13 @@ if (typeof document !== 'undefined') {
     } else {
         initSummaryDashboard();
     }
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).SummaryDashboard = SummaryDashboard;
+    (module.exports as any).SummaryPeriodTabs = SummaryPeriodTabs;
+    (module.exports as any).SummaryKpiGrid = SummaryKpiGrid;
+    (module.exports as any).SummaryInsightsList = SummaryInsightsList;
+    (module.exports as any).SummaryActivityChart = SummaryActivityChart;
+    (module.exports as any).SummaryTopicMasteryList = SummaryTopicMasteryList;
 }

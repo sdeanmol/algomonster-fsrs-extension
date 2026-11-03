@@ -1,20 +1,200 @@
 /**
- * @file features/dashboard/heatmap/heatmap.ts
+ * @file features/dashboard/heatmap/heatmap.tsx
  * @description Main controller for the dedicated full-screen contribution heatmap page.
  * Manages calendar date cascades, filters (lifetime, yearly, monthly, weekly), SVG/CSS cell grids,
  * streak metrics delegation, and handles click events to query historical review details in `data.html`.
+ * Migrated to Preact with TypeScript for declarative UI components and full backward compatibility.
  *
  * Architecture Role: Heatmap Standalone Page Controller.
  * Context: Extension Standalone Tab (`features/dashboard/heatmap/heatmap.html`).
  * Key Exports:
- * - {@link HeatmapDashboard}: Controller class managing date range queries, filter cascades, and grid rendering.
+ * - `HeatmapFilterBar`: Preact component for filter dropdown controls.
+ * - `HeatmapCell`: Preact component rendering an individual day's square.
+ * - `HeatmapGrid`: Preact component rendering the matrix of contribution cells.
+ * - `HeatmapLegend`: Preact component rendering the frequency color scale legend.
+ * - `HeatmapDashboard`: Controller class managing date range queries, filter cascades, and grid rendering.
  */
 
+import { h, VNode } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { HeatmapStats } from './heatmap-stats';
 import { StorageData } from '../../../types/domain';
 import { MS_PER_DAY, DAYS_PER_YEAR, HEATMAP_LEVEL_THRESHOLDS, MONTH_NAMES } from '../../common/constants';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface HeatmapFilterBarProps {
+    filterType: 'lifetime' | 'year-wise' | 'month-wise' | 'day-wise';
+    years: string[];
+    selectedYear: string;
+    months: { value: string; label: string }[];
+    selectedMonth: string;
+    days: { value: string; label: string }[];
+    selectedDay: string;
+    summaryText: string;
+    onFilterTypeChange?: (e: Event) => void;
+    onYearChange?: (e: Event) => void;
+    onMonthChange?: (e: Event) => void;
+    onDayChange?: (e: Event) => void;
+}
+
+/**
+ * Preact component rendering the heatmap filter toolbar and cascading selects.
+ */
+export function HeatmapFilterBar({
+    filterType,
+    years,
+    selectedYear,
+    months,
+    selectedMonth,
+    days,
+    selectedDay,
+    summaryText,
+    onFilterTypeChange,
+    onYearChange,
+    onMonthChange,
+    onDayChange
+}: HeatmapFilterBarProps): VNode {
+    return (
+        <div className="filter-bar">
+            <span className="filter-title">
+                <svg className="svg-icon filter-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                Filter View:
+            </span>
+            <select
+                id="filter-type"
+                className="input-field select-field"
+                value={filterType}
+                onChange={onFilterTypeChange}
+            >
+                <option value="lifetime">Lifetime History</option>
+                <option value="year-wise">Year Wise</option>
+                <option value="month-wise">Month Wise</option>
+                <option value="day-wise">Day Wise</option>
+            </select>
+
+            <select
+                id="select-year"
+                className={`input-field select-field ${filterType === 'lifetime' ? 'hide-select' : ''}`}
+                value={selectedYear}
+                onChange={onYearChange}
+            >
+                {years.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                ))}
+            </select>
+
+            <select
+                id="select-month"
+                className={`input-field select-field ${filterType !== 'month-wise' && filterType !== 'day-wise' ? 'hide-select' : ''}`}
+                value={selectedMonth}
+                onChange={onMonthChange}
+            >
+                {months.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+            </select>
+
+            <select
+                id="select-day"
+                className={`input-field select-field ${filterType !== 'day-wise' ? 'hide-select' : ''}`}
+                value={selectedDay}
+                onChange={onDayChange}
+            >
+                {days.map((d) => (
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+            </select>
+
+            <span id="filter-summary-text" className="filter-summary">{summaryText}</span>
+        </div>
+    );
+}
+
+export interface HeatmapCellProps {
+    dateString: string;
+    displayDate: string;
+    count: number;
+    level: 0 | 1 | 2 | 3 | 4;
+    isOutsideRange: boolean;
+    onClick?: () => void;
+}
+
+/**
+ * Preact component rendering an individual contribution square.
+ */
+export function HeatmapCell({
+    dateString,
+    displayDate,
+    count,
+    level,
+    isOutsideRange,
+    onClick
+}: HeatmapCellProps): VNode {
+    const ariaLabelText = count === 1 ? `1 review on ${displayDate}` : `${count} reviews on ${displayDate}`;
+
+    if (isOutsideRange) {
+        return (
+            <div
+                className="heatmap-cell level-0"
+                role="button"
+                tabIndex={0}
+                title={ariaLabelText}
+                aria-label={ariaLabelText}
+                style={{ opacity: 0.08, pointerEvents: 'none' }}
+            />
+        );
+    }
+
+    return (
+        <div
+            className={`heatmap-cell level-${level}`}
+            role="button"
+            tabIndex={0}
+            title={ariaLabelText}
+            aria-label={ariaLabelText}
+            onClick={onClick}
+            onKeyDown={(e: KeyboardEvent) => {
+                if ((e.key === 'Enter' || e.key === ' ') && onClick) {
+                    e.preventDefault();
+                    onClick();
+                }
+            }}
+        />
+    );
+}
+
+export interface HeatmapLegendProps {
+    minText?: string;
+    maxText?: string;
+}
+
+/**
+ * Preact component rendering the 5-level frequency color scale legend.
+ */
+export function HeatmapLegend({ minText = 'Less', maxText = 'More' }: HeatmapLegendProps): VNode {
+    return (
+        <div className="heatmap-legend">
+            <span>{minText}</span>
+            <span className="legend-box level-0" />
+            <span className="legend-box level-1" />
+            <span className="legend-box level-2" />
+            <span className="legend-box level-3" />
+            <span className="legend-box level-4" />
+            <span>{maxText}</span>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEATMAP DASHBOARD CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Controller for the dedicated full-screen contribution heatmap dashboard.
@@ -365,3 +545,11 @@ if (typeof document !== 'undefined') {
         initHeatmap();
     }
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).HeatmapDashboard = HeatmapDashboard;
+    (module.exports as any).HeatmapFilterBar = HeatmapFilterBar;
+    (module.exports as any).HeatmapCell = HeatmapCell;
+    (module.exports as any).HeatmapLegend = HeatmapLegend;
+}
+

@@ -1,19 +1,277 @@
 /**
- * @file features/dashboard/history/history.ts
+ * @file features/dashboard/history/history.tsx
  * @description Main controller for the dedicated contribution and review history dashboard.
  * Aggregates review logs across year, month, or day granularities, renders interactive
  * CSS column charts, and displays clickable drill-down cards linked to detailed card views in `data.html`.
+ * Migrated to Preact with TypeScript for modular history views and visual charts.
  *
  * Architecture Role: History Standalone Page Controller.
  * Context: Extension Standalone Tab (`features/dashboard/history/history.html`).
  * Key Exports:
- * - {@link FSRSHistoryDashboard}: Controller class managing date grouping, view drill-downs, and chart rendering.
+ * - `HistoryViewToggle`: Preact component for toggling year/month/day view granularities.
+ * - `HistoryBreadcrumb`: Preact component rendering drill-down breadcrumb navigation.
+ * - `HistorySummaryCard`: Preact component rendering year/month/day drill-down card.
+ * - `HistoryBarChart`: Preact component rendering distribution bars and axes.
+ * - `FSRSHistoryDashboard`: Controller class managing date grouping, view drill-downs, and chart rendering.
  */
 
+import { h, VNode } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { Card, StorageData, ExtensionSettings, ReviewLog } from '../../../types/domain';
 import { MONTH_NAMES } from '../../common/constants';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface HistoryViewToggleProps {
+    currentView: string;
+    onViewChange: (view: 'year' | 'month' | 'day') => void;
+}
+
+/**
+ * Preact component for switching calendar view granularities (Year, Month, Day).
+ */
+export function HistoryViewToggle({ currentView, onViewChange }: HistoryViewToggleProps): VNode {
+    return (
+        <div className="view-toggle" role="group" aria-label="Calendar hierarchy level">
+            <button
+                id="view-year"
+                className={`btn btn-secondary ${currentView === 'year' ? 'active' : ''}`}
+                onClick={() => onViewChange('year')}
+            >
+                Years
+            </button>
+            <button
+                id="view-month"
+                className={`btn btn-secondary ${currentView === 'month' ? 'active' : ''}`}
+                onClick={() => onViewChange('month')}
+            >
+                Months
+            </button>
+            <button
+                id="view-day"
+                className={`btn btn-secondary ${currentView === 'day' ? 'active' : ''}`}
+                onClick={() => onViewChange('day')}
+            >
+                Days
+            </button>
+        </div>
+    );
+}
+
+export interface HistoryBreadcrumbProps {
+    currentView: string;
+    selectedYear: string | null;
+    selectedMonth: string | null;
+    monthNames?: string[];
+    onNavigateYear?: () => void;
+    onNavigateMonth?: (year: string) => void;
+}
+
+/**
+ * Preact component for breadcrumb navigation across Year -> Month -> Day levels.
+ */
+export function HistoryBreadcrumb({
+    currentView,
+    selectedYear,
+    selectedMonth,
+    monthNames = MONTH_NAMES,
+    onNavigateYear,
+    onNavigateMonth
+}: HistoryBreadcrumbProps): VNode {
+    if (currentView === 'year') {
+        return <div id="breadcrumb" className="breadcrumb">All Years</div>;
+    }
+
+    if (currentView === 'month') {
+        return (
+            <div id="breadcrumb" className="breadcrumb">
+                <span className="bc-year" role="button" tabIndex={0} onClick={onNavigateYear}>All Years</span>
+                {' > '}
+                {selectedYear}
+            </div>
+        );
+    }
+
+    const monthIndex = selectedMonth ? parseInt(selectedMonth.split('-')[1], 10) - 1 : 0;
+    const monthName = monthNames[monthIndex] || '';
+
+    return (
+        <div id="breadcrumb" className="breadcrumb">
+            <span className="bc-year" role="button" tabIndex={0} onClick={onNavigateYear}>All Years</span>
+            {' > '}
+            <span
+                className="bc-month"
+                role="button"
+                tabIndex={0}
+                data-year={selectedYear || ''}
+                onClick={() => selectedYear && onNavigateMonth && onNavigateMonth(selectedYear)}
+            >
+                {selectedYear}
+            </span>
+            {' > '}
+            {monthName}
+        </div>
+    );
+}
+
+export interface HistorySummaryCardProps {
+    type: 'year' | 'month' | 'day';
+    title: string;
+    value: number;
+    subtitle: string;
+    activeDays?: number;
+    year?: string;
+    month?: string;
+    date?: string;
+    onCardClick?: () => void;
+    onViewCards?: (e: Event) => void;
+}
+
+/**
+ * Preact component rendering drill-down cards with review counts and jump buttons.
+ */
+export function HistorySummaryCard({
+    type,
+    title,
+    value,
+    subtitle,
+    activeDays,
+    year,
+    month,
+    date,
+    onCardClick,
+    onViewCards
+}: HistorySummaryCardProps): VNode {
+    const handleButtonClick = (e: Event) => {
+        e.stopPropagation();
+        if (onViewCards) onViewCards(e);
+    };
+
+    if (type === 'year') {
+        return (
+            <div className="card card-year" data-year={year} title="Click to view Months" onClick={onCardClick}>
+                <div className="card-title">{title}</div>
+                <div className="card-value">{value}</div>
+                <div className="card-subtitle">
+                    {subtitle}
+                    {activeDays !== undefined && (
+                        <span><br />Active Days: {activeDays}</span>
+                    )}
+                </div>
+                <button className="view-data-btn btn-year" data-year={year} onClick={handleButtonClick}>
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '12px', height: '12px' }}>
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    View Cards
+                </button>
+            </div>
+        );
+    }
+
+    if (type === 'month') {
+        return (
+            <div className="card card-month" data-year={year} data-month={month} title="Click to view Days" onClick={onCardClick}>
+                <div className="card-title">{title}</div>
+                <div className="card-value">{value}</div>
+                <div className="card-subtitle">{subtitle}</div>
+                <button className="view-data-btn btn-month" data-month={month} onClick={handleButtonClick}>
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '12px', height: '12px' }}>
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    View Cards
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="card card-day" data-date={date} title="View cards reviewed on this day" onClick={onCardClick}>
+            <div className="card-title">{title}</div>
+            <div className="card-value">{value}</div>
+            <div className="card-subtitle">{subtitle}</div>
+            <div className="card-day-link" onClick={handleButtonClick}>
+                <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '12px', height: '12px', marginRight: '4px' }}>
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                View Cards
+            </div>
+        </div>
+    );
+}
+
+export interface HistoryBarDataPoint {
+    label: string;
+    value: number;
+    tooltip?: string;
+    action?: (e?: Event) => void;
+}
+
+export interface HistoryBarChartProps {
+    title: string;
+    dataPoints: HistoryBarDataPoint[];
+    maxVal: number;
+}
+
+/**
+ * Preact component rendering CSS bar chart distributions.
+ */
+export function HistoryBarChart({ title, dataPoints, maxVal }: HistoryBarChartProps): VNode {
+    return (
+        <div id="history-chart-wrapper" className="chart-wrapper">
+            <h3 className="chart-title-label">{title}</h3>
+            <div className="chart-container-inner">
+                <div className="chart-viewport">
+                    <div className="chart-grid-lines">
+                        <div className="grid-line" style={{ bottom: '0%' }}><span>0</span></div>
+                        <div className="grid-line" style={{ bottom: '50%' }}><span>{Math.round(maxVal / 2)}</span></div>
+                        <div className="grid-line" style={{ bottom: '100%' }}><span>{maxVal}</span></div>
+                    </div>
+                    <div className="chart-bars">
+                        {dataPoints.map((dp, idx) => {
+                            const heightPct = maxVal > 0 ? (dp.value / maxVal) * 100 : 0;
+                            const tooltipText = dp.tooltip || `${dp.label}: ${dp.value} reviews`;
+
+                            return (
+                                <div
+                                    key={idx}
+                                    className={`chart-bar-col ${dp.value > 0 ? 'has-value' : ''}`}
+                                    role={dp.action ? 'button' : undefined}
+                                    tabIndex={dp.action ? 0 : undefined}
+                                    aria-label={tooltipText}
+                                    onClick={dp.action}
+                                    onKeyDown={(e: KeyboardEvent) => {
+                                        if ((e.key === 'Enter' || e.key === ' ') && dp.action) {
+                                            e.preventDefault();
+                                            dp.action();
+                                        }
+                                    }}
+                                >
+                                    <div
+                                        className={`chart-bar ${dp.value === 0 ? 'zero-bar' : ''}`}
+                                        style={{ height: `${Math.max(heightPct, 3)}%` }}
+                                    >
+                                        <div className="chart-bar-tooltip">{tooltipText}</div>
+                                    </div>
+                                    <div className="chart-bar-label">{dp.label}</div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HISTORY DASHBOARD CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Controller for the review activity history dashboard page.
@@ -637,3 +895,12 @@ if (typeof document !== 'undefined') {
         initHistory();
     }
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).FSRSHistoryDashboard = FSRSHistoryDashboard;
+    (module.exports as any).HistoryViewToggle = HistoryViewToggle;
+    (module.exports as any).HistoryBreadcrumb = HistoryBreadcrumb;
+    (module.exports as any).HistorySummaryCard = HistorySummaryCard;
+    (module.exports as any).HistoryBarChart = HistoryBarChart;
+}
+

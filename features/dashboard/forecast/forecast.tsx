@@ -1,19 +1,213 @@
 /**
- * @file features/dashboard/forecast/forecast.ts
+ * @file features/dashboard/forecast/forecast.tsx
  * @description Main controller for the dedicated review forecast dashboard page.
  * Projects upcoming review volumes up to 30 days based on scheduled card due dates,
  * rendering interactive CSS column charts, a 30-day calendar grid, and aggregate metrics.
+ * Migrated to Preact with TypeScript for modular forecast rendering and full test parity.
  *
  * Architecture Role: Forecast Standalone Page Controller.
  * Context: Extension Standalone Tab (`features/dashboard/forecast/forecast.html`).
  * Key Exports:
- * - {@link ForecastDashboard}: Main dashboard class calculating daily review loads and rendering charts.
+ * - `ForecastMetricsHeader`: Preact component for workload metrics summary tiles.
+ * - `ForecastCalendarCell`: Preact component rendering an individual calendar day cell.
+ * - `ForecastCalendar`: Preact component rendering the 30-day forecast calendar.
+ * - `ForecastChart`: Preact component rendering the daily review volume bar chart.
+ * - `ForecastDashboard`: Main dashboard class calculating daily review loads and rendering charts.
  */
 
+import { h, VNode } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
 import { FORECAST_DAYS_TO_SHOW, DAY_NAMES_SHORT } from '../../common/constants';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ForecastMetricsHeaderProps {
+    totalUpcoming: number;
+    avgPerDay: string;
+    peakCount: number;
+    todayCount: number;
+    subtitle: string;
+}
+
+/**
+ * Preact component rendering workload metrics summary header.
+ */
+export function ForecastMetricsHeader({
+    totalUpcoming,
+    avgPerDay,
+    peakCount,
+    todayCount,
+    subtitle
+}: ForecastMetricsHeaderProps): VNode {
+    return (
+        <div className="forecast-metrics-summary">
+            <div id="forecast-subtitle" className="forecast-subtitle">{subtitle}</div>
+            <div className="metrics-grid">
+                <div className="metric-card">
+                    <span className="metric-label">Due Today</span>
+                    <span id="forecast-today" className="metric-value">{todayCount}</span>
+                </div>
+                <div className="metric-card">
+                    <span className="metric-label">Total (30 Days)</span>
+                    <span id="forecast-total" className="metric-value">{totalUpcoming}</span>
+                </div>
+                <div className="metric-card">
+                    <span className="metric-label">Daily Average</span>
+                    <span id="forecast-avg" className="metric-value">{avgPerDay}</span>
+                </div>
+                <div className="metric-card">
+                    <span className="metric-label">Peak Workload</span>
+                    <span id="forecast-peak" className="metric-value">{peakCount}</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export interface ForecastCalendarCellProps {
+    dayNumber: number;
+    count: number;
+    isToday: boolean;
+    level: 0 | 1 | 2 | 3 | 4;
+    title: string;
+    onClick?: () => void;
+}
+
+/**
+ * Preact component rendering a single calendar day cell with review count pill.
+ */
+export function ForecastCalendarCell({
+    dayNumber,
+    count,
+    isToday,
+    level,
+    title,
+    onClick
+}: ForecastCalendarCellProps): VNode {
+    return (
+        <div
+            className={`cal-cell ${isToday ? 'cal-today' : ''} cal-level-${level}`}
+            title={title}
+            onClick={count > 0 ? onClick : undefined}
+            style={{ cursor: count > 0 ? 'pointer' : 'default' }}
+        >
+            <span className="cal-day">{dayNumber}</span>
+            <span className="cal-count">{count > 0 ? count : ''}</span>
+        </div>
+    );
+}
+
+export interface ForecastCalendarProps {
+    startDow: number;
+    cells: ForecastCalendarCellProps[];
+    dayNames?: string[];
+}
+
+/**
+ * Preact component rendering 30-day forecast calendar with weekday headers and legend.
+ */
+export function ForecastCalendar({
+    startDow,
+    cells,
+    dayNames = DAY_NAMES_SHORT
+}: ForecastCalendarProps): VNode {
+    return (
+        <div className="forecast-calendar-container">
+            <div id="forecast-calendar" className="forecast-calendar">
+                {dayNames.map((name) => (
+                    <div key={name} className="cal-header">{name}</div>
+                ))}
+                {Array.from({ length: startDow }).map((_, idx) => (
+                    <div key={`empty-${idx}`} className="cal-cell cal-empty" />
+                ))}
+                {cells.map((cell, idx) => (
+                    <ForecastCalendarCell key={`cell-${idx}`} {...cell} />
+                ))}
+            </div>
+            <div className="cal-legend">
+                <span className="cal-legend-label">Less</span>
+                <div className="cal-legend-cell cal-level-0" />
+                <div className="cal-legend-cell cal-level-1" />
+                <div className="cal-legend-cell cal-level-2" />
+                <div className="cal-legend-cell cal-level-3" />
+                <div className="cal-legend-cell cal-level-4" />
+                <span className="cal-legend-label">More</span>
+            </div>
+        </div>
+    );
+}
+
+export interface ForecastChartProps {
+    dataPoints: Array<{
+        index: number;
+        label: string;
+        value: number;
+        displayDate: string;
+        level: number;
+        onClick?: () => void;
+    }>;
+    maxLimit: number;
+}
+
+/**
+ * Preact component rendering the 30-day workload forecast bar chart.
+ */
+export function ForecastChart({ dataPoints, maxLimit }: ForecastChartProps): VNode {
+    return (
+        <div id="forecast-chart-wrapper" className="chart-wrapper">
+            <h3 className="chart-title-label">Workload Forecast (Next 30 Days)</h3>
+            <div className="chart-container-inner">
+                <div className="chart-viewport">
+                    <div className="chart-grid-lines">
+                        <div className="grid-line" style={{ bottom: '0%' }}><span>0</span></div>
+                        <div className="grid-line" style={{ bottom: '50%' }}><span>{Math.round(maxLimit / 2)}</span></div>
+                        <div className="grid-line" style={{ bottom: '100%' }}><span>{maxLimit}</span></div>
+                    </div>
+                    <div className="chart-bars">
+                        {dataPoints.map((dp) => {
+                            const heightPct = (dp.value / maxLimit) * 100;
+                            const isZero = dp.value === 0;
+                            const tooltipText = `${dp.displayDate}: ${dp.value} card${dp.value !== 1 ? 's' : ''} due`;
+
+                            let levelClass = '';
+                            if (!isZero) {
+                                if (dp.value <= 2) levelClass = 'cal-bar-level-1';
+                                else if (dp.value <= 5) levelClass = 'cal-bar-level-2';
+                                else if (dp.value <= 10) levelClass = 'cal-bar-level-3';
+                                else levelClass = 'cal-bar-level-4';
+                            }
+
+                            return (
+                                <div
+                                    key={dp.index}
+                                    className={`chart-bar-col ${dp.value > 0 ? 'has-value' : ''}`}
+                                    style={{ cursor: dp.value > 0 ? 'pointer' : 'default' }}
+                                    onClick={dp.value > 0 ? dp.onClick : undefined}
+                                >
+                                    <div
+                                        className={`chart-bar ${isZero ? 'zero-bar' : levelClass}`}
+                                        style={{ height: `${Math.max(heightPct, 3)}%` }}
+                                    >
+                                        <div className="chart-bar-tooltip">{tooltipText}</div>
+                                    </div>
+                                    <div className="chart-bar-label">{dp.label}</div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FORECAST CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Controller for the review workload forecast dashboard page.
@@ -396,3 +590,12 @@ if (typeof document !== 'undefined') {
         initForecast();
     }
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).ForecastDashboard = ForecastDashboard;
+    (module.exports as any).ForecastMetricsHeader = ForecastMetricsHeader;
+    (module.exports as any).ForecastCalendarCell = ForecastCalendarCell;
+    (module.exports as any).ForecastCalendar = ForecastCalendar;
+    (module.exports as any).ForecastChart = ForecastChart;
+}
+

@@ -13,12 +13,12 @@
 | **Total Files Audited** | **68** | All TypeScript source files accounted for in inventory |
 | **Files Requiring Preact Conversion** | **46** | UI views, components, and controllers (Categories A & B) |
 | **Framework-Independent Files (Kept as TS)** | **22** | Domain logic, schedulers, service worker, content hooks (Categories C & D) |
-| **Files Converted to Preact** | **10** | Batches 1, 2, & 3 complete (`websites`, `help`, `welcome`, `tagInput`, `highlightOptions`, `highlights`, `highlighter`, `editor`, `fsrsConfig`, `data`) |
-| **Files Verified** | **32** | 22 framework-independent + 10 converted Preact modules |
-| **Files Pending** | **36** | Batches 4 to 7 |
+| **Files Converted to Preact** | **17** | Batches 1, 2, 3, & 4 complete (`websites`, `help`, `welcome`, `tagInput`, `highlightOptions`, `highlights`, `highlighter`, `editor`, `fsrsConfig`, `data`, `pomodoro`, `heatmap`, `heatmap-stats`, `history`, `forecast`, `studyplan`, `summary`) |
+| **Files Verified** | **39** | 22 framework-independent + 17 converted Preact modules |
+| **Files Pending** | **29** | Batches 5 to 7 |
 | **Files Blocked** | **0** | No active blockers |
-| **Features Verified** | **3 / 16** | Leaf Management Views, Full Highlighter Suite, & Card Management/Editor Views |
-| **Tests Passing** | **1,076** | 81 test suites all green |
+| **Features Verified** | **4 / 16** | Leaf Management Views, Full Highlighter Suite, Card Management/Editor Views, & Productivity Dashboard Views |
+| **Tests Passing** | **1,114** | 87 test suites all green |
 | **Tests Failing** | **0** | Zero failures |
 
 ---
@@ -26,14 +26,14 @@
 ## 2. Current Phase & Active Batch
 
 - **Current Phase:** Phase 4 — Incremental UI File-by-File Migration
-- **Current Batch:** Batch 4 — Focused Productivity Dashboard Views
+- **Current Batch:** Batch 5 — Main Popup UI & Sub-Components
 - **Next Targets:**
-  1. `features/dashboard/pomodoro/pomodoro.ts` -> `pomodoro.tsx` (Pomodoro timer dials, controls, audio chime)
-  2. `features/dashboard/heatmap/heatmap.ts` & `heatmap-stats.ts` -> `heatmap.tsx` (Activity contribution calendar grid and stats)
-  3. `features/dashboard/history/history.ts` -> `history.tsx` (Review log timeline list, problem history cards)
-  4. `features/dashboard/forecast/forecast.ts` -> `forecast.tsx` (Due workload projection charts and daily cards)
-  5. `features/dashboard/studyplan/studyplan.ts` -> `studyplan.tsx` (Interview deadline roadmap, target velocity meters)
-  6. `features/dashboard/summary/summary.ts` -> `summary.tsx` (Weekly recap cards, exportable summaries)
+  1. `features/dashboard/popup/popup.ts` -> `popup.tsx` (Main popup controller and orchestration)
+  2. `features/dashboard/popup/stats.ts` -> `stats.tsx` (Popup review stats and badge summaries)
+  3. `features/dashboard/popup/heatmap.ts` -> `heatmap.tsx` (Popup mini contribution heatmap grid)
+  4. `features/dashboard/popup/search.ts` -> `search.tsx` (Popup card quick search and filtering)
+  5. `features/dashboard/popup/rating.ts` -> `rating.tsx` (Popup rating actions and ease dials)
+  6. `features/dashboard/popup/notifications.ts` -> `notifications.tsx` (Popup system notifications)
 
 ---
 
@@ -59,7 +59,7 @@
 | **Batch 1** | Leaf Management Views | ✅ Verified | `websites.tsx`, `help.tsx`, `welcome.tsx`, `tagInput.tsx` converted & verified; sub-component test suites added. |
 | **Batch 2** | Highlighter Feature Views | ✅ Verified | `highlightOptions.tsx`, `highlights.tsx`, `highlighter.tsx` converted & verified; palette editor, highlights list, tooltip components tested. |
 | **Batch 3** | Card Management & Editor Views | ✅ Verified | `editor.tsx`, `fsrsConfig.tsx`, `data.tsx` converted & verified; Markdown live preview, FSRS parameter sliders, cards table components tested. |
-| **Batch 4** | Focused Productivity Dashboard Views | 🟡 In Progress | `pomodoro.ts`, `heatmap.ts`, `history.ts`, `forecast.ts`, `studyplan.ts`, `summary.ts` |
+| **Batch 4** | Focused Productivity Dashboard Views | ✅ Verified | `pomodoro.tsx`, `heatmap.tsx`, `heatmap-stats.tsx`, `history.tsx`, `forecast.tsx`, `studyplan.tsx`, `summary.tsx` converted & verified; `summaryGenerator.ts` retained as framework-independent; 6 Preact component test suites added (38 new component tests). |
 | **Batch 5** | Main Popup UI & Sub-Components | ⏳ Planned | `popup.ts` + 5 sub-components |
 | **Batch 6** | Analytics Dashboard & Sub-Modules | ⏳ Planned | `analytics.ts` + 17 sub-modules |
 | **Batch 7** | In-Page Floating Tracker Widget | ⏳ Planned | `tracker.ts` |

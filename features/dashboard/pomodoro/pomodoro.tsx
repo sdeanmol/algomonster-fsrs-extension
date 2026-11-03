@@ -1,19 +1,28 @@
 /**
- * @file features/dashboard/pomodoro/pomodoro.ts
+ * @file features/dashboard/pomodoro/pomodoro.tsx
  * @description Pomodoro Study Timer UI controller and visual renderer.
  * Synchronizes timer countdown state with the background service worker, renders
  * animated SVG progress rings, manages phase switching (focus -> shortBreak -> longBreak),
  * and tracks daily study time and session counts.
+ * Migrated to Preact with TypeScript for modular, accessible timer controls and visual dials.
  *
  * Architecture Role: Pomodoro Standalone Page Controller.
  * Context: Extension Standalone Tab (`features/dashboard/pomodoro/pomodoro.html`).
  * Key Exports:
- * - {@link PomodoroSettings}: Configurable phase durations and cycle thresholds.
- * - {@link PomodoroState}: Shared timer execution and session state object.
- * - {@link PomodoroStats}: Daily aggregated study session counters.
- * - {@link PomodoroTimer}: Controller class managing tick intervals, DOM updates, and background sync.
+ * - `PomodoroSettings`: Configurable phase durations and cycle thresholds.
+ * - `PomodoroState`: Shared timer execution and session state object.
+ * - `PomodoroStats`: Daily aggregated study session counters.
+ * - `PomodoroPhaseTabs`: Preact component for timer phase selection.
+ * - `PomodoroTimerRing`: Preact component rendering the circular SVG timer ring.
+ * - `PomodoroSessionProgress`: Preact component displaying completed session dots.
+ * - `PomodoroStatsDisplay`: Preact component displaying daily sessions and focus minutes.
+ * - `PomodoroControls`: Preact component for Start, Pause, Reset, and Skip controls.
+ * - `PomodoroSettingsForm`: Preact component for interval length configuration.
+ * - `PomodoroApp`: Preact container component combining all timer sections.
+ * - `PomodoroTimer`: Controller class managing tick intervals, DOM updates, and background sync.
  */
 
+import { h, Fragment, render, VNode } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { StorageData } from '../../../types/domain';
@@ -63,10 +72,262 @@ export interface PomodoroStats {
     lastDate?: string;
 }
 
-/**
- * Pomodoro timer controller managing SVG countdown visualization,
- * UI controls (start, pause, reset, skip), and background alarm synchronization.
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PomodoroPhaseTabsProps {
+    phase: 'focus' | 'shortBreak' | 'longBreak';
+    onSelectPhase?: (phase: 'focus' | 'shortBreak' | 'longBreak') => void;
+}
+
+export function PomodoroPhaseTabs({ phase, onSelectPhase }: PomodoroPhaseTabsProps): VNode {
+    return (
+        <div className="phase-indicators" role="tablist">
+            <span
+                id="phase-focus"
+                className={`phase-indicator ${phase === 'focus' ? 'active' : ''}`}
+                role="tab"
+                aria-selected={phase === 'focus'}
+                onClick={() => onSelectPhase && onSelectPhase('focus')}
+            >
+                Focus
+            </span>
+            <span
+                id="phase-short-break"
+                className={`phase-indicator ${phase === 'shortBreak' ? 'active' : ''}`}
+                role="tab"
+                aria-selected={phase === 'shortBreak'}
+                onClick={() => onSelectPhase && onSelectPhase('shortBreak')}
+            >
+                Short Break
+            </span>
+            <span
+                id="phase-long-break"
+                className={`phase-indicator ${phase === 'longBreak' ? 'active' : ''}`}
+                role="tab"
+                aria-selected={phase === 'longBreak'}
+                onClick={() => onSelectPhase && onSelectPhase('longBreak')}
+            >
+                Long Break
+            </span>
+        </div>
+    );
+}
+
+export interface PomodoroTimerRingProps {
+    timeRemaining: number;
+    totalTime: number;
+    phaseLabel: string;
+    phase: 'focus' | 'shortBreak' | 'longBreak';
+}
+
+export function PomodoroTimerRing({
+    timeRemaining,
+    totalTime,
+    phaseLabel,
+    phase
+}: PomodoroTimerRingProps): VNode {
+    const circumference = 2 * Math.PI * 88;
+    const progress = totalTime > 0 ? (totalTime - timeRemaining) / totalTime : 0;
+    const offset = circumference - (progress * circumference);
+
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+    return (
+        <div className="timer-ring-container">
+            <svg className="timer-ring-svg" viewBox="0 0 200 200">
+                <circle
+                    className="timer-ring-bg"
+                    cx="100"
+                    cy="100"
+                    r={88}
+                />
+                <circle
+                    id="timer-ring-fill"
+                    className={`timer-ring-fill ${phase !== 'focus' ? 'break-ring' : ''}`}
+                    cx="100"
+                    cy="100"
+                    r={88}
+                    strokeDasharray={String(circumference)}
+                    strokeDashoffset={String(offset)}
+                />
+            </svg>
+            <div className="timer-display-overlay">
+                <span id="timer-time" className="timer-time">{formattedTime}</span>
+                <span id="timer-phase-label" className="timer-phase-label">{phaseLabel}</span>
+            </div>
+        </div>
+    );
+}
+
+export interface PomodoroSessionProgressProps {
+    currentSession: number;
+    totalSessions: number;
+}
+
+export function PomodoroSessionProgress({
+    currentSession,
+    totalSessions
+}: PomodoroSessionProgressProps): VNode {
+    const dots = [];
+    for (let i = 1; i <= totalSessions; i++) {
+        let dotClass = 'session-dot';
+        if (i < currentSession) {
+            dotClass += ' complete';
+        } else if (i === currentSession) {
+            dotClass += ' active';
+        }
+        dots.push(<div key={i} className={dotClass} />);
+    }
+
+    return (
+        <div className="session-progress">
+            <div id="session-dots" className="session-dots">
+                {dots}
+            </div>
+            <span id="session-text" className="session-text">
+                {currentSession} of {totalSessions}
+            </span>
+        </div>
+    );
+}
+
+export interface PomodoroStatsDisplayProps {
+    todaySessions: number;
+    todayFocusMinutes: number;
+}
+
+export function PomodoroStatsDisplay({
+    todaySessions,
+    todayFocusMinutes
+}: PomodoroStatsDisplayProps): VNode {
+    let focusText = `${todayFocusMinutes}m`;
+    if (todayFocusMinutes >= 60) {
+        const hours = Math.floor(todayFocusMinutes / 60);
+        const mins = todayFocusMinutes % 60;
+        focusText = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+
+    return (
+        <div className="pomodoro-today-stats">
+            <div className="stat-card">
+                <span className="stat-label">Today's Sessions</span>
+                <span id="today-sessions" className="stat-value">{todaySessions}</span>
+            </div>
+            <div className="stat-card">
+                <span className="stat-label">Focus Time</span>
+                <span id="today-focus-time" className="stat-value">{focusText}</span>
+            </div>
+        </div>
+    );
+}
+
+export interface PomodoroControlsProps {
+    state: 'idle' | 'running' | 'paused';
+    onStart: () => void;
+    onPause: () => void;
+    onReset: () => void;
+    onSkip: () => void;
+}
+
+export function PomodoroControls({
+    state,
+    onStart,
+    onPause,
+    onReset,
+    onSkip
+}: PomodoroControlsProps): VNode {
+    return (
+        <div className="timer-controls">
+            <button
+                id="start-btn"
+                className="btn btn-primary btn-round"
+                title="Start Timer"
+                aria-label="Start Timer"
+                style={{ display: state === 'running' ? 'none' : 'flex' }}
+                onClick={onStart}
+            >
+                <svg className="svg-icon" viewBox="0 0 24 24">
+                    <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
+                </svg>
+            </button>
+            <button
+                id="pause-btn"
+                className="btn btn-secondary btn-round"
+                title="Pause Timer"
+                aria-label="Pause Timer"
+                style={{ display: state === 'running' ? 'flex' : 'none' }}
+                onClick={onPause}
+            >
+                <svg className="svg-icon" viewBox="0 0 24 24">
+                    <rect x="6" y="4" width="4" height="16" fill="currentColor" />
+                    <rect x="14" y="4" width="4" height="16" fill="currentColor" />
+                </svg>
+            </button>
+            <button id="reset-btn" className="btn btn-secondary" title="Reset Timer" aria-label="Reset Timer" onClick={onReset}>
+                Reset
+            </button>
+            <button id="skip-btn" className="btn btn-secondary" title="Skip Phase" aria-label="Skip Phase" onClick={onSkip}>
+                Skip
+            </button>
+        </div>
+    );
+}
+
+export interface PomodoroSettingsFormProps {
+    settings: PomodoroSettings;
+    onSave: (settings: PomodoroSettings) => void;
+}
+
+export function PomodoroSettingsForm({ settings, onSave }: PomodoroSettingsFormProps): VNode {
+    const handleSubmit = (e: Event) => {
+        e.preventDefault();
+        const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
+        const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
+        const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
+        const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
+
+        const newSettings: PomodoroSettings = {
+            focusDuration: focusInput ? parseInt(focusInput.value, 10) || settings.focusDuration : settings.focusDuration,
+            shortBreakDuration: shortInput ? parseInt(shortInput.value, 10) || settings.shortBreakDuration : settings.shortBreakDuration,
+            longBreakDuration: longInput ? parseInt(longInput.value, 10) || settings.longBreakDuration : settings.longBreakDuration,
+            sessionsBeforeLongBreak: sessionsInput ? parseInt(sessionsInput.value, 10) || settings.sessionsBeforeLongBreak : settings.sessionsBeforeLongBreak
+        };
+        onSave(newSettings);
+    };
+
+    return (
+        <form className="pomodoro-settings-form" onSubmit={handleSubmit}>
+            <div className="settings-field">
+                <label htmlFor="focus-duration">Focus Duration (min):</label>
+                <input type="number" id="focus-duration" min={1} max={120} defaultValue={settings.focusDuration} />
+            </div>
+            <div className="settings-field">
+                <label htmlFor="short-break-duration">Short Break (min):</label>
+                <input type="number" id="short-break-duration" min={1} max={60} defaultValue={settings.shortBreakDuration} />
+            </div>
+            <div className="settings-field">
+                <label htmlFor="long-break-duration">Long Break (min):</label>
+                <input type="number" id="long-break-duration" min={1} max={60} defaultValue={settings.longBreakDuration} />
+            </div>
+            <div className="settings-field">
+                <label htmlFor="sessions-count">Sessions Before Long Break:</label>
+                <input type="number" id="sessions-count" min={1} max={12} defaultValue={settings.sessionsBeforeLongBreak} />
+            </div>
+            <button type="submit" id="save-settings-btn" className="btn btn-primary">
+                Save Settings
+            </button>
+        </form>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POMODORO CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+
 export class PomodoroTimer {
     /** Configured interval lengths and cycle thresholds. */
     settings: PomodoroSettings;
@@ -698,4 +959,15 @@ if (typeof document !== 'undefined') {
     } else {
         initPomodoro();
     }
+}
+
+if (typeof module !== "undefined" && module.exports) {
+    (module.exports as any).PomodoroPhaseTabs = PomodoroPhaseTabs;
+    (module.exports as any).PomodoroTimerRing = PomodoroTimerRing;
+    (module.exports as any).PomodoroSessionProgress = PomodoroSessionProgress;
+    (module.exports as any).PomodoroStatsDisplay = PomodoroStatsDisplay;
+    (module.exports as any).PomodoroControls = PomodoroControls;
+    (module.exports as any).PomodoroSettingsForm = PomodoroSettingsForm;
+    (module.exports as any).PomodoroTimer = PomodoroTimer;
+    (module.exports as any).initPomodoro = initPomodoro;
 }
