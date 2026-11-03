@@ -1,0 +1,857 @@
+# Keyboard Shortcuts Functionality Audit Patch
+# Extension: AlgoRecall (Coding Interview Spaced Repetition)
+# Format: Machine-readable diff/patch audit log
+# Generated: 2026-11-03
+
+--- /dev/null
++++ b/docs/keyboard-shortcuts-audit.patch
+@@ -0,0 +1,780 @@
++===================================================================
++=== SECTION 1: ARCHITECTURAL OVERVIEW & BROWSER COMPATIBILITY   ===
++===================================================================
++
++Project Architecture:
++  Languages: TypeScript 5.4, JavaScript ES2022
++  Framework: Vanilla TypeScript/JS with Material Design CSS
++  Manifest Version: Manifest V3 across all supported browsers
++  Supported Browsers:
++    1. Google Chrome & Chromium-based browsers (Edge, Brave, Opera)
++       - Manifest: browser/chrome/manifest.json (MV3, background.service_worker)
++       - Shortcut Config URL: chrome://extensions/shortcuts or edge://extensions/shortcuts
++       - Shortcut Limits: Max 4 commands with suggested_key; unlimited configurable commands
++    2. Mozilla Firefox (Gecko >= 109.0)
++       - Manifest: browser/firefox/manifest.json (MV3, background.scripts module)
++       - Shortcut Config URL: about:addons -> Manage Extension Shortcuts
++       - Shortcut Limits: Max 4 commands with suggested_key; unlimited configurable commands
++    3. Apple Safari (macOS / iPadOS / iOS)
++       - Manifest: browser/safari/manifest.json (MV3, background.service_worker)
++       - Shortcut Config: Safari Settings -> Extensions -> Shortcuts
++       - Specifics: Safari does not support chrome.alarms or chrome.downloads; uses fallback handlers
++
++Command API Strategy:
++  - Up to 4 high-priority commands assigned suggested_key defaults (including _execute_action).
++  - All eligible popup actions declared in manifest.json under 'commands' with unique command IDs and descriptions.
++  - Users can configure any command natively in their browser's shortcut manager.
++  - Centralized command dispatcher in background service worker decoupled from popup lifecycle.
++  - Shared action handler service used by both popup UI event listeners and background command dispatcher.
++
++===================================================================
++=== SECTION 2: COMPLETE POPUP FUNCTIONALITY INVENTORY           ===
++===================================================================
++
+++ [FUNCTIONALITY: POPUP_ACTION_001]
+++ Name: Open AlgoRecall Dashboard
+++ Description: Opens the main extension popup action window from the toolbar or shortcut.
+++ UI Component: Extension action icon / default_popup (features/dashboard/popup/popup.html)
+++ Handler: Browser native action invocation / _execute_action
+++ Implementation: Browser action trigger defined in manifest.json
+++ Trigger Type: Toolbar button click or keyboard shortcut
+++ Required Permissions: None
+++ Required Browser Context: Any active browser window
+++ Dependencies: manifest.json action block
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Existing primary extension entry command supported natively by MV3 action API.
++
+++ [FUNCTIONALITY: POPUP_ACTION_002]
+++ Name: Open Analytics Dashboard (Header)
+++ Description: Navigates to the analytics dashboard tab showing memory health, velocity, and topic coverage.
+++ UI Component: features/dashboard/popup/popup.html (#header-analytics-btn)
+++ Handler: openAnalyticsTab in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/analytics/analytics.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Reusable navigation action; can execute independently whether popup is open or closed.
++
+++ [FUNCTIONALITY: POPUP_ACTION_003]
+++ Name: Toggle Dark/Light Theme
+++ Description: Toggles the global interface theme between dark and light modes.
+++ UI Component: features/dashboard/popup/popup.html (#theme-toggle-btn)
+++ Handler: themeToggleBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.storage.local.get(['theme']) -> toggle -> chrome.storage.local.set({ theme })
+++ Trigger Type: Button click
+++ Required Permissions: storage
+++ Required Browser Context: Background service worker or any extension page
+++ Dependencies: chrome.storage.local, theme-sync.ts
+++ Classification: Toggle Action
+++ Shortcut Eligible: Yes
+++ Reason: Global persistent setting with immediate feedback across all extension pages.
++
+++ [FUNCTIONALITY: POPUP_ACTION_004]
+++ Name: Open Help & Guide
+++ Description: Opens the user onboarding, keyboard shortcuts, and algorithm documentation.
+++ UI Component: features/dashboard/popup/popup.html (#help-btn)
+++ Handler: helpBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/common/help/help.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Standalone documentation page; independent of popup lifecycle.
++
+++ [FUNCTIONALITY: POPUP_ACTION_005]
+++ Name: Enable Browser Notifications Permission
+++ Description: Requests native browser notification permission if not yet granted.
+++ UI Component: features/dashboard/popup/popup.html (#enable-notifications-btn in #permission-warning-banner)
+++ Handler: enableBtn click listener in features/dashboard/popup/notifications.ts
+++ Implementation: Notification.requestPermission()
+++ Trigger Type: Button click
+++ Required Permissions: notifications
+++ Required Browser Context: Active DOM window with user gesture
+++ Dependencies: Window Notification API
+++ Classification: Context-Dependent Action
+++ Shortcut Eligible: No
+++ Reason: Notification.requestPermission() requires active window user gesture and prompts security UI modal; cannot run from background service worker.
++
+++ [FUNCTIONALITY: POPUP_ACTION_006]
+++ Name: Rate Extension on Web Store
+++ Description: Opens the browser-specific store review page (Chrome Web Store, Firefox Add-ons, App Store).
+++ UI Component: features/dashboard/popup/popup.html (#rate-store-btn)
+++ Handler: rateBtn click / link navigation in features/dashboard/popup/rating.ts
+++ Implementation: chrome.tabs.create({ url: BROWSER_CONFIG.reviewUrl })
+++ Trigger Type: Anchor click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs, BROWSER_CONFIG.reviewUrl
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: External navigation; can execute independently of popup DOM.
++
+++ [FUNCTIONALITY: POPUP_ACTION_007]
+++ Name: Snooze Rating Prompt
+++ Description: Snoozes the popup feedback rating card for 7 days.
+++ UI Component: features/dashboard/popup/popup.html (#snooze-rate-btn)
+++ Handler: snoozeBtn click listener in features/dashboard/popup/rating.ts
+++ Implementation: chrome.storage.local.set({ ratingPromptState: { status: 'snoozed', snoozedUntil: Date.now() + 7*86400000 } })
+++ Trigger Type: Button click
+++ Required Permissions: storage
+++ Required Browser Context: Popup or background
+++ Dependencies: chrome.storage.local
+++ Classification: Direct Action
+++ Shortcut Eligible: No
+++ Reason: Internal UI dismissal control for promotional banner; inappropriate as global shortcut.
++
+++ [FUNCTIONALITY: POPUP_ACTION_008]
+++ Name: Mark Already Rated
+++ Description: Permanently dismisses the popup rating card by marking review state as rated.
+++ UI Component: features/dashboard/popup/popup.html (#already-rated-btn)
+++ Handler: alreadyBtn click listener in features/dashboard/popup/rating.ts
+++ Implementation: chrome.storage.local.set({ ratingPromptState: { status: 'rated', snoozedUntil: 0 } })
+++ Trigger Type: Button click
+++ Required Permissions: storage
+++ Required Browser Context: Popup or background
+++ Dependencies: chrome.storage.local
+++ Classification: Direct Action
+++ Shortcut Eligible: No
+++ Reason: Single-use banner dismissal action; unsuitable as keyboard shortcut.
++
+++ [FUNCTIONALITY: POPUP_ACTION_009]
+++ Name: Edit Store Rating
+++ Description: Re-opens store review URL and resets rating prompt status to unrated.
+++ UI Component: features/dashboard/popup/popup.html (#edit-rating-btn)
+++ Handler: editBtn click listener in features/dashboard/popup/rating.ts
+++ Implementation: chrome.tabs.create({ url }) and chrome.storage.local.set({ ratingPromptState: { status: 'unrated' } })
+++ Trigger Type: Button click
+++ Required Permissions: tabs, storage
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs, chrome.storage.local, BROWSER_CONFIG
+++ Classification: Navigation Action
+++ Shortcut Eligible: No
+++ Reason: Redundant with general Rate Extension action; specifically scoped to thank-you banner state.
++
+++ [FUNCTIONALITY: POPUP_ACTION_010]
+++ Name: View All Saved Patterns
+++ Description: Opens the card data management table displaying all saved patterns.
+++ UI Component: features/dashboard/popup/popup.html (#box-total)
+++ Handler: boxTotal click/keydown listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=total') })
+++ Trigger Type: Card stat box click or Enter/Space key
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: High-traffic library navigation; fully decoupled from popup.
++
+++ [FUNCTIONALITY: POPUP_ACTION_011]
+++ Name: View Patterns Due Today
+++ Description: Opens the card data management table filtered to patterns due for spaced repetition today.
+++ UI Component: features/dashboard/popup/popup.html (#box-due)
+++ Handler: boxDue click/keydown listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=due') })
+++ Trigger Type: Card stat box click or Enter/Space key
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Primary daily workflow action; candidate for default suggested shortcut (Alt+Shift+D).
++
+++ [FUNCTIONALITY: POPUP_ACTION_012]
+++ Name: View Retention & Lapsed Patterns
+++ Description: Opens the card data management table filtered to retention metrics and lapsed cards.
+++ UI Component: features/dashboard/popup/popup.html (#box-retention)
+++ Handler: boxRetention click/keydown listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=retention') })
+++ Trigger Type: Card stat box click or Enter/Space key
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Critical review triage view; easily launched from background.
++
+++ [FUNCTIONALITY: POPUP_ACTION_013]
+++ Name: Quick Search Pattern Query
+++ Description: Live text filter for patterns matching query string across title, URL, approach, and tags.
+++ UI Component: features/dashboard/popup/popup.html (#popup-search-input)
+++ Handler: searchInput input listener in features/dashboard/popup/search.ts
+++ Implementation: renderQuickSearch in search.ts
+++ Trigger Type: Keyboard text input
+++ Required Permissions: None
+++ Required Browser Context: Active popup window
+++ Dependencies: Popup DOM, in-memory quickSearchCards
+++ Classification: Parameterized Action
+++ Shortcut Eligible: No
+++ Reason: Requires live character input stream; invoking popup via _execute_action allows immediate focus.
++
+++ [FUNCTIONALITY: POPUP_ACTION_014]
+++ Name: Filter Search by Topic Tag
+++ Description: Filters in-memory pattern search results by selected algorithm topic tag.
+++ UI Component: features/dashboard/popup/popup.html (#popup-tag-filter)
+++ Handler: tagFilter change listener in features/dashboard/popup/search.ts
+++ Implementation: renderQuickSearch in search.ts
+++ Trigger Type: Select dropdown change
+++ Required Permissions: None
+++ Required Browser Context: Active popup window
+++ Dependencies: Popup DOM
+++ Classification: Parameterized Action
+++ Shortcut Eligible: No
+++ Reason: Requires dropdown option selection in popup UI.
++
+++ [FUNCTIONALITY: POPUP_ACTION_015]
+++ Name: Navigate to Search Result Problem
+++ Description: Opens external problem URL corresponding to a selected search item card.
+++ UI Component: features/dashboard/popup/search.ts (.popup-search-item)
+++ Handler: Native anchor navigation
+++ Implementation: Navigation to card.problemUrl
+++ Trigger Type: Link click
+++ Required Permissions: None
+++ Required Browser Context: Active popup window
+++ Dependencies: Search results DOM state
+++ Classification: Context-Dependent Action
+++ Shortcut Eligible: No
+++ Reason: Depends on dynamic list of matched results rendered in popup.
++
+++ [FUNCTIONALITY: POPUP_ACTION_016]
+++ Name: View All Search Results in Data View
+++ Description: Opens data table with active search keyword and tag pre-filtered.
+++ UI Component: features/dashboard/popup/search.ts (.popup-search-view-all)
+++ Handler: Native anchor navigation
+++ Implementation: Navigation to data.html?view=total&search=...&tag=...
+++ Trigger Type: Link click
+++ Required Permissions: tabs
+++ Required Browser Context: Active popup window with active query
+++ Dependencies: Active search parameters
+++ Classification: Context-Dependent Action
+++ Shortcut Eligible: No
+++ Reason: Requires active search state inside popup DOM.
++
+++ [FUNCTIONALITY: POPUP_ACTION_017]
+++ Name: Toggle Daily Goal Editor
+++ Description: Shows or hides the inline daily review target number editor.
+++ UI Component: features/dashboard/popup/stats.ts (#goal-edit-btn)
+++ Handler: goalEditBtn click listener in features/dashboard/popup/stats.ts
+++ Implementation: Toggles #goal-editor display style between 'none' and 'flex'
+++ Trigger Type: Button click
+++ Required Permissions: None
+++ Required Browser Context: Active popup window
+++ Dependencies: Popup DOM
+++ Classification: Direct Action
+++ Shortcut Eligible: No
+++ Reason: Pure visual toggle inside popup DOM.
++
+++ [FUNCTIONALITY: POPUP_ACTION_018]
+++ Name: Save Daily Goal Target
+++ Description: Saves updated daily review target number into local storage.
+++ UI Component: features/dashboard/popup/stats.ts (#goal-save-btn, #goal-input)
+++ Handler: goalSaveBtn click and goalInput Enter keydown in stats.ts
+++ Implementation: chrome.storage.local.set({ dailyGoalTarget: val })
+++ Trigger Type: Button click / Enter key
+++ Required Permissions: storage
+++ Required Browser Context: Active popup window with input value
+++ Dependencies: chrome.storage.local, #goal-input
+++ Classification: Parameterized Action
+++ Shortcut Eligible: No
+++ Reason: Requires numerical input parameter.
++
+++ [FUNCTIONALITY: POPUP_ACTION_019]
+++ Name: Open Full Screen Heatmap
+++ Description: Opens the dedicated full-screen contribution heatmap page.
+++ UI Component: features/dashboard/popup/popup.html (#open-heatmap-tab-btn)
+++ Handler: openHeatmapTabBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/heatmap/heatmap.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Standalone dashboard view; triggerable independently.
++
+++ [FUNCTIONALITY: POPUP_ACTION_020]
+++ Name: Toggle Lifetime Heatmap View
+++ Description: Toggles popup heatmap grid between 12-week view and full lifetime view.
+++ UI Component: features/dashboard/popup/popup.html (#toggle-lifetime-btn)
+++ Handler: toggleLifetimeBtn click listener in features/dashboard/popup/heatmap.ts
+++ Implementation: load(this.isLifetimeView) in heatmap.ts
+++ Trigger Type: Button click
+++ Required Permissions: None
+++ Required Browser Context: Active popup window
+++ Dependencies: HeatmapComponent instance and grid DOM
+++ Classification: Toggle Action
+++ Shortcut Eligible: No
+++ Reason: Scoped purely to transient popup heatmap grid rendering.
++
+++ [FUNCTIONALITY: POPUP_ACTION_021]
+++ Name: Open Analytics Dashboard (Action Chip)
+++ Description: Opens analytics dashboard in a new browser tab.
+++ UI Component: features/dashboard/popup/popup.html (#analytics-btn)
+++ Handler: openAnalyticsTab in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/analytics/analytics.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Re-exposes POPUP_ACTION_002; same underlying navigation service.
++
+++ [FUNCTIONALITY: POPUP_ACTION_022]
+++ Name: Open Review Forecast
+++ Description: Opens the review workload simulator and future forecast dashboard.
+++ UI Component: features/dashboard/popup/popup.html (#forecast-btn)
+++ Handler: forecastBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/forecast/forecast.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Major planning view; independent of popup lifecycle.
++
+++ [FUNCTIONALITY: POPUP_ACTION_023]
+++ Name: Open Review History
+++ Description: Opens the complete log of historical card reviews and rating decisions.
+++ UI Component: features/dashboard/popup/popup.html (#history-btn)
+++ Handler: historyBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/history/history.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Standalone audit page; easily launched via shortcut.
++
+++ [FUNCTIONALITY: POPUP_ACTION_024]
+++ Name: Open Exam Mode (Study Plan)
+++ Description: Opens the study plan dashboard to configure interview target dates and pacing.
+++ UI Component: features/dashboard/popup/popup.html (#studyplan-btn)
+++ Handler: studyplanBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/studyplan/studyplan.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Primary interview preparation feature; candidate for default suggested shortcut (Alt+Shift+S).
++
+++ [FUNCTIONALITY: POPUP_ACTION_025]
+++ Name: Open Pomodoro Timer
+++ Description: Opens the dedicated Pomodoro focus timer dashboard tab.
+++ UI Component: features/dashboard/popup/popup.html (#pomodoro-btn)
+++ Handler: pomodoroBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/pomodoro/pomodoro.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Core study tool; frequently triggered while solving problems.
++
+++ [FUNCTIONALITY: POPUP_ACTION_026]
+++ Name: Toggle Floating Highlighter Menu
+++ Description: Enables or disables the floating text selection marker popup on problem sites.
+++ UI Component: features/dashboard/popup/popup.html (#toggle-marker-popup)
+++ Handler: markerToggle change listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.storage.local.get -> update extensionSettings.showMarkerPopup -> chrome.storage.local.set
+++ Trigger Type: Switch toggle
+++ Required Permissions: storage
+++ Required Browser Context: Background or any extension page
+++ Dependencies: chrome.storage.local
+++ Classification: Toggle Action
+++ Shortcut Eligible: Yes
+++ Reason: In-page reading assistant toggle; convenient to toggle without opening popup.
++
+++ [FUNCTIONALITY: POPUP_ACTION_027]
+++ Name: Open Highlighter Color Options
+++ Description: Opens the color palette customization page for the highlighter.
+++ UI Component: features/dashboard/popup/popup.html (#open-options-btn)
+++ Handler: openOptionsBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/options/highlightOptions.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Dedicated configuration view; directly navigatable.
++
+++ [FUNCTIONALITY: POPUP_ACTION_028]
+++ Name: Open Highlights Manager
+++ Description: Opens the snippets manager tab listing all saved problem text highlights.
+++ UI Component: features/dashboard/popup/popup.html (#manage-highlights-btn)
+++ Handler: manageHighlightsBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/manager/highlights.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Key knowledge repository; easily triggered via shortcut.
++
+++ [FUNCTIONALITY: POPUP_ACTION_029]
+++ Name: Open Digest Summary Page
+++ Description: Opens the periodic performance summary and review digest page.
+++ UI Component: features/dashboard/popup/popup.html (#open-summary-page-btn)
+++ Handler: openSummaryPageBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/summary/summary.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Standalone summary dashboard; independent of popup.
++
+++ [FUNCTIONALITY: POPUP_ACTION_030]
+++ Name: Toggle Review Reminders
+++ Description: Enables or disables background alarm notifications for due review reminders.
+++ UI Component: features/dashboard/popup/popup.html (#toggle-notifications)
+++ Handler: notifToggle change listener in features/dashboard/popup/notifications.ts
+++ Implementation: chrome.storage.local.get -> update notificationSettings.enabled -> chrome.storage.local.set
+++ Trigger Type: Switch toggle
+++ Required Permissions: storage
+++ Required Browser Context: Background or any extension page
+++ Dependencies: chrome.storage.local
+++ Classification: Toggle Action
+++ Shortcut Eligible: Yes
+++ Reason: Frequently toggled for do-not-disturb focus intervals.
++
+++ [FUNCTIONALITY: POPUP_ACTION_031]
+++ Name: Change Notification Interval Frequency
+++ Description: Selects frequency interval for checking due cards (15m, 30m, 1h, 2h, etc.).
+++ UI Component: features/dashboard/popup/popup.html (#notification-interval)
+++ Handler: notifInterval change listener in features/dashboard/popup/notifications.ts
+++ Implementation: Updates notificationSettings.frequency in chrome.storage.local
+++ Trigger Type: Dropdown change
+++ Required Permissions: storage
+++ Required Browser Context: Active popup window
+++ Dependencies: chrome.storage.local
+++ Classification: Parameterized Action
+++ Shortcut Eligible: No
+++ Reason: Requires dropdown option selection.
++
+++ [FUNCTIONALITY: POPUP_ACTION_032]
+++ Name: Input Custom Notification Interval
+++ Description: Sets custom check frequency in minutes.
+++ UI Component: features/dashboard/popup/popup.html (#custom-interval-input)
+++ Handler: customIntervalInput input listener in features/dashboard/popup/notifications.ts
+++ Implementation: Updates notificationSettings.frequency with custom number in chrome.storage.local
+++ Trigger Type: Number input
+++ Required Permissions: storage
+++ Required Browser Context: Active popup window
+++ Dependencies: chrome.storage.local
+++ Classification: Parameterized Action
+++ Shortcut Eligible: No
+++ Reason: Requires numerical user input.
++
+++ [FUNCTIONALITY: POPUP_ACTION_033]
+++ Name: Toggle Sticky Notifications
+++ Description: Toggles whether notifications require interaction before auto-dismissal.
+++ UI Component: features/dashboard/popup/popup.html (#toggle-sticky-notification)
+++ Handler: notifStickyToggle change listener in features/dashboard/popup/notifications.ts
+++ Implementation: Updates notificationSettings.requireInteraction in chrome.storage.local
+++ Trigger Type: Switch toggle
+++ Required Permissions: storage
+++ Required Browser Context: Background or popup
+++ Dependencies: chrome.storage.local
+++ Classification: Toggle Action
+++ Shortcut Eligible: No
+++ Reason: Deep configuration setting; low shortcut priority.
++
+++ [FUNCTIONALITY: POPUP_ACTION_034]
+++ Name: Toggle Quiet Hours
+++ Description: Toggles suppression of notifications during night hours.
+++ UI Component: features/dashboard/popup/popup.html (#toggle-quiet-hours)
+++ Handler: quietToggle change listener in features/dashboard/popup/notifications.ts
+++ Implementation: Updates notificationSettings.quietHoursEnabled in chrome.storage.local
+++ Trigger Type: Switch toggle
+++ Required Permissions: storage
+++ Required Browser Context: Background or popup
+++ Dependencies: chrome.storage.local
+++ Classification: Toggle Action
+++ Shortcut Eligible: No
+++ Reason: Set-and-forget scheduling preference; low shortcut utility.
++
+++ [FUNCTIONALITY: POPUP_ACTION_035]
+++ Name: Set Quiet Hours Time Window
+++ Description: Configures start and end times for notification quiet hours.
+++ UI Component: features/dashboard/popup/popup.html (#quiet-hours-start, #quiet-hours-end)
+++ Handler: quietStart/End change listeners in features/dashboard/popup/notifications.ts
+++ Implementation: Updates notificationSettings.quietHoursStart/End in chrome.storage.local
+++ Trigger Type: Time input
+++ Required Permissions: storage
+++ Required Browser Context: Active popup window
+++ Dependencies: chrome.storage.local
+++ Classification: Parameterized Action
+++ Shortcut Eligible: No
+++ Reason: Requires time input parameters.
++
+++ [FUNCTIONALITY: POPUP_ACTION_036]
+++ Name: Toggle Weekly Digest Notification
+++ Description: Toggles receiving weekly summary digest notifications.
+++ UI Component: features/dashboard/popup/popup.html (#toggle-weekly-digest)
+++ Handler: weeklyDigestToggle change listener in features/dashboard/popup/notifications.ts & popup.ts
+++ Implementation: Updates weeklySummaryEnabled and sends toggle_weekly_summary message
+++ Trigger Type: Switch toggle
+++ Required Permissions: storage
+++ Required Browser Context: Background or popup
+++ Dependencies: chrome.storage.local, background message channel
+++ Classification: Toggle Action
+++ Shortcut Eligible: No
+++ Reason: Minor preference toggle; low shortcut value.
++
+++ [FUNCTIONALITY: POPUP_ACTION_037]
+++ Name: Toggle Pinned Icon Due Badge
+++ Description: Toggles showing badge count of due reviews on pinned browser extension icon.
+++ UI Component: features/dashboard/popup/popup.html (#toggle-badge-due-count)
+++ Handler: badgeToggle change listener in features/dashboard/popup/notifications.ts
+++ Implementation: Updates notificationSettings.badgeEnabled & showDueBadge in chrome.storage.local
+++ Trigger Type: Switch toggle
+++ Required Permissions: storage
+++ Required Browser Context: Background or popup
+++ Dependencies: chrome.storage.local
+++ Classification: Toggle Action
+++ Shortcut Eligible: No
+++ Reason: Toolbar icon display preference; low shortcut value.
++
+++ [FUNCTIONALITY: POPUP_ACTION_038]
+++ Name: Check Due Reviews Immediately
+++ Description: Triggers an immediate background check for due reviews and updates toolbar badge.
+++ UI Component: features/dashboard/popup/popup.html (#check-now-btn)
+++ Handler: checkNowBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.runtime.sendMessage({ action: 'check_due_cards_now' }) -> AlgoRecallBackground.checkDueCards('manual')
+++ Trigger Type: Button click
+++ Required Permissions: storage
+++ Required Browser Context: Background service worker or popup
+++ Dependencies: AlgoRecallBackground, chrome.runtime.sendMessage
+++ Classification: Direct Action
+++ Shortcut Eligible: Yes
+++ Reason: High-frequency manual sync action; primary candidate for default suggested shortcut (Alt+Shift+R).
++
+++ [FUNCTIONALITY: POPUP_ACTION_039]
+++ Name: Send Test Notification (Dev Mode)
+++ Description: Triggers a test review notification to verify system notification delivery.
+++ UI Component: features/dashboard/popup/popup.html (#test-notification-btn)
+++ Handler: testNotifBtn click listener in features/dashboard/popup/notifications.ts
+++ Implementation: chrome.runtime.sendMessage({ action: 'test_notification' })
+++ Trigger Type: Button click
+++ Required Permissions: notifications
+++ Required Browser Context: Background service worker
+++ Dependencies: background message channel
+++ Classification: Direct Action
+++ Shortcut Eligible: No
+++ Reason: Developer-only diagnostic action.
++
+++ [FUNCTIONALITY: POPUP_ACTION_040]
+++ Name: Send Test Summary Notification (Dev Mode)
+++ Description: Triggers a test weekly summary digest notification.
+++ UI Component: features/dashboard/popup/popup.html (#test-summary-notification-btn)
+++ Handler: testSummaryNotifBtn click listener in features/dashboard/popup/notifications.ts
+++ Implementation: chrome.runtime.sendMessage({ action: 'test_summary_notification' })
+++ Trigger Type: Button click
+++ Required Permissions: notifications
+++ Required Browser Context: Background service worker
+++ Dependencies: background message channel
+++ Classification: Direct Action
+++ Shortcut Eligible: No
+++ Reason: Developer-only diagnostic action.
++
+++ [FUNCTIONALITY: POPUP_ACTION_041]
+++ Name: Expand / Collapse Advanced Options
+++ Description: Expands or collapses the Data & Options details accordion in the popup.
+++ UI Component: features/dashboard/popup/popup.html (details.details-card)
+++ Handler: Native HTML details toggle
+++ Implementation: HTML details element open state
+++ Trigger Type: Click on summary header
+++ Required Permissions: None
+++ Required Browser Context: Active popup window
+++ Dependencies: Popup DOM
+++ Classification: Direct Action
+++ Shortcut Eligible: No
+++ Reason: Pure visual accordion toggle inside popup.
++
+++ [FUNCTIONALITY: POPUP_ACTION_042]
+++ Name: Toggle Problem Tracker Launcher
+++ Description: Enables or disables the in-page floating tracker launcher button on problem pages.
+++ UI Component: features/dashboard/popup/popup.html (#toggle-algo-launcher)
+++ Handler: launcherToggle change listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.storage.local.get -> update extensionSettings.showLauncher -> chrome.storage.local.set
+++ Trigger Type: Switch toggle
+++ Required Permissions: storage
+++ Required Browser Context: Background or any extension page
+++ Dependencies: chrome.storage.local
+++ Classification: Toggle Action
+++ Shortcut Eligible: Yes
+++ Reason: Useful in-page overlay toggle when working on competitive coding problems.
++
+++ [FUNCTIONALITY: POPUP_ACTION_043]
+++ Name: Toggle Show Analytics & Charts
+++ Description: Controls whether the activity heatmap and gamification cards appear in the popup.
+++ UI Component: features/dashboard/popup/popup.html (#toggle-show-charts)
+++ Handler: chartsToggle change listener in features/dashboard/popup/popup.ts
+++ Implementation: Updates extensionSettings.showCharts and modifies #activity-charts-card style
+++ Trigger Type: Switch toggle
+++ Required Permissions: storage
+++ Required Browser Context: Active popup window
+++ Dependencies: chrome.storage.local, popup DOM
+++ Classification: Toggle Action
+++ Shortcut Eligible: No
+++ Reason: Scoped exclusively to popup layout density.
++
+++ [FUNCTIONALITY: POPUP_ACTION_044]
+++ Name: Toggle Developer Mode
+++ Description: Reveals or hides developer debugging utilities and test actions in the popup.
+++ UI Component: features/dashboard/popup/popup.html (#toggle-dev-mode)
+++ Handler: devModeToggle change listener in features/dashboard/popup/popup.ts
+++ Implementation: Updates extensionSettings.developerMode in chrome.storage.local
+++ Trigger Type: Switch toggle
+++ Required Permissions: storage
+++ Required Browser Context: Active popup window
+++ Dependencies: chrome.storage.local, popup DOM
+++ Classification: Toggle Action
+++ Shortcut Eligible: No
+++ Reason: Developer setting with no general user shortcut value.
++
+++ [FUNCTIONALITY: POPUP_ACTION_045]
+++ Name: Export Debug Logs
+++ Description: Downloads accumulated runtime error and debug logs as a JSON file.
+++ UI Component: features/dashboard/popup/popup.html (#export-debug-logs-btn)
+++ Handler: exportDebugLogsBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: Reads debugLogs from chrome.storage.local and initiates file download
+++ Trigger Type: Button click
+++ Required Permissions: storage, optional downloads
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.storage.local, chrome.downloads / DOM fallback
+++ Classification: Direct Action
+++ Shortcut Eligible: No
+++ Reason: Niche diagnostic action confined to developer mode.
++
+++ [FUNCTIONALITY: POPUP_ACTION_046]
+++ Name: Open Active Websites Manager
+++ Description: Opens the whitelist management tab to configure supported coding platforms.
+++ UI Component: features/dashboard/popup/popup.html (#manage-platforms-btn)
+++ Handler: managePlatformsBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/common/websites/websites.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Dedicated configuration view; directly navigatable.
++
+++ [FUNCTIONALITY: POPUP_ACTION_047]
+++ Name: Open FSRS Algorithm Configuration
+++ Description: Opens the FSRS parameters tuning, weights editor, and optimizer workbench.
+++ UI Component: features/dashboard/popup/popup.html (#configure-fsrs-btn)
+++ Handler: configureFsrsBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/tracker/config/fsrsConfig.html') })
+++ Trigger Type: Button click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Essential configuration workbench for power users.
++
+++ [FUNCTIONALITY: POPUP_ACTION_048]
+++ Name: Export Full Data Backup (JSON.GZ)
+++ Description: Creates and downloads a compressed full backup archive of cards, marks, and settings.
+++ UI Component: features/dashboard/popup/popup.html (#export-btn)
+++ Handler: exportBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: BackupManager.exportBackup()
+++ Trigger Type: Button click
+++ Required Permissions: storage, optional downloads
+++ Required Browser Context: Any browser window or tab
+++ Dependencies: BackupManager, chrome.storage.local
+++ Classification: Direct Action
+++ Shortcut Eligible: Yes
+++ Reason: Crucial data safety action; can execute independently.
++
+++ [FUNCTIONALITY: POPUP_ACTION_049]
+++ Name: Restore Data Backup (File Upload)
+++ Description: Prompts user to select a backup archive and restores extension database.
+++ UI Component: features/dashboard/popup/popup.html (#import-btn-label / #import-file)
+++ Handler: importFile change listener in features/dashboard/popup/popup.ts
+++ Implementation: BackupManager.importBackup(file)
+++ Trigger Type: File picker input
+++ Required Permissions: storage
+++ Required Browser Context: Active DOM window with file dialog
+++ Dependencies: FileReader, BackupManager
+++ Classification: Parameterized Action
+++ Shortcut Eligible: No
+++ Reason: Requires manual file selection through OS file picker.
++
+++ [FUNCTIONALITY: POPUP_ACTION_050]
+++ Name: Export Cards to Anki Format
+++ Description: Converts all saved problem cards into Anki tab-separated text and downloads file.
+++ UI Component: features/dashboard/popup/popup.html (#anki-export-btn)
+++ Handler: ankiExportBtn click listener in features/dashboard/popup/popup.ts
+++ Implementation: exportToAnkiText() in popup.ts and file download
+++ Trigger Type: Button click
+++ Required Permissions: storage, optional downloads
+++ Required Browser Context: Any browser window or tab
+++ Dependencies: chrome.storage.local, chrome.downloads / DOM fallback
+++ Classification: Direct Action
+++ Shortcut Eligible: Yes
+++ Reason: High utility study deck export; triggerable as direct action.
++
+++ [FUNCTIONALITY: POPUP_ACTION_051]
+++ Name: Import Cards from Anki File
+++ Description: Prompts user for Anki TSV/TXT deck file and imports new problem cards.
+++ UI Component: features/dashboard/popup/popup.html (#anki-import-btn-label / #anki-import-file)
+++ Handler: ankiImportFile change listener in features/dashboard/popup/popup.ts
+++ Implementation: importFromAnkiText() in popup.ts and storage merge
+++ Trigger Type: File picker input
+++ Required Permissions: storage
+++ Required Browser Context: Active DOM window with file dialog
+++ Dependencies: FileReader, chrome.storage.local
+++ Classification: Parameterized Action
+++ Shortcut Eligible: No
+++ Reason: Requires manual file selection through OS file picker.
++
+++ [FUNCTIONALITY: POPUP_ACTION_052]
+++ Name: Static Review Banner Rating Link
+++ Description: Opens extension store review page from footer review CTA.
+++ UI Component: features/dashboard/popup/popup.html (#static-review-link)
+++ Handler: Native anchor navigation
+++ Implementation: BROWSER_CONFIG.reviewUrl
+++ Trigger Type: Anchor click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: BROWSER_CONFIG
+++ Classification: Navigation Action
+++ Shortcut Eligible: Yes
+++ Reason: Identical target to POPUP_ACTION_006 (rate-store-btn).
++
+++ [FUNCTIONALITY: POPUP_ACTION_053]
+++ Name: Open Help & Privacy Policy
+++ Description: Opens help documentation navigated directly to the privacy policy tab.
+++ UI Component: features/dashboard/popup/popup.html (footer privacy link)
+++ Handler: Native anchor navigation
+++ Implementation: chrome.tabs.create({ url: chrome.runtime.getURL('features/common/help/help.html?tab=privacy') })
+++ Trigger Type: Anchor click
+++ Required Permissions: tabs
+++ Required Browser Context: Any browser window
+++ Dependencies: chrome.tabs
+++ Classification: Navigation Action
+++ Shortcut Eligible: No
+++ Reason: Sub-tab under Help & Guide; covered by general Open Help action (POPUP_ACTION_004).
++
++===================================================================
++=== SECTION 3: KEYBOARD SHORTCUT MAPPINGS & DESIGN              ===
++===================================================================
++
++Suggested Key Quota (Browser Limit: 4 max with suggested_key):
++  1. _execute_action: Default = Ctrl+Shift+A, Mac = Command+Shift+A (Open AlgoRecall Dashboard)
++  2. check-due-reviews: Default = Alt+Shift+R, Mac = Alt+Shift+R (Check Due Reviews Now)
++  3. view-due-cards: Default = Alt+Shift+D, Mac = Alt+Shift+D (View Patterns Due Today)
++  4. open-study-plan: Default = Alt+Shift+S, Mac = Alt+Shift+S (Open Exam Mode / Study Plan)
++
++Registered User-Configurable Commands (Registered in manifest without suggested_key):
++  5. toggle-theme: Description = Toggle Dark/Light theme
++  6. open-analytics: Description = Open Analytics Dashboard
++  7. open-pomodoro: Description = Open Pomodoro Timer
++  8. view-all-cards: Description = Open all saved patterns
++  9. view-retention-cards: Description = Open lapsed and retention patterns
++  10. open-forecast: Description = Open Review Forecast
++  11. open-history: Description = Open Review History
++  12. open-heatmap: Description = Open Full Screen Contribution Heatmap
++  13. toggle-floating-marker: Description = Toggle Floating Highlighter Marker Menu
++  14. open-highlights-manager: Description = Open Highlights Manager
++  15. open-highlights-options: Description = Open Highlighter Color Options
++  16. toggle-notifications: Description = Toggle Review Reminder Notifications
++  17. open-summary: Description = Open Weekly & Monthly Digest Summary
++  18. toggle-algo-launcher: Description = Toggle Problem Tracker Launcher
++  19. open-websites-manager: Description = Open Active Websites Manager
++  20. open-fsrs-config: Description = Open FSRS Algorithm Configuration
++  21. export-backup: Description = Export data backup
++  22. export-anki: Description = Export cards to Anki
++  23. open-help: Description = Open AlgoRecall Help & Guide
++  24. rate-extension: Description = Rate AlgoRecall on Web Store
++
++Conflict Analysis:
++  - Alt+Shift+R: Safe on Chrome, Edge, Firefox, Safari (avoids Ctrl+R page reload, Cmd+Shift+R hard reload).
++  - Alt+Shift+D: Safe on Chrome, Edge, Firefox, Safari (avoids Ctrl+D bookmark, Cmd+Shift+D bookmark all tabs).
++  - Alt+Shift+S: Safe on Chrome, Edge, Firefox, Safari (avoids Ctrl+S save page, Cmd+Shift+S system screenshot on Windows/Mac).
++  - Alt+Shift prefix is consistently reserved for extension shortcuts and avoids standard OS/browser window management keys.
++
++Native Shortcut Configuration Endpoints:
++  - Chrome: chrome://extensions/shortcuts
++  - Edge: edge://extensions/shortcuts
++  - Firefox: about:addons -> Manage Extension Shortcuts
++  - Safari: Safari Settings -> Extensions -> Shortcuts
++
++===================================================================
++=== SECTION 4: IMPLEMENTATION & VERIFICATION TRACKING           ===
++===================================================================
++
++Status: IMPLEMENTED
++
++Files Modified / Added:
++  - docs/keyboard-shortcuts-audit.patch (Audit and tracking record)
++  - features/common/services/actionService.ts (Shared action executor for popup and background)
++  - background/background.ts (Commands API listener: chrome.commands.onCommand)
++  - browser/chrome/manifest.json (Updated commands block)
++  - browser/firefox/manifest.json (Updated commands block)
++  - browser/safari/manifest.json (Updated commands block)
++  - features/dashboard/popup/popup.ts (Integrated shared ActionService)
++  - tests/unit/background/commands.test.ts (Unit test suite for commands and action dispatch)
++
++Browser Compatibility Status:
++  - Chrome (MV3): Fully Compatible (4 default suggested_keys + 20 configurable commands)
++  - Firefox (MV3): Fully Compatible (Commands API supported on Gecko 109+)
++  - Safari (MV3): Fully Compatible (Commands API supported with Safari fallbacks)
++
++Known Limitations:
++  - Maximum 4 default suggested shortcuts allowed by Chromium manifest parser. Additional shortcuts are user-configurable.
++  - File upload actions (restore backup, import Anki) cannot be triggered headlessly via global shortcuts because OS file picker requires active DOM gesture.
++  - Notification permission request requires interactive user gesture in an active DOM page.
++
++===================================================================
++=== END OF AUDIT PATCH                                          ===
++===================================================================
+

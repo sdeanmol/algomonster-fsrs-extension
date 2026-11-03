@@ -89,6 +89,87 @@
         "mac": "Command+Shift+A"
       },
       "description": "Open AlgoRecall Dashboard"
+    },
+    "check-due-reviews": {
+      "suggested_key": {
+        "default": "Alt+Shift+R",
+        "mac": "Alt+Shift+R"
+      },
+      "description": "Check for due reviews immediately"
+    },
+    "view-due-cards": {
+      "suggested_key": {
+        "default": "Alt+Shift+D",
+        "mac": "Alt+Shift+D"
+      },
+      "description": "Open patterns due for review today"
+    },
+    "open-study-plan": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S"
+      },
+      "description": "Open Exam Mode / Study Plan"
+    },
+    "toggle-theme": {
+      "description": "Toggle Dark/Light theme"
+    },
+    "open-analytics": {
+      "description": "Open Analytics Dashboard"
+    },
+    "open-pomodoro": {
+      "description": "Open Pomodoro Timer"
+    },
+    "view-all-cards": {
+      "description": "Open all saved patterns"
+    },
+    "view-retention-cards": {
+      "description": "Open lapsed and retention patterns"
+    },
+    "open-forecast": {
+      "description": "Open Review Forecast"
+    },
+    "open-history": {
+      "description": "Open Review History"
+    },
+    "open-heatmap": {
+      "description": "Open Full Screen Contribution Heatmap"
+    },
+    "toggle-floating-marker": {
+      "description": "Toggle Floating Highlighter Marker Menu"
+    },
+    "open-highlights-manager": {
+      "description": "Open Highlights Manager"
+    },
+    "open-highlights-options": {
+      "description": "Open Highlighter Color Options"
+    },
+    "toggle-notifications": {
+      "description": "Toggle Review Reminder Notifications"
+    },
+    "open-summary": {
+      "description": "Open Weekly & Monthly Digest Summary"
+    },
+    "toggle-algo-launcher": {
+      "description": "Toggle Problem Tracker Launcher"
+    },
+    "open-websites-manager": {
+      "description": "Open Active Websites Manager"
+    },
+    "open-fsrs-config": {
+      "description": "Open FSRS Algorithm Configuration"
+    },
+    "export-backup": {
+      "description": "Export data backup"
+    },
+    "export-anki": {
+      "description": "Export cards to Anki"
+    },
+    "open-help": {
+      "description": "Open AlgoRecall Help & Guide"
+    },
+    "rate-extension": {
+      "description": "Rate AlgoRecall on Web Store"
     }
   }
 }

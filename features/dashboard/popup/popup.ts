@@ -8,6 +8,7 @@ import { QuickSearchComponent } from './search';
 import { BackupManager } from '../../common/data/backupManager';
 import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
+import { ActionService } from '../../common/services/actionService';
 
 export interface PopupDOM {
     themeToggleBtn: HTMLElement | null;
@@ -166,10 +167,7 @@ export class AlgoRecallDashboard {
             if (this.dom.themeToggleBtn) {
                 this.dom.themeToggleBtn.addEventListener('click', async () => {
                     try {
-                        const result = (await chrome.storage.local.get(['theme'])) as StorageData;
-                        const currentTheme = result.theme || 'dark';
-                        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                        await chrome.storage.local.set({ theme: newTheme });
+                        const newTheme = await ActionService.toggleTheme();
                         this.showStatus(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode!`);
                     } catch (error) {
             UIUtils.catchError('Popup', 'Error toggling theme settings', error);
@@ -429,7 +427,7 @@ export class AlgoRecallDashboard {
             if (this.dom.managePlatformsBtn) {
                 this.dom.managePlatformsBtn.addEventListener('click', () => {
                     try {
-                        chrome.tabs.create({ url: chrome.runtime.getURL('features/common/websites/websites.html') });
+                        ActionService.executeAction('open-websites-manager');
                     } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to websites.html', err);
         }
@@ -439,7 +437,7 @@ export class AlgoRecallDashboard {
             if (this.dom.configureFsrsBtn) {
                 this.dom.configureFsrsBtn.addEventListener('click', () => {
                     try {
-                        chrome.tabs.create({ url: chrome.runtime.getURL('features/tracker/config/fsrsConfig.html') });
+                        ActionService.executeAction('open-fsrs-config');
                     } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to fsrsConfig.html', err);
         }
@@ -448,21 +446,21 @@ export class AlgoRecallDashboard {
 
             this.dom.helpBtn?.addEventListener('click', () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/common/help/help.html') });
+                    ActionService.executeAction('open-help');
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to help.html', err);
         }
             });
             this.dom.historyBtn?.addEventListener('click', () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/history/history.html') });
+                    ActionService.executeAction('open-history');
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to history.html', err);
         }
             });
             this.dom.openHeatmapTabBtn?.addEventListener('click', () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/heatmap/heatmap.html') });
+                    ActionService.executeAction('open-heatmap');
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to heatmap.html', err);
         }
@@ -480,7 +478,7 @@ export class AlgoRecallDashboard {
 
             addAccessibleClick(this.dom.boxTotal, () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=total') });
+                    ActionService.executeAction('view-all-cards');
                 } catch (err) {
                     UIUtils.catchError('Popup', 'Error navigating to total data view', err);
                 }
@@ -488,7 +486,7 @@ export class AlgoRecallDashboard {
 
             addAccessibleClick(this.dom.boxDue, () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=due') });
+                    ActionService.executeAction('view-due-cards');
                 } catch (err) {
                     UIUtils.catchError('Popup', 'Error navigating to due data view', err);
                 }
@@ -496,21 +494,21 @@ export class AlgoRecallDashboard {
 
             addAccessibleClick(this.dom.boxRetention, () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/common/data/data.html?view=retention') });
+                    ActionService.executeAction('view-retention-cards');
                 } catch (err) {
                     UIUtils.catchError('Popup', 'Error navigating to retention data view', err);
                 }
             });
             this.dom.manageHighlightsBtn?.addEventListener('click', () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/manager/highlights.html') });
+                    ActionService.executeAction('open-highlights-manager');
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to highlights.html', err);
         }
             });
             this.dom.openOptionsBtn?.addEventListener('click', () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/highlighter/options/highlightOptions.html') });
+                    ActionService.executeAction('open-highlights-options');
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to highlightOptions.html', err);
         }
@@ -518,7 +516,7 @@ export class AlgoRecallDashboard {
 
             const openAnalyticsTab = () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/analytics/analytics.html') });
+                    ActionService.executeAction('open-analytics');
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to analytics.html', err);
         }
@@ -528,28 +526,28 @@ export class AlgoRecallDashboard {
 
             this.dom.forecastBtn?.addEventListener('click', () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/forecast/forecast.html') });
+                    ActionService.executeAction('open-forecast');
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to forecast.html', err);
         }
             });
             this.dom.studyplanBtn?.addEventListener('click', () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/studyplan/studyplan.html') });
+                    ActionService.executeAction('open-study-plan');
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to studyplan.html', err);
         }
             });
             this.dom.pomodoroBtn?.addEventListener('click', () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/pomodoro/pomodoro.html') });
+                    ActionService.executeAction('open-pomodoro');
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to pomodoro.html', err);
         }
             });
             this.dom.openSummaryPageBtn?.addEventListener('click', () => {
                 try {
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/summary/summary.html') });
+                    ActionService.executeAction('open-summary');
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to summary.html', err);
         }
@@ -857,30 +855,7 @@ export class AlgoRecallDashboard {
      */
     exportToAnkiText(cards: Card[]): string {
         try {
-            const lines: string[] = [];
-
-            // Anki header directives
-            lines.push('#separator:tab');
-            lines.push('#html:false');
-            lines.push('#tags column:3');
-            lines.push('#deck:AlgoRecall');
-            lines.push('#notetype:Basic');
-            lines.push('');
-
-            cards.forEach((card: Card) => {
-                const front = (card.problemTitle || 'Untitled').replace(/\t/g, ' ').replace(/\n/g, ' ');
-                const back = (card.approach || '').replace(/\t/g, '    '); // Keep newlines for Anki markdown
-                const tags = (card.tags || []).map((t: string) => `algorecall::${t.replace(/\s+/g, '_')}`).join(' ');
-
-                // Add URL as part of front if available
-                const frontWithUrl = card.problemUrl
-                    ? `${front}\n[URL: ${card.problemUrl}]`
-                    : front;
-
-                lines.push(`${frontWithUrl}\t${back}\t${tags}`);
-            });
-
-            return lines.join('\n');
+            return ActionService.formatCardsForAnki(cards);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Popup', `Error formatting cards for Anki export: ${errorMessage}`, { err });

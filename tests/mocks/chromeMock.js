@@ -4,7 +4,8 @@ const listeners = {
   onAlarm: [],
   onStorageChanged: [],
   onNotificationClicked: [],
-  onNotificationClosed: []
+  onNotificationClosed: [],
+  onCommand: []
 };
 
 global.mockStorage = {};
@@ -114,6 +115,10 @@ global.chrome = {
       }),
       hasListener: jest.fn((fn) => listeners.onMessage.includes(fn))
     },
+    onInstalled: {
+      addListener: jest.fn(),
+      removeListener: jest.fn()
+    },
     getURL: jest.fn(path => `chrome-extension://mock-id/${path}`),
     connect: jest.fn(() => ({
       onMessage: { addListener: jest.fn() },
@@ -147,6 +152,12 @@ global.chrome = {
     }),
     onUpdated: { addListener: jest.fn(), removeListener: jest.fn() },
     onActivated: { addListener: jest.fn(), removeListener: jest.fn() }
+  },
+  webNavigation: {
+    onHistoryStateUpdated: {
+      addListener: jest.fn(),
+      removeListener: jest.fn()
+    }
   },
   action: {
     setBadgeText: jest.fn(),
@@ -205,7 +216,24 @@ global.chrome = {
       addListener: jest.fn((fn) => { listeners.onNotificationClosed.push(fn); })
     }
   },
+  commands: {
+    onCommand: {
+      addListener: jest.fn((fn) => { listeners.onCommand.push(fn); }),
+      removeListener: jest.fn((fn) => {
+        const idx = listeners.onCommand.indexOf(fn);
+        if (idx !== -1) listeners.onCommand.splice(idx, 1);
+      })
+    },
+    getAll: jest.fn((callback) => {
+      const cmds = [];
+      if (callback) callback(cmds);
+      return Promise.resolve(cmds);
+    })
+  },
   // Helpers for tests
+  __triggerCommand: (command) => {
+    listeners.onCommand.forEach(fn => fn(command));
+  },
   __triggerMessage: (message, sender = {}, sendResponse = () => {}) => {
     listeners.onMessage.forEach(fn => fn(message, sender, sendResponse));
   },
@@ -230,6 +258,7 @@ if (typeof beforeEach !== 'undefined') {
     listeners.onStorageChanged = [];
     listeners.onNotificationClicked = [];
     listeners.onNotificationClosed = [];
+    listeners.onCommand = [];
     if (global.chrome && global.chrome.runtime) {
       global.chrome.runtime.lastError = undefined;
     }

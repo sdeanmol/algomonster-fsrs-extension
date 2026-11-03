@@ -28,6 +28,7 @@ import {
     DEFAULT_WHITELISTED_WEBSITES
 } from '../features/common/constants';
 import { BROWSER_CONFIG } from '../features/common/browserConfig';
+import { ActionService, CommandActionId } from '../features/common/services/actionService';
 
 (self as unknown as { onerror: (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) => boolean }).onerror = function (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) {
     try {
@@ -101,10 +102,41 @@ export class AlgoRecallBackground {
             if (BROWSER_CONFIG.supportsNotifications) {
                 chrome.notifications.onClicked.addListener(this.handleNotificationClicked.bind(this));
             }
+            if (typeof chrome !== 'undefined' && chrome.commands && chrome.commands.onCommand) {
+                chrome.commands.onCommand.addListener(this.handleCommand.bind(this));
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Failed to bind background extension API event listeners: ${errorMessage}`, { err });
             // Comment: Catch listener registration error to prevent constructor failure
+        }
+    }
+
+    /**
+     * Handles keyboard shortcuts dispatched via the chrome.commands API.
+     * Centralized command dispatcher decoupling actions from the popup lifecycle.
+     * @param {string} command - Command name registered in manifest.json.
+     */
+    async handleCommand(command: string): Promise<void> {
+        Logger.info('Background', `Received browser keyboard command: ${command}`);
+        try {
+            if (command === 'check-due-reviews') {
+                await this.checkDueCards('manual');
+                await this.updateDueCardsBadge();
+                return;
+            }
+            const result = await ActionService.executeAction(command as CommandActionId, {
+                background: {
+                    checkDueCards: this.checkDueCards.bind(this),
+                    updateDueCardsBadge: this.updateDueCardsBadge.bind(this)
+                }
+            });
+            if (!result.success && result.error) {
+                Logger.warn('Background', `Command execution result warning for ${command}: ${result.error}`);
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Background', `Failed to execute command ${command}: ${errorMessage}`, { err });
         }
     }
 

@@ -77,6 +77,9 @@ describe('BackgroundServiceWorker', () => {
         setBadgeText: jest.fn(),
         setBadgeBackgroundColor: jest.fn(),
         setTitle: jest.fn()
+      },
+      commands: {
+        onCommand: { addListener: jest.fn() }
       }
     };
 
@@ -95,6 +98,7 @@ describe('BackgroundServiceWorker', () => {
     expect(chrome.notifications.onClicked.addListener).toHaveBeenCalled();
     expect(chrome.storage.onChanged.addListener).toHaveBeenCalled();
     expect(chrome.runtime.onMessage.addListener).toHaveBeenCalled();
+    expect(chrome.commands.onCommand.addListener).toHaveBeenCalled();
   });
 
   // ─── handleInstalled ──────────────────────────────────────────────────
