@@ -1,8 +1,8 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
+  maxWorkers: '50%',
   clearMocks: true,
-  collectCoverage: true,
   coverageDirectory: 'coverage',
   coverageProvider: 'v8',
   collectCoverageFrom: [
@@ -42,6 +42,7 @@ module.exports = {
     }
   },
   roots: ['<rootDir>/tests/unit', '<rootDir>/tests/integration'],
+  modulePathIgnorePatterns: ['<rootDir>/dist/', '<rootDir>/release/'],
   setupFilesAfterEnv: ['<rootDir>/tests/mocks/chromeMock.js'],
   testMatch: ['**/?(*.)+(spec|test).[tj]s?(x)'],
   // Define build-time constants injected by webpack DefinePlugin.
@@ -54,7 +55,8 @@ module.exports = {
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       tsconfig: {
-        module: 'esnext'
+        module: 'esnext',
+        isolatedModules: true
       },
       diagnostics: {
         ignoreCodes: [1343]
