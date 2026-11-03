@@ -84,13 +84,24 @@ export interface ReviewLog {
 
 ---
 
+## 🚀 Problem Tracker Launcher Button & Visibility Control
+
+The in-page quick launcher button (`algo-fsrs-launcher`) floats along the edge of whitelisted problem pages, providing immediate single-click access to the review panel and card editor.
+
+* **User Configurable Toggle (`showLauncher`)**: Users can disable the floating launcher button from the extension popup options.
+* **Storage Synchronization**: Listens for changes to `extensionSettings.showLauncher`. When toggled to `false`, the button is smoothly hidden (`display: none`) and click listeners are suspended.
+* **Non-Visual Access**: When the visual launcher is hidden, cards and review panels can still be accessed seamlessly through browser keyboard shortcuts or the extension popup.
+
+---
+
 ## 📝 Full-Screen Editor (`editor.ts`)
 
 The Editor UI handles standalone card creation and modification. Key features include:
 * Auto-populating problem title and URL from active tab parameters.
-* Real-time markdown preview for problem approaches.
+* **Real-time Sanitized Markdown Preview**: Renders problem approach notes and complexity breakdowns using modern Marked.js parser coupled with DOMPurify sanitization ([`features/common/markdown.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/markdown.ts)) to eliminate script, form, or iframe injections.
 * Time and space complexity fields ($O(N)$, $O(1)$).
 * Interactive tag management with auto-suggestions.
+* **AlgoRecall Brand Identity**: Integrated header pill with official branding and version badge.
 
 ---
 

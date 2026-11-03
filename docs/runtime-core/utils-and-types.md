@@ -104,7 +104,52 @@ export interface FooterRecord {
 
 ---
 
+## ⚙️ User Settings & Preferences (`types/domain.ts`)
+
+Represents the user's customized runtime preferences:
+
+```typescript
+export interface NotificationSettings {
+    enabled?: boolean;
+    frequency?: string;
+    priority?: string;
+    requireInteraction?: boolean;
+    quietHoursEnabled?: boolean;
+    quietHoursStart?: string;
+    quietHoursEnd?: string;
+    badgeEnabled?: boolean;       // Controls whether extension action icon displays due card badge
+    showDueBadge?: boolean;
+}
+
+export interface ExtensionSettings {
+    activePaletteIndex?: number;
+    defaultHighlightColor?: string;
+    defaultSymbolChar?: string;
+    defaultSymbolColor?: string;
+    developerMode?: boolean;
+    palettes?: Palette[];
+    recentColors?: string[];
+    showCharts?: boolean;
+    showMarkerPopup?: boolean;
+    showLauncher?: boolean;       // Controls floating in-page problem tracker launcher visibility
+}
+
+export interface UserSettings {
+    theme?: string;
+    notificationSettings?: NotificationSettings;
+    extensionSettings?: ExtensionSettings;
+    fsrsGlobalParams?: FSRSParameters | Partial<FSRSParameters> | Record<string, unknown>;
+    whitelistedWebsites?: WhitelistedWebsite[];
+}
+```
+
+> [!NOTE]
+> All default values, fallbacks, and action keys for these models are defined centrally in [`features/common/constants.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/constants.ts) (such as `DEFAULT_EXTENSION_SETTINGS`, `DEFAULT_NOTIFICATION_SETTINGS`, and `DEFAULT_FSRS_PARAMETERS`).
+
+---
+
 ## 🔗 Related Documentation
+* 📐 [Centralized Constants (`constants.ts`)](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/common.md#centralized-domain-constants-constantsts)
 * 📦 [State Management](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/state-management.md)
 * 🧮 [FSRS Algorithm Theory](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/fsrs-algorithm.md)
 * ⚡ [WASM Optimizer Runtime](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/optimizer-wasm.md)

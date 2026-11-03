@@ -14,10 +14,10 @@ export interface StorageData {
     fsrsActivity?: { [date: string]: number };
     fsrsTopicWeights?: { [topic: string]: number[] };
     fsrsGlobalParams?: FSRSParameters | Partial<FSRSParameters>;
-    notificationSettings?: NotificationSettings;
+    notificationSettings?: NotificationSettings; // contains enabled, frequency, badgeEnabled
     whitelistedWebsites?: WhitelistedWebsite[];
-    chromeSettings?: ChromeSettings;
-    theme?: string;
+    extensionSettings?: ExtensionSettings;       // contains showMarkerPopup, showLauncher, palettes
+    theme?: string;                              // 'dark' | 'light' (defaults to DEFAULT_THEME)
     marks?: HighlightMark[];
     bookmarks?: BookmarkItem[];
     pomodoroState?: PomodoroState;
@@ -27,6 +27,8 @@ export interface StorageData {
     [key: string]: unknown;
 }
 ```
+
+> **Centralized Defaults**: All fallback values and initial schemas are maintained in [`features/common/constants.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/constants.ts) (`DEFAULT_EXTENSION_SETTINGS`, `DEFAULT_NOTIFICATION_SETTINGS`, `DEFAULT_POMODORO_SETTINGS`, etc.) to guarantee consistent behavior across content scripts, service workers, and popup components.
 
 ---
 

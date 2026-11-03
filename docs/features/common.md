@@ -54,10 +54,42 @@ Users can add custom domains via `features/common/websites/websites.html`.
 
 ---
 
-## 🎨 Theme Synchronization & Logger (`theme-sync.ts`, `logger.ts`)
+## 🛡️ Markdown Parsing & DOMPurify Sanitization (`markdown.ts`)
+
+The markdown rendering utility (`features/common/markdown.ts`) formats problem solution approaches, complexity analysis, and annotations while preventing cross-site scripting (XSS) and DOM injection attacks.
+
+### Security & Sanitization Architecture
+1. **Marked.js Integration**: Upgraded to modern marked parser with GitHub-flavored markdown (`gfm: true`) and automated line breaks (`breaks: true`).
+2. **DOMPurify Sanitization**: All HTML generated from markdown parsing is processed through DOMPurify using centralized options (`MARKDOWN_PURIFY_OPTIONS`):
+   ```typescript
+   export const MARKDOWN_PURIFY_OPTIONS = {
+       FORBID_TAGS: ['form', 'input', 'button', 'select', 'textarea', 'script', 'iframe', 'object', 'embed', 'style', 'link', 'meta'],
+       FORBID_ATTR: ['style']
+   };
+   ```
+3. **Defense-in-Depth Fallback**: If DOMPurify is unavailable in a minimalist execution environment, a strict regex replacement strips all dangerous active and executable elements before DOM insertion.
+
+---
+
+## 📐 Centralized Domain Constants (`constants.ts`)
+
+AlgoRecall enforces a strict single-source-of-truth pattern through [`features/common/constants.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/constants.ts), eliminating scattered magic numbers and unaligned fallback defaults across the extension:
+
+* **FSRS & Algorithmic Defaults**: Standard $w$ parameters (`DEFAULT_FSRS_W`), retrievability decay (`DEFAULT_FSRS_DECAY = -0.5`), factor (`DEFAULT_FSRS_FACTOR = 19/81`), and target retention (`DEFAULT_FSRS_REQUEST_RETENTION = 0.90`).
+* **Settings & Theme Fallbacks**: `DEFAULT_THEME = 'dark'`, `DEFAULT_HIGHLIGHT_COLOR = '#f1c40f'`, `DEFAULT_EXTENSION_SETTINGS` (including `showMarkerPopup`, `showLauncher`, and active palette), and `DEFAULT_NOTIFICATION_SETTINGS`.
+* **Pomodoro Configurations**: Standard 25/5/15 minute interval durations (`DEFAULT_POMODORO_SETTINGS`) and initial statistics schema (`DEFAULT_POMODORO_STATS`).
+* **Navigation Routes**: `ACTION_URL_MAP` mapping command identifiers to page paths.
+* **Calendars & Time Buckets**: `DAY_NAMES_SHORT`, `MONTH_NAMES`, and `TIME_OF_DAY_BUCKET_NAMES` for review analytics.
+* **Gamification Milestones**: `DEFAULT_DAILY_GOAL = 10`, `STREAK_MILESTONES`, `REVIEW_MILESTONES`, and `CONFETTI_COLORS`.
+* **Search & Workload Limits**: `SEARCH_DEBOUNCE_MS = 150`, `SEARCH_MAX_RESULTS = 5`, and `FORECAST_DAYS_TO_SHOW = 30`.
+
+---
+
+## 🎨 Theme Synchronization, Brand Identity & Logger (`theme-sync.ts`, `logger.ts`)
 
 * **Theme Sync (`theme-sync.ts`)**: Watches `chrome.storage.local` theme changes and updates `:root` CSS class (`light-theme` vs dark mode) across all active tabs and extension popups.
-* **Structured Logger (`logger.ts`)**: Centralized logger providing environment-aware console logging (`Logger.info`, `Logger.debug`, `Logger.error`, `Logger.time`, `Logger.timeEnd`) with context tagging.
+* **Brand Identity Component (`algo-brand-pill`)**: Reusable header pill styled in `features/common/base.css` displaying the AlgoRecall icon, name, and live manifest version across every standalone HTML view.
+* **Structured Logger (`logger.ts`)**: Centralized logger providing environment-aware console logging (`Logger.info`, `Logger.debug`, `Logger.error`, `Logger.time`, `Logger.timeEnd`) with context tagging, in-memory ring buffer (`LOGGER_MAX_BUFFER_SIZE = 1000`), and JSON export.
 
 ---
 

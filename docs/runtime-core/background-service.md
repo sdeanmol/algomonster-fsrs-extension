@@ -42,6 +42,11 @@ export class AlgoRecallBackground {
         chrome.storage.onChanged.addListener(this.handleStorageChanged.bind(this));
         chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
 
+        // Keyboard Shortcut Commands Listener (Universal MV3 support)
+        if (typeof chrome !== 'undefined' && chrome.commands?.onCommand) {
+            chrome.commands.onCommand.addListener(this.handleCommand.bind(this));
+        }
+
         // Safari does not support chrome.notifications — skip notification click listener.
         if (BROWSER_CONFIG.supportsNotifications) {
             chrome.notifications.onClicked.addListener(this.handleNotificationClicked.bind(this));
@@ -63,6 +68,7 @@ export class AlgoRecallBackground {
 | `chrome.tabs` | ✅ | ✅ | ✅ | Shared, no guard needed |
 | `chrome.webNavigation` | ✅ | ✅ | ✅ | Shared, no guard needed |
 | `chrome.action` | ✅ | ✅ | ✅ | Shared, no guard needed |
+| `chrome.commands` | ✅ | ✅ | ✅ | Shared Commands API for keyboard shortcuts |
 | `chrome.alarms` | ✅ | ✅ | ✅ | Shared, no guard needed (supported in Safari 14+) |
 | `chrome.notifications` | ✅ | ✅ | ❌ | Guarded with `BROWSER_CONFIG.supportsNotifications` |
 | `chrome.downloads` | ✅ | ✅ | ❌ | Guarded with `BROWSER_CONFIG.supportsDownloads` (popup/backup/highlights) |
@@ -140,6 +146,44 @@ This single guard covers all notification dispatch paths (review alerts, weekly 
 Before firing desktop review notifications (`checkDueCards`), `AlgoRecallBackground` evaluates user-configured quiet hours (e.g. 23:00 to 07:00), automatically suppressing alerts during sleep windows.
 
 This logic only runs on Chrome/Firefox where `chrome.notifications` is available. On Safari the entire notification path is skipped before reaching the quiet hours check.
+
+---
+
+## ⌨️ Commands API & Headless Action Dispatcher (`handleCommand`)
+
+The service worker acts as the central runtime receiver for all browser-registered keyboard shortcuts triggered via the Commands API:
+
+```typescript
+async handleCommand(command: string): Promise<void> {
+    try {
+        Logger.info('Background', `Received browser keyboard command: ${command}`);
+        const result = await ActionService.executeAction(command as CommandActionId, {
+            background: {
+                checkDueCards: this.checkDueCards.bind(this),
+                updateDueCardsBadge: this.updateDueCardsBadge.bind(this)
+            }
+        });
+        if (!result.success) {
+            Logger.warn('Background', `Command execution did not succeed: ${command}`, { error: result.error });
+        }
+    } catch (err) {
+        Logger.error('Background', `Error handling command ${command}`, { err });
+    }
+}
+```
+
+* **Decoupled Execution**: Because popup HTML/DOM contexts are transient and torn down when dismissed, `handleCommand` passes background function references (`checkDueCards`, `updateDueCardsBadge`) directly into [`ActionService`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/services/actionService.ts), ensuring complete functionality without depending on open UI views.
+
+---
+
+## 🏷️ Action Icon Badge Counter & Synchronization (`updateDueCardsBadge`)
+
+`AlgoRecallBackground.updateDueCardsBadge()` manages the browser action toolbar badge:
+
+1. **Card Calculation**: Queries `fsrsCards` from `chrome.storage.local` and computes cards where `due <= Date.now()`.
+2. **User Preference Check**: Inspects `notificationSettings.badgeEnabled` (defaults to `true`). If disabled by the user, the badge text is cleared (`""`).
+3. **Badge Rendering**: Calls `chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" })` and configures badge color (`#e74c3c`).
+4. **Reactivity**: Re-evaluates whenever storage changes are observed on `fsrsCards` or `notificationSettings`.
 
 ---
 
