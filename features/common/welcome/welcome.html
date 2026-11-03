@@ -1,8 +1,16 @@
 <!--
-  * @file features/common/welcome/welcome.html
-  * @description Visual layout page for onboarding welcome guide screens.
-  * Downstream script: features/common/welcome/welcome.js
-  -->
+  @file features/common/welcome/welcome.html
+  @context Onboarding Wizard / Standalone Welcome Page
+  @description Multi-step onboarding guide presented to users upon installing AlgoRecall.
+  Guides users through theme selection, highlighting demonstrations, desktop notification setup,
+  and browser pin instructions.
+  @linked-scripts
+    - ../theme-sync.js (Global dark/light theme synchronizer)
+    - welcome.js (features/common/welcome/welcome.ts - Step transitions and notification setup controller)
+  @linked-styles
+    - ../base.css (Material Design 3 tokens and shared components)
+    - welcome.css (Onboarding wizard layout, card sliders, theme pickers, and step indicators)
+-->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -32,7 +40,7 @@
             <p class="subtitle">Your FSRS spaced repetition and text highlighter is active!</p>
         </div>
 
-        <!-- Progress Indicators -->
+        <!-- Progress Indicators: welcome.ts toggles .active class on current step dot (dot-1 to dot-4) -->
         <div class="step-indicator">
             <span class="step active" id="dot-1" aria-current="step" aria-label="Step 1"></span>
             <span class="step" id="dot-2" aria-label="Step 2"></span>
@@ -40,9 +48,9 @@
             <span class="step" id="dot-4" aria-label="Step 4"></span>
         </div>
 
-        <!-- Step content -->
+        <!-- Step content: welcome.ts shows/hides step cards by toggling .active class -->
         <div class="card-slider">
-            <!-- Step 1: Theme selection -->
+            <!-- Step 1: Theme selection: welcome.ts listens to clicks to set theme in storage -->
             <div class="step-card active" id="step-1">
                 <h2>Step 1: Choose Your Theme</h2>
                 <p>Personalize your recall environment. Select your preferred look below:</p>
@@ -97,7 +105,7 @@
                 </div>
             </div>
 
-            <!-- Step 3: Notifications -->
+            <!-- Step 3: Notifications: welcome.ts checks Notification.permission and toggles reminder alarms -->
             <div class="step-card" id="step-3">
                 <h2>Step 3: Setup Notifications</h2>
                 <p>Ensure you never miss review intervals. Enable OS reminders to alert you when patterns fall due:</p>
@@ -125,7 +133,7 @@
                 </div>
             </div>
 
-            <!-- Step 4: Pin & Practice -->
+            <!-- Step 4: Pin & Practice: Browser-specific instructions populated by welcome.ts -->
             <div class="step-card" id="step-4">
                 <h2>Step 4: Pin Extension & Start Practicing! 🎉</h2>
                 <p>Pin AlgoRecall to your browser toolbar for quick one-click access:</p>
@@ -156,7 +164,7 @@
             </div>
         </div>
 
-        <!-- Navigation Controls -->
+        <!-- Navigation Controls: welcome.ts advances or rewinds the stepper wizard -->
         <div class="welcome-actions" style="display: flex; align-items: center; justify-content: space-between;">
             <button id="welcome-prev-btn" class="btn btn-secondary invisible">Back</button>
             <button id="welcome-skip-btn" class="btn btn-link"
@@ -166,7 +174,7 @@
         </div>
     </div>
 
-    <!-- Status toast -->
+    <!-- Status toast: Injected with notification grant status by welcome.ts -->
     <div id="status-toast" class="toast"></div>
 
     <script src="welcome.js"></script>

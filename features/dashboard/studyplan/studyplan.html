@@ -1,9 +1,10 @@
 <!--
-  * @file features/dashboard/studyplan/studyplan.html
-  * @description Exam Countdown Mode — Set an exam date to redistribute all FSRS cards
-  * and ensure everything is reviewed before the deadline.
-  * Downstream script: studyplan.js
-  -->
+  @file features/dashboard/studyplan/studyplan.html
+  @context Options / Dedicated Tab UI
+  @description Exam Countdown Mode interface — enables setting a target test date and daily review cap to redistribute FSRS card intervals evenly, featuring real-time preview statistics, circular SVG countdown ring, and daily review schedule breakdown table.
+  @linked-scripts features/common/theme-sync.js, features/dashboard/studyplan/studyplan.ts (compiled to studyplan.js)
+  @linked-styles features/common/base.css, features/dashboard/studyplan/studyplan.css
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -35,7 +36,7 @@
             </div>
         </div>
 
-        <!-- Setup Panel (shown when exam mode is NOT active) -->
+        <!-- Setup Panel: Displayed when exam mode is inactive; controls date and daily pacing -->
         <div id="setup-panel" class="panel setup-panel">
             <h2 class="panel-title-lg">Set Your Exam Date</h2>
             <p class="panel-description">All pattern cards will be redistributed evenly across the remaining days until your exam, prioritizing the most difficult and overdue patterns first.</p>
@@ -43,6 +44,7 @@
             <div class="setup-form">
                 <div class="form-group">
                     <label for="exam-date-input">Exam Date</label>
+                    <!-- Date input: must be in the future to enable activation (studyplan.ts) -->
                     <input type="date" id="exam-date-input" class="input-field date-input">
                 </div>
                 <div class="form-group">
@@ -51,6 +53,7 @@
                 </div>
             </div>
 
+            <!-- Setup Preview: Real-time projection of daily workload based on selected date -->
             <div class="setup-preview" id="setup-preview" style="display:none;">
                 <div class="preview-stats">
                     <div class="preview-stat">
@@ -68,13 +71,14 @@
                 </div>
             </div>
 
+            <!-- Activation trigger: executes redistributeCards() and stores exam mode state -->
             <button id="activate-btn" class="btn btn-primary btn-lg" disabled>
                 <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                 Activate Exam Mode
             </button>
         </div>
 
-        <!-- Active Exam Panel (shown when exam mode IS active) -->
+        <!-- Active Exam Panel: Rendered when exam countdown is in progress -->
         <div id="active-panel" class="panel active-panel" style="display:none;">
             <!-- Countdown Ring -->
             <div class="countdown-section">
@@ -110,7 +114,7 @@
                 </div>
             </div>
 
-            <!-- Daily Breakdown Table -->
+            <!-- Daily Breakdown Table: Populated dynamically with rows by studyplan.ts renderScheduleTable() -->
             <h3 class="section-title">Daily Review Schedule</h3>
             <div class="schedule-table-wrap">
                 <table id="schedule-table">
@@ -128,6 +132,7 @@
             </div>
 
             <div class="active-actions">
+                <!-- Deactivate exam mode button: restores original FSRS due dates -->
                 <button id="deactivate-btn" class="btn btn-danger">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;width:14px;height:14px;" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     Deactivate Exam Mode
@@ -137,6 +142,7 @@
         </div>
     </div>
 
+    <!-- Exam mode controller module -->
     <script type="module" src="studyplan.js"></script>
 </body>
 </html>

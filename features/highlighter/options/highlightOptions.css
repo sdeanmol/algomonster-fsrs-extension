@@ -1,7 +1,9 @@
-/*
+/**
  * @file features/highlighter/options/highlightOptions.css
- * @description Styling rules for default highlight color selection grids and custom color slot controls.
- * Upstream dependency: features/common/base.css
+ * @context Options UI / Highlighter Settings Tab
+ * @description Styling rules for default highlight color selection grids, dynamic color slot controls, and custom palette cards.
+ * @isolation Global within the Highlighter Options page context.
+ * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-primary-container, --md-on-primary-container, --md-danger, --md-warning, --shadow-1, --shadow-2).
  */
 body {
     background-color: var(--md-bg);
@@ -166,7 +168,7 @@ body {
     border-color: var(--md-primary);
 }
 
-/* Editor Slots styling */
+/* Editor Slots styling: dynamically inserted into #palette-slots-container by highlightOptions.ts */
 .slots-list {
     display: flex;
     flex-direction: column;
@@ -219,7 +221,7 @@ button:disabled:hover {
     cursor: not-allowed;
 }
 
-/* Palettes rendering */
+/* Palettes rendering: scrollable list populated by highlightOptions.ts renderPalettesList() */
 .palettes-list {
     display: flex;
     flex-direction: column;
@@ -229,6 +231,7 @@ button:disabled:hover {
     padding-right: 6px;
 }
 
+/* Palette Card: card representing a saved palette */
 .palette-card {
     background-color: var(--md-surface-variant);
     border: 1px solid var(--md-border);
@@ -242,6 +245,7 @@ button:disabled:hover {
 .palette-card:hover {
     border-color: var(--md-border-hover);
 }
+/* Active state: applied to the currently active palette selected in settings */
 .palette-card.active {
     border-color: var(--md-primary);
     box-shadow: 0 0 10px rgba(168, 199, 250, 0.15);
@@ -285,6 +289,7 @@ button:disabled:hover {
     box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.4);
 }
 
+/* Palette Action Buttons: attached to each card in renderPalettesList() */
 .palette-actions {
     display: flex;
     justify-content: flex-end;
@@ -300,6 +305,8 @@ button:disabled:hover {
     border-radius: 12px;
     transition: background-color 0.2s;
 }
+
+/* Activate action: sets this palette as the active highlighter palette in storage */
 .btn-action-activate {
     color: var(--md-primary);
     background-color: rgba(168, 199, 250, 0.08);
@@ -307,6 +314,8 @@ button:disabled:hover {
 .btn-action-activate:hover {
     background-color: rgba(168, 199, 250, 0.15);
 }
+
+/* Edit action: loads palette name and slots into the editor panel */
 .btn-action-edit {
     color: var(--md-warning);
     background-color: rgba(253, 226, 147, 0.08);
@@ -314,6 +323,8 @@ button:disabled:hover {
 .btn-action-edit:hover {
     background-color: rgba(253, 226, 147, 0.15);
 }
+
+/* Delete action: removes custom palette (disabled/hidden for default presets) */
 .btn-action-delete {
     color: var(--md-danger);
     background-color: rgba(242, 139, 130, 0.08);

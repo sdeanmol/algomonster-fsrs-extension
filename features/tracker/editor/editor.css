@@ -1,7 +1,11 @@
-/*
+/**
  * @file features/tracker/editor/editor.css
- * @description Styling rules for fullscreen rich markdown notes editor view.
- * Upstream dependency: features/common/base.css
+ * @context Standalone Tab / Modal UI (features/tracker/editor/editor.html)
+ * @description Stylesheet for the fullscreen Markdown problem notes and complexity analysis editor.
+ * Controls full-viewport editor container, header metadata bar, Big-O complexity inputs,
+ * distraction-free textarea, and marked.js typography rendering in preview mode.
+ * @isolation Global (Page-scoped to editor.html)
+ * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 body {
     background-color: var(--md-bg);

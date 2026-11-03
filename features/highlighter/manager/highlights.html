@@ -1,8 +1,16 @@
 <!--
-  * @file features/highlighter/manager/highlights.html
-  * @description Layout layout page for querying and copy-copying saved text highlights.
-  * Downstream scripts: features/highlighter/manager/highlights.js, features/highlighter/manager/highlights-helpers.js
-  -->
+  @file features/highlighter/manager/highlights.html
+  @context Options Page / Standalone Highlights Manager Tab
+  @description Dedicated manager for saved web text highlights and problem quotes.
+  Provides full-text snippet search, filtering by webpage origin or highlight color,
+  sorting, clipboard copying, and bulk Markdown export.
+  @linked-scripts
+    - ../../common/theme-sync.js (Global dark/light theme synchronizer)
+    - highlights.js (features/highlighter/manager/highlights.ts - Highlight retrieval and export controller)
+  @linked-styles
+    - ../../common/base.css (Material Design 3 tokens and shared components)
+    - highlights.css (Highlight snippet cards, color filters, and action toolbars)
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,6 +23,7 @@
 </head>
 <body>
     <div class="container">
+        <!-- Header: Brand badge, title, Markdown export, and storage refresh -->
         <div class="header">
             <div>
                 <div class="algorecall-brand-badge">
@@ -29,13 +38,16 @@
                     <svg class="svg-icon page-header-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                     Highlighted Snippets
                 </h1>
+                <!-- Dynamic subtitle updated by highlights.ts with total count -->
                 <p id="highlight-subtitle" class="subtitle">Loading highlights...</p>
             </div>
             <div class="header-actions">
+                <!-- Export button: highlights.ts downloads all snippets as a formatted Markdown file -->
                 <button id="export-highlights-btn" class="btn btn-secondary">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px; margin-right:4px;" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
                     Export (MD)
                 </button>
+                <!-- Refresh button: re-reads storage to capture highlights made in active tabs -->
                 <button id="refresh-btn" class="btn btn-secondary">
                     <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                     Refresh
@@ -43,7 +55,7 @@
             </div>
         </div>
 
-        <!-- Search and Filters Panel -->
+        <!-- Search and Filters Panel: Real-time keyword search, origin dropdown, sort order, and color dots -->
         <div class="filters-panel">
             <div class="search-box-wrapper">
                 <svg class="svg-icon search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -51,6 +63,7 @@
             </div>
 
             <div class="filters-row">
+                <!-- Source page filter: populated with unique webpage titles where highlights exist -->
                 <div class="filter-group">
                     <label for="webpage-select">Source Page</label>
                     <select id="webpage-select" class="input-field select-field">
@@ -58,6 +71,7 @@
                     </select>
                 </div>
 
+                <!-- Sort select: Newest, Oldest, Longest, Shortest, Title -->
                 <div class="filter-group">
                     <label for="sort-select">Sort By</label>
                     <select id="sort-select" class="input-field select-field">
@@ -69,6 +83,7 @@
                     </select>
                 </div>
 
+                <!-- Color filter dot swatches: highlights.ts injects clickable color dots -->
                 <div class="filter-group">
                     <label>Filter by Color</label>
                     <div id="color-filters-container" class="color-filters">
@@ -76,6 +91,7 @@
                     </div>
                 </div>
 
+                <!-- Clear Filters button: unhidden when active filters restrict the list -->
                 <div class="filter-group reset-group">
                     <button id="clear-filters-btn" class="btn btn-text" style="display: none;">
                         <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; margin-right:4px;" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -85,13 +101,13 @@
             </div>
         </div>
         
-        <!-- Highlights List -->
+        <!-- Highlights List: Injected with snippet cards containing copy/delete/open buttons -->
         <div id="highlights-container" class="highlights-list">
             <!-- Highlight cards will be injected here via JS -->
         </div>
     </div>
 
-    <!-- Status Toast for Clipboard Copy -->
+    <!-- Status Toast for Clipboard Copy feedback -->
     <div id="status-toast" class="toast"></div>
 
     <script src="highlights.js"></script>

@@ -1,8 +1,16 @@
 <!--
-  * @file features/tracker/editor/editor.html
-  * @description Full-screen rich markdown notes editor view for spacing repetition study notes.
-  * Downstream script: features/tracker/editor/editor.js, features/common/markdown.js
-  -->
+  @file features/tracker/editor/editor.html
+  @context Standalone Tab / Modal Notes Editor
+  @description Full-page Markdown approach notes and complexity analysis editor for coding problems.
+  Allows reviewing, formatting, and live previewing markdown notes and Big-O complexities.
+  @linked-scripts
+    - ../../common/theme-sync.js (Global dark/light theme synchronizer)
+    - ../../common/marked.min.js (Client-side Markdown to HTML renderer)
+    - editor.js (features/tracker/editor/editor.ts - Note editor and card persistence controller)
+  @linked-styles
+    - ../../common/base.css (Material Design 3 tokens and shared components)
+    - editor.css (Split-screen/toggleable markdown editor, complexity bar, preview formatting)
+-->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -17,9 +25,10 @@
 
 <body>
     <div class="editor-container">
-        <!-- Header -->
+        <!-- Header: Close button, problem details, preview toggle, and save status indicator -->
         <div class="editor-header">
             <div class="header-left">
+                <!-- Close button: Handled by editor.ts to save and close the current window/tab -->
                 <button type="button" class="back-arrow" id="header-back-btn" title="Close and return">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 4px; width: 12px; height: 12px;"
                         aria-hidden="true">
@@ -37,11 +46,13 @@
                         </svg>
                         <span class="algorecall-brand-name">AlgoRecall</span>
                     </div>
+                    <!-- Populated dynamically by editor.ts with problem name and URL -->
                     <h2 id="problem-title">Loading problem details...</h2>
                     <span id="problem-url" class="url-subtext">Loading URL...</span>
                 </div>
             </div>
             <div class="header-right">
+                <!-- Preview toggle button: editor.ts toggles display between textarea and markdown preview -->
                 <button id="preview-toggle-btn" class="btn btn-secondary btn-sm" title="Toggle Markdown Preview"
                     aria-label="Toggle Markdown Preview">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"
@@ -51,10 +62,12 @@
                     </svg>
                     Preview
                 </button>
+                <!-- Live status text updated by editor.ts (Saving, Saved, Error) -->
                 <span id="save-status" class="status-indicator" aria-live="polite">Loading FSRS data...</span>
             </div>
         </div>
 
+        <!-- Workspace: Big-O complexity inputs, raw markdown textarea, and rendered preview container -->
         <div class="workspace">
             <div class="complexity-bar">
                 <div class="complexity-field">
@@ -66,12 +79,14 @@
                     <input type="text" id="space-complexity-input" placeholder="Space complexity" class="input-field">
                 </div>
             </div>
+            <!-- Main markdown input textarea -->
             <textarea id="editor-textarea" class="fullscreen-textarea" placeholder="How did you solve this pattern? Jot down your key insights, complexity analysis, approach steps...
 Supports Markdown: **bold**, *italic*, `code`, ```code blocks```, ## headings, - lists"></textarea>
+            <!-- Rendered HTML preview: Populated dynamically via marked.js when preview button is clicked -->
             <div id="editor-preview" class="editor-preview fsrs-markdown" style="display: none;"></div>
         </div>
 
-        <!-- Footer -->
+        <!-- Footer: Save progress and Save & Close actions -->
         <div class="editor-footer">
             <div class="footer-actions">
                 <button id="save-btn" class="btn btn-secondary">
@@ -94,7 +109,7 @@ Supports Markdown: **bold**, *italic*, `code`, ```code blocks```, ## headings, -
         </div>
     </div>
 
-    <!-- Feedback Toast -->
+    <!-- Feedback Toast: Displayed by editor.ts upon successful card persistence -->
     <div id="status-toast" class="toast">Progress saved!</div>
 
     <script src="../../common/marked.min.js"></script>

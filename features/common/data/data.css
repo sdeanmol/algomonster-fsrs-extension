@@ -1,9 +1,11 @@
-/*
+/**
  * @file features/common/data/data.css
- * @description Styling rules for tabular representation of saved cards and analytics breakdown sections.
- * Enhanced with R2.6 (state badges), R2.7 (bulk actions bar, checkboxes),
- * R2.8 (sort controls), R2.9 (inline edit modal).
- * Upstream dependency: features/common/base.css
+ * @context Standalone Options Page UI (features/common/data/data.html)
+ * @description Stylesheet for the Data Manager interface. Controls responsive tables,
+ * search and filter controls, floating bulk actions toolbar, FSRS state badges,
+ * inline card edit modal dialog, analytics breakdown cards, and undo action toast.
+ * @isolation Global (Page-scoped to data.html)
+ * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 body {
     background-color: var(--md-bg);
@@ -127,7 +129,11 @@ h1 {
     background-color: rgba(242, 139, 130, 0.08);
 }
 
-/* ========== R2.7: Bulk Actions Bar ========== */
+/**
+ * Bulk Actions Floating Toolbar (R2.7)
+ * Toggled via display: flex/none in features/common/data/data.ts (updateBulkActionBar).
+ * Appears when one or more row checkboxes (.card-checkbox) are checked.
+ */
 .bulk-actions-bar {
     display: flex;
     justify-content: space-between;
@@ -178,6 +184,11 @@ h1 {
     box-shadow: var(--shadow-1);
 }
 
+.table-responsive table {
+    width: 100%;
+    min-width: 100%;
+}
+
 h3 {
     color: var(--md-text-high);
     font-size: 16px;
@@ -196,7 +207,7 @@ table {
 }
 
 th, td {
-    padding: 12px 16px;
+    padding: 10px 10px;
     text-align: left;
     border-bottom: 1px solid var(--md-border);
     font-size: 13px;
@@ -221,7 +232,11 @@ tr:hover td {
     background: rgba(255, 255, 255, 0.015);
 }
 
-/* Selected row highlight */
+/**
+ * Dynamic State: Row Selection Highlight
+ * Toggled on table rows (<tr>) by features/common/data/data.ts whenever
+ * a card's checkbox is toggled on/off.
+ */
 tr.row-selected td {
     background: rgba(168, 199, 250, 0.06);
 }
@@ -242,7 +257,7 @@ td a:hover {
 .td-checkbox {
     width: 36px;
     text-align: center;
-    padding-left: 12px;
+    padding-left: 10px;
     padding-right: 4px;
 }
 
@@ -254,8 +269,38 @@ td a:hover {
     border-radius: 4px;
 }
 
-/* Actions column */
+/* Tags column: compacted width and cell padding */
+.th-tags,
+.td-tags {
+    max-width: 140px;
+    padding: 8px 6px;
+}
+
+/* Reviews column: compacted width, padding and centered alignment */
+.th-reviews,
+.td-reviews {
+    width: 60px;
+    max-width: 65px;
+    padding: 8px 4px;
+    text-align: center;
+}
+
+/* Lapses column: compacted width, padding and centered alignment */
+.th-lapses,
+.td-lapses {
+    width: 80px;
+    max-width: 90px;
+    padding: 8px 4px;
+    text-align: center;
+}
+
+/* Actions column: fixed width ensuring buttons remain clearly visible without horizontal scroll */
+.th-actions,
 .td-actions {
+    width: 72px;
+    min-width: 72px;
+    padding: 8px 4px;
+    text-align: center;
     white-space: nowrap;
 }
 
@@ -263,18 +308,19 @@ td a:hover {
     display: flex;
     gap: 4px;
     align-items: center;
+    justify-content: center;
 }
 
-/* Tag Badges */
+/* Tag Badges: compacted padding and margins */
 .tag {
     background: rgba(168, 199, 250, 0.1);
     color: var(--md-primary);
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10.5px;
     font-weight: 600;
-    margin-right: 6px;
-    margin-bottom: 4px;
+    margin-right: 3px;
+    margin-bottom: 3px;
     display: inline-block;
     border: 1px solid rgba(168, 199, 250, 0.2);
 }
@@ -345,9 +391,10 @@ td a:hover {
     color: var(--md-warning);
     border: 1px solid rgba(253, 226, 147, 0.3);
     font-weight: 700;
-    padding: 2px 8px;
+    padding: 2px 6px;
+    margin: 0;
     border-radius: 10px;
-    font-size: 11px;
+    font-size: 10.5px;
     display: inline-block;
 }
 
@@ -356,12 +403,13 @@ td a:hover {
     color: var(--md-danger);
     border: 1px solid rgba(242, 139, 130, 0.4);
     font-weight: 800;
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 11px;
+    padding: 2px 6px;
+    margin: 0;
+    border-radius: 10px;
+    font-size: 10.5px;
     letter-spacing: 0.2px;
     display: inline-block;
-    box-shadow: 0 2px 6px rgba(242, 139, 130, 0.2);
+    box-shadow: 0 1px 4px rgba(242, 139, 130, 0.2);
 }
 
 .row-leech {
@@ -403,7 +451,11 @@ td a:hover {
     transform: scale(1.1);
 }
 
-/* ========== R2.9: Inline Edit Modal ========== */
+/**
+ * Inline Card Edit Modal Overlay (R2.9)
+ * Display toggled (flex/none) by features/common/data/data.ts (openEditModal / closeEditModal).
+ * High z-index (10000) with backdrop blur to capture focus while updating metadata.
+ */
 .edit-overlay {
     position: fixed;
     top: 0;

@@ -1,8 +1,15 @@
 <!--
-  * @file features/common/websites/websites.html
-  * @description Layout layout page presenting platforms whitelist authorization and dynamic scripts status.
-  * Downstream script: features/common/websites/websites.js
-  -->
+  @file features/common/websites/websites.html
+  @context Options Page / Standalone Platform Manager Tab
+  @description Host permissions and domain whitelist manager. Allows users to authorize AlgoRecall
+  on custom coding platforms, view default supported domains, and revoke origin permissions dynamically.
+  @linked-scripts
+    - ../theme-sync.js (Global dark/light theme synchronizer)
+    - websites.js (features/common/websites/websites.ts - Whitelist state and chrome.permissions manager)
+  @linked-styles
+    - ../base.css (Material Design 3 tokens and shared components)
+    - websites.css (Whitelist card grid, domain list items, and permission buttons)
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,7 +22,7 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
+        <!-- Header: Brand badge, title, and page close button -->
         <div class="header">
             <div class="header-main">
                 <div class="algorecall-brand-badge">
@@ -30,6 +37,7 @@
                 <p id="page-subtitle" class="subtitle">Add or manage websites where AlgoRecall is authorized to run.</p>
             </div>
             <div class="header-actions">
+                <!-- Close Manager button: Handled by websites.ts to close current tab via window.close() -->
                 <button id="back-to-popup-btn" class="btn btn-secondary">
                     Close Manager
                 </button>
@@ -37,7 +45,7 @@
         </div>
 
         <div class="grid-2">
-            <!-- Add Custom Website Card -->
+            <!-- Add Custom Website Card: Form to request optional host permissions for custom domains -->
             <div class="card">
                 <h2>🔌 Add Custom Website</h2>
                 <p class="section-intro">
@@ -46,20 +54,24 @@
                 <div class="form-group" style="margin-top: 16px;">
                     <label for="domain-input">Website Domain or URL</label>
                     <div class="input-row">
+                        <!-- Domain input: websites.ts sanitizes protocol and paths down to origin -->
                         <input type="text" id="domain-input" class="input-field" placeholder="e.g. github.com or https://mycode.io/">
+                        <!-- Add button: Triggers chrome.permissions.request and adds to storage whitelist -->
                         <button id="add-domain-btn" class="btn btn-primary">Authorize & Add</button>
                     </div>
                     <span class="input-hint">We will request domain permission dynamically for your privacy.</span>
                 </div>
             </div>
 
-            <!-- Manage Websites List Card -->
+            <!-- Manage Websites List Card: Container for dynamically rendered platform entries -->
             <div class="card">
                 <h2>📋 Whitelisted Platforms</h2>
                 <div class="whitelist-container">
+                    <!-- Whitelisted sites list: Populated dynamically with domain chips and toggle/delete buttons by websites.ts -->
                     <ul id="whitelisted-sites-list" class="sites-list">
                         <!-- All whitelisted sites injected dynamically -->
                     </ul>
+                    <!-- Restore Default Platforms button: Resets whitelist back to default set (LeetCode, AlgoMonster, etc.) -->
                     <button id="restore-defaults-btn" class="btn btn-secondary" style="margin-top: 20px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                         Restore Default Platforms
@@ -69,7 +81,7 @@
         </div>
     </div>
 
-    <!-- Status message toast -->
+    <!-- Status message toast: Injected with confirmation/error text by websites.ts -->
     <div id="status-toast" class="toast"></div>
 
     <script src="websites.js"></script>

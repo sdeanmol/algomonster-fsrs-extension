@@ -590,14 +590,14 @@ export class FSRSDataDashboard {
             let table = `<div class="table-responsive"><table><thead><tr>
                 <th class="th-checkbox"><input type="checkbox" id="select-all-checkbox" class="card-checkbox" ${allChecked ? 'checked' : ''}></th>
                 <th>Problem Title</th>
-                <th>Tags</th>
+                <th class="th-tags">Tags</th>
                 <th>Next Due</th>
                 <th>State</th>
-                <th>Reviews</th>
+                <th class="th-reviews">Reviews</th>
                 <th>Stability</th>
                 <th>Difficulty</th>
-                ${showLapses ? '<th>Lapses</th>' : ''}
-                <th>Actions</th>
+                ${showLapses ? '<th class="th-lapses">Lapses</th>' : ''}
+                <th class="th-actions">Actions</th>
             </tr></thead><tbody>`;
 
             cardsArray.forEach((card: Card) => {
@@ -629,14 +629,14 @@ export class FSRSDataDashboard {
 
                 table += `<tr class="${isChecked ? 'row-selected' : ''} ${isLeech ? 'row-leech' : ''}">
                     <td class="td-checkbox"><input type="checkbox" class="card-checkbox row-checkbox" data-id="${card.id || ''}" ${isChecked ? 'checked' : ''}></td>
-                    <td style="white-space: normal; word-wrap: break-word; max-width: 250px;"><a href="${card.problemUrl || '#'}" target="_blank">${card.problemTitle || 'Untitled'}</a></td>
-                    <td style="white-space: normal; word-wrap: break-word; max-width: 200px;">${tagsHtml}</td>
+                    <td style="white-space: normal; word-wrap: break-word; max-width: 220px;"><a href="${card.problemUrl || '#'}" target="_blank">${card.problemTitle || 'Untitled'}</a></td>
+                    <td class="td-tags" style="white-space: normal; word-wrap: break-word; max-width: 140px;">${tagsHtml}</td>
                     <td>${statusBadge}</td>
                     <td><span class="badge badge-state ${stateClass}">${stateLabel}${isLeech ? ' (Leech)' : ''}</span></td>
-                    <td>${reps}</td>
+                    <td class="td-reviews">${reps}</td>
                     <td>${stabilityFormatted}</td>
                     <td>${difficultyFormatted}</td>
-                    ${showLapses ? `<td>${lapsesBadge}</td>` : ''}
+                    ${showLapses ? `<td class="td-lapses">${lapsesBadge}</td>` : ''}
                     <td class="td-actions">
                         <div class="actions-wrapper">
                             <button class="edit-card-btn" data-id="${card.id || ''}" title="Edit Card" aria-label="Edit Card">

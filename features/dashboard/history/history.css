@@ -1,7 +1,9 @@
-/*
+/**
  * @file features/dashboard/history/history.css
- * @description Styling rules for review activity history cards, drill-downs, and columns.
- * Upstream dependency: features/common/base.css
+ * @context Review Activity History UI / Dedicated Options Tab
+ * @description Styling rules for review activity history timeline, year/month/day drill-down cards, breadcrumbs, and detail bars.
+ * @isolation Global within the History page context.
+ * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-primary-container, --md-on-primary-container, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
  */
 body {
     background-color: var(--md-bg);
@@ -85,6 +87,7 @@ h1 {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
+/* Active granularity view button: selected timeframe (Years, Months, Days) */
 .controls button.active {
     background-color: var(--md-primary-container);
     color: var(--md-on-primary-container);
@@ -92,7 +95,7 @@ h1 {
     box-shadow: var(--shadow-1);
 }
 
-/* Grid & Cards */
+/* Grid & Cards: dynamic containers rendered by history.ts */
 .grid {
     display: grid;
     gap: 20px;

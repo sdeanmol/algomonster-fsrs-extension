@@ -1,8 +1,15 @@
 <!--
-  * @file features/common/help/help.html
-  * @description Complete interactive Help Center, feature documentation manuals, and study strategy guides.
-  * Downstream script: features/common/help/help.js
-  -->
+  @file features/common/help/help.html
+  @context Options Page / Standalone Help Center Tab
+  @description Interactive Help Center, comprehensive feature documentation manuals, FSRS algorithm
+  deep-dives, in-page highlighter guides, study strategies, and gamification explanations.
+  @linked-scripts
+    - ../theme-sync.js (Global dark/light theme synchronizer)
+    - help.js (features/common/help/help.ts - Tab routing and real-time search filtering controller)
+  @linked-styles
+    - ../base.css (Material Design 3 tokens and shared components)
+    - help.css (Help center layout, multi-tab layout, search highlighting, and callout styles)
+-->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -17,7 +24,7 @@
 
 <body>
     <div class="container">
-        <!-- Header -->
+        <!-- Header: Brand badge, title, live search box, and close button -->
         <header class="header">
             <div class="header-title-container">
                 <div class="algorecall-brand-badge">
@@ -36,6 +43,7 @@
                 <p class="subtitle">Complete interactive guide, feature manuals, and optimal study strategies</p>
             </div>
             <div class="header-actions">
+                <!-- Live search box: help.ts filters sections and injects matching cards on text input -->
                 <div class="search-box">
                     <svg class="svg-icon search-icon" viewBox="0 0 24 24" aria-hidden="true">
                         <circle cx="11" cy="11" r="8"></circle>
@@ -45,11 +53,12 @@
                         placeholder="Search any feature (e.g. Anki, FSRS, Simulation)..."
                         aria-label="Search help topics">
                 </div>
+                <!-- Close button: Click handler in help.ts closes this documentation tab via window.close() -->
                 <button id="close-help-btn" class="btn btn-secondary">Close Guide</button>
             </div>
         </header>
 
-        <!-- Navigation Tabs -->
+        <!-- Navigation Tabs: help.ts manages active state toggling and switches .tab-pane containers -->
         <nav class="tabs-container" role="tablist">
             <button class="tab-btn active" data-tab="overview" role="tab" aria-selected="true"
                 aria-controls="tab-overview">
@@ -112,7 +121,7 @@
             </button>
         </nav>
 
-        <!-- Tab Contents -->
+        <!-- Tab Contents: Container of tab panes toggled active/inactive by help.ts (switchTab) -->
         <main class="tab-content-container">
             <!-- 1. Overview & Strategy Tab -->
             <div id="tab-overview" class="tab-pane active" role="tabpanel">

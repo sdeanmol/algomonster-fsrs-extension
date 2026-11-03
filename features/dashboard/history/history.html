@@ -1,8 +1,10 @@
 <!--
-  * @file features/dashboard/history/history.html
-  * @description Visual layout page for tracking users' review activity history across years, months, and days.
-  * Downstream script: features/dashboard/history/history.js
-  -->
+  @file features/dashboard/history/history.html
+  @context Options / Dedicated Tab UI
+  @description Review Activity History page — allows users to inspect chronological pattern review histories with multi-level drill-down (Years -> Months -> Days) and interactive breadcrumb navigation.
+  @linked-scripts features/common/theme-sync.js, features/dashboard/history/history.ts (compiled to history.js)
+  @linked-styles features/common/base.css, features/dashboard/history/history.css
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,6 +17,7 @@
 </head>
 <body>
     <div class="container">
+        <!-- Header Section -->
         <div class="header">
             <div>
                 <div class="algorecall-brand-badge">
@@ -29,21 +32,26 @@
                     <svg class="svg-icon page-header-icon" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
                     Review Activity History
                 </h1>
+                <!-- Dynamic breadcrumb navigation trail (history.ts updateBreadcrumb()) -->
                 <div id="breadcrumb" class="breadcrumb">All Years</div>
             </div>
+            <!-- Granularity View Controls (Years, Months, Days) -->
             <div class="controls">
                 <button id="view-year" class="active">Years</button>
                 <button id="view-month">Months</button>
                 <button id="view-day">Days</button>
             </div>
         </div>
+        <!-- Dynamic Chart Wrapper: Injected by history.ts when drill-down data is available -->
         <div id="history-chart-wrapper" class="panel chart-panel" style="margin-bottom: 24px; display: none;">
             <!-- Chart will be injected here -->
         </div>
+        <!-- Grid container: Injected with year, month, or day review cards by history.ts -->
         <div id="chart-container" class="grid">
             <!-- Data cards will be injected here via JS -->
         </div>
     </div>
+    <!-- History page controller script -->
     <script src="history.js"></script>
 </body>
 </html>

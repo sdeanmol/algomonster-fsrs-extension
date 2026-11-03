@@ -1,7 +1,11 @@
-/*
+/**
  * @file features/common/welcome/welcome.css
- * @description Styling rules for onboarding welcome guide wizard components.
- * Upstream dependency: features/common/base.css
+ * @context Onboarding Wizard UI (features/common/welcome/welcome.html)
+ * @description Stylesheet for the post-installation welcome tour wizard.
+ * Defines responsive modal card container, step progress dot indicators,
+ * slide-in card transitions, theme selection cards, and permission buttons.
+ * @isolation Global (Page-scoped to welcome.html)
+ * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 body {
     background-color: var(--md-bg);
@@ -75,6 +79,11 @@ body {
     transition: background-color 0.2s, transform 0.2s;
 }
 
+/**
+ * Dynamic State: .step.active
+ * Added by features/common/welcome/welcome.ts (updateSteps) to highlight
+ * the current step position indicator.
+ */
 .step-indicator .step.active {
     background-color: var(--md-primary);
     transform: scale(1.2);
@@ -96,6 +105,11 @@ body {
     animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/**
+ * Dynamic State: .step-card.active
+ * Unhidden (display: flex) by features/common/welcome/welcome.ts (updateSteps)
+ * when advancing or rewinding the tour step.
+ */
 .step-card.active {
     display: flex;
 }

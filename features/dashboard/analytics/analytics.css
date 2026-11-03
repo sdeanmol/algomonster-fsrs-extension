@@ -1,4 +1,10 @@
-/* features/dashboard/analytics/analytics.css */
+/**
+ * @file features/dashboard/analytics/analytics.css
+ * @context Analytics SPA / Dedicated Options Tab
+ * @description Master stylesheet for the multi-tab analytics dashboard SPA, containing sidebar navigation, global KPI indicators, tab panes, Chart.js wrappers, and responsive breakpoints.
+ * @isolation Global within the Analytics Dashboard page context.
+ * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-primary-alpha, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
+ */
 
 .dashboard-layout {
     display: flex;
@@ -80,6 +86,7 @@
     color: var(--md-text-high);
 }
 
+/* Active navigation button state: indicates currently rendered tab pane (analytics.ts) */
 .nav-btn.active {
     background-color: var(--md-primary-alpha);
     color: var(--md-primary);
@@ -200,6 +207,7 @@
     width: 100%;
 }
 
+/* Active tab pane: reveals selected analytics module view (analytics.ts switchTab()) */
 .tab-pane.active {
     display: flex;
     flex-direction: column;

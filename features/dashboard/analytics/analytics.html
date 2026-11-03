@@ -1,3 +1,10 @@
+<!--
+  @file features/dashboard/analytics/analytics.html
+  @context Single-Page Application (SPA) / Full Options Dashboard
+  @description Multi-tab analytics SPA featuring 7 comprehensive modules: Overview, Exam Readiness, Memory Retention, Future Memory Simulation, Tag Analytics, Performance, and Insights.
+  @linked-scripts features/common/theme-sync.js, dist/fsrsScheduler.bundle.js, features/dashboard/analytics/analytics.ts (compiled to analytics.js)
+  @linked-styles features/common/base.css, features/dashboard/analytics/analytics.css
+-->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -121,6 +128,7 @@
                     <p class="subtitle" id="analytics-subtitle">Loading analytics...</p>
                 </div>
                 <div class="header-global-stats">
+                    <!-- Global KPI Bar: Synchronized summary metrics displayed above tab views (analytics.ts) -->
                     <div class="global-kpi-bar">
                         <div class="kpi-pill" id="global-kpi-pill-cards">
                             <span class="kpi-val" id="global-kpi-cards">0</span>
@@ -142,6 +150,7 @@
                 </div>
             </header>
 
+            <!-- Dynamic Tab Content Container: Submodule views rendered into active pane -->
             <div class="tab-content-container">
                 <div id="tab-overview" class="tab-pane active"></div>
                 <div id="tab-readiness" class="tab-pane"></div>
@@ -154,7 +163,7 @@
         </main>
     </div>
 
-    <!-- Ensure module import works -->
+    <!-- Analytics SPA orchestrator script -->
     <script type="module" src="analytics.js"></script>
 </body>
 

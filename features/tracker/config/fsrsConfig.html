@@ -1,8 +1,16 @@
 <!--
-  * @file features/tracker/config/fsrsConfig.html
-  * @description Layout layout page for FSRS spaced-repetition scheduler configurations.
-  * Downstream script: features/tracker/config/fsrsConfig.js
-  -->
+  @file features/tracker/config/fsrsConfig.html
+  @context Options Page / Standalone Settings Tab
+  @description FSRS algorithm parameters configuration page. Provides controls for target recall
+  retention rate (70%-99%), decay/factor constants, automated WASM-based personalized weight
+  optimization (17 weights w0-w16), and per-tag custom FSRS profile definitions.
+  @linked-scripts
+    - ../../common/theme-sync.js (Global dark/light theme synchronizer)
+    - ../../../dist/config.bundle.js (features/tracker/config/fsrsConfig.ts - Bundled config controller)
+  @linked-styles
+    - ../../common/base.css (Material Design 3 tokens and shared components)
+    - fsrsConfig.css (Mode pill toggles, slider tracks, 17-coefficient input grid, progress bars)
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,7 +23,7 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
+        <!-- Header: Brand badge, title, reset all parameters, and close page button -->
         <div class="header">
             <div class="header-main">
                 <div class="algorecall-brand-badge">
@@ -30,9 +38,11 @@
                 <p id="page-subtitle" class="subtitle">Fine-tune memory retention, decay constants, and FSRS weights parameters.</p>
             </div>
             <div class="header-actions">
+                <!-- Reset All button: Restores all global params, weights, and tag profiles to factory defaults -->
                 <button id="reset-all-btn" class="btn btn-danger" style="margin-right: 12px;">
                     Reset All
                 </button>
+                <!-- Close Config button: Closes options tab via window.close() -->
                 <button id="back-to-popup-btn" class="btn btn-secondary">
                     Close Config
                 </button>
@@ -40,7 +50,7 @@
         </div>
 
         <div class="grid-layout">
-            <!-- Mode Switch: Simple (Recommended) vs Advanced -->
+            <!-- Mode Switch: Simple (Recommended) vs Advanced (Toggles display of .advanced-config-only elements) -->
             <div class="config-mode-bar">
                 <span class="mode-label">Configuration Mode:</span>
                 <div class="mode-toggle-group" role="tablist" aria-label="Configuration Mode">
@@ -49,7 +59,7 @@
                 </div>
             </div>
 
-            <!-- Global Config Card -->
+            <!-- Global Config Card: Target retention slider, preset chips, and advanced decay/factor constants -->
             <div class="card main-config-card">
                 <h2>⚙️ Global Parameters</h2>
                 <p class="section-intro">
@@ -61,8 +71,10 @@
                         <label for="retention-slider">Target Recall Retention Rate</label>
                         <span id="retention-val" class="badge">90%</span>
                     </div>
+                    <!-- Range slider: fsrsConfig.ts updates badge display on 'input' and saves to storage on 'change' -->
                     <input type="range" id="retention-slider" min="0.70" max="0.99" step="0.01" value="0.90" class="slider-input">
                     <span class="input-hint">Recommended range: 0.75 - 0.95. Higher retention targets yield shorter intervals.</span>
+                    <!-- Preset chips: Quick-select buttons for 80%, 90%, 95% target retention -->
                     <div class="preset-chips" style="margin-top: 10px; display: flex; gap: 8px;">
                         <button type="button" class="preset-chip" data-retention="0.80">Relaxed (80%)</button>
                         <button type="button" class="preset-chip active" data-retention="0.90">Balanced (90%)</button>
@@ -70,6 +82,7 @@
                     </div>
                 </div>
 
+                <!-- Advanced Mathematical Constants: Visible only in Advanced mode -->
                 <div id="advanced-decay-factor" class="advanced-config-only grid-2" style="display: none; margin-top: 16px;">
                     <div class="form-group">
                         <label for="decay-input">Decay Constant</label>
@@ -88,7 +101,7 @@
                 </div>
             </div>
 
-            <!-- Personal Memory Optimization Card -->
+            <!-- Personal Memory Optimization Card: Review threshold tracking and WASM optimizer trigger -->
             <div class="card optimization-card">
                 <h2>🧠 Optimize for Your Personal Memory</h2>
                 <p class="section-intro">
@@ -96,6 +109,7 @@
                 </p>
 
                 <div class="opt-status-container">
+                    <!-- Progress bar: Populated dynamically with review count / required threshold -->
                     <div id="opt-progress-section">
                         <div class="opt-progress-header">
                             <span class="opt-progress-title">Personal Memory Training</span>
@@ -107,6 +121,7 @@
                         <p id="opt-status-msg" class="opt-status-msg">Keep reviewing to unlock personalized optimization.</p>
                     </div>
 
+                    <!-- Optimizer actions: Unhidden by fsrsConfig.ts once threshold is reached or overridden -->
                     <div id="opt-actions-section" class="opt-actions" style="display: none; margin-top: 16px; flex-wrap: wrap;">
                         <button id="btn-auto-train" class="btn btn-primary" style="min-width: 160px;">Auto Train Weights</button>
                         <button id="btn-export-weights" class="btn btn-secondary">Export</button>
@@ -133,13 +148,14 @@
                 </div>
             </div>
 
-            <!-- FSRS Global Weights Configuration Card -->
+            <!-- FSRS Global Weights Configuration Card: 17 weight coefficients (w0 to w16) injected dynamically -->
             <div class="card weights-card advanced-config-only" style="display: none;">
                 <h2>📊 FSRS Coefficients (w0 - w16)</h2>
                 <p class="section-intro">
                     Coefficients that scale memory stability updates. Adjust carefully, or restore defaults if memory scheduling behaves unexpectedly.
                 </p>
 
+                <!-- Injected with 17 numeric inputs with hover tooltips explaining stability/difficulty scaling -->
                 <div class="weights-grid" id="weights-inputs-container">
                     <!-- 17 weights inputs will be injected programmatically -->
                 </div>
@@ -150,7 +166,7 @@
                 </div>
             </div>
 
-            <!-- Tag-Specific weights configurations Card -->
+            <!-- Tag-Specific weights configurations Card: Custom profiles per topic -->
             <div class="card tag-weights-card advanced-config-only" style="display: none;">
                 <h2>🏷️ Tag-Specific Profiles</h2>
                 <p class="section-intro">
@@ -166,6 +182,7 @@
 
                 <div class="profiles-section">
                     <h3>Active Custom Profiles</h3>
+                    <!-- Injected dynamically with active profiles and delete buttons -->
                     <ul id="active-tag-profiles-list" class="profiles-list">
                         <!-- Custom profiles will load here dynamically -->
                     </ul>
@@ -174,7 +191,7 @@
         </div>
     </div>
 
-    <!-- Status message toast -->
+    <!-- Status message toast: Injected with parameter save / optimization feedback by fsrsConfig.ts -->
     <div id="status-toast" class="toast"></div>
 
     <script src="../../../dist/config.bundle.js"></script>
