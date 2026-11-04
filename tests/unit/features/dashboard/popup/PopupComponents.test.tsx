@@ -8,7 +8,8 @@ import {
     PopupHeader,
     PopupNavigationGrid,
     PopupSettingsToggles,
-    PopupStatusToast
+    PopupStatusToast,
+    PopupApp
 } from '../../../../../features/dashboard/popup/popup';
 import {
     PopupHeatmapCell,
@@ -248,6 +249,34 @@ describe('Popup Preact Components', () => {
 
             const notifInput = container.querySelector('#toggle-notifications') as HTMLInputElement;
             expect(notifInput.checked).toBe(true);
+        });
+    });
+
+    describe('PopupApp Root View', () => {
+        it('renders full PopupApp layout with all sections and controls', () => {
+            render(<PopupApp />, container);
+
+            expect(container.querySelector('#popup-app-container')).not.toBeNull();
+            expect(container.querySelector('#confetti-canvas')).not.toBeNull();
+            expect(container.querySelector('.header-modern')).not.toBeNull();
+            expect(container.querySelector('#user-level-badge')).not.toBeNull();
+            expect(container.querySelector('#header-analytics-btn')).not.toBeNull();
+            expect(container.querySelector('#theme-toggle-btn')).not.toBeNull();
+            expect(container.querySelector('#help-btn')).not.toBeNull();
+            expect(container.querySelector('#xp-progress-bar-container')).not.toBeNull();
+            expect(container.querySelector('#permission-warning-banner')).not.toBeNull();
+            expect(container.querySelector('#rating-prompt-card')).not.toBeNull();
+            expect(container.querySelector('.stats-hero')).not.toBeNull();
+            expect(container.querySelector('#box-total')).not.toBeNull();
+            expect(container.querySelector('#box-due')).not.toBeNull();
+            expect(container.querySelector('#box-retention')).not.toBeNull();
+            expect(container.querySelector('#popup-search-input')).not.toBeNull();
+            expect(container.querySelector('#activity-charts-card')).not.toBeNull();
+            expect(container.querySelector('.heatmap-section')).not.toBeNull();
+            expect(container.querySelector('.notification-card')).not.toBeNull();
+            expect(container.querySelector('.details-card')).not.toBeNull();
+            expect(container.querySelector('.static-review-banner')).not.toBeNull();
+            expect(container.querySelector('.footer-modern')).not.toBeNull();
         });
     });
 });

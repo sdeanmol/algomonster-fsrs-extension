@@ -14,6 +14,7 @@
  */
 
 import { h, render, Fragment, JSX } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { HighlightsHelpers } from './highlights-helpers';
 import { HighlightMark, BookmarkItem, StorageData } from '../../../types/domain';
@@ -207,6 +208,279 @@ export function HighlightsListView({
     );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT PREACT COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface HighlightsAppProps {
+    manager?: HighlightsManager;
+}
+
+/**
+ * Root Preact component governing the full Highlights Manager dashboard.
+ */
+export function HighlightsApp({ manager: initialManager }: HighlightsAppProps): JSX.Element {
+    const [manager] = useState(() => initialManager || new HighlightsManager());
+    const [marks, setMarks] = useState<HighlightMark[]>(manager.loadedMarks || []);
+    const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(manager.loadedBookmarks || []);
+    const [searchQuery, setSearchQuery] = useState<string>(manager.searchQuery || '');
+    const [activeColorFilter, setActiveColorFilter] = useState<string | null>(manager.activeColorFilter);
+    const [activePageFilter, setActivePageFilter] = useState<string>(manager.activePageFilter || 'all');
+    const [sortOption, setSortOption] = useState<string>(manager.sortOption || 'newest');
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+
+    const refreshData = () => {
+        if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+        chrome.storage.local.get(['marks', 'bookmarks'], (result: StorageData) => {
+            const m = result.marks || [];
+            const b = result.bookmarks || [];
+            manager.loadedMarks = m;
+            manager.loadedBookmarks = b;
+            setMarks(m);
+            setBookmarks(b);
+            setIsLoading(false);
+        });
+    };
+
+    useEffect(() => {
+        manager.onUpdate = () => {
+            setMarks([...manager.loadedMarks]);
+            setBookmarks([...manager.loadedBookmarks]);
+            setIsLoading(false);
+        };
+        refreshData();
+    }, [manager]);
+
+    // Unique colors for filtering
+    const uniqueColors = [...new Set(marks.map(m => m.color).filter(Boolean))];
+
+    // Unique pages map for dropdown
+    const uniquePagesMap = new Map<string, string>();
+    marks.forEach(mark => {
+        const bookmark = bookmarks.find(b => b.url === mark.url);
+        const title = bookmark && bookmark.title ? bookmark.title : HighlightsHelpers.getCleanDisplayUrl(mark.url);
+        uniquePagesMap.set(mark.url, title);
+    });
+
+    // Filtering
+    const filtered = marks.filter(mark => {
+        const bookmark = bookmarks.find(b => b.url === mark.url);
+        const pageTitle = bookmark && bookmark.title ? bookmark.title.toLowerCase() : '';
+        const markText = mark.text.toLowerCase();
+        const markUrl = mark.url.toLowerCase();
+        const markNote = (mark.note || '').toLowerCase();
+        const markCategory = (mark.category || '').toLowerCase();
+        const q = searchQuery.toLowerCase();
+
+        const matchesQuery = !searchQuery ||
+            markText.includes(q) ||
+            pageTitle.includes(q) ||
+            markUrl.includes(q) ||
+            markNote.includes(q) ||
+            markCategory.includes(q);
+
+        const matchesColor = !activeColorFilter || mark.color === activeColorFilter;
+        const matchesPage = activePageFilter === 'all' || mark.url === activePageFilter;
+
+        return matchesQuery && matchesColor && matchesPage;
+    });
+
+    // Sorting
+    filtered.sort((a, b) => {
+        if (sortOption === 'newest') {
+            return b.createdAt - a.createdAt;
+        } else if (sortOption === 'oldest') {
+            return a.createdAt - b.createdAt;
+        } else if (sortOption === 'longest') {
+            return b.text.length - a.text.length;
+        } else if (sortOption === 'shortest') {
+            return a.text.length - b.text.length;
+        } else if (sortOption === 'title') {
+            const bookmarkA = bookmarks.find(b => b.url === a.url);
+            const bookmarkB = bookmarks.find(b => b.url === b.url);
+            const titleA = bookmarkA && bookmarkA.title ? bookmarkA.title.toLowerCase() : a.url.toLowerCase();
+            const titleB = bookmarkB && bookmarkB.title ? bookmarkB.title.toLowerCase() : b.url.toLowerCase();
+            return titleA.localeCompare(titleB);
+        }
+        return 0;
+    });
+
+    const isFilteredActive = searchQuery !== '' || activeColorFilter !== null || activePageFilter !== 'all';
+
+    const handleClearFilters = () => {
+        setSearchQuery('');
+        setActiveColorFilter(null);
+        setActivePageFilter('all');
+        setSortOption('newest');
+        manager.searchQuery = '';
+        manager.activeColorFilter = null;
+        manager.activePageFilter = 'all';
+        manager.sortOption = 'newest';
+    };
+
+    const handleCopy = (text: string) => {
+        manager.helpers.copyToClipboard(text);
+    };
+
+    const handleDelete = (id: string) => {
+        manager.deleteHighlight(id);
+    };
+
+    const handleExport = () => {
+        manager.exportHighlightsToMarkdown();
+    };
+
+    let subtitleText = 'Loading highlights...';
+    if (!isLoading) {
+        if (isFilteredActive) {
+            subtitleText = `Found ${filtered.length} matching highlight(s) out of ${marks.length} total.`;
+        } else {
+            subtitleText = `You have ${marks.length} saved highlight(s).`;
+        }
+    }
+
+    return (
+        <div className="container">
+            {/* Header: Brand badge, title, Markdown export, and storage refresh */}
+            <div className="header">
+                <div>
+                    <div className="algorecall-brand-badge">
+                        <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                            <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                        </svg>
+                        <span className="algorecall-brand-name">AlgoRecall</span>
+                    </div>
+                    <h1>
+                        <svg className="svg-icon page-header-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                        </svg>
+                        Highlighted Snippets
+                    </h1>
+                    <p id="highlight-subtitle" className="subtitle">{subtitleText}</p>
+                </div>
+                <div className="header-actions">
+                    <button id="export-highlights-btn" className="btn btn-secondary" onClick={handleExport}>
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', marginRight: '4px' }} aria-hidden="true">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                            <polyline points="17 21 17 13 7 13 7 21" />
+                            <polyline points="7 3 7 8 15 8" />
+                        </svg>
+                        Export (MD)
+                    </button>
+                    <button id="refresh-btn" className="btn btn-secondary" onClick={refreshData}>
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="23 4 23 10 17 10" />
+                            <polyline points="1 20 1 14 7 14" />
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            {/* Search and Filters Panel */}
+            <div className="filters-panel">
+                <div className="search-box-wrapper">
+                    <svg className="svg-icon search-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input
+                        type="text"
+                        id="search-input"
+                        className="input-field search-input"
+                        placeholder="Search in highlights or webpage titles..."
+                        value={searchQuery}
+                        onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+                    />
+                </div>
+
+                <div className="filters-row">
+                    <div className="filter-group">
+                        <label htmlFor="webpage-select">Source Page</label>
+                        <select
+                            id="webpage-select"
+                            className="input-field select-field"
+                            value={activePageFilter}
+                            onChange={(e) => setActivePageFilter((e.target as HTMLSelectElement).value)}
+                        >
+                            <option value="all">All Pages</option>
+                            {Array.from(uniquePagesMap.entries()).map(([url, title]) => (
+                                <option key={url} value={url}>
+                                    {title.length > 50 ? title.substring(0, 50) + '...' : title}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="filter-group">
+                        <label htmlFor="sort-select">Sort By</label>
+                        <select
+                            id="sort-select"
+                            className="input-field select-field"
+                            value={sortOption}
+                            onChange={(e) => setSortOption((e.target as HTMLSelectElement).value)}
+                        >
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                            <option value="longest">Longest Snippet</option>
+                            <option value="shortest">Shortest Snippet</option>
+                            <option value="title">Webpage Title (A-Z)</option>
+                        </select>
+                    </div>
+
+                    <div className="filter-group">
+                        <label>Filter by Color</label>
+                        <div id="color-filters-container" className="color-filters">
+                            <ColorFilterBubbles
+                                colors={uniqueColors}
+                                activeColor={activeColorFilter}
+                                onToggleColor={(col) => setActiveColorFilter(prev => prev === col ? null : col)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="filter-group reset-group">
+                        <button
+                            id="clear-filters-btn"
+                            className="btn btn-text"
+                            style={{ display: isFilteredActive ? 'inline-block' : 'none' }}
+                            onClick={handleClearFilters}
+                        >
+                            <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '12px', height: '12px', marginRight: '4px' }} aria-hidden="true">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                            Clear Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Highlights List */}
+            <div id="highlights-container" className="highlights-list">
+                <HighlightsListView
+                    marks={filtered}
+                    bookmarks={bookmarks}
+                    searchQuery={searchQuery}
+                    onCopy={handleCopy}
+                    onDelete={handleDelete}
+                />
+            </div>
+
+            {/* Status Toast */}
+            <div id="status-toast" className="toast" />
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HIGHLIGHTS MANAGER CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Controller for the highlights management and export dashboard.
  */
@@ -223,6 +497,8 @@ export class HighlightsManager {
     activePageFilter: string;
     /** Current sort criterion ('newest' | 'oldest' | 'longest' | 'shortest' | 'title'). */
     sortOption: string;
+    /** Observer callback notifying root component of state updates. */
+    onUpdate?: () => void;
 
     /**
      * Initializes default filter, search, and sorting states.
@@ -249,6 +525,12 @@ export class HighlightsManager {
      */
     init(): void {
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<HighlightsApp manager={this} />, root);
+                return;
+            }
+
             this.loadHighlights();
             this.bindEvents();
         } catch (err) {
@@ -374,6 +656,9 @@ export class HighlightsManager {
                     }
                     this.loadedMarks = result.marks || [];
                     this.loadedBookmarks = result.bookmarks || [];
+                    if (this.onUpdate) {
+                        this.onUpdate();
+                    }
                     
                     this.populateWebpageSelect();
                     this.renderColorFilters();

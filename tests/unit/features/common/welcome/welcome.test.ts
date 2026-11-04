@@ -1,5 +1,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { OnboardingWelcome } from '../../../../../features/common/welcome/welcome';
+import { h, render } from 'preact';
+import { OnboardingWelcome, WelcomeApp } from '../../../../../features/common/welcome/welcome';
 import { UIUtils } from '../../../../../features/common/utils/uiUtils';
 
 describe('OnboardingWelcome', () => {
@@ -96,18 +97,18 @@ describe('OnboardingWelcome', () => {
     });
 
     it('UX-007: renders step 4 with extension pinning guide and LeetCode start practicing link', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const htmlPath = path.resolve(__dirname, '../../../../../features/common/welcome/welcome.html');
-      const html = fs.readFileSync(htmlPath, 'utf8');
+      const container = document.createElement('div');
+      render(h(WelcomeApp, { controller: welcome }), container);
 
-      expect(html).toContain('id="step-4"');
-      expect(html).toContain('Pin Extension & Start Practicing!');
-      expect(html).toContain('id="start-practicing-btn"');
-      expect(html).toContain('https://leetcode.com/problemset/all/');
-      expect(html).toContain('id="welcome-docs-link"');
-      expect(html).not.toContain("Chrome's top right toolbar");
-      expect(html).toContain("your browser's toolbar");
+      expect(container.querySelector('#step-4')).not.toBeNull();
+      expect(container.textContent).toContain('Pin Extension & Start Practicing!');
+      expect(container.querySelector('#start-practicing-btn')).not.toBeNull();
+      expect(container.querySelector('#start-practicing-btn')?.getAttribute('href')).toBe('https://leetcode.com/problemset/all/');
+      expect(container.querySelector('#welcome-docs-link')).not.toBeNull();
+      expect(container.querySelector('#welcome-pin-instructions')).not.toBeNull();
+
+      render(null, container);
+      container.remove();
     });
 
     it('dynamically renders browser-specific pin instructions on init', () => {

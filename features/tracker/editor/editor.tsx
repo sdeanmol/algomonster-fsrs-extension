@@ -20,6 +20,7 @@
  */
 
 import { h, Fragment, render, VNode } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 import { Markdown } from '@common/markdown';
 import { Logger } from '@common/logger';
 import { UIUtils } from '@common/utils/uiUtils';
@@ -334,6 +335,128 @@ Supports Markdown: **bold**, *italic*, `code`, ```code blocks```, ## headings, -
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ROOT PREACT COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface EditorAppProps {
+    manager?: EditorManager;
+}
+
+/**
+ * Root Preact component governing the full Problem Note Editor interface.
+ */
+export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
+    const [manager] = useState(() => initialManager || new EditorManager());
+    const [title, setTitle] = useState<string>('Loading problem details...');
+    const [url, setUrl] = useState<string>('Loading URL...');
+    const [saveStatus, setSaveStatus] = useState<string>('Loading FSRS data...');
+    const [timeComplexity, setTimeComplexity] = useState<string>('');
+    const [spaceComplexity, setSpaceComplexity] = useState<string>('');
+    const [approach, setApproach] = useState<string>('');
+    const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
+    const [toastMessage, setToastMessage] = useState<string>('Progress saved!');
+    const [isToastVisible, setIsToastVisible] = useState<boolean>(false);
+
+    useEffect(() => {
+        manager.onUpdate = (data?: {
+            title?: string;
+            url?: string;
+            saveStatus?: string;
+            timeComplexity?: string;
+            spaceComplexity?: string;
+            approach?: string;
+            isPreviewMode?: boolean;
+            toastMessage?: string;
+            isToastVisible?: boolean;
+        }) => {
+            if (!data) return;
+            if (data.title !== undefined) setTitle(data.title);
+            if (data.url !== undefined) setUrl(data.url);
+            if (data.saveStatus !== undefined) setSaveStatus(data.saveStatus);
+            if (data.timeComplexity !== undefined) setTimeComplexity(data.timeComplexity);
+            if (data.spaceComplexity !== undefined) setSpaceComplexity(data.spaceComplexity);
+            if (data.approach !== undefined) setApproach(data.approach);
+            if (data.isPreviewMode !== undefined) setIsPreviewMode(data.isPreviewMode);
+            if (data.toastMessage !== undefined) setToastMessage(data.toastMessage);
+            if (data.isToastVisible !== undefined) setIsToastVisible(data.isToastVisible);
+        };
+
+        const params = new URLSearchParams(window.location.search);
+        manager.problemUrl = params.get('url') || '';
+        manager.cardId = params.get('cardId') || '';
+        manager.cleanUrl = manager.problemUrl.split('?')[0].split('#')[0];
+
+        if (!manager.problemUrl) {
+            setTitle("Error: No URL provided");
+            setSaveStatus("Failed to load");
+            return;
+        }
+
+        setUrl(manager.problemUrl);
+        manager.loadContent();
+    }, [manager]);
+
+    const handleTimeChange = (val: string) => {
+        manager.timeComplexity = val;
+        setTimeComplexity(val);
+        manager.triggerAutoSave();
+    };
+
+    const handleSpaceChange = (val: string) => {
+        manager.spaceComplexity = val;
+        setSpaceComplexity(val);
+        manager.triggerAutoSave();
+    };
+
+    const handleApproachChange = (val: string) => {
+        manager.approach = val;
+        setApproach(val);
+        manager.triggerAutoSave();
+    };
+
+    const handleTogglePreview = () => {
+        manager.togglePreview();
+    };
+
+    const handleSave = () => {
+        manager.saveContent(() => {
+            manager.showToast("Progress saved!");
+        });
+    };
+
+    const handleSaveAndClose = () => {
+        manager.saveContent(() => {
+            UIUtils.closeCurrentTab();
+        });
+    };
+
+    const handleClose = () => {
+        manager.handleClose();
+    };
+
+    return (
+        <EditorWorkspace
+            title={title}
+            url={url}
+            saveStatus={saveStatus}
+            timeComplexity={timeComplexity}
+            spaceComplexity={spaceComplexity}
+            approach={approach}
+            isPreviewMode={isPreviewMode}
+            toastMessage={toastMessage}
+            isToastVisible={isToastVisible}
+            onTimeChange={handleTimeChange}
+            onSpaceChange={handleSpaceChange}
+            onApproachChange={handleApproachChange}
+            onTogglePreview={handleTogglePreview}
+            onSave={handleSave}
+            onSaveAndClose={handleSaveAndClose}
+            onClose={handleClose}
+        />
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EDITOR CONTROLLER CLASS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -353,6 +476,18 @@ export class EditorManager {
     autoSaveTimer: ReturnType<typeof setTimeout> | null;
     /** Active toggle status between Markdown editing and rendered preview modes. */
     isPreviewMode: boolean;
+    /** Current problem title. */
+    title: string;
+    /** Current approach text. */
+    approach: string;
+    /** Current time complexity note. */
+    timeComplexity: string;
+    /** Current space complexity note. */
+    spaceComplexity: string;
+    /** Current save status text. */
+    saveStatus: string;
+    /** Observer callback notifying root component of state updates. */
+    onUpdate?: (data?: Record<string, unknown>) => void;
 
     /**
      * Initializes default properties for the editor controller.
@@ -364,6 +499,50 @@ export class EditorManager {
         this.isCardExisting = false;
         this.autoSaveTimer = null;
         this.isPreviewMode = false;
+        this.title = '';
+        this.approach = '';
+        this.timeComplexity = '';
+        this.spaceComplexity = '';
+        this.saveStatus = '';
+    }
+
+    /**
+     * Triggers debounced auto-save of current editor input.
+     */
+    triggerAutoSave(): void {
+        const statusEl = document.getElementById('save-status');
+        if (statusEl) statusEl.textContent = "Typing...";
+        if (this.onUpdate) {
+            this.onUpdate({ saveStatus: "Typing..." });
+        }
+        if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
+        this.autoSaveTimer = setTimeout(() => {
+            this.saveContent(() => {
+                if (statusEl) statusEl.textContent = "Changes saved automatically";
+                if (this.onUpdate) {
+                    this.onUpdate({ saveStatus: "Changes saved automatically" });
+                }
+            });
+        }, 300);
+    }
+
+    /**
+     * Toggles markdown preview mode.
+     */
+    togglePreview(): void {
+        this.isPreviewMode = !this.isPreviewMode;
+        if (this.onUpdate) {
+            this.onUpdate({ isPreviewMode: this.isPreviewMode });
+        }
+    }
+
+    /**
+     * Handles closing the editor tab after saving current content.
+     */
+    handleClose(): void {
+        this.saveContent(() => {
+            UIUtils.closeCurrentTab();
+        });
     }
 
     /**
@@ -374,6 +553,12 @@ export class EditorManager {
      */
     init(): void {
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<EditorApp manager={this} />, root);
+                return;
+            }
+
             // 1. Parse URL Parameter
             const params = new URLSearchParams(window.location.search);
             this.problemUrl = params.get('url') || '';
@@ -443,15 +628,32 @@ export class EditorManager {
                     if (card) {
                         this.isCardExisting = true;
                         if (!this.cardId && card.id) this.cardId = card.id;
-                        if (titleEl) titleEl.textContent = card.problemTitle || (card as Card & { title?: string }).title || "FSRS Insights";
-                        if (textarea) textarea.value = card.approach || "";
-                        if (tcInput) tcInput.value = (card as Card & { timeComplexity?: string }).timeComplexity || "";
-                        if (scInput) scInput.value = (card as Card & { spaceComplexity?: string }).spaceComplexity || "";
-                        if (statusEl) statusEl.textContent = "Loaded FSRS card";
+                        this.title = card.problemTitle || (card as Card & { title?: string }).title || "FSRS Insights";
+                        this.approach = card.approach || "";
+                        this.timeComplexity = (card as Card & { timeComplexity?: string }).timeComplexity || "";
+                        this.spaceComplexity = (card as Card & { spaceComplexity?: string }).spaceComplexity || "";
+                        this.saveStatus = "Loaded FSRS card";
+
+                        if (titleEl) titleEl.textContent = this.title;
+                        if (textarea) textarea.value = this.approach;
+                        if (tcInput) tcInput.value = this.timeComplexity;
+                        if (scInput) scInput.value = this.spaceComplexity;
+                        if (statusEl) statusEl.textContent = this.saveStatus;
+
+                        if (this.onUpdate) {
+                            this.onUpdate({
+                                title: this.title,
+                                approach: this.approach,
+                                timeComplexity: this.timeComplexity,
+                                spaceComplexity: this.spaceComplexity,
+                                saveStatus: this.saveStatus,
+                                url: this.problemUrl
+                            });
+                        }
                     } else {
                         this.isCardExisting = false;
                         const bookmark = bookmarks.find((b: BookmarkEntry) => b.url && b.url.split('?')[0].split('#')[0] === this.cleanUrl);
-                        if (titleEl) titleEl.textContent = (bookmark && bookmark.title) || this.getCleanDisplayUrl(this.problemUrl);
+                        this.title = (bookmark && bookmark.title) || this.getCleanDisplayUrl(this.problemUrl);
                         
                         const draftVal = drafts[this.cleanUrl];
                         let draftText = "";
@@ -466,10 +668,27 @@ export class EditorManager {
                                 draftText = String(draftVal);
                             }
                         }
+                        this.approach = draftText;
+                        this.timeComplexity = tc;
+                        this.spaceComplexity = sc;
+                        this.saveStatus = "Loaded draft notes";
+
+                        if (titleEl) titleEl.textContent = this.title;
                         if (textarea) textarea.value = draftText;
                         if (tcInput) tcInput.value = tc;
                         if (scInput) scInput.value = sc;
-                        if (statusEl) statusEl.textContent = "Loaded draft notes";
+                        if (statusEl) statusEl.textContent = this.saveStatus;
+
+                        if (this.onUpdate) {
+                            this.onUpdate({
+                                title: this.title,
+                                approach: this.approach,
+                                timeComplexity: this.timeComplexity,
+                                spaceComplexity: this.spaceComplexity,
+                                saveStatus: this.saveStatus,
+                                url: this.problemUrl
+                            });
+                        }
                     }
                 } catch (innerErr) {
                     const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
@@ -592,9 +811,13 @@ export class EditorManager {
                 if (callback) callback();
                 return;
             }
-            const text = (document.getElementById('editor-textarea') as HTMLTextAreaElement)?.value || '';
-            const tc = (document.getElementById('time-complexity-input') as HTMLInputElement)?.value.trim() || '';
-            const sc = (document.getElementById('space-complexity-input') as HTMLInputElement)?.value.trim() || '';
+            const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
+            const tcInput = document.getElementById('time-complexity-input') as HTMLInputElement | null;
+            const scInput = document.getElementById('space-complexity-input') as HTMLInputElement | null;
+
+            const text = textarea ? textarea.value : this.approach;
+            const tc = tcInput ? tcInput.value.trim() : this.timeComplexity.trim();
+            const sc = scInput ? scInput.value.trim() : this.spaceComplexity.trim();
             
             chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
                 try {
@@ -685,6 +908,14 @@ export class EditorManager {
      */
     showToast(message: string): void {
         try {
+            if (this.onUpdate) {
+                this.onUpdate({ toastMessage: message, isToastVisible: true });
+                setTimeout(() => {
+                    if (this.onUpdate) {
+                        this.onUpdate({ isToastVisible: false });
+                    }
+                }, 2000);
+            }
             const toast = document.getElementById('status-toast');
             if (!toast) return;
             toast.textContent = message;

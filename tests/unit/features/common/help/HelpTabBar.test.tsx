@@ -1,6 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { h, render } from 'preact';
-import { HelpTabBar } from '../../../../../features/common/help/help';
+import { HelpTabBar, HelpApp, HelpCenterSPA } from '../../../../../features/common/help/help';
 
 describe('HelpTabBar Preact Component', () => {
     let container: HTMLElement;
@@ -36,6 +36,20 @@ describe('HelpTabBar Preact Component', () => {
 
         (buttons[2] as HTMLButtonElement).click();
         expect(handleSelect).toHaveBeenCalledWith('privacy');
+    });
+
+    it('renders the complete HelpApp UI tree with header, search box, tabs, and content panes', () => {
+        const spa = new HelpCenterSPA();
+        render(<HelpApp spa={spa} />, container);
+
+        expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+        expect(container.querySelector('h1')?.textContent).toBe('Help Center');
+        expect(container.querySelector('#help-search-input')).not.toBeNull();
+        expect(container.querySelector('#close-help-btn')).not.toBeNull();
+        expect(container.querySelectorAll('.tab-btn').length).toBe(7);
+        expect(container.querySelector('#tab-overview')).not.toBeNull();
+        expect(container.querySelector('#tab-fsrs')).not.toBeNull();
+        expect(container.querySelector('#tab-privacy')).not.toBeNull();
     });
 });
 

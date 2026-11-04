@@ -201,8 +201,17 @@ describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
     const htmlPath = path.resolve(__dirname, '../../../../../features/dashboard/analytics/analytics.html');
     const html = fs.readFileSync(htmlPath, 'utf8');
 
-    expect(html).toContain('href="../../common/data/data.html"');
-    expect(html).toContain('View All Patterns');
-    expect(html).not.toContain('href="../popup/popup.html"');
+    expect(html).toContain('id="root"');
+
+    const { h, render } = require('preact');
+    const { AnalyticsSidebar } = require('../../../../../features/dashboard/analytics/analytics');
+    const testDiv = document.createElement('div');
+    render(h(AnalyticsSidebar, { currentTab: 'overview', onSelectTab: () => {} }), testDiv);
+
+    expect(testDiv.innerHTML).toContain('href="../../common/data/data.html"');
+    expect(testDiv.innerHTML).toContain('View All Patterns');
+    expect(testDiv.innerHTML).not.toContain('href="../popup/popup.html"');
+    render(null, testDiv);
+    testDiv.remove();
   });
 });

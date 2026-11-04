@@ -30,6 +30,7 @@ describe('FSRSConfigManager', () => {
 
   beforeEach(() => {
     jest.useFakeTimers();
+    jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
     document.body.innerHTML = `
       <button id="back-to-popup-btn">Back</button>
@@ -100,6 +101,7 @@ describe('FSRSConfigManager', () => {
   });
 
   afterEach(() => {
+    jest.clearAllTimers();
     jest.useRealTimers();
     jest.clearAllMocks();
   });

@@ -11,7 +11,9 @@ import {
     MarkdownPreview,
     EditorFooter,
     EditorToast,
-    EditorWorkspace
+    EditorWorkspace,
+    EditorApp,
+    EditorManager
 } from '../../../../../features/tracker/editor/editor';
 
 describe('Editor Preact Components', () => {
@@ -199,6 +201,23 @@ describe('Editor Preact Components', () => {
             expect(container.querySelector('#problem-title')?.textContent).toBe('Two Sum');
             expect(container.querySelector('#editor-textarea')).not.toBeNull();
             expect(container.querySelector('#save-btn')).not.toBeNull();
+        });
+    });
+
+    describe('EditorApp Root Component', () => {
+        it('renders the complete EditorApp tree with controls and workspace', () => {
+            const manager = new EditorManager();
+            render(<EditorApp manager={manager} />, container);
+
+            expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+            expect(container.querySelector('#problem-title')).not.toBeNull();
+            expect(container.querySelector('#preview-toggle-btn')).not.toBeNull();
+            expect(container.querySelector('#time-complexity-input')).not.toBeNull();
+            expect(container.querySelector('#space-complexity-input')).not.toBeNull();
+            expect(container.querySelector('#editor-textarea')).not.toBeNull();
+            expect(container.querySelector('#save-btn')).not.toBeNull();
+            expect(container.querySelector('#save-close-btn')).not.toBeNull();
+            expect(container.querySelector('#status-toast')).not.toBeNull();
         });
     });
 });

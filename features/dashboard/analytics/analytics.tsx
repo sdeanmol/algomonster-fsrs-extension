@@ -11,7 +11,8 @@
  * - {@link AnalyticsTabComponent}: Common render contract for child tab view controllers.
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING, DUE_CARDS_THRESHOLD_WARNING } from '@common/constants';
 import { DataUtils, SummaryStats } from './utils/dataUtils';
@@ -84,6 +85,231 @@ export const AnalyticsGlobalKpiBar: FunctionalComponent<AnalyticsGlobalKpiBarPro
     );
 };
 
+export interface AnalyticsSidebarProps {
+    currentTab: TabKey;
+    onSelectTab: (tab: TabKey) => void;
+}
+
+export const AnalyticsSidebar: FunctionalComponent<AnalyticsSidebarProps> = ({ currentTab, onSelectTab }) => {
+    return (
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <svg class="svg-icon logo-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <line x1="18" y1="20" x2="18" y2="10" />
+                        <line x1="12" y1="20" x2="12" y2="4" />
+                        <line x1="6" y1="20" x2="6" y2="14" />
+                    </svg>
+                    Analytics
+                </h2>
+            </div>
+            <div class="nav-section-title">MAIN DASHBOARD</div>
+            <ul class="nav-links">
+                <li>
+                    <button
+                        class={`nav-btn ${currentTab === 'overview' ? 'active' : ''}`}
+                        data-tab="overview"
+                        onClick={() => onSelectTab('overview')}
+                    >
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        Overview
+                    </button>
+                </li>
+                <li>
+                    <button
+                        class={`nav-btn ${currentTab === 'readiness' ? 'active' : ''}`}
+                        data-tab="readiness"
+                        onClick={() => onSelectTab('readiness')}
+                    >
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                            <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                        </svg>
+                        Exam Readiness
+                    </button>
+                </li>
+            </ul>
+
+            <div class="nav-section-title">MEMORY & SCIENCE</div>
+            <ul class="nav-links">
+                <li>
+                    <button
+                        class={`nav-btn ${currentTab === 'memory' ? 'active' : ''}`}
+                        data-tab="memory"
+                        onClick={() => onSelectTab('memory')}
+                    >
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 4.5a2.5 2.5 0 0 0-4.96.44 2.5 2.5 0 0 0-2.96 3.08 3 3 0 0 0-.34 5.58 2.5 2.5 0 0 0 1.32 4.24 2.5 2.5 0 0 0 4.44 2.04" />
+                            <path d="M12 4.5a2.5 2.5 0 0 1 4.96.44 2.5 2.5 0 0 1 2.96 3.08 3 3 0 0 1 .34 5.58 2.5 2.5 0 0 1-1.32 4.24 2.5 2.5 0 0 1-4.44 2.04" />
+                            <path d="M12 3v18" />
+                        </svg>
+                        Memory Retention
+                    </button>
+                </li>
+                <li>
+                    <button
+                        class={`nav-btn ${currentTab === 'simulation' ? 'active' : ''}`}
+                        data-tab="simulation"
+                        onClick={() => onSelectTab('simulation')}
+                    >
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M5 22h14" />
+                            <path d="M5 2h14" />
+                            <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+                            <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+                        </svg>
+                        Future Memory Simulation
+                    </button>
+                </li>
+                <li>
+                    <button
+                        class={`nav-btn ${currentTab === 'tags' ? 'active' : ''}`}
+                        data-tab="tags"
+                        onClick={() => onSelectTab('tags')}
+                    >
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                            <line x1="7" y1="7" x2="7.01" y2="7" />
+                        </svg>
+                        Tag Analytics
+                    </button>
+                </li>
+            </ul>
+
+            <div class="nav-section-title">INSIGHTS & EFFICIENCY</div>
+            <ul class="nav-links">
+                <li>
+                    <button
+                        class={`nav-btn ${currentTab === 'performance' ? 'active' : ''}`}
+                        data-tab="performance"
+                        onClick={() => onSelectTab('performance')}
+                    >
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                        Performance
+                    </button>
+                </li>
+                <li>
+                    <button
+                        class={`nav-btn ${currentTab === 'insights' ? 'active' : ''}`}
+                        data-tab="insights"
+                        onClick={() => onSelectTab('insights')}
+                    >
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="2" />
+                            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
+                        </svg>
+                        Insights
+                    </button>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="../../common/data/data.html" class="btn btn-secondary w-full" style="text-align: center; display: flex; align-items: center; justify-content: center;">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <line x1="3" y1="9" x2="21" y2="9" />
+                        <line x1="9" y1="21" x2="9" y2="9" />
+                    </svg>
+                    View All Patterns
+                </a>
+            </div>
+        </nav>
+    );
+};
+
+export interface AnalyticsHeaderProps {
+    title: string;
+    subtitle: string;
+    stats: SummaryStats;
+    examRecall: number;
+}
+
+export const AnalyticsHeader: FunctionalComponent<AnalyticsHeaderProps> = ({ title, subtitle, stats, examRecall }) => {
+    return (
+        <header class="main-header">
+            <div class="main-header-info">
+                <div class="algorecall-brand-badge">
+                    <svg class="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                        <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                        <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                    </svg>
+                    <span class="algorecall-brand-name">AlgoRecall</span>
+                </div>
+                <h1 id="current-tab-title">{title}</h1>
+                <p class="subtitle" id="analytics-subtitle">{subtitle}</p>
+            </div>
+            <div class="header-global-stats">
+                <AnalyticsGlobalKpiBar stats={stats} examRecall={examRecall} />
+            </div>
+        </header>
+    );
+};
+
+export const AnalyticsApp: FunctionalComponent<{ spa: AnalyticsDashboardSPA }> = ({ spa }) => {
+    const [currentTab, setCurrentTab] = useState<TabKey>(spa.currentTab);
+    const [stats, setStats] = useState<SummaryStats>(() => (spa.dataUtils?.getSummaryStats() || { totalCards: 0, dueToday: 0, trueRetention: 0 }) as SummaryStats);
+    const [examRecall, setExamRecall] = useState<number>(() => (spa.dataUtils ? spa.dataUtils.getExamReadinessStats(12).overallRecall || 0 : 0));
+    const [subtitle, setSubtitle] = useState<string>('Loading analytics...');
+
+    useEffect(() => {
+        const updateState = () => {
+            if (spa.dataUtils) {
+                const s = spa.dataUtils.getSummaryStats();
+                setStats(s);
+                const r = spa.dataUtils.getExamReadinessStats(12).overallRecall || 0;
+                setExamRecall(r);
+                setSubtitle(`${s.totalCards || 0} patterns tracked · ${s.totalActivityReviews || 0} total reviews · ${s.trueRetention || 0}% retention rate`);
+            }
+        };
+
+        (spa as any).onStateChange = () => {
+            updateState();
+            setCurrentTab(spa.currentTab);
+        };
+
+        updateState();
+        if (spa.dataUtils) {
+            spa.switchTab(spa.currentTab);
+        }
+    }, [spa]);
+
+    const handleSelectTab = (tab: TabKey) => {
+        setCurrentTab(tab);
+        spa.switchTab(tab);
+    };
+
+    return (
+        <div class="dashboard-layout">
+            <AnalyticsSidebar currentTab={currentTab} onSelectTab={handleSelectTab} />
+            <main class="main-content">
+                <AnalyticsHeader
+                    title={spa.tabTitles[currentTab] || 'Overview'}
+                    subtitle={subtitle}
+                    stats={stats}
+                    examRecall={examRecall}
+                />
+                <div class="tab-content-container">
+                    <div id="tab-overview" class={`tab-pane ${currentTab === 'overview' ? 'active' : ''}`} />
+                    <div id="tab-readiness" class={`tab-pane ${currentTab === 'readiness' ? 'active' : ''}`} />
+                    <div id="tab-memory" class={`tab-pane ${currentTab === 'memory' ? 'active' : ''}`} />
+                    <div id="tab-simulation" class={`tab-pane ${currentTab === 'simulation' ? 'active' : ''}`} />
+                    <div id="tab-tags" class={`tab-pane ${currentTab === 'tags' ? 'active' : ''}`} />
+                    <div id="tab-performance" class={`tab-pane ${currentTab === 'performance' ? 'active' : ''}`} />
+                    <div id="tab-insights" class={`tab-pane ${currentTab === 'insights' ? 'active' : ''}`} />
+                </div>
+            </main>
+        </div>
+    );
+};
+
 /**
  * Central coordinator and tab router for the Analytics Dashboard SPA.
  */
@@ -133,6 +359,11 @@ export class AnalyticsDashboardSPA {
      */
     init(): void {
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<AnalyticsApp spa={this} />, root);
+            }
+
             chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result: StorageData) => {
                 try {
                     const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
@@ -169,6 +400,9 @@ export class AnalyticsDashboardSPA {
 
                             this.updateGlobalKPIs(stats);
                             this.bindNavigation();
+                            if ((this as any).onStateChange) {
+                                (this as any).onStateChange();
+                            }
                             
                             // Render initial tab
                             this.switchTab('overview');
@@ -318,6 +552,9 @@ export class AnalyticsDashboardSPA {
     switchTab(tabId: TabKey): void {
         try {
             this.currentTab = tabId;
+            if ((this as any).onStateChange) {
+                (this as any).onStateChange();
+            }
             
             // Update Title
             const titleEl = document.getElementById('current-tab-title');

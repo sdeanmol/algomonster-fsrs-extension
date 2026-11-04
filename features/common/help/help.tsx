@@ -7,9 +7,19 @@
  */
 
 import { h, render, JSX } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { BROWSER_CONFIG } from '@common/browserConfig';
+import {
+    OverviewTabContent,
+    FsrsTabContent,
+    HighlighterTabContent,
+    AnalyticsTabContent,
+    GamificationTabContent,
+    AdvancedTabContent,
+    PrivacyTabContent
+} from './helpContent';
 
 export interface HelpTabItem {
     id: string;
@@ -49,12 +59,159 @@ export function HelpTabBar({
     );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT PREACT COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface HelpAppProps {
+    spa?: HelpCenterSPA;
+}
+
+export const DEFAULT_HELP_TABS: HelpTabItem[] = [
+    { id: 'overview', label: '🚀 Getting Started & Strategy' },
+    { id: 'fsrs', label: '🧠 FSRS & Review Engine' },
+    { id: 'highlighter', label: '🖍️ Highlighter & Notes' },
+    { id: 'analytics', label: '📊 Analytics & Science' },
+    { id: 'gamification', label: '🎮 Gamification & Focus' },
+    { id: 'advanced', label: '⚙️ Advanced, Anki & Licensing' },
+    { id: 'privacy', label: '🛡️ Privacy & Data Policy' }
+];
+
+/**
+ * Root Preact component governing the Help Center Single Page Application.
+ */
+export function HelpApp({ spa: initialSpa }: HelpAppProps): JSX.Element {
+    const [spa] = useState(() => initialSpa || new HelpCenterSPA());
+    const [currentTab, setCurrentTab] = useState<string>(() => {
+        try {
+            if (typeof window !== 'undefined' && window.location) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const tabParam = urlParams.get('tab') || spa.getTabFromHash();
+                if (tabParam) return tabParam;
+            }
+        } catch {
+            // ignore
+        }
+        return spa.currentTab || 'overview';
+    });
+    const [searchQuery, setSearchQuery] = useState<string>('');
+
+    useEffect(() => {
+        spa.currentTab = currentTab;
+        spa.onTabChange = (newTab: string) => {
+            setCurrentTab(newTab);
+        };
+
+        const handleHash = () => {
+            const tab = spa.getTabFromHash();
+            if (tab) {
+                setCurrentTab(tab);
+                spa.switchTab(tab, true);
+            }
+        };
+
+        window.addEventListener('hashchange', handleHash);
+        return () => window.removeEventListener('hashchange', handleHash);
+    }, [spa, currentTab]);
+
+    const handleSelectTab = (tabId: string) => {
+        setCurrentTab(tabId);
+        spa.switchTab(tabId);
+    };
+
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
+        spa.filterContent(query);
+    };
+
+    const handleClose = () => {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.getCurrent) {
+                chrome.tabs.getCurrent((tab) => {
+                    if (tab && tab.id) {
+                        chrome.tabs.remove(tab.id);
+                    } else {
+                        window.close();
+                    }
+                });
+            } else {
+                window.close();
+            }
+        } catch {
+            window.close();
+        }
+    };
+
+    return (
+        <div className="container">
+            {/* Header: Brand badge, title, live search box, and close button */}
+            <header className="header">
+                <div className="header-title-container">
+                    <div className="algorecall-brand-badge">
+                        <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                            <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                        </svg>
+                        <span className="algorecall-brand-name">AlgoRecall</span>
+                    </div>
+                    <h1>Help Center</h1>
+                    <p className="subtitle">Complete interactive guide, feature manuals, and optimal study strategies</p>
+                </div>
+                <div className="header-actions">
+                    <div className="search-box">
+                        <svg className="svg-icon search-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <input
+                            type="text"
+                            id="help-search-input"
+                            placeholder="Search any feature (e.g. Anki, FSRS, Simulation)..."
+                            aria-label="Search help topics"
+                            value={searchQuery}
+                            onInput={(e) => handleSearch((e.target as HTMLInputElement).value)}
+                        />
+                    </div>
+                    <button id="close-help-btn" className="btn btn-secondary" onClick={handleClose}>
+                        Close Guide
+                    </button>
+                </div>
+            </header>
+
+            {/* Navigation Tabs */}
+            <HelpTabBar
+                tabs={DEFAULT_HELP_TABS}
+                activeTab={currentTab}
+                onSelect={handleSelectTab}
+            />
+
+            {/* Tab Contents */}
+            <main className="tab-content-container">
+                <OverviewTabContent />
+                <FsrsTabContent />
+                <HighlighterTabContent />
+                <AnalyticsTabContent />
+                <GamificationTabContent />
+                <AdvancedTabContent onSwitchTab={handleSelectTab} />
+                <PrivacyTabContent />
+            </main>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELP CENTER CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Controller class governing Help Center tabs, search, and browser-specific branding.
  */
 export class HelpCenterSPA {
     /** Identifier of the currently active documentation tab (e.g. 'overview', 'shortcuts') */
     currentTab: string;
+    /** Observer callback notifying root component of tab changes. */
+    onTabChange?: (tabId: string) => void;
 
     /**
      * Initializes default tab selection to 'overview'.
@@ -69,6 +226,12 @@ export class HelpCenterSPA {
      */
     init(): void {
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<HelpApp spa={this} />, root);
+                return;
+            }
+
             const urlParams = new URLSearchParams(window.location.search);
             const tabParam = urlParams.get('tab') || this.getTabFromHash();
             if (tabParam) {
@@ -152,6 +315,9 @@ export class HelpCenterSPA {
     switchTab(tabId: string, shouldScrollTabList: boolean = true): void {
         try {
             this.currentTab = tabId;
+            if (this.onTabChange) {
+                this.onTabChange(tabId);
+            }
             const tabButtons = document.querySelectorAll('.tab-btn');
             const tabPanes = document.querySelectorAll('.tab-pane');
             const allCards = document.querySelectorAll('.card, .gamify-card, .strategy-card');

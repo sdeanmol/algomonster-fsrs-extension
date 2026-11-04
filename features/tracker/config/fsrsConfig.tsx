@@ -19,6 +19,7 @@
  */
 
 import { h, Fragment, render, VNode } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 import FsrsOptimizer from '../scheduler/fsrsOptimizer';
 import FsrsOptimizerFast from '../scheduler/fsrsOptimizerFast';
 import { Card, FSRSParameters, StorageData } from '../../../types/domain';
@@ -282,6 +283,335 @@ export function PresetChips({ currentRetention, onSelectRetention }: PresetChips
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ROOT PREACT COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface FSRSConfigAppProps {
+    manager?: FSRSConfigManager;
+}
+
+/**
+ * Root Preact component governing the full FSRS Configuration page.
+ */
+export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): VNode {
+    const [manager] = useState(() => initialManager || new FSRSConfigManager());
+    const [mode, setMode] = useState<'simple' | 'advanced'>(manager.currentMode || 'simple');
+    const [retention, setRetention] = useState<number>(manager.defaultRetention || 0.90);
+    const [decay, setDecay] = useState<number>(manager.defaultDecay || -0.5);
+    const [factor, setFactor] = useState<number>(manager.defaultFactor || 0.234567);
+    const [weights, setWeights] = useState<number[]>([...manager.defaultWeights]);
+    const [topicWeights, setTopicWeights] = useState<Record<string, number[]>>({});
+    const [threshold, setThreshold] = useState<number>(1000);
+    const [reviewCount, setReviewCount] = useState<number>(0);
+    const [isEligible, setIsEligible] = useState<boolean>(false);
+    const [newTagName, setNewTagName] = useState<string>('');
+    const [newTagWeights, setNewTagWeights] = useState<string>('');
+    const [, setRenderTrigger] = useState(0);
+
+    const forceUpdate = () => setRenderTrigger(c => c + 1);
+
+    const refreshFromStorage = () => {
+        if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+        chrome.storage.local.get(['fsrsGlobalParams', 'fsrsTopicWeights', 'fsrsCards', 'extensionSettings'], (result: any) => {
+            const params: FSRSParameters = result.fsrsGlobalParams || {};
+            const topics: Record<string, number[]> = result.fsrsTopicWeights || {};
+            if (params.requestRetention !== undefined) setRetention(params.requestRetention);
+            if (params.decay !== undefined) setDecay(params.decay);
+            if (params.factor !== undefined) setFactor(params.factor);
+            if (params.w && Array.isArray(params.w)) setWeights([...params.w]);
+            setTopicWeights(topics);
+
+            // Compute eligibility
+            const cards = result.fsrsCards || [];
+            let totalReviews = 0;
+            cards.forEach((c: any) => {
+                if (c.historyLog && Array.isArray(c.historyLog)) {
+                    totalReviews += c.historyLog.length;
+                }
+            });
+            setReviewCount(totalReviews);
+            const thresh = 1000;
+            setIsEligible(totalReviews >= thresh);
+            forceUpdate();
+        });
+    };
+
+    useEffect(() => {
+        manager.onUpdate = () => {
+            refreshFromStorage();
+        };
+        refreshFromStorage();
+    }, [manager]);
+
+    const handleSelectMode = (newMode: 'simple' | 'advanced') => {
+        setMode(newMode);
+        manager.setMode(newMode);
+    };
+
+    const handleSelectRetention = (ret: number) => {
+        setRetention(ret);
+        manager.saveGlobalConfig();
+    };
+
+    const handleWeightChange = (index: number, val: number) => {
+        const next = [...weights];
+        next[index] = val;
+        setWeights(next);
+    };
+
+    const handleDeleteProfile = (tag: string) => {
+        manager.handleDeleteTagProfile(tag);
+        const next = { ...topicWeights };
+        delete next[tag];
+        setTopicWeights(next);
+    };
+
+    const handleAddProfile = () => {
+        manager.handleAddTagProfile();
+    };
+
+    const handleResetAll = () => {
+        manager.restoreDefaults();
+    };
+
+    const handleClose = () => {
+        window.close();
+    };
+
+    const progressPercent = Math.min(100, Math.round((reviewCount / threshold) * 100));
+
+    return (
+        <div className="container">
+            {/* Header */}
+            <div className="header">
+                <div className="header-main">
+                    <div className="algorecall-brand-badge">
+                        <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                            <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                        </svg>
+                        <span className="algorecall-brand-name">AlgoRecall</span>
+                    </div>
+                    <h1 id="page-title">FSRS Customizer</h1>
+                    <p id="page-subtitle" className="subtitle">Fine-tune memory retention, decay constants, and FSRS weights parameters.</p>
+                </div>
+                <div className="header-actions">
+                    <button id="reset-all-btn" className="btn btn-danger" style={{ marginRight: '12px' }} onClick={handleResetAll}>
+                        Reset All
+                    </button>
+                    <button id="back-to-popup-btn" className="btn btn-secondary" onClick={handleClose}>
+                        Close Config
+                    </button>
+                </div>
+            </div>
+
+            <div className="grid-layout">
+                {/* Mode Switch */}
+                <div className="config-mode-bar">
+                    <span className="mode-label">Configuration Mode:</span>
+                    <ModeToggle currentMode={mode} onSelectMode={handleSelectMode} />
+                </div>
+
+                {/* Global Config Card */}
+                <div className="card main-config-card">
+                    <h2>⚙️ Global Parameters</h2>
+                    <p className="section-intro">
+                        FSRS uses target retention rate to scale review intervals. Lower target retention will lead to longer intervals between reviews.
+                    </p>
+
+                    <div className="form-group slider-group">
+                        <div className="label-row">
+                            <label htmlFor="retention-slider">Target Recall Retention Rate</label>
+                            <span id="retention-val" className="badge">{Math.round(retention * 100)}%</span>
+                        </div>
+                        <input
+                            type="range"
+                            id="retention-slider"
+                            min="0.70"
+                            max="0.99"
+                            step="0.01"
+                            value={retention}
+                            className="slider-input"
+                            onInput={(e) => setRetention(parseFloat((e.target as HTMLInputElement).value))}
+                            onChange={() => manager.saveGlobalConfig()}
+                        />
+                        <span className="input-hint">Recommended range: 0.75 - 0.95. Higher retention targets yield shorter intervals.</span>
+                        <div className="preset-chips" style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+                            <PresetChips currentRetention={retention} onSelectRetention={handleSelectRetention} />
+                        </div>
+                    </div>
+
+                    {/* Advanced Mathematical Constants */}
+                    <div id="advanced-decay-factor" className="advanced-config-only grid-2" style={{ display: mode === 'advanced' ? 'grid' : 'none', marginTop: '16px' }}>
+                        <div className="form-group">
+                            <label htmlFor="decay-input">Decay Constant</label>
+                            <input
+                                type="number"
+                                id="decay-input"
+                                className="input-field"
+                                step="0.05"
+                                value={decay}
+                                onInput={(e) => setDecay(parseFloat((e.target as HTMLInputElement).value) || 0)}
+                            />
+                            <span className="input-hint">Default is -0.5. Controls memory decay speed.</span>
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="factor-input">Factor Constant</label>
+                            <input
+                                type="number"
+                                id="factor-input"
+                                className="input-field"
+                                step="0.01"
+                                value={factor}
+                                onInput={(e) => setFactor(parseFloat((e.target as HTMLInputElement).value) || 0)}
+                            />
+                            <span className="input-hint">Default is 19/81 (≈0.2346). Scales stability.</span>
+                        </div>
+                    </div>
+
+                    <div style={{ marginTop: '16px' }}>
+                        <button id="reset-global-btn" className="btn btn-secondary" onClick={() => manager.restoreGlobalParameters()}>
+                            Reset Global Parameters
+                        </button>
+                    </div>
+                </div>
+
+                {/* Personal Memory Optimization Card */}
+                <div className="card optimization-card">
+                    <h2>🧠 Optimize for Your Personal Memory</h2>
+                    <p className="section-intro">
+                        FSRS uses your historical review data to estimate your personal forgetting curve. Continue reviewing normally until you have completed at least <span id="opt-threshold-display">{threshold}</span> reviews. Once enough data has been collected, you can optimize the scheduler so future intervals better match your own memory patterns.
+                    </p>
+
+                    <div className="opt-status-container">
+                        <div id="opt-progress-section">
+                            <div className="opt-progress-header">
+                                <span className="opt-progress-title">Personal Memory Training</span>
+                                <span id="opt-progress-text" className="opt-progress-text">{reviewCount} / {threshold} Reviews</span>
+                            </div>
+                            <div className="opt-progress-track">
+                                <div id="opt-progress-fill" className="opt-progress-fill" style={{ width: `${progressPercent}%` }} />
+                            </div>
+                            <p id="opt-status-msg" className="opt-status-msg">
+                                {isEligible ? 'Sufficient review volume reached. You can now train your personalized weights.' : 'Keep reviewing to unlock personalized optimization.'}
+                            </p>
+                        </div>
+
+                        <div id="opt-actions-section" className="opt-actions" style={{ display: isEligible ? 'flex' : 'none', marginTop: '16px', flexWrap: 'wrap' }}>
+                            <button id="btn-auto-train" className="btn btn-primary" style={{ minWidth: '160px' }} onClick={() => manager.handleAutoTrain()}>
+                                Auto Train Weights
+                            </button>
+                            <button id="btn-export-weights" className="btn btn-secondary" onClick={() => manager.handleExportWeights()}>
+                                Export
+                            </button>
+                            <button id="reset-opt-btn" className="btn btn-secondary" onClick={() => manager.resetOptimization()}>
+                                Reset Optimization
+                            </button>
+                            <div style={{ flexBasis: '100%', marginTop: '8px', fontSize: '12px', color: 'var(--md-text-low)' }}>
+                                💡 Tip: The very first time you train your weights, it may take a few extra seconds to warm up the optimizer. Future runs will be instant!
+                            </div>
+                        </div>
+
+                        <div className="form-group" style={{ marginTop: '16px' }}>
+                            <label htmlFor="opt-threshold-input">Minimum Required Reviews</label>
+                            <input
+                                type="number"
+                                id="opt-threshold-input"
+                                className="input-field"
+                                value={threshold}
+                                min="5"
+                                style={{ width: '100px' }}
+                                onInput={(e) => setThreshold(parseInt((e.target as HTMLInputElement).value, 10) || 1000)}
+                            />
+                            <span className="input-hint">Threshold required to unlock optimization.</span>
+                            <div id="opt-threshold-warning" className="actionable-insight-banner warning" style={{ display: threshold < 1000 ? 'flex' : 'none', marginTop: '12px', padding: '12px', flexDirection: 'row', alignItems: 'flex-start', gap: '8px' }}>
+                                <svg className="svg-icon" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '2px' }}>
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                    <line x1="12" y1="9" x2="12" y2="13" />
+                                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                                </svg>
+                                <div style={{ fontSize: '13px' }}>
+                                    <strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Warning: Low Review Sample Size</strong>
+                                    FSRS relies on statistical confidence. Optimizing with fewer than 1000 reviews can cause the algorithm to overfit to short-term memory anomalies.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* FSRS Global Weights Configuration Card */}
+                <div className="card weights-card advanced-config-only" style={{ display: mode === 'advanced' ? '' : 'none' }}>
+                    <h2>📊 FSRS Coefficients (w0 - w16)</h2>
+                    <p className="section-intro">
+                        Coefficients that scale memory stability updates. Adjust carefully, or restore defaults if memory scheduling behaves unexpectedly.
+                    </p>
+
+                    <div className="weights-grid" id="weights-inputs-container">
+                        <WeightsInputsGrid
+                            weights={weights}
+                            defaultWeights={manager.defaultWeights}
+                            helpDetails={manager.weightsHelpDetails}
+                            onWeightChange={handleWeightChange}
+                        />
+                    </div>
+
+                    <div className="weights-actions">
+                        <button id="save-global-btn" className="btn btn-primary" onClick={() => manager.saveGlobalConfig()}>
+                            Save Parameters
+                        </button>
+                        <button id="reset-weights-btn" className="btn btn-secondary" onClick={() => manager.restoreWeights()}>
+                            Reset Coefficients
+                        </button>
+                    </div>
+                </div>
+
+                {/* Tag-Specific Weights Card */}
+                <div className="card tag-weights-card advanced-config-only" style={{ display: mode === 'advanced' ? '' : 'none' }}>
+                    <h2>🏷️ Tag-Specific Profiles</h2>
+                    <p className="section-intro">
+                        Create unique FSRS parameters profiles for specific topics (e.g. review Dynamic Programming cards faster than Arrays).
+                    </p>
+
+                    <div className="tag-input-row">
+                        <input
+                            type="text"
+                            id="new-tag-name"
+                            className="input-field"
+                            placeholder="Tag name (e.g. Dynamic Programming)"
+                            value={newTagName}
+                            onInput={(e) => setNewTagName((e.target as HTMLInputElement).value)}
+                        />
+                        <input
+                            type="text"
+                            id="new-tag-weights"
+                            className="input-field"
+                            placeholder="17 comma-separated weights (w0,w1,...)"
+                            value={newTagWeights}
+                            onInput={(e) => setNewTagWeights((e.target as HTMLInputElement).value)}
+                        />
+                        <button id="add-tag-profile-btn" className="btn btn-primary" onClick={handleAddProfile}>
+                            Add Profile
+                        </button>
+                    </div>
+                    <span className="input-hint" style={{ display: 'block', marginTop: '4px' }}>Must contain exactly 17 comma-separated decimal coefficients.</span>
+
+                    <div className="profiles-section">
+                        <h3>Active Custom Profiles</h3>
+                        <ul id="active-tag-profiles-list" className="profiles-list">
+                            <TagProfilesList topicWeights={topicWeights} onDeleteProfile={handleDeleteProfile} />
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            {/* Status Toast */}
+            <div id="status-toast" className="toast" />
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CONFIG MANAGER CONTROLLER CLASS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -303,6 +633,8 @@ export class FSRSConfigManager {
     public weightsHelp: string[];
     /** Current view mode: 'simple' for basic retention slider, 'advanced' for all coefficients. */
     public currentMode: 'simple' | 'advanced';
+    /** Observer callback notifying root component of state updates. */
+    public onUpdate?: () => void;
 
     /**
      * Initializes configuration manager defaults and documentation mappings.
@@ -413,6 +745,12 @@ export class FSRSConfigManager {
      */
     init(): void {
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<FSRSConfigApp manager={this} />, root);
+                return;
+            }
+
             this.bindEvents();
             this.injectWeightsInputs(this.defaultWeights);
             this.loadFSRSConfig();

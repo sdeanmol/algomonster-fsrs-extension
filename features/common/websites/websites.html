@@ -21,69 +21,7 @@
     <link rel="stylesheet" href="websites.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header: Brand badge, title, and page close button -->
-        <div class="header">
-            <div class="header-main">
-                <div class="algorecall-brand-badge">
-                    <svg class="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path>
-                        <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path>
-                        <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path>
-                    </svg>
-                    <span class="algorecall-brand-name">AlgoRecall</span>
-                </div>
-                <h1 id="page-title">Active Platforms</h1>
-                <p id="page-subtitle" class="subtitle">Add or manage websites where AlgoRecall is authorized to run.</p>
-            </div>
-            <div class="header-actions">
-                <!-- Close Manager button: Handled by websites.ts to close current tab via window.close() -->
-                <button id="back-to-popup-btn" class="btn btn-secondary">
-                    Close Manager
-                </button>
-            </div>
-        </div>
-
-        <div class="grid-2">
-            <!-- Add Custom Website Card: Form to request optional host permissions for custom domains -->
-            <div class="card">
-                <h2>🔌 Add Custom Website</h2>
-                <p class="section-intro">
-                    Enable AlgoRecall highlights and spaced repetition reviews on any custom coding platform or documentation website.
-                </p>
-                <div class="form-group" style="margin-top: 16px;">
-                    <label for="domain-input">Website Domain or URL</label>
-                    <div class="input-row">
-                        <!-- Domain input: websites.ts sanitizes protocol and paths down to origin -->
-                        <input type="text" id="domain-input" class="input-field" placeholder="e.g. github.com or https://mycode.io/">
-                        <!-- Add button: Triggers chrome.permissions.request and adds to storage whitelist -->
-                        <button id="add-domain-btn" class="btn btn-primary">Authorize & Add</button>
-                    </div>
-                    <span class="input-hint">We will request domain permission dynamically for your privacy.</span>
-                </div>
-            </div>
-
-            <!-- Manage Websites List Card: Container for dynamically rendered platform entries -->
-            <div class="card">
-                <h2>📋 Whitelisted Platforms</h2>
-                <div class="whitelist-container">
-                    <!-- Whitelisted sites list: Populated dynamically with domain chips and toggle/delete buttons by websites.ts -->
-                    <ul id="whitelisted-sites-list" class="sites-list">
-                        <!-- All whitelisted sites injected dynamically -->
-                    </ul>
-                    <!-- Restore Default Platforms button: Resets whitelist back to default set (LeetCode, AlgoMonster, etc.) -->
-                    <button id="restore-defaults-btn" class="btn btn-secondary" style="margin-top: 20px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                        Restore Default Platforms
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Status message toast: Injected with confirmation/error text by websites.ts -->
-    <div id="status-toast" class="toast"></div>
-
+    <div id="root"></div>
     <script src="websites.js"></script>
 </body>
 </html>

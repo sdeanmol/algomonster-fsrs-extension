@@ -1,5 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { HighlightsManager } from '../../../../../features/highlighter/manager/highlights';
+import { h, render } from 'preact';
+import { HighlightsManager, HighlightsApp } from '../../../../../features/highlighter/manager/highlights';
 import { HighlightMark, BookmarkItem } from '../../../../../types/domain';
 
 describe('HighlightsManager', () => {
@@ -339,14 +340,22 @@ describe('HighlightsManager', () => {
       expect(() => manager.exportHighlightsToMarkdown()).not.toThrow();
     });
 
-    it('UX-014: verifies status toast in highlights.html is empty by default', () => {
+    it('UX-014: verifies status toast in highlights is empty by default', () => {
       const fs = require('fs');
       const path = require('path');
       const htmlPath = path.resolve(__dirname, '../../../../../features/highlighter/manager/highlights.html');
       const html = fs.readFileSync(htmlPath, 'utf8');
 
-      expect(html).toContain('<div id="status-toast" class="toast"></div>');
-      expect(html).not.toContain('<div id="status-toast" class="toast">Text copied to clipboard!</div>');
+      expect(html).toContain('id="root"');
+
+      const testDiv = document.createElement('div');
+      render(h(HighlightsApp, { manager }), testDiv);
+      const toast = testDiv.querySelector('#status-toast');
+      expect(toast).not.toBeNull();
+      expect(toast?.className).toBe('toast');
+      expect(toast?.textContent).toBe('');
+      render(null, testDiv);
+      testDiv.remove();
     });
   });
 });

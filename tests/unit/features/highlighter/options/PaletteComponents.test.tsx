@@ -1,6 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { h, render } from 'preact';
-import { PaletteEditorSlots, PalettesList, Palette } from '../../../../../features/highlighter/options/highlightOptions';
+import { PaletteEditorSlots, PalettesList, Palette, HighlightOptionsApp, HighlightOptionsManager } from '../../../../../features/highlighter/options/highlightOptions';
 
 describe('Palette Preact Components', () => {
     let container: HTMLElement;
@@ -75,6 +75,47 @@ describe('Palette Preact Components', () => {
         expect(activateBtn).not.toBeNull();
         activateBtn.click();
         expect(handleActivate).toHaveBeenCalledWith(1);
+    });
+});
+
+describe('HighlightOptionsApp Component', () => {
+    let container: HTMLElement;
+
+    beforeEach(() => {
+        container = document.createElement('div');
+        document.body.appendChild(container);
+
+        (global.chrome as any).storage = {
+            local: {
+                get: jest.fn((keys: any, cb: any) => cb({
+                    extensionSettings: {
+                        defaultHighlightColor: '#f1c40f',
+                        activePaletteIndex: 0,
+                        palettes: [{ name: 'Default', colors: ['#f1c40f', '#3498db'] }]
+                    }
+                })),
+                set: jest.fn((data: any, cb?: any) => cb && cb())
+            }
+        };
+    });
+
+    afterEach(() => {
+        render(null, container);
+        container.remove();
+        document.body.innerHTML = '';
+    });
+
+    it('renders the complete HighlightOptionsApp UI tree', () => {
+        const manager = new HighlightOptionsManager();
+        manager.extensionSettings.palettes = [{ name: 'Default', colors: ['#f1c40f', '#3498db'] }];
+        render(<HighlightOptionsApp manager={manager} />, container);
+
+        expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+        expect(container.querySelector('h2')?.textContent).toContain('Highlighter Appearance');
+        expect(container.querySelector('#default-color')).not.toBeNull();
+        expect(container.querySelector('#palette-name-input')).not.toBeNull();
+        expect(container.querySelector('#save-palette-btn')).not.toBeNull();
+        expect(container.querySelector('#palette-count')?.textContent).toContain('1 / 50');
     });
 });
 

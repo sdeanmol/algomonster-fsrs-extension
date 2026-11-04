@@ -1,6 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { h, render } from 'preact';
-import { ColorFilterBubbles, HighlightCardView } from '../../../../../features/highlighter/manager/highlights';
+import { ColorFilterBubbles, HighlightCardView, HighlightsApp, HighlightsManager } from '../../../../../features/highlighter/manager/highlights';
 import { HighlightMark } from '../../../../../types/domain';
 
 describe('Highlights Preact Components', () => {
@@ -71,6 +71,39 @@ describe('Highlights Preact Components', () => {
         const deleteBtn = container.querySelector('.action-btn-delete') as HTMLButtonElement;
         deleteBtn.click();
         expect(handleDelete).toHaveBeenCalledWith('mark-123');
+    });
+
+    it('renders the complete HighlightsApp tree with filters and controls', () => {
+        const manager = new HighlightsManager();
+        manager.loadedMarks = [
+            {
+                id: 'mark-1',
+                url: 'https://leetcode.com/problems/two-sum',
+                text: 'Hash Map Solution for O(N)',
+                color: '#f1c40f',
+                createdAt: 1700000000000,
+                type: 'highlight',
+                note: 'Complement check'
+            } as any
+        ];
+        manager.loadedBookmarks = [
+            {
+                url: 'https://leetcode.com/problems/two-sum',
+                title: 'Two Sum'
+            } as any
+        ];
+
+        render(<HighlightsApp manager={manager} />, container);
+
+        expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+        expect(container.querySelector('h1')?.textContent).toContain('Highlighted Snippets');
+        expect(container.querySelector('#export-highlights-btn')).not.toBeNull();
+        expect(container.querySelector('#refresh-btn')).not.toBeNull();
+        expect(container.querySelector('#search-input')).not.toBeNull();
+        expect(container.querySelector('#webpage-select')).not.toBeNull();
+        expect(container.querySelector('#sort-select')).not.toBeNull();
+        expect(container.querySelector('#highlights-container')).not.toBeNull();
+        expect(container.querySelector('.highlight-text')?.textContent).toContain('Hash Map Solution for O(N)');
     });
 });
 

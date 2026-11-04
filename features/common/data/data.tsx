@@ -1,4 +1,5 @@
 import { h, Fragment, render, VNode } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { ensureCardIds } from '../utils/cardUtils';
@@ -303,12 +304,463 @@ export function BulkActionsBar({
     onDeselect
 }: BulkActionsBarProps): VNode {
     return (
-        <div id="bulk-actions-bar" style={{ display: selectedCount > 0 ? 'flex' : 'none' }}>
-            <span id="bulk-count">{selectedCount}</span>
-            <button id="bulk-delete-btn" onClick={onDelete}>Delete Selected</button>
-            <button id="bulk-retag-btn" onClick={onRetag}>Retag Selected</button>
-            <button id="bulk-reschedule-btn" onClick={onReschedule}>Reschedule Selected</button>
-            <button id="bulk-deselect-btn" onClick={onDeselect}>Deselect All</button>
+        <div id="bulk-actions-bar" className="bulk-actions-bar" style={{ display: selectedCount > 0 ? 'flex' : 'none' }}>
+            <div className="bulk-info">
+                <span id="bulk-count">{selectedCount}</span> card(s) selected
+            </div>
+            <div className="bulk-buttons">
+                <button id="bulk-delete-btn" className="btn btn-danger btn-sm" onClick={onDelete}>
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '13px', height: '13px' }} aria-hidden="true">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Delete Selected
+                </button>
+                <button id="bulk-retag-btn" className="btn btn-secondary btn-sm" onClick={onRetag}>
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '13px', height: '13px' }} aria-hidden="true">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                        <line x1="7" y1="7" x2="7.01" y2="7" />
+                    </svg>
+                    Re-tag Selected
+                </button>
+                <button id="bulk-reschedule-btn" className="btn btn-secondary btn-sm" onClick={onReschedule}>
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '13px', height: '13px' }} aria-hidden="true">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Reschedule
+                </button>
+                <button id="bulk-deselect-btn" className="btn btn-text btn-sm" onClick={onDeselect}>
+                    Deselect All
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT PREACT COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface DataAppProps {
+    dashboard?: FSRSDataDashboard;
+}
+
+/**
+ * Root Preact component governing the full Data Dashboard application.
+ */
+export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
+    const [dashboard] = useState(() => initialDashboard || new FSRSDataDashboard());
+    const [cards, setCards] = useState<Card[]>(dashboard.allCards || []);
+    const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(dashboard.selectedCardIds || new Set());
+    const [searchQuery, setSearchQuery] = useState<string>(dashboard.searchQuery || '');
+    const [selectedTag, setSelectedTag] = useState<string>(dashboard.selectedTag || 'all');
+    const [selectedStatus, setSelectedStatus] = useState<string>(dashboard.selectedStatus || 'all');
+    const [selectedPlatform, setSelectedPlatform] = useState<string>(dashboard.selectedPlatform || 'all');
+    const [selectedState, setSelectedState] = useState<string>(dashboard.selectedState || 'all');
+    const [sortBy, setSortBy] = useState<string>(dashboard.sortBy || 'due-asc');
+    const [view, setView] = useState<string>(dashboard.currentView || 'total');
+    const [, setRenderTrigger] = useState(0);
+
+    const forceUpdate = () => setRenderTrigger(c => c + 1);
+
+    const refreshData = () => {
+        if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+        chrome.storage.local.get(['fsrsCards', 'extensionSettings'], (result: StorageData) => {
+            const loaded = ensureCardIds(result.fsrsCards || []);
+            dashboard.allCards = loaded;
+            dashboard.extensionSettings = (result.extensionSettings || {}) as UserSettings & { showCharts?: boolean };
+            setCards(loaded);
+            forceUpdate();
+        });
+    };
+
+    useEffect(() => {
+        dashboard.onUpdate = () => {
+            setCards([...dashboard.allCards]);
+            setSelectedCardIds(new Set(dashboard.selectedCardIds));
+            setSearchQuery(dashboard.searchQuery);
+            setSelectedTag(dashboard.selectedTag);
+            setSelectedStatus(dashboard.selectedStatus);
+            setSelectedPlatform(dashboard.selectedPlatform);
+            setSelectedState(dashboard.selectedState);
+            setSortBy(dashboard.sortBy);
+            setView(dashboard.currentView);
+            forceUpdate();
+        };
+
+        const urlParams = new URLSearchParams(window.location.search);
+        dashboard.currentView = urlParams.get('view') || 'total';
+        dashboard.targetDate = urlParams.get('date');
+        setView(dashboard.currentView);
+
+        const urlSearch = urlParams.get('search') || urlParams.get('q') || urlParams.get('query');
+        if (urlSearch) {
+            dashboard.searchQuery = urlSearch;
+            setSearchQuery(urlSearch);
+        }
+        const urlTag = urlParams.get('tag');
+        if (urlTag) {
+            dashboard.selectedTag = urlTag;
+            setSelectedTag(urlTag);
+        }
+
+        refreshData();
+    }, [dashboard]);
+
+    // Unique tags
+    const allTags = new Set<string>();
+    cards.forEach(c => {
+        (c.tags || []).forEach(t => allTags.add(t));
+    });
+    const sortedTags = Array.from(allTags).sort();
+
+    // Unique platforms
+    const allPlatforms = new Set<string>();
+    cards.forEach(c => {
+        try {
+            const urlObj = new URL(c.problemUrl);
+            allPlatforms.add(urlObj.hostname);
+        } catch {
+            // ignore
+        }
+    });
+    const sortedPlatforms = Array.from(allPlatforms).sort();
+
+    // Title & subtitle
+    let pageTitle = 'Total Saved Patterns';
+    let pageSubtitle = `You have saved ${cards.length} algorithmic patterns.`;
+    if (view === 'due') {
+        const now = Date.now();
+        const dueCount = cards.filter(c => c.due <= now).length;
+        pageTitle = 'Patterns Due Today';
+        pageSubtitle = `You have ${dueCount} pattern(s) awaiting review.`;
+    } else if (view === 'retention') {
+        pageTitle = 'Retention';
+        pageSubtitle = 'Showing all patterns with at least 1 lapse.';
+    } else if (view === 'forecast' && dashboard.targetDate) {
+        pageTitle = `Cards Due — ${dashboard.targetDate}`;
+        pageSubtitle = `Cards scheduled for review on ${dashboard.targetDate}.`;
+    }
+
+    const isFilterActive = searchQuery !== '' || selectedTag !== 'all' || selectedStatus !== 'all' || selectedPlatform !== 'all' || selectedState !== 'all' || sortBy !== 'due-asc';
+
+    const handleClearFilters = () => {
+        dashboard.resetFilters();
+    };
+
+    const handleSearch = (val: string) => {
+        setSearchQuery(val);
+        dashboard.searchQuery = val;
+        dashboard.filterAndRender();
+        forceUpdate();
+    };
+
+    const handleTagChange = (val: string) => {
+        setSelectedTag(val);
+        dashboard.selectedTag = val;
+        dashboard.filterAndRender();
+        forceUpdate();
+    };
+
+    const handleStatusChange = (val: string) => {
+        setSelectedStatus(val);
+        dashboard.selectedStatus = val;
+        dashboard.filterAndRender();
+        forceUpdate();
+    };
+
+    const handlePlatformChange = (val: string) => {
+        setSelectedPlatform(val);
+        dashboard.selectedPlatform = val;
+        dashboard.filterAndRender();
+        forceUpdate();
+    };
+
+    const handleStateChange = (val: string) => {
+        setSelectedState(val);
+        dashboard.selectedState = val;
+        dashboard.filterAndRender();
+        forceUpdate();
+    };
+
+    const handleSortChange = (val: string) => {
+        setSortBy(val);
+        dashboard.sortBy = val;
+        dashboard.filterAndRender();
+        forceUpdate();
+    };
+
+    const handleToggleCard = (cardId: string, checked: boolean) => {
+        dashboard.toggleCardSelection(cardId, checked);
+        setSelectedCardIds(new Set(dashboard.selectedCardIds));
+    };
+
+    const handleToggleSelectAll = (checked: boolean) => {
+        dashboard.toggleSelectAll(checked);
+        setSelectedCardIds(new Set(dashboard.selectedCardIds));
+    };
+
+    const handleEditCard = (cardId: string) => {
+        dashboard.openEditModal(cardId);
+    };
+
+    const handleDeleteCard = (cardId: string) => {
+        dashboard.deleteCard(cardId);
+    };
+
+    const handleBulkDelete = () => {
+        dashboard.bulkDelete();
+    };
+
+    const handleBulkRetag = () => {
+        dashboard.bulkRetag();
+    };
+
+    const handleBulkReschedule = () => {
+        dashboard.bulkReschedule();
+    };
+
+    const handleDeselectAll = () => {
+        dashboard.toggleSelectAll(false);
+        setSelectedCardIds(new Set());
+    };
+
+    return (
+        <div className="container">
+            {/* Header: Brand badge, title, subtitle, and navigation links */}
+            <div className="header">
+                <div className="header-main">
+                    <div className="algorecall-brand-badge">
+                        <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                            <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                        </svg>
+                        <span className="algorecall-brand-name">AlgoRecall</span>
+                    </div>
+                    <h1 id="page-title">{pageTitle}</h1>
+                    <p id="page-subtitle" className="subtitle">{pageSubtitle}</p>
+                </div>
+                <div className="header-actions">
+                    <a href="../../dashboard/analytics/analytics.html" className="btn btn-secondary" style={{ marginRight: '8px' }}>
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ marginRight: '6px' }} aria-hidden="true">
+                            <line x1="18" y1="20" x2="18" y2="10" />
+                            <line x1="12" y1="20" x2="12" y2="4" />
+                            <line x1="6" y1="20" x2="6" y2="14" />
+                        </svg>
+                        Analytics
+                    </a>
+                    <a href="../../dashboard/history/history.html" className="btn btn-secondary">
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ marginRight: '6px' }} aria-hidden="true">
+                            <line x1="18" y1="20" x2="18" y2="10" />
+                            <line x1="12" y1="20" x2="12" y2="4" />
+                            <line x1="6" y1="20" x2="6" y2="14" />
+                        </svg>
+                        View History Map
+                    </a>
+                </div>
+            </div>
+
+            {/* Dynamic Analytics Graphs Panel */}
+            <div id="analytics-panel" className="analytics-grid" style={{ display: 'none', marginBottom: '24px' }} />
+
+            {/* Controls & Filters Panel */}
+            <div className="filters-panel">
+                <div className="search-box-wrapper">
+                    <svg className="svg-icon search-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input
+                        type="text"
+                        id="search-input"
+                        className="input-field search-input"
+                        placeholder="Search pattern title, URL, or tags..."
+                        value={searchQuery}
+                        onInput={(e) => handleSearch((e.target as HTMLInputElement).value)}
+                    />
+                </div>
+
+                <div className="filters-row">
+                    <div className="filter-group">
+                        <label htmlFor="tag-select">Filter by Tag</label>
+                        <select
+                            id="tag-select"
+                            className="input-field select-field"
+                            value={selectedTag}
+                            onChange={(e) => handleTagChange((e.target as HTMLSelectElement).value)}
+                        >
+                            <option value="all">All Tags</option>
+                            {sortedTags.map(t => (
+                                <option key={t} value={t}>{t}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="filter-group">
+                        <label htmlFor="status-select">Status</label>
+                        <select
+                            id="status-select"
+                            className="input-field select-field"
+                            value={selectedStatus}
+                            onChange={(e) => handleStatusChange((e.target as HTMLSelectElement).value)}
+                        >
+                            <option value="all">All Patterns</option>
+                            <option value="due">Due for Review</option>
+                            <option value="safe">Safe (Caught Up)</option>
+                        </select>
+                    </div>
+
+                    <div className="filter-group">
+                        <label htmlFor="platform-select">Platform</label>
+                        <select
+                            id="platform-select"
+                            className="input-field select-field"
+                            value={selectedPlatform}
+                            onChange={(e) => handlePlatformChange((e.target as HTMLSelectElement).value)}
+                        >
+                            <option value="all">All Platforms</option>
+                            {sortedPlatforms.map(p => (
+                                <option key={p} value={p}>{p}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="filter-group">
+                        <label htmlFor="state-select">FSRS State</label>
+                        <select
+                            id="state-select"
+                            className="input-field select-field"
+                            value={selectedState}
+                            onChange={(e) => handleStateChange((e.target as HTMLSelectElement).value)}
+                        >
+                            <option value="all">All States</option>
+                            <option value="0">New</option>
+                            <option value="1">Learning</option>
+                            <option value="2">Review</option>
+                            <option value="3">Relearning (Lapsed)</option>
+                            <option value="leech">⚡ Leeches (3+ Lapses)</option>
+                        </select>
+                    </div>
+
+                    <div className="filter-group">
+                        <label htmlFor="sort-select">Sort By</label>
+                        <select
+                            id="sort-select"
+                            className="input-field select-field"
+                            value={sortBy}
+                            onChange={(e) => handleSortChange((e.target as HTMLSelectElement).value)}
+                        >
+                            <option value="due-asc">Due Date (Soonest)</option>
+                            <option value="due-desc">Due Date (Latest)</option>
+                            <option value="difficulty-desc">Difficulty (Hardest)</option>
+                            <option value="stability-desc">Stability (Highest)</option>
+                            <option value="stability-asc">Stability (Lowest)</option>
+                            <option value="lapses-desc">Lapses (Most)</option>
+                            <option value="created-desc">Created (Newest)</option>
+                            <option value="created-asc">Created (Oldest)</option>
+                        </select>
+                    </div>
+
+                    <div className="filter-group reset-group">
+                        <button
+                            id="clear-filters-btn"
+                            className="btn btn-text"
+                            style={{ display: isFilterActive ? 'inline-flex' : 'none' }}
+                            onClick={handleClearFilters}
+                        >
+                            <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '12px', height: '12px', marginRight: '4px' }} aria-hidden="true">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                            Clear Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Bulk Actions Floating Bar */}
+            <BulkActionsBar
+                selectedCount={selectedCardIds.size}
+                onDelete={handleBulkDelete}
+                onRetag={handleBulkRetag}
+                onReschedule={handleBulkReschedule}
+                onDeselect={handleDeselectAll}
+            />
+
+            {/* Data Content / Table */}
+            <div id="data-content" className="data-table-container">
+                <CardsTable
+                    cards={cards}
+                    selectedCardIds={selectedCardIds}
+                    showLapses={true}
+                    isFilterActive={isFilterActive}
+                    getStateLabel={(s) => dashboard.getStateLabel(s)}
+                    onToggleSelectAll={handleToggleSelectAll}
+                    onToggleCard={handleToggleCard}
+                    onEditCard={handleEditCard}
+                    onDeleteCard={handleDeleteCard}
+                    onClearFilters={handleClearFilters}
+                />
+            </div>
+
+            {/* Inline Edit Modal Overlay */}
+            <div id="inline-edit-overlay" className="edit-overlay" style={{ display: 'none' }}>
+                <div className="edit-modal">
+                    <div className="edit-modal-header">
+                        <h3 style={{ padding: 0, margin: 0, background: 'none' }}>Edit Card</h3>
+                        <button id="edit-close-btn" className="edit-close-btn" onClick={() => dashboard.closeEditModal()}>
+                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div className="edit-modal-body">
+                        <input type="hidden" id="edit-card-id" />
+                        <div className="edit-field">
+                            <label htmlFor="edit-title">Problem Title</label>
+                            <input type="text" id="edit-title" className="input-field" placeholder="Problem title..." />
+                        </div>
+                        <div className="edit-field">
+                            <label htmlFor="edit-tags">Tags (comma-separated)</label>
+                            <input type="text" id="edit-tags" className="input-field" placeholder="Binary Search, DP, Graphs..." />
+                        </div>
+                        <div className="edit-field-row">
+                            <div className="edit-field">
+                                <label htmlFor="edit-time-complexity">Time Complexity</label>
+                                <input type="text" id="edit-time-complexity" className="input-field" placeholder="O(n log n)" />
+                            </div>
+                            <div className="edit-field">
+                                <label htmlFor="edit-space-complexity">Space Complexity</label>
+                                <input type="text" id="edit-space-complexity" className="input-field" placeholder="O(n)" />
+                            </div>
+                        </div>
+                        <div className="edit-field">
+                            <label htmlFor="edit-approach">Approach Notes</label>
+                            <textarea id="edit-approach" className="input-field edit-textarea" rows={8} placeholder="Your approach notes..." />
+                        </div>
+                    </div>
+                    <div className="edit-modal-footer">
+                        <button id="edit-cancel-btn" className="btn btn-secondary" onClick={() => dashboard.closeEditModal()}>
+                            Cancel
+                        </button>
+                        <button id="edit-save-btn" className="btn btn-primary" onClick={() => dashboard.saveCardEdit()}>
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Notification Toast & Temporary Undo Toast */}
+            <div id="status-toast" className="toast" />
+            <div id="undo-toast" className="undo-toast" style={{ display: 'none' }}>
+                <span id="undo-toast-text" />
+                <button id="undo-action-btn" className="btn-undo">Undo</button>
+            </div>
         </div>
     );
 }
@@ -344,6 +796,8 @@ export class FSRSDataDashboard {
     selectedCardIds: Set<string>;
     /** Timer reference for auto-dismissing deletion undo toast */
     undoTimer: ReturnType<typeof setTimeout> | null;
+    /** Observer callback notifying root component of state updates */
+    onUpdate?: () => void;
 
     /**
      * Initializes default filter selections, views, and bulk selection state.
@@ -367,12 +821,71 @@ export class FSRSDataDashboard {
     }
 
     /**
+     * Toggles selection state for an individual card.
+     */
+    toggleCardSelection(cardId: string, checked: boolean): void {
+        if (checked) {
+            this.selectedCardIds.add(cardId);
+        } else {
+            this.selectedCardIds.delete(cardId);
+        }
+        this.updateBulkActionsBar();
+        if (this.onUpdate) this.onUpdate();
+    }
+
+    /**
+     * Toggles selection state for all tracked cards.
+     */
+    toggleSelectAll(checked: boolean): void {
+        this.allCards.forEach(c => {
+            if (c.id) {
+                if (checked) this.selectedCardIds.add(c.id);
+                else this.selectedCardIds.delete(c.id);
+            }
+        });
+        this.updateBulkActionsBar();
+        if (this.onUpdate) this.onUpdate();
+    }
+
+    /**
+     * Removes an individual card by ID with undo banner support.
+     */
+    deleteCard(cardId: string): void {
+        const cardIndex = this.allCards.findIndex(c => c.id === cardId);
+        if (cardIndex === -1) return;
+
+        const deletedCard = this.allCards[cardIndex];
+        const problemTitle = deletedCard.problemTitle || 'Card';
+
+        this.allCards.splice(cardIndex, 1);
+        this.selectedCardIds.delete(cardId);
+        this.updateBulkActionsBar();
+        this.filterAndRender();
+
+        chrome.storage.local.set({ fsrsCards: this.allCards });
+
+        this.showUndoToast(`Deleted "${problemTitle}"`, () => {
+            this.allCards.splice(cardIndex, 0, deletedCard);
+            chrome.storage.local.set({ fsrsCards: this.allCards });
+            this.populateTagsFilter();
+            this.populatePlatformFilter();
+            this.filterAndRender();
+        });
+    }
+
+    /**
      * Bootstraps dashboard parameters from URL search parameters, retrieves cards and
      * settings from Chrome storage, populates filter dropdowns, and triggers the initial table render.
      * @fires chrome.storage.local.get
      */
     init(): void {
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<DataApp dashboard={this} />, root);
+                return;
+            }
+
             const urlParams = new URLSearchParams(window.location.search);
             this.currentView = urlParams.get('view') || 'total';
             this.targetDate = urlParams.get('date');
@@ -813,6 +1326,10 @@ export class FSRSDataDashboard {
             this.bindCheckboxes();
             this.bindDeleteButtons();
             this.bindEditButtons();
+
+            if (this.onUpdate) {
+                this.onUpdate();
+            }
         } catch (err) {
             UIUtils.catchError('DataDashboard', 'Error in filterAndRender', err);
         }

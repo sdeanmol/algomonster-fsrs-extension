@@ -2,18 +2,10 @@
   @file features/tracker/editor/editor.html
   @context Standalone Tab / Modal Notes Editor
   @description Full-page Markdown approach notes and complexity analysis editor for coding problems.
-  Allows reviewing, formatting, and live previewing markdown notes and Big-O complexities.
-  @linked-scripts
-    - ../../common/theme-sync.js (Global dark/light theme synchronizer)
-    - ../../common/marked.min.js (Client-side Markdown to HTML renderer)
-    - editor.js (features/tracker/editor/editor.ts - Note editor and card persistence controller)
-  @linked-styles
-    - ../../common/base.css (Material Design 3 tokens and shared components)
-    - editor.css (Split-screen/toggleable markdown editor, complexity bar, preview formatting)
+  Minimal declarative shell mounting the root Preact EditorApp component.
 -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
@@ -22,98 +14,9 @@
     <link rel="stylesheet" href="../../common/base.css">
     <link rel="stylesheet" href="editor.css">
 </head>
-
 <body>
-    <div class="editor-container">
-        <!-- Header: Close button, problem details, preview toggle, and save status indicator -->
-        <div class="editor-header">
-            <div class="header-left">
-                <!-- Close button: Handled by editor.ts to save and close the current window/tab -->
-                <button type="button" class="back-arrow" id="header-back-btn" title="Close and return">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right: 4px; width: 12px; height: 12px;"
-                        aria-hidden="true">
-                        <line x1="19" y1="12" x2="5" y2="12"></line>
-                        <polyline points="12 19 5 12 12 5"></polyline>
-                    </svg>
-                    Close
-                </button>
-                <div class="title-info">
-                    <div class="algorecall-brand-badge brand-badge-sm">
-                        <svg class="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path>
-                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path>
-                            <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path>
-                        </svg>
-                        <span class="algorecall-brand-name">AlgoRecall</span>
-                    </div>
-                    <!-- Populated dynamically by editor.ts with problem name and URL -->
-                    <h2 id="problem-title">Loading problem details...</h2>
-                    <span id="problem-url" class="url-subtext">Loading URL...</span>
-                </div>
-            </div>
-            <div class="header-right">
-                <!-- Preview toggle button: editor.ts toggles display between textarea and markdown preview -->
-                <button id="preview-toggle-btn" class="btn btn-secondary btn-sm" title="Toggle Markdown Preview"
-                    aria-label="Toggle Markdown Preview">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"
-                        aria-hidden="true">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                    Preview
-                </button>
-                <!-- Live status text updated by editor.ts (Saving, Saved, Error) -->
-                <span id="save-status" class="status-indicator" aria-live="polite">Loading FSRS data...</span>
-            </div>
-        </div>
-
-        <!-- Workspace: Big-O complexity inputs, raw markdown textarea, and rendered preview container -->
-        <div class="workspace">
-            <div class="complexity-bar">
-                <div class="complexity-field">
-                    <label>Time Complexity:</label>
-                    <input type="text" id="time-complexity-input" placeholder="Time complexity" class="input-field">
-                </div>
-                <div class="complexity-field">
-                    <label>Space Complexity:</label>
-                    <input type="text" id="space-complexity-input" placeholder="Space complexity" class="input-field">
-                </div>
-            </div>
-            <!-- Main markdown input textarea -->
-            <textarea id="editor-textarea" class="fullscreen-textarea" placeholder="How did you solve this pattern? Jot down your key insights, complexity analysis, approach steps...
-Supports Markdown: **bold**, *italic*, `code`, ```code blocks```, ## headings, - lists"></textarea>
-            <!-- Rendered HTML preview: Populated dynamically via marked.js when preview button is clicked -->
-            <div id="editor-preview" class="editor-preview fsrs-markdown" style="display: none;"></div>
-        </div>
-
-        <!-- Footer: Save progress and Save & Close actions -->
-        <div class="editor-footer">
-            <div class="footer-actions">
-                <button id="save-btn" class="btn btn-secondary">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor;"
-                        aria-hidden="true">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                        <polyline points="7 3 7 8 15 8"></polyline>
-                    </svg>
-                    Save Progress
-                </button>
-                <button id="save-close-btn" class="btn btn-primary">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke: currentColor;"
-                        aria-hidden="true">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                    Save & Close
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Feedback Toast: Displayed by editor.ts upon successful card persistence -->
-    <div id="status-toast" class="toast">Progress saved!</div>
-
+    <div id="root"></div>
     <script src="../../common/marked.min.js"></script>
     <script src="editor.js"></script>
 </body>
-
 </html>

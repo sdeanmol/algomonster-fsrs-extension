@@ -14,7 +14,7 @@ import { CoverageTableComponent } from '../../../../../features/dashboard/analyt
 import { RetentionBarRow } from '../../../../../features/dashboard/analytics/tags/retentionBarChart';
 import { ReadinessTopicCard, ReadinessMetricsGrid } from '../../../../../features/dashboard/analytics/readiness/readiness';
 import { ReviewTimeHighlightBanner } from '../../../../../features/dashboard/analytics/insights/reviewTimeAnalytics';
-import { AnalyticsGlobalKpiBar } from '../../../../../features/dashboard/analytics/analytics';
+import { AnalyticsGlobalKpiBar, AnalyticsSidebar, AnalyticsHeader, AnalyticsApp, AnalyticsDashboardSPA } from '../../../../../features/dashboard/analytics/analytics';
 
 describe('Analytics Preact Components', () => {
     let container: HTMLElement;
@@ -251,6 +251,59 @@ describe('Analytics Preact Components', () => {
         expect(container.textContent).toContain('Due Today');
         expect(container.textContent).toContain('88%');
         expect(container.textContent).toContain('Exam Recall');
+    });
+
+    it('renders AnalyticsSidebar and triggers tab selection', () => {
+        const onSelect = jest.fn();
+        render(<AnalyticsSidebar currentTab="overview" onSelectTab={onSelect} />, container);
+
+        expect(container.textContent).toContain('Analytics');
+        expect(container.textContent).toContain('Overview');
+        expect(container.textContent).toContain('Exam Readiness');
+        expect(container.textContent).toContain('Memory Retention');
+        expect(container.textContent).toContain('Tag Analytics');
+        expect(container.textContent).toContain('View All Patterns');
+
+        const readinessBtn = container.querySelector('[data-tab="readiness"]') as HTMLButtonElement;
+        expect(readinessBtn).not.toBeNull();
+        readinessBtn.click();
+        expect(onSelect).toHaveBeenCalledWith('readiness');
+    });
+
+    it('renders AnalyticsHeader with title and branding', () => {
+        const summaryStats = {
+            totalCards: 15,
+            dueToday: 2,
+            trueRetention: 90
+        };
+        render(
+            <AnalyticsHeader
+                title="Exam Readiness Forecast"
+                subtitle="15 patterns tracked"
+                stats={summaryStats}
+                examRecall={85}
+            />,
+            container
+        );
+        expect(container.querySelector('#current-tab-title')?.textContent).toBe('Exam Readiness Forecast');
+        expect(container.querySelector('#analytics-subtitle')?.textContent).toBe('15 patterns tracked');
+        expect(container.textContent).toContain('AlgoRecall');
+    });
+
+    it('renders AnalyticsApp root layout with all tab panes', () => {
+        const spa = new AnalyticsDashboardSPA();
+        render(<AnalyticsApp spa={spa} />, container);
+
+        expect(container.querySelector('.dashboard-layout')).not.toBeNull();
+        expect(container.querySelector('.sidebar')).not.toBeNull();
+        expect(container.querySelector('.main-content')).not.toBeNull();
+        expect(container.querySelector('#tab-overview')).not.toBeNull();
+        expect(container.querySelector('#tab-readiness')).not.toBeNull();
+        expect(container.querySelector('#tab-memory')).not.toBeNull();
+        expect(container.querySelector('#tab-simulation')).not.toBeNull();
+        expect(container.querySelector('#tab-tags')).not.toBeNull();
+        expect(container.querySelector('#tab-performance')).not.toBeNull();
+        expect(container.querySelector('#tab-insights')).not.toBeNull();
     });
 });
 

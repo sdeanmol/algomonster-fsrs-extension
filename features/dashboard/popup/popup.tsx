@@ -1,5 +1,5 @@
 
-import { h, VNode } from "preact";
+import { h, VNode, render, FunctionalComponent } from "preact";
 
 export interface PopupHeaderProps {
     onToggleTheme?: () => void;
@@ -174,6 +174,486 @@ export function PopupStatusToast({ message }: PopupStatusToastProps): VNode | nu
         </div>
     );
 }
+
+export const PopupApp: FunctionalComponent<{ dashboard?: AlgoRecallDashboard }> = ({ dashboard }) => {
+    return (
+        <div id="popup-app-container">
+            {/* Confetti Canvas Overlay: Activated on study streak milestones and level ups */}
+            <canvas id="confetti-canvas" className="confetti-canvas" />
+
+            {/* Header: Application branding, level badge, and top navigation controls */}
+            <header className="header-modern">
+                <div className="header-main">
+                    <h1 className="app-title">
+                        <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                            <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                        </svg>
+                        <span className="algorecall-brand-name">AlgoRecall</span>
+                    </h1>
+                    <div className="header-controls">
+                        {/* User gamification level badge */}
+                        <div id="user-level-badge" className="level-badge">Lv. 1</div>
+                        {/* Analytics dashboard button */}
+                        <button id="header-analytics-btn" className="icon-btn analytics-header-btn" title="Open Analytics Dashboard" aria-label="Open Analytics Dashboard">
+                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <line x1="18" y1="20" x2="18" y2="10" />
+                                <line x1="12" y1="20" x2="12" y2="4" />
+                                <line x1="6" y1="20" x2="6" y2="14" />
+                            </svg>
+                        </button>
+                        {/* Theme switcher button */}
+                        <button id="theme-toggle-btn" className="icon-btn theme-toggle-btn" title="Toggle Theme" aria-label="Toggle Theme">
+                            <svg className="svg-icon sun-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="5" />
+                                <line x1="12" y1="1" x2="12" y2="3" />
+                                <line x1="12" y1="21" x2="12" y2="23" />
+                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                                <line x1="1" y1="12" x2="3" y2="12" />
+                                <line x1="21" y1="12" x2="23" y2="12" />
+                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                            </svg>
+                            <svg className="svg-icon moon-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                            </svg>
+                        </button>
+                        {/* Documentation help modal trigger */}
+                        <button id="help-btn" className="icon-btn help-btn" title="How it works" aria-label="How it works">
+                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                {/* XP Progress bar */}
+                <div className="xp-bar-container" id="xp-progress-bar-container" title="XP Progress to Next Level" role="progressbar" aria-label="XP Progress to Next Level" aria-valuemin={0} aria-valuemax={100} aria-valuenow={0}>
+                    <div id="xp-bar-fill" className="xp-bar-fill" />
+                </div>
+            </header>
+
+            <div className="main-content">
+                {/* Notification Permission Warning Banner */}
+                <div id="permission-warning-banner" className="banner warning-banner hide-panel">
+                    <div className="banner-content">
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                            <line x1="12" y1="9" x2="12" y2="13" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span>Reminders work best with notifications enabled.</span>
+                    </div>
+                    <button id="enable-notifications-btn" className="btn-text-accent">Enable</button>
+                </div>
+
+                {/* Rating Prompt Card */}
+                <div id="rating-prompt-card" className="card rating-card hide-panel">
+                    <div id="rating-prompt-state" className="rating-state">
+                        <div className="rating-text-group">
+                            <h3 className="rating-title">Enjoying AlgoRecall? 🌟</h3>
+                            <p className="rating-desc" id="rating-prompt-text">Rate us 5 stars to help us grow!</p>
+                        </div>
+                        <div className="rating-actions-v">
+                            <a href="#" target="_blank" id="rate-store-btn" className="btn btn-primary rating-btn" data-review-url="">
+                                <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+                                <span id="rate-store-label">Rate on Store</span>
+                            </a>
+                            <div className="rating-sub-actions">
+                                <button id="snooze-rate-btn" className="btn-link">Snooze (7 days)</button>
+                                <button id="already-rated-btn" className="btn-link">Already Rated</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="rating-thanks-state" className="rating-state hide-panel">
+                        <span className="thanks-text">Thank you for supporting us! ❤️</span>
+                        <button id="edit-rating-btn" className="btn-link">Edit Rating</button>
+                    </div>
+                </div>
+
+                {/* Hero Section: Overview Stats */}
+                <div className="card stats-hero">
+                    <div className="stats-grid">
+                        <div className="stat-box" id="box-total" title="View all saved patterns" role="button" tabIndex={0}>
+                            <span className="stat-value" id="total-cards">...</span>
+                            <span className="stat-label">Patterns</span>
+                        </div>
+                        <div className="stat-box" id="box-due" title="View patterns due today" role="button" tabIndex={0}>
+                            <span className="stat-value" id="due-cards">...</span>
+                            <span className="stat-label">Due Today</span>
+                        </div>
+                        <div className="stat-box" id="box-retention" title="View lapsed cards" role="button" tabIndex={0}>
+                            <span className="stat-value" id="retention-rate">...</span>
+                            <span className="stat-label">Retention</span>
+                        </div>
+                    </div>
+                    {/* Quick Search Input & Tag Filter */}
+                    <div className="search-compact">
+                        <div className="search-input-wrapper">
+                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input type="text" id="popup-search-input" className="search-input" placeholder="Search patterns..." />
+                        </div>
+                        <select id="popup-tag-filter" className="tag-filter-select" aria-label="Filter by tag">
+                            <option value="all">All Tags</option>
+                        </select>
+                    </div>
+                    {/* Search Results Dropdown List */}
+                    <div id="popup-search-results" className="search-results-container" />
+                </div>
+
+                {/* Middle Cards Grid Container */}
+                <div className="popup-cards-layout">
+                    <div className="popup-column">
+                        {/* Gamification & Heatmap */}
+                        <div id="activity-charts-card" className="card group-card">
+                            <div className="card-header">
+                                <h3 className="card-title">
+                                    <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-primary)', marginRight: '6px', width: '16px', height: '16px' }} aria-hidden="true">
+                                        <line x1="18" y1="20" x2="18" y2="10" />
+                                        <line x1="12" y1="20" x2="12" y2="4" />
+                                        <line x1="6" y1="20" x2="6" y2="14" />
+                                    </svg>
+                                    Activity & Progress
+                                </h3>
+                            </div>
+                            <div id="gamification-panel" className="gamification-wrapper" />
+                            <div className="heatmap-section">
+                                <div className="heatmap-header">
+                                    <span className="heatmap-label">Contributions</span>
+                                    <button id="open-heatmap-tab-btn" className="btn-icon-text" title="Open full screen heatmap" aria-label="Open full screen heatmap">
+                                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                            <polyline points="15 3 21 3 21 9" />
+                                            <line x1="10" y1="14" x2="21" y2="3" />
+                                        </svg>
+                                        Full Screen
+                                    </button>
+                                </div>
+                                <div className="heatmap-container">
+                                    <div id="heatmap-grid" className="heatmap" />
+                                </div>
+                            </div>
+                            <div className="action-chips">
+                                <button id="toggle-lifetime-btn" className="chip">Lifetime</button>
+                                <button id="analytics-btn" className="chip">Analytics</button>
+                                <button id="forecast-btn" className="chip">Forecast</button>
+                                <button id="history-btn" className="chip">History</button>
+                            </div>
+                        </div>
+
+                        {/* Study Tools */}
+                        <div className="card group-card">
+                            <div className="card-header">
+                                <h3 className="card-title" style={{ color: 'var(--md-secondary)' }}>
+                                    <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-secondary)', marginRight: '6px', width: '16px', height: '16px' }} aria-hidden="true">
+                                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
+                                    </svg>
+                                    Study Tools
+                                </h3>
+                            </div>
+                            <div className="action-chips">
+                                <button id="studyplan-btn" className="chip">Exam Mode</button>
+                                <button id="pomodoro-btn" className="chip">Pomodoro</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="popup-column">
+                        {/* Highlighter Settings */}
+                        <div className="card highlighter-card">
+                            <div className="card-header">
+                                <h3 className="card-title" style={{ color: 'var(--md-warning)' }}>
+                                    <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-warning)', marginRight: '6px', width: '16px', height: '16px' }} aria-hidden="true">
+                                        <path d="M12 20h9" />
+                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                    </svg>
+                                    Highlighter Settings
+                                </h3>
+                            </div>
+                            <div className="setting-row">
+                                <label htmlFor="toggle-marker-popup" className="setting-label">Floating Marker Menu</label>
+                                <label className="switch">
+                                    <input type="checkbox" id="toggle-marker-popup" defaultChecked />
+                                    <span className="slider" />
+                                </label>
+                            </div>
+                            <div className="button-row">
+                                <button id="open-options-btn" className="btn btn-secondary flex-1" title="Manage highlighter colors" aria-label="Manage highlighter colors">
+                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }} aria-hidden="true">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                    </svg>
+                                    Customize Colors
+                                </button>
+                                <button id="manage-highlights-btn" className="btn btn-primary flex-1" title="View all snippets" aria-label="View all snippets">
+                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }} aria-hidden="true">
+                                        <line x1="8" y1="6" x2="21" y2="6" />
+                                        <line x1="8" y1="12" x2="21" y2="12" />
+                                        <line x1="8" y1="18" x2="21" y2="18" />
+                                        <line x1="3" y1="6" x2="3.01" y2="6" />
+                                        <line x1="3" y1="12" x2="3.01" y2="12" />
+                                        <line x1="3" y1="18" x2="3.01" y2="18" />
+                                    </svg>
+                                    View All Highlights
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Notification Settings */}
+                        <div className="card notification-card" id="notification-settings-card">
+                            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h3 className="card-title" style={{ color: 'var(--md-danger)' }}>
+                                    <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-danger)', marginRight: '6px', width: '16px', height: '16px' }} aria-hidden="true">
+                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                    </svg>
+                                    Notification Settings
+                                </h3>
+                                <button id="open-summary-page-btn" className="btn-icon-text" title="Open Weekly & Monthly Digest Summary" aria-label="Open Weekly & Monthly Digest Summary">
+                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', stroke: 'var(--md-danger)' }} aria-hidden="true">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                        <line x1="16" y1="13" x2="8" y2="13" />
+                                        <line x1="16" y1="17" x2="8" y2="17" />
+                                        <polyline points="10 9 9 9 8 9" />
+                                    </svg>
+                                    Summary
+                                </button>
+                            </div>
+                            <div className="setting-row">
+                                <label htmlFor="toggle-notifications" className="setting-label">Review Reminders</label>
+                                <label className="switch">
+                                    <input type="checkbox" id="toggle-notifications" role="switch" defaultChecked aria-checked="true" />
+                                    <span className="slider" />
+                                </label>
+                            </div>
+                            <div className="setting-row">
+                                <span className="setting-label">Check Interval</span>
+                                <select id="notification-interval" className="modern-select">
+                                    <option value="1" id="dev-interval-option" hidden disabled>1 min (Dev)</option>
+                                    <option value="15">15 mins</option>
+                                    <option value="30">30 mins</option>
+                                    <option value="60" selected>1 hour</option>
+                                    <option value="120">2 hours</option>
+                                    <option value="360">6 hours</option>
+                                    <option value="720">12 hours</option>
+                                    <option value="1440">Daily</option>
+                                    <option value="custom">Custom...</option>
+                                </select>
+                            </div>
+                            <div id="custom-interval-container" className="setting-row hide-panel">
+                                <span className="setting-label subtle">Custom (mins)</span>
+                                <input type="number" id="custom-interval-input" className="modern-input short-input" min={1} max={1440} placeholder="60" />
+                            </div>
+                            <div className="setting-row">
+                                <span className="setting-label">Sticky Notification</span>
+                                <label className="switch">
+                                    <input type="checkbox" id="toggle-sticky-notification" role="switch" defaultChecked aria-checked="true" />
+                                    <span className="slider" />
+                                </label>
+                            </div>
+                            <div className="setting-row">
+                                <span className="setting-label">Quiet Hours</span>
+                                <label className="switch">
+                                    <input type="checkbox" id="toggle-quiet-hours" role="switch" aria-checked="false" />
+                                    <span className="slider" />
+                                </label>
+                            </div>
+                            <div id="quiet-hours-container" className="setting-row hide-panel">
+                                <span className="setting-label subtle">Time Window</span>
+                                <div className="time-range-group">
+                                    <input type="time" id="quiet-hours-start" className="modern-input time-input" defaultValue="23:00" />
+                                    <span className="time-separator">to</span>
+                                    <input type="time" id="quiet-hours-end" className="modern-input time-input" defaultValue="07:00" />
+                                </div>
+                            </div>
+                            <div className="setting-row">
+                                <span className="setting-label">Weekly Digest</span>
+                                <label className="switch">
+                                    <input type="checkbox" id="toggle-weekly-digest" role="switch" defaultChecked aria-checked="true" />
+                                    <span className="slider" />
+                                </label>
+                            </div>
+                            <div className="setting-row">
+                                <label htmlFor="toggle-badge-due-count" className="setting-label" title="Show count of reviews due on browser pinned extension icon">Pinned Icon Due Badge</label>
+                                <label className="switch">
+                                    <input type="checkbox" id="toggle-badge-due-count" role="switch" defaultChecked aria-checked="true" />
+                                    <span className="slider" />
+                                </label>
+                            </div>
+                            <div className="button-row" style={{ marginTop: '10px' }}>
+                                <button id="check-now-btn" className="btn btn-secondary flex-1" title="Check for due reviews immediately" aria-label="Check for due reviews immediately">
+                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }} aria-hidden="true">
+                                        <polyline points="23 4 23 10 17 10" />
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                                    </svg>
+                                    Check Due Reviews Now
+                                </button>
+                            </div>
+                            <div id="test-notifications-container" className="button-row" style={{ display: 'none', flexDirection: 'column', gap: '8px' }}>
+                                <button id="test-notification-btn" className="btn btn-secondary flex-1">
+                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }} aria-hidden="true">
+                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                    </svg>
+                                    Send Test Notification
+                                </button>
+                                <button id="test-summary-notification-btn" className="btn btn-secondary flex-1">
+                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }} aria-hidden="true">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                        <line x1="16" y1="13" x2="8" y2="13" />
+                                        <line x1="16" y1="17" x2="8" y2="17" />
+                                        <polyline points="10 9 9 9 8 9" />
+                                    </svg>
+                                    Send Test Summary Notification
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Advanced Options Details */}
+                <details className="card details-card">
+                    <summary className="details-summary">
+                        <div className="summary-content">
+                            <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: '#9b59b6' }} aria-hidden="true">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            </svg>
+                            <span className="card-title">Data & Options</span>
+                        </div>
+                        <svg className="svg-icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                    </summary>
+
+                    <div className="details-body">
+                        <div className="setting-row" style={{ marginTop: '8px' }}>
+                            <label htmlFor="toggle-algo-launcher" className="setting-label">Problem Tracker Launcher</label>
+                            <label className="switch">
+                                <input type="checkbox" id="toggle-algo-launcher" role="switch" defaultChecked aria-checked="true" />
+                                <span className="slider" />
+                            </label>
+                        </div>
+                        <div className="setting-row" style={{ marginTop: '8px' }}>
+                            <label htmlFor="toggle-show-charts" className="setting-label">Show Analytics & Charts</label>
+                            <label className="switch">
+                                <input type="checkbox" id="toggle-show-charts" role="switch" defaultChecked aria-checked="true" />
+                                <span className="slider" />
+                            </label>
+                        </div>
+                        <div className="setting-row" style={{ marginTop: '8px' }}>
+                            <label htmlFor="toggle-dev-mode" className="setting-label">Developer Mode</label>
+                            <label className="switch">
+                                <input type="checkbox" id="toggle-dev-mode" role="switch" aria-checked="false" />
+                                <span className="slider" />
+                            </label>
+                        </div>
+                        <div id="dev-mode-actions" style={{ display: 'none', marginTop: '8px', textAlign: 'right' }}>
+                            <button id="export-debug-logs-btn" className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px' }}>Export Debug Logs</button>
+                        </div>
+
+                        <div className="nav-list mt-2">
+                            <button id="manage-platforms-btn" className="nav-item">
+                                <div className="nav-item-left">
+                                    <svg className="svg-icon settings-item-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-primary)' }} aria-hidden="true">
+                                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                        <line x1="8" y1="21" x2="16" y2="21" />
+                                        <line x1="12" y1="17" x2="12" y2="21" />
+                                    </svg>
+                                    <span>Manage Active Websites</span>
+                                </div>
+                                <svg className="svg-icon chevron-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                            </button>
+                            <button id="configure-fsrs-btn" className="nav-item">
+                                <div className="nav-item-left">
+                                    <svg className="svg-icon settings-item-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-warning)' }} aria-hidden="true">
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                    </svg>
+                                    <span>Configure FSRS Algorithm</span>
+                                </div>
+                                <svg className="svg-icon chevron-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="data-actions-grid mt-3">
+                            <button id="export-btn" className="data-btn success">
+                                <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-success)', marginRight: '6px', width: '14px', height: '14px' }} aria-hidden="true">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                                    <polyline points="17 21 17 13 7 13 7 21" />
+                                    <polyline points="7 3 7 8 15 8" />
+                                </svg>
+                                Backup
+                            </button>
+                            <label id="import-btn-label" className="data-btn danger" tabIndex={0} role={"button" as any} aria-label="Restore backup from file">
+                                <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-danger)', marginRight: '6px', width: '14px', height: '14px' }} aria-hidden="true">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                                </svg>
+                                Restore
+                                <input type="file" id="import-file" accept=".json,.gz,.json.gz" style={{ display: 'none' }} />
+                            </label>
+                            <button id="anki-export-btn" className="data-btn primary">
+                                <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-primary)', marginRight: '6px', width: '14px', height: '14px' }} aria-hidden="true">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                    <polyline points="10 9 9 9 8 9" />
+                                </svg>
+                                To Anki
+                            </button>
+                            <label id="anki-import-btn-label" className="data-btn purple" tabIndex={0} role={"button" as any} aria-label="Import cards from Anki">
+                                <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: '#9b59b6', marginRight: '6px', width: '14px', height: '14px' }} aria-hidden="true">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                From Anki
+                                <input type="file" id="anki-import-file" accept=".txt,.tsv" style={{ display: 'none' }} />
+                            </label>
+                        </div>
+                    </div>
+                </details>
+
+                {/* Static Review Banner */}
+                <div className="static-review-banner">
+                    <a href="#" target="_blank" id="static-review-link" className="static-review-link">
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '16px', height: '16px' }} aria-hidden="true">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                        Love AlgoRecall? Rate us 5 stars!
+                    </a>
+                </div>
+
+                <footer className="footer-modern">
+                    <p>AlgoRecall: 100% Private, Local-First.</p>
+                    <a href="../../common/help/help.html?tab=privacy" target="_blank">Help & Privacy</a>
+                </footer>
+            </div>
+
+            {/* Status Toasts */}
+            <div id="status-msg" className="toast modern-toast" />
+            <div id="milestone-toast" className="toast milestone-toast">
+                <span id="milestone-toast-text" />
+            </div>
+        </div>
+    );
+};
 /**
  * @file features/dashboard/popup/popup.ts
  * @description Central coordinator for the AlgoRecall popup dashboard window.
@@ -349,12 +829,57 @@ export class AlgoRecallDashboard {
     }
 
     /**
+     * Refreshes cached DOM element references after root Preact component rendering.
+     */
+    cacheDom(): void {
+        this.dom = {
+            themeToggleBtn: document.getElementById('theme-toggle-btn'),
+            markerToggle: document.getElementById('toggle-marker-popup') as HTMLInputElement | null,
+            chartsToggle: document.getElementById('toggle-show-charts') as HTMLInputElement | null,
+            launcherToggle: document.getElementById('toggle-algo-launcher') as HTMLInputElement | null,
+            devModeToggle: document.getElementById('toggle-dev-mode') as HTMLInputElement | null,
+            managePlatformsBtn: document.getElementById('manage-platforms-btn'),
+            configureFsrsBtn: document.getElementById('configure-fsrs-btn'),
+            helpBtn: document.getElementById('help-btn'),
+            historyBtn: document.getElementById('history-btn'),
+            openHeatmapTabBtn: document.getElementById('open-heatmap-tab-btn'),
+            boxTotal: document.getElementById('box-total'),
+            boxDue: document.getElementById('box-due'),
+            boxRetention: document.getElementById('box-retention'),
+            manageHighlightsBtn: document.getElementById('manage-highlights-btn'),
+            openOptionsBtn: document.getElementById('open-options-btn'),
+            analyticsBtn: document.getElementById('analytics-btn'),
+            headerAnalyticsBtn: document.getElementById('header-analytics-btn'),
+            forecastBtn: document.getElementById('forecast-btn'),
+            exportBtn: document.getElementById('export-btn'),
+            importFile: document.getElementById('import-file') as HTMLInputElement | null,
+            ankiExportBtn: document.getElementById('anki-export-btn'),
+            ankiImportFile: document.getElementById('anki-import-file') as HTMLInputElement | null,
+            studyplanBtn: document.getElementById('studyplan-btn'),
+            pomodoroBtn: document.getElementById('pomodoro-btn'),
+            openSummaryPageBtn: document.getElementById('open-summary-page-btn'),
+            weeklyDigestToggle: document.getElementById('toggle-weekly-digest') as HTMLInputElement | null,
+            badgeToggle: document.getElementById('toggle-badge-due-count') as HTMLInputElement | null,
+            statusMsg: document.getElementById('status-msg'),
+            devModeActions: document.getElementById('dev-mode-actions'),
+            exportDebugLogsBtn: document.getElementById('export-debug-logs-btn'),
+            testNotificationsContainer: document.getElementById('test-notifications-container'),
+        };
+    }
+
+    /**
      * Initializes the dashboard, binds page event listeners, and boots sub-components.
      */
     async init(): Promise<void> {
         Logger.info('Popup', 'Popup initialized.');
         Logger.time('Popup', 'init');
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<PopupApp dashboard={this} />, root);
+                this.cacheDom();
+            }
+
             this.bindEvents();
 
             // Boot component lifecycle steps
@@ -1206,5 +1731,6 @@ if (typeof module !== "undefined" && module.exports) {
     (module.exports as any).PopupNavigationGrid = PopupNavigationGrid;
     (module.exports as any).PopupSettingsToggles = PopupSettingsToggles;
     (module.exports as any).PopupStatusToast = PopupStatusToast;
+    (module.exports as any).PopupApp = PopupApp;
     (module.exports as any).initPopupDashboard = initPopupDashboard;
 }

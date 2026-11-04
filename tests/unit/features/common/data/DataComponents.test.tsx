@@ -9,7 +9,9 @@ import {
     CardsTableEmptyState,
     CardsTableRow,
     CardsTable,
-    BulkActionsBar
+    BulkActionsBar,
+    DataApp,
+    FSRSDataDashboard
 } from '../../../../../features/common/data/data';
 import { Card } from '../../../../../types/domain';
 
@@ -232,6 +234,31 @@ describe('Data Dashboard Preact Components', () => {
 
             const bar = container.querySelector('#bulk-actions-bar') as HTMLElement;
             expect(bar.style.display).toBe('none');
+        });
+    });
+
+    describe('DataApp Root Component', () => {
+        it('renders full DataApp component tree with controls, table, modal, and headers', () => {
+            const dashboard = new FSRSDataDashboard();
+            dashboard.allCards = [mockCard, mockLeechCard];
+
+            render(<DataApp dashboard={dashboard} />, container);
+
+            expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+            expect(container.querySelector('#page-title')).not.toBeNull();
+            expect(container.querySelector('#page-subtitle')).not.toBeNull();
+            expect(container.querySelector('#search-input')).not.toBeNull();
+            expect(container.querySelector('#tag-select')).not.toBeNull();
+            expect(container.querySelector('#status-select')).not.toBeNull();
+            expect(container.querySelector('#platform-select')).not.toBeNull();
+            expect(container.querySelector('#state-select')).not.toBeNull();
+            expect(container.querySelector('#sort-select')).not.toBeNull();
+            expect(container.querySelector('#data-content')).not.toBeNull();
+            expect(container.querySelector('#inline-edit-overlay')).not.toBeNull();
+            expect(container.querySelector('#status-toast')).not.toBeNull();
+            expect(container.querySelector('#undo-toast')).not.toBeNull();
+            expect(container.textContent).toContain('Two Sum');
+            expect(container.textContent).toContain('LRU Cache');
         });
     });
 });

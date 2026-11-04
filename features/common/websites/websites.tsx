@@ -8,6 +8,7 @@
  */
 
 import { h, render, Fragment, JSX } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { DEFAULT_WHITELISTED_WEBSITES } from '../constants';
@@ -87,12 +88,147 @@ export function WhitelistedSitesList({
     );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT PREACT COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface WebsitesAppProps {
+    manager?: WhitelistedWebsitesManager;
+}
+
+export function WebsitesApp({ manager: initialManager }: WebsitesAppProps): JSX.Element {
+    const [manager] = useState(() => initialManager || new WhitelistedWebsitesManager());
+    const [sites, setSites] = useState<WhitelistedSite[]>([]);
+    const [domainInput, setDomainInput] = useState<string>('');
+    const [, setRenderTrigger] = useState(0);
+
+    const forceUpdate = () => setRenderTrigger(c => c + 1);
+
+    useEffect(() => {
+        manager.onUpdate = (newSites) => {
+            setSites([...newSites]);
+            forceUpdate();
+        };
+
+        chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
+            let loadedSites = result.whitelistedWebsites;
+            if (!loadedSites) {
+                loadedSites = [...manager.defaultSitesList.map(s => ({ ...s }))];
+                chrome.storage.local.set({ whitelistedWebsites: loadedSites });
+            }
+            setSites(loadedSites);
+        });
+    }, [manager]);
+
+    const handleAdd = () => {
+        manager.handleAddWebsite();
+        setDomainInput('');
+    };
+
+    const handleDelete = (domain: string) => {
+        manager.handleDeleteWebsite(domain);
+    };
+
+    const handleRestoreDefaults = () => {
+        manager.restoreDefaults();
+    };
+
+    const handleClose = () => {
+        UIUtils.closeCurrentTab();
+    };
+
+    return (
+        <div className="container">
+            {/* Header: Brand badge, title, and page close button */}
+            <div className="header">
+                <div className="header-main">
+                    <div className="algorecall-brand-badge">
+                        <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                            <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                        </svg>
+                        <span className="algorecall-brand-name">AlgoRecall</span>
+                    </div>
+                    <h1 id="page-title">Active Platforms</h1>
+                    <p id="page-subtitle" className="subtitle">Add or manage websites where AlgoRecall is authorized to run.</p>
+                </div>
+                <div className="header-actions">
+                    <button id="back-to-popup-btn" className="btn btn-secondary" onClick={handleClose}>
+                        Close Manager
+                    </button>
+                </div>
+            </div>
+
+            <div className="grid-2">
+                {/* Add Custom Website Card */}
+                <div className="card">
+                    <h2>🔌 Add Custom Website</h2>
+                    <p className="section-intro">
+                        Enable AlgoRecall highlights and spaced repetition reviews on any custom coding platform or documentation website.
+                    </p>
+                    <div className="form-group" style={{ marginTop: '16px' }}>
+                        <label htmlFor="domain-input">Website Domain or URL</label>
+                        <div className="input-row">
+                            <input
+                                type="text"
+                                id="domain-input"
+                                className="input-field"
+                                placeholder="e.g. github.com or https://mycode.io/"
+                                value={domainInput}
+                                onInput={(e) => setDomainInput((e.target as HTMLInputElement).value)}
+                                onKeyPress={(e) => {
+                                    if (e.key === 'Enter') handleAdd();
+                                }}
+                            />
+                            <button id="add-domain-btn" className="btn btn-primary" onClick={handleAdd}>
+                                Authorize & Add
+                            </button>
+                        </div>
+                        <span className="input-hint">We will request domain permission dynamically for your privacy.</span>
+                    </div>
+                </div>
+
+                {/* Manage Websites List Card */}
+                <div className="card">
+                    <h2>📋 Whitelisted Platforms</h2>
+                    <div className="whitelist-container">
+                        <ul id="whitelisted-sites-list" className="sites-list">
+                            <WhitelistedSitesList sites={sites} onDelete={handleDelete} />
+                        </ul>
+                        <button
+                            id="restore-defaults-btn"
+                            className="btn btn-secondary"
+                            style={{ marginTop: '20px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                            onClick={handleRestoreDefaults}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                            </svg>
+                            Restore Default Platforms
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Status message toast */}
+            <div id="status-toast" className="toast" />
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEBSITES MANAGER CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Controller class managing the Whitelisted Websites options page.
  */
 export class WhitelistedWebsitesManager {
     /** Factory default website records */
     defaultSitesList: WhitelistedSite[];
+    /** State update callback */
+    onUpdate?: (sites: WhitelistedSite[]) => void;
 
     /**
      * Initializes default platforms list from constants.
@@ -107,6 +243,12 @@ export class WhitelistedWebsitesManager {
      */
     init(): void {
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<WebsitesApp manager={this} />, root);
+                return;
+            }
+
             // Initial Render
             this.loadAndRenderSites();
 
@@ -139,7 +281,7 @@ export class WhitelistedWebsitesManager {
                     UIUtils.catchError('WhitelistedWebsites', 'Error in add domain button handler', err);
                 }
             });
-            
+
             // Allow pressing Enter key in text input
             document.getElementById('domain-input')?.addEventListener('keypress', (e: KeyboardEvent) => {
                 try {
@@ -169,6 +311,12 @@ export class WhitelistedWebsitesManager {
      */
     loadAndRenderSites(): void {
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<WebsitesApp manager={this} />, root);
+                return;
+            }
+
             const list = document.getElementById('whitelisted-sites-list');
             if (!list) return;
 
@@ -192,6 +340,8 @@ export class WhitelistedWebsitesManager {
                         />,
                         list
                     );
+
+                    if (this.onUpdate) this.onUpdate(sites);
                 } catch (innerErr) {
                     UIUtils.catchError('WhitelistedWebsites', 'Error rendering whitelisted sites', innerErr);
                 }
@@ -280,6 +430,7 @@ export class WhitelistedWebsitesManager {
                                                 if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage set error after script registration', { hostname })) return;
                                                 input.value = '';
                                                 this.loadAndRenderSites();
+                                                if (this.onUpdate) this.onUpdate(sites);
                                                 UIUtils.showToast(`Authorized & Whitelisted: ${hostname}`);
                                             } catch (saveErr) {
                                                 UIUtils.catchError('WhitelistedWebsites', 'Error saving whitelisted website to storage', saveErr);
@@ -329,6 +480,7 @@ export class WhitelistedWebsitesManager {
                                 try {
                                     if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage set error during website delete', { siteDomain })) return;
                                     this.loadAndRenderSites();
+                                    if (this.onUpdate) this.onUpdate(sites);
                                     UIUtils.showToast(`Removed access for: ${siteDomain}`);
                                 } catch (setErr) {
                                     UIUtils.catchError('WhitelistedWebsites', 'Error in storage set callback for delete website', setErr);
@@ -386,14 +538,15 @@ export class WhitelistedWebsitesManager {
                 try {
                     if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error fetching websites for restore defaults')) return;
                     const currentSites: WhitelistedSite[] = result.whitelistedWebsites || [];
-                    
+
                     const customSites = currentSites.filter(s => !s.isDefault);
                     const restoredList = [...this.defaultSitesList.map(s => ({ ...s })), ...customSites];
-                    
+
                     chrome.storage.local.set({ whitelistedWebsites: restoredList }, () => {
                         try {
                             if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error saving restored defaults')) return;
                             this.loadAndRenderSites();
+                            if (this.onUpdate) this.onUpdate(restoredList);
                             UIUtils.showToast("Default platforms restored!");
                         } catch (setErr) {
                             UIUtils.catchError('WhitelistedWebsites', 'Error in storage set callback for restore defaults', setErr);
@@ -409,10 +562,15 @@ export class WhitelistedWebsitesManager {
     }
 }
 
-function initWebsitesManager(): void {
+export function initWebsitesManager(): void {
     try {
+        const root = document.getElementById('root');
         const manager = new WhitelistedWebsitesManager();
-        manager.init();
+        if (root) {
+            render(<WebsitesApp manager={manager} />, root);
+        } else {
+            manager.init();
+        }
     } catch (err) {
         UIUtils.catchError('WhitelistedWebsites', 'Initialization failed', err);
     }
@@ -434,6 +592,8 @@ try {
         (module.exports as any).default = WhitelistedWebsitesManager;
         (module.exports as any).WhitelistedWebsitesManager = WhitelistedWebsitesManager;
         (module.exports as any).WhitelistedSitesList = WhitelistedSitesList;
+        (module.exports as any).WebsitesApp = WebsitesApp;
+        (module.exports as any).initWebsitesManager = initWebsitesManager;
     } else if (typeof window !== 'undefined') {
         (window as unknown as { WhitelistedWebsitesManager?: typeof WhitelistedWebsitesManager }).WhitelistedWebsitesManager = WhitelistedWebsitesManager;
     }

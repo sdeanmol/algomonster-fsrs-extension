@@ -17,7 +17,9 @@ import {
     WeightsInputsGrid,
     TagProfilesList,
     ModeToggle,
-    PresetChips
+    PresetChips,
+    FSRSConfigApp,
+    FSRSConfigManager
 } from '../../../../../features/tracker/config/fsrsConfig';
 
 describe('FSRS Config Preact Components', () => {
@@ -138,6 +140,25 @@ describe('FSRS Config Preact Components', () => {
             const intensiveChip = container.querySelector('[data-retention="0.95"]') as HTMLElement;
             intensiveChip.click();
             expect(onSelectRetention).toHaveBeenCalledWith(0.95);
+        });
+    });
+
+    describe('FSRSConfigApp Root Component', () => {
+        it('renders full FSRSConfigApp tree with mode toggle, sliders, inputs, and actions', () => {
+            const manager = new FSRSConfigManager();
+            render(<FSRSConfigApp manager={manager} />, container);
+
+            expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+            expect(container.querySelector('#page-title')?.textContent).toBe('FSRS Customizer');
+            expect(container.querySelector('#reset-all-btn')).not.toBeNull();
+            expect(container.querySelector('#back-to-popup-btn')).not.toBeNull();
+            expect(container.querySelector('#retention-slider')).not.toBeNull();
+            expect(container.querySelector('#decay-input')).not.toBeNull();
+            expect(container.querySelector('#factor-input')).not.toBeNull();
+            expect(container.querySelector('#opt-progress-section')).not.toBeNull();
+            expect(container.querySelector('#weights-inputs-container')).not.toBeNull();
+            expect(container.querySelector('#active-tag-profiles-list')).not.toBeNull();
+            expect(container.querySelector('#status-toast')).not.toBeNull();
         });
     });
 });
