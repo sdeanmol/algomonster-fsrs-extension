@@ -90,86 +90,86 @@ Total Audited Files: **68 TypeScript source modules** (excluding `.d.ts`):
 - [x] Establish test baseline (69 suites, 1,031 tests passing; `npm run build` passing).
 - [x] Create root `inventory.json` with tracking schema.
 
-### Phase 1: Target Architecture & Migration Design (CURRENT)
+### Phase 1: Target Architecture & Migration Design (COMPLETE)
 - [x] Design Preact component hierarchy, mounting strategy, and hooks.
 - [x] Ensure 100% test compatibility with existing Jest suites.
 - [x] Formulate batch sequence based on reverse dependency count.
 
-### Phase 2: Testing Infrastructure & Preact Setup
-- [ ] Configure `tsconfig.json` for JSX (`"jsx": "react-jsx"`, `"jsxImportSource": "preact"`).
-- [ ] Install `preact` in dependencies.
-- [ ] Configure Webpack with `ts-loader` for `.tsx`, extensions `['.ts', '.tsx', '.js', '.jsx']`, and update `CopyPlugin` ignore rules.
-- [ ] Configure Jest with `moduleFileExtensions` including `tsx` and ts-jest transform for `.tsx`.
-- [ ] Verify build and tests pass before touching feature code.
+### Phase 2: Testing Infrastructure & Preact Setup (COMPLETE)
+- [x] Configure `tsconfig.json` for JSX (`"jsx": "react-jsx"`, `"jsxImportSource": "preact"`).
+- [x] Install `preact` in dependencies.
+- [x] Configure Webpack with `ts-loader` for `.tsx`, extensions `['.ts', '.tsx', '.js', '.jsx']`, and update `CopyPlugin` ignore rules.
+- [x] Configure Jest with `moduleFileExtensions` including `tsx` and ts-jest transform for `.tsx`.
+- [x] Verify build and tests pass before touching feature code.
 
-### Phase 3: Shared UI Primitives & Hooks
-- Create reusable Preact components:
-  - `Toggle`: Replaces repetitive 30-line switch boilerplate.
-  - `Toast`: Unified feedback banner.
+### Phase 3: Shared UI Primitives & Hooks (COMPLETE)
+- [x] Create reusable Preact components:
+  - `Toggle`: Replaces repetitive switch boilerplate (`features/common/ui/components/Toggle.tsx`).
+  - `Toast` / Alert banners: Unified feedback UI across views.
   - `Modal` / `Card`: Standardized container elements.
-- Create reusable Preact hooks:
-  - `useStorage`: Reactive binding to `chrome.storage.local`.
-  - `useTheme`: Reactive theme synchronization.
+- [x] Create reusable Preact hooks:
+  - `useStorage`: Reactive binding to `chrome.storage.local` (`features/common/ui/hooks/useStorage.ts`).
+  - `useTheme`: Reactive theme synchronization (`features/common/theme-sync.ts`).
 
-### Phase 4: Incremental Feature Conversion Batches
+### Phase 4: Incremental Feature Conversion Batches (COMPLETE)
 
-#### Batch 1: Leaf Management Views (Low Risk, High Isolation)
-- `features/common/websites/websites.ts` -> Preact Component + Entry
-- `features/common/help/help.ts` -> Preact Component + Entry
-- `features/common/welcome/welcome.ts` -> Preact Component + Entry
-- `features/common/utils/tagInput.ts` -> Preact TagInput Component
+#### Batch 1: Leaf Management Views (Low Risk, High Isolation) (COMPLETE)
+- [x] `features/common/websites/websites.ts` -> Preact Component + Entry (`websites.tsx`)
+- [x] `features/common/help/help.ts` -> Preact Component + Entry (`help.tsx`, `helpContent.tsx`)
+- [x] `features/common/welcome/welcome.ts` -> Preact Component + Entry (`welcome.tsx`)
+- [x] `features/common/utils/tagInput.ts` -> Preact TagInput Component (`tagInput.tsx`)
 
-#### Batch 2: Highlighter Feature Views
-- `features/highlighter/options/highlightOptions.ts`
-- `features/highlighter/manager/highlights.ts` & `highlights-helpers.ts`
-- `features/highlighter/highlighter.ts`
+#### Batch 2: Highlighter Feature Views (COMPLETE)
+- [x] `features/highlighter/options/highlightOptions.ts` -> Preact Component + Entry (`highlightOptions.tsx`)
+- [x] `features/highlighter/manager/highlights.ts` & `highlights-helpers.ts` -> Preact Component + Entry (`highlights.tsx`)
+- [x] `features/highlighter/highlighter.ts` -> Preact Tooltip (`highlighter.tsx`)
 
-#### Batch 3: Card Management & Editor Views
-- `features/tracker/editor/editor.ts`
-- `features/tracker/config/fsrsConfig.ts`
-- `features/common/data/data.ts`
+#### Batch 3: Card Management & Editor Views (COMPLETE)
+- [x] `features/tracker/editor/editor.ts` -> Preact Component + Entry (`editor.tsx`)
+- [x] `features/tracker/config/fsrsConfig.ts` -> Preact Component + Entry (`fsrsConfig.tsx`)
+- [x] `features/common/data/data.ts` -> Preact Component + Entry (`data.tsx`)
 
-#### Batch 4: Focused Productivity Dashboard Views
-- `features/dashboard/pomodoro/pomodoro.ts`
-- `features/dashboard/heatmap/heatmap.ts` & `heatmap-stats.ts`
-- `features/dashboard/history/history.ts`
-- `features/dashboard/forecast/forecast.ts`
-- `features/dashboard/studyplan/studyplan.ts`
-- `features/dashboard/summary/summary.ts` & `summaryGenerator.ts`
+#### Batch 4: Focused Productivity Dashboard Views (COMPLETE)
+- [x] `features/dashboard/pomodoro/pomodoro.ts` -> Preact Component + Entry (`pomodoro.tsx`)
+- [x] `features/dashboard/heatmap/heatmap.ts` & `heatmap-stats.ts` -> Preact Component + Entry (`heatmap.tsx`, `heatmap-stats.tsx`)
+- [x] `features/dashboard/history/history.ts` -> Preact Component + Entry (`history.tsx`)
+- [x] `features/dashboard/forecast/forecast.ts` -> Preact Component + Entry (`forecast.tsx`)
+- [x] `features/dashboard/studyplan/studyplan.ts` -> Preact Component + Entry (`studyplan.tsx`)
+- [x] `features/dashboard/summary/summary.ts` & `summaryGenerator.ts` -> Preact Component + Entry (`summary.tsx`)
 
-#### Batch 5: Main Popup UI & Sub-Components
-- `features/dashboard/popup/DashboardComponent.ts`
-- `features/dashboard/popup/stats.ts`
-- `features/dashboard/popup/heatmap.ts`
-- `features/dashboard/popup/rating.ts`
-- `features/dashboard/popup/search.ts`
-- `features/dashboard/popup/notifications.ts`
-- `features/dashboard/popup/popup.ts` (Orchestrator)
+#### Batch 5: Main Popup UI & Sub-Components (COMPLETE)
+- [x] `features/dashboard/popup/DashboardComponent.ts` -> Preact Component (`DashboardComponent.tsx`)
+- [x] `features/dashboard/popup/stats.ts` -> Preact Component (`stats.tsx`)
+- [x] `features/dashboard/popup/heatmap.ts` -> Preact Component (`heatmap.tsx`)
+- [x] `features/dashboard/popup/rating.ts` -> Preact Component (`rating.tsx`)
+- [x] `features/dashboard/popup/search.ts` -> Preact Component (`search.tsx`)
+- [x] `features/dashboard/popup/notifications.ts` -> Preact Component (`notifications.tsx`)
+- [x] `features/dashboard/popup/popup.ts` (Orchestrator) -> Preact App (`popup.tsx`)
 
-#### Batch 6: Analytics Dashboard & Sub-Modules
-- Overview (`overview.ts`, `memoryHealth.ts`, `learningVelocity.ts`, `miniForecast.ts`)
-- Memory (`memory.ts`, `retentionChart.ts`, `futureMemorySimulation.ts`, `predictionComparison.ts`, `confidenceBand.ts`)
-- Performance (`performance.ts`, `reviewStats.ts`, `recoveryTracking.ts`)
-- Readiness (`readiness.ts`)
-- Tags (`tags.ts`, `retentionBarChart.ts`, `coverageTable.ts`)
-- Insights (`insights.ts`, `reviewTimeAnalytics.ts`)
-- Analytics Main (`analytics.ts`)
+#### Batch 6: Analytics Dashboard & Sub-Modules (COMPLETE)
+- [x] Overview (`overview.tsx`, `memoryHealth.tsx`, `learningVelocity.tsx`, `miniForecast.tsx`)
+- [x] Memory (`memory.tsx`, `retentionChart.tsx`, `futureMemorySimulation.tsx`, `predictionComparison.tsx`, `confidenceBand.tsx`)
+- [x] Performance (`performance.tsx`, `reviewStats.tsx`, `recoveryTracking.tsx`)
+- [x] Readiness (`readiness.tsx`)
+- [x] Tags (`tags.tsx`, `retentionBarChart.tsx`, `coverageTable.tsx`)
+- [x] Insights (`insights.tsx`, `reviewTimeAnalytics.tsx`)
+- [x] Analytics Main (`analytics.tsx`)
 
-#### Batch 7: In-Page Floating Tracker Widget
-- `features/tracker/tracker.ts` (Mount into Shadow DOM root for zero host-page CSS pollution)
+#### Batch 7: In-Page Floating Tracker Widget (COMPLETE)
+- [x] `features/tracker/tracker.ts` -> Mount into Shadow DOM root for zero host-page CSS pollution (`tracker.tsx`)
 
-### Phase 5: Feature-Level Integration & Regression Verification
-- Full test suite run (`npm test` and build check).
-- Verify packaging (`release/chrome/extension-chrome.zip`).
-- E2E Playwright verification.
+### Phase 5: Feature-Level Integration & Regression Verification (COMPLETE)
+- [x] Full test suite run (`npm test` and build check - 90/90 suites, 1,169 tests passing).
+- [x] Verify packaging (`release/chrome/extension-chrome.zip`, Firefox, Safari).
+- [x] E2E Playwright verification across browser targets.
 
-### Phase 6: Obsolete Vanilla Cleanup
-- Remove legacy imperative DOM manipulation helpers.
-- Verify no duplicate bundle assets in `dist/`.
+### Phase 6: Obsolete Vanilla Cleanup (COMPLETE)
+- [x] Remove legacy imperative DOM manipulation helpers.
+- [x] Verify no duplicate bundle assets or leaked `.ts`/`.tsx` files in `dist/`.
 
-### Phase 7: Final Sign-Off & Deliverables
-- Produce `PREACT_MIGRATION_FINAL_REPORT.md`.
-- Final audit checklist.
+### Phase 7: Final Sign-Off & Deliverables (COMPLETE)
+- [x] Produce `PREACT_MIGRATION_FINAL_REPORT.md`.
+- [x] Final audit checklist and architectural documentation overhaul complete.
 
 ---
 
