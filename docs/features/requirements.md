@@ -8,7 +8,7 @@
 
 ## 1. Smarter Review Experience
 
-These enhancements target the core FSRS review loop in [tracker.js](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/tracker/tracker.js) and [fsrs.js](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/tracker/fsrs.js).
+These enhancements target the core FSRS review loop in [tracker.tsx](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/tracker/tracker.tsx) and [fsrsScheduler.ts](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/tracker/scheduler/fsrsScheduler.ts).
 
 ### 1.1 Filtered & Prioritised Review Sessions
 | ID | Requirement | Persona |
@@ -38,7 +38,7 @@ These enhancements target the core FSRS review loop in [tracker.js](file:///User
 
 ## 2. Dashboard & Analytics Enhancements
 
-Extends the popup dashboard ([popup.html](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/dashboard/popup/popup.html), [stats.js](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/dashboard/popup/stats.js), [heatmap.js](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/dashboard/popup/heatmap.js)).
+Extends the popup dashboard ([popup.html](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/dashboard/popup/popup.html), [stats.tsx](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/dashboard/popup/stats.tsx), [heatmap.tsx](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/dashboard/popup/heatmap.tsx)).
 
 ### 2.1 Advanced Analytics
 | ID | Requirement | Persona |
@@ -107,7 +107,7 @@ Extends the popup dashboard ([popup.html](file:///Users/anmolrastogi/Documents/G
 | ID | Requirement | Persona |
 |----|-------------|---------|
 | R5.1 | **Contest calendar integration**: Show upcoming contests from Codeforces/LeetCode/AtCoder in the dashboard sidebar | CP |
-| R5.2 | **Rating-aware scheduling**: Optionally factor in the problem's difficulty rating (e.g. Codeforces rating, LeetCode difficulty) to weight FSRS parameters via [topicWeights](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/tracker/tracker.js#L321-L329) | CP |
+| R5.2 | **Rating-aware scheduling**: Optionally factor in the problem's difficulty rating (e.g. Codeforces rating, LeetCode difficulty) to weight FSRS parameters via [topicWeights](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/tracker/tracker.tsx) | CP |
 | R5.3 | **Virtual contest review mode**: After a virtual contest, batch-import all attempted problems as cards in one click | CP |
 | R5.4 | **Problem difficulty badge**: Show the difficulty level (Easy/Medium/Hard or Codeforces rating) as a visual badge on each card | CP, SWEs |
 
@@ -125,7 +125,7 @@ Extends the popup dashboard ([popup.html](file:///Users/anmolrastogi/Documents/G
 
 ## 7. Highlighter Enhancements
 
-Extends [highlighter.js](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/highlighter/highlighter.js) and [style.css](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/highlighter/style.css).
+Extends [highlighter.tsx](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/highlighter/highlighter.tsx) and [style.css](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/highlighter/style.css).
 
 | ID | Requirement | Persona |
 |----|-------------|---------|
@@ -139,7 +139,7 @@ Extends [highlighter.js](file:///Users/anmolrastogi/Documents/GitHub/algomonster
 
 ## 8. Notification & Engagement
 
-Extends [notifications.js](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/content/notifications.js) and [background.js](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/background/background.js).
+Extends [notifications.ts](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/content/notifications.ts) and [background.ts](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/background/background.ts).
 
 | ID | Requirement | Persona |
 |----|-------------|---------|
@@ -152,7 +152,7 @@ Extends [notifications.js](file:///Users/anmolrastogi/Documents/GitHub/algomonst
 
 ## 9. Data, Privacy & Portability
 
-Extends the existing JSON import/export in [popup.js](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/dashboard/popup/popup.js).
+Extends the existing JSON import/export in [popup.tsx](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/dashboard/popup/popup.tsx) and [data.tsx](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/data/data.tsx).
 
 | ID | Requirement | Persona |
 |----|-------------|---------|
@@ -196,7 +196,7 @@ Extends the existing JSON import/export in [popup.js](file:///Users/anmolrastogi
 | ID | Requirement | Persona |
 |----|-------------|---------|
 | R12.1 | **Plugin API**: Define a lightweight API allowing third-party scripts to register card generators (e.g. a NeetCode importer, a System Design quiz generator) | SWEs |
-| R12.2 | **Custom website adapters**: Formalise the whitelisting system in [content.js](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/content/content.js#L5-L16) into a pluggable adapter model, so adding support for a new site requires only a config + title-extractor function | SWEs |
+| R12.2 | **Custom website adapters**: Formalise the whitelisting system in [content.ts](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/content/content.ts) into a pluggable adapter model, so adding support for a new site requires only a config + title-extractor function | SWEs |
 | R12.3 | **Webhook / event hooks**: Emit events (card_created, card_reviewed, streak_broken) that external automation tools (Zapier, n8n) can consume | SWEs |
 
 ---

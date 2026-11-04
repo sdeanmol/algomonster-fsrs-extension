@@ -1,69 +1,106 @@
-# Unit Test Breakdown & Coverage Analysis
+# Unit & Component Test Suite Breakdown
 
-This document details the individual unit test suites under `tests/unit/`, mapping each test file to its target source module, key test cases, and assertion logic. It also outlines the conventions for writing robust Jest tests within the extension environment.
+This document details the test suites under `tests/unit/`, mapping test modules to their target source files, key coverage scenarios, and assertions across both TypeScript service modules and **Preact component suites** (`.test.tsx`).
 
 ---
 
-## 🔬 Unit Test Mapping
+## 🔬 Unit & Component Test Suite Mapping (89 Suites)
 
-| Test Suite File | Target Source Module | Key Coverage Areas |
+### 1. Preact Component Suites (`.test.tsx`)
+
+| Test Suite File | Target Preact Component(s) | Key Coverage Scenarios |
 | :--- | :--- | :--- |
-| **`fsrsScheduler.test.js`** | `FsrsScheduler` | Card creation, rating transitions, algorithmic debouncing, preState snapshots |
-| **`fsrsOptimizer.test.js`** | `FsrsOptimizer` | WASM computeEligibility, training set conversion, card caps |
-| **`fsrsOptimizerFast.test.js`** | `FsrsOptimizerFast` | Fallback SGD training, empirical retention calculations, progress callbacks |
-| **`dataUtils.test.js`** | `DataUtils` | Summary stats, streak calculations, retention, tag stats, review time insights |
-| **`backupManager.test.js`** | `BackupManager` | Gzip JSONL export stream, FNV-1a checksum, V2 import validation, legacy import |
-| **`summaryGenerator.test.js`** | `summaryGenerator.ts` | Weekly summary text generation, trend calculation, upcoming card projections |
-| **`readiness.test.js`** | `readiness.ts` | Exam readiness predictions, risk classifications (Ready, Moderate, At Risk) |
-| **`futureMemorySimulation.test.js`** | `futureMemorySimulation.ts` | Memory decay curve calculations across 0–180 days |
-| **`overview.test.js`** | `overview.ts` | Learning velocity sparklines, 7-day vs 14-day trend comparisons |
-| **`tags.test.js`** | `tags.ts` | Tag retention bar chart aggregations and coverage tables |
-| **`tagInput.test.js`** | `tagInput.ts` | Tag input parsing, comma splitting, duplicate tag removal |
-| **`highlighter.test.js`** | `Highlighter` | Highlight mark creation, tooltip positioning, note/category saving |
-| **`websites.test.js`** | `websites.ts` | Domain whitelisting validation, default domain additions, removal |
-| **`logger.test.js`** | `Logger` | Console logging stubs, timing logs (`Logger.time`), exception suppression |
+| `Toggle.test.tsx` | `<Toggle />` | Label rendering, change event invocation, disabled accessibility attributes |
+| `useStorage.test.ts` | `useStorage<T>` | Initial storage read, optimistic local update, cross-tab sync via `storage.onChanged` |
+| `TagChip.test.tsx` | `<TagChip />` | Chip text rendering, remove button click delegation, stopPropagation |
+| `WhitelistedSitesList.test.tsx` | `<WhitelistedSitesList />` | Domain list mapping, default badge protection, delete button delegation |
+| `StepIndicators.test.tsx` | `<StepIndicators />` | Wizard dot step indicators, active aria attributes, click step selection |
+| `HelpTabBar.test.tsx` | `<HelpTabBar />` | Accessible role="tablist", active tab styling, tab selection callback |
+| `DataComponents.test.tsx` | `<CardsTable />`, `<BulkActionsBar />`, `<CardsTableRow />` | Table rendering, select-all toggling, bulk delete/retag/reschedule bar |
+| `PopupComponents.test.tsx` | `<PopupHeader />`, `<PopupStatsOverview />`, `<PopupDailyGoalRing />` | Header brand, 3-stat KPI summary, SVG daily review goal progress ring |
+| `ForecastComponents.test.tsx` | `<ForecastMetricsHeader />`, `<ForecastCalendar />`, `<ForecastChart />` | 30-day forecast tiles, calendar grid day cells, SVG workload bars |
+| `HeatmapComponents.test.tsx` | `<HeatmapFilterBar />`, `<HeatmapGrid />`, `<StreakStatCard />` | 365-day matrix cells, intensity thresholds (0–4), streak stat cards |
+| `HistoryComponents.test.tsx` | `<HistoryViewToggle />`, `<HistoryBreadcrumb />`, `<HistoryBarChart />` | Year/month/day view hierarchy toggles, timeline drill-downs |
+| `PomodoroComponents.test.tsx` | `<PomodoroTimerRing />`, `<PomodoroPhaseTabs />`, `<PomodoroControls />` | SVG timer circle circumference, phase switching (Focus/Break), start/reset |
+| `StudyPlanComponents.test.tsx`| `<StudyPlanCountdownRing />`, `<StudyPlanSetupPanel />` | Circular deadline dial, quota redistribution preview table |
+| `SummaryComponents.test.tsx` | `<SummaryPeriodTabs />`, `<SummaryKpiGrid />`, `<SummaryInsightsList />` | Weekly vs monthly tabs, retention KPI cards, smart recommendation pills |
+| `HighlighterTooltip.test.tsx` | `<HighlighterTooltipView />`, `<HighlighterSwatches />` | Anchored tooltip positioning, palette swatches, custom color picker |
+| `HighlightsComponents.test.tsx`| `<ColorFilterBubbles />`, `<HighlightCardView />`, `<HighlightsListView />` | Color bubble toggles, highlight card details, clipboard copy button |
+| `PaletteComponents.test.tsx` | `<PaletteEditorSlots />`, `<PalettesList />` | Dynamic color slot additions/deletions, active palette card selection |
+| `TrackerComponents.test.tsx` | `<TrackerRatingBar />`, `<TrackerFloatingLauncher />` | Rating buttons (`Again`, `Hard`, `Good`, `Easy`), due badge text |
+| `EditorComponents.test.tsx` | `<EditorHeader />`, `<ComplexityInputs />`, `<MarkdownPreview />` | Big-O time/space complexity inputs, sanitized markdown preview |
+| `FSRSConfigComponents.test.tsx`| `<WeightInputCard />`, `<WeightsInputsGrid />`, `<PresetChips />` | 17-parameter weights inputs, retention sliders, preset chips |
 
 ---
 
-## 🧮 Critical Assertion Highlights
+### 2. Core Scheduling & Mathematical Engine Suites
 
-### 1. Algorithmic Debouncing (`fsrsScheduler.test.js`)
-* Verifies that submitting duplicate ratings within 60 seconds suppresses FSRS calculation.
-* Asserts that changing a rating within 60 seconds successfully reverts card metrics to `preState` and recalculates from base state.
-
-### 2. Checksum Validation (`backupManager.test.js`)
-* Asserts that modifying a single byte in a JSONL backup stream triggers `Integrity check failed: Checksum mismatch`.
-* Verifies that `isValidBackupRecord` rejects unknown line record types.
+| Test Suite File | Target Source Module | Key Coverage Scenarios |
+| :--- | :--- | :--- |
+| `fsrsScheduler.test.ts` | `FsrsScheduler` | Card creation, rating transitions, algorithmic debouncing (<1m), preState snapshots |
+| `fsrsOptimizer.test.ts` | `FsrsOptimizer` | WASM computeEligibility, training set conversion, dataset caps (1000 cards) |
+| `fsrsOptimizerFast.test.ts`| `FsrsOptimizerFast` | Heuristic SGD optimization fallback, gradient updates, empirical retention |
+| `fsrsPerformance.test.ts` | `FsrsScheduler` | High-frequency rating benchmarks, memory leak assertions |
+| `dataUtils.test.ts` | `DataUtils` | Mathematical models: summary KPIs, streak calculations, true retention, tag stats |
+| `summaryGenerator.test.ts` | `summaryGenerator.ts` | Automated weekly digest text generation, trend analysis, upcoming projections |
 
 ---
 
-## ✍️ Authoring Guide: Mocking Chrome APIs
+### 3. Shared Utilities, Background & Content Script Suites
 
-When writing new Jest tests, keep in mind that the environment is Node.js (via `jsdom`), not a real browser. AlgoRecall relies on a global mock provided by `tests/mocks/chromeMock.js`.
+| Test Suite File | Target Source Module | Key Coverage Scenarios |
+| :--- | :--- | :--- |
+| `backupManager.test.ts` | `BackupManager` | Streaming Gzip JSONL export, 32-bit FNV-1a checksum validation, schema migration |
+| `markdown.test.ts` | `Markdown` | marked.js parsing, GitHub Flavored Markdown, DOMPurify XSS script stripping |
+| `logger.test.ts` | `Logger` | Level filtering, in-memory ring buffer, DevMode synchronization |
+| `themeSync.test.ts` | `ThemeSync` | FOUC prevention class injection, cross-tab theme synchronization |
+| `backgroundServiceWorker.test.ts`| `AlgoRecallBackground` | Alarm listeners, quiet hours logic, push notification scheduling, Pomodoro ticker |
+| `commands.test.ts` | `ActionService` | Keyboard shortcut command dispatcher mapping to extension actions |
+| `contentOrchestrator.test.ts` | `AlgoRecallOrchestrator` | Whitelisted domain detection, MutationObserver debouncing, SPA history updates |
+| `contentUtils.test.ts` | `Utils` | Problem title extraction, tag inference, DOM XPath serialization |
+| `notifications.test.ts` | `Notifier` | In-page toast injection, review snooze actions, auto-dismiss timers |
+| `browserConfig.test.ts` | `BROWSER_CONFIG` | Feature flag gating (`supportsNotifications`, `supportsAlarms`, `supportsDownloads`) |
 
-### Using the `global.mockStorage`
-The `chrome.storage.local` API is stubbed to read/write from a simple Javascript dictionary named `global.mockStorage`.
+---
 
-* **Before Each Test**: It is recommended to clear the storage state to prevent test leakage:
-  ```javascript
-  beforeEach(() => {
+## 🧮 Critical Assertion Scenarios
+
+### 1. Algorithmic Debouncing & Rating Rollbacks (`fsrsScheduler.test.ts`)
+* Asserts that submitting multiple ratings within 60 seconds suppresses redundant FSRS calculations.
+* Asserts that changing a rating within 60 seconds reverts parameters to `preState` and recalculates from clean baseline state.
+
+### 2. Streaming Backup Integrity (`backupManager.test.ts`)
+* Asserts that corrupting a single byte in a `.jsonl.gz` stream triggers `Integrity check failed: Checksum mismatch`.
+* Verifies that `isValidBackupRecord` rejects malformed line schemas.
+
+### 3. Store Brand Isolation (`check-artifact-isolation.js`)
+* Audits production build directories to verify zero browser brand cross-contamination (Chrome Web Store, Firefox Add-ons, Apple App Store).
+
+---
+
+## ✍️ Authoring Guide: Mocking Chrome APIs in Jest
+
+Preact component and service tests run in Node.js via `jsdom`. All `chrome.*` APIs are mocked through `tests/mocks/chromeMock.js`.
+
+```typescript
+// Clear mock storage before each test
+beforeEach(() => {
     global.mockStorage = {};
     jest.clearAllMocks();
-  });
-  ```
-* **Injecting State**: You can pre-populate storage for a test directly:
-  ```javascript
-  global.mockStorage['fsrsCards'] = mockCardFixture;
-  ```
-* **Verifying Calls**: The `chrome.*` methods are Jest spy functions, allowing you to assert calls:
-  ```javascript
-  expect(chrome.storage.local.set).toHaveBeenCalled();
-  expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ action: 'UPDATE_BADGE' });
-  ```
+});
+
+// Seed mock state
+global.mockStorage['fsrsCards'] = mockCardFixture;
+
+// Assert chrome API interaction
+expect(chrome.storage.local.set).toHaveBeenCalledWith(
+    expect.objectContaining({ fsrsCards: expect.any(Array) })
+);
+```
 
 ---
 
 ## 🔗 Related Documentation
-* 🧪 [Test Suite Overview](./test-suite-overview.md)
-* 🎭 [E2E & Integration Specs](./e2e-integration.md)
-* 🧮 [FSRS Algorithm Theory](../scheduler-wasm/fsrs-algorithm.md)
+* 🧪 [Test Suite Overview](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/testing/test-suite-overview.md)
+* 🎭 [E2E & Integration Tests](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/testing/e2e-integration.md)
+* 📘 [Architecture Overview](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/overview.md)

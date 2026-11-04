@@ -1,38 +1,48 @@
 # Tracker & Editor Feature Module
 
-This document provides a detailed breakdown of the **Tracker** overlay UI, full-screen **Editor**, rating interaction mechanics, preState snapshots, and algorithmic debouncing logic.
+This document provides a detailed breakdown of the **Tracker** overlay UI, full-screen Markdown **Editor**, and FSRS parameter **Configuration** modal in **AlgoRecall**. All UI components are implemented with **Preact 11 and TypeScript** (`.tsx`).
 
 ---
 
-## 🧩 Module Overview
+## 🧩 Module Overview & Preact Layout
 
-The Tracker module consists of:
-* **Floating Tracker Launcher & Overlay (`features/tracker/tracker.ts`)**: Injected into whitelisted coding problem pages to present due status, tags, and rating buttons (`Again`, `Hard`, `Good`, `Easy`).
-* **Full-Screen Editor (`features/tracker/editor/editor.ts`)**: Standalone page (`editor.html`) allowing rich editing of card fields (problem title, URL, tags, approach markdown, complexity).
-* **FSRS Configuration Modal (`features/tracker/config/fsrsConfig.ts`)**: Parameter tuning modal (`fsrsConfig.html`) for editing global $w$ weights, target retention, and triggering optimization.
-* **Abstract Scheduler Base (`features/tracker/scheduler/scheduler.ts`)**: Base interface extended by `FsrsScheduler`.
+The Tracker module comprises three primary components:
+
+* **Floating Tracker Launcher & Overlay (`features/tracker/tracker.tsx`)**: 
+  Injected into whitelisted coding problem pages (LeetCode, AlgoMonster, etc.). Renders floating launcher pill (`TrackerFloatingLauncher`), review card deck (`TrackerCardReviewView`), topic tag chips, and FSRS rating buttons (`TrackerRatingBar`).
+* **Full-Screen Markdown Editor (`features/tracker/editor/editor.tsx`)**: 
+  Standalone Preact SPA (`editor.html` -> `<EditorApp />`) allowing rich editing of card metadata (problem title, URL, tags, approach notes, and Big-O time/space complexity inputs). Features live GitHub Flavored Markdown preview sanitized via DOMPurify.
+* **FSRS Configuration Modal (`features/tracker/config/fsrsConfig.tsx`)**: 
+  Standalone Preact SPA (`fsrsConfig.html` -> `<FSRSConfigApp />`) providing 17-parameter weights inputs (`WeightsInputsGrid`), retention sliders, tag-specific profiles (`TagProfilesList`), and WASM optimizer triggers.
+* **Abstract Scheduler Base (`features/tracker/scheduler/scheduler.ts`)**: 
+  Base class defining card generation and rating transition interfaces extended by `FsrsScheduler`.
 
 ```mermaid
 graph TD
-    subgraph Whitelisted Webpage
-        L[Launcher Button: algo-fsrs-launcher]
-        O[Overlay Card Widget: algo-fsrs-container]
+    subgraph Whitelisted_Webpage ["Whitelisted Problem Page"]
+        L["TrackerFloatingLauncher (algo-fsrs-launcher)"]
+        O["TrackerCardReviewView (algo-fsrs-container)"]
     end
 
-    subgraph Overlay UI Controls
-        RB[Rating Buttons: Again / Hard / Good / Easy]
-        TAG[Tag Input Field]
-        APP[Approach Markdown Area]
-        FSE[Open Fullscreen Editor Button]
+    subgraph Overlay_UI_Controls ["Preact Overlay Components"]
+        RB["TrackerRatingBar: Again / Hard / Good / Easy"]
+        TAG["TagInputControl: Autocomplete Tag Chips"]
+        APP["Approach Markdown Area: Solution Notes"]
+        FSE["Open Fullscreen Editor Trigger"]
     end
 
-    subgraph Core Scheduler
-        FS[FsrsScheduler]
-        DEB[Algorithmic Debounce Check]
-        SNAP[preState Snapshot Logger]
+    subgraph Core_Scheduler ["FSRS Scheduler Engine"]
+        FS["FsrsScheduler (fsrsScheduler.ts)"]
+        DEB["Algorithmic Debounce Check (< 1 min)"]
+        SNAP["preState Snapshot History Logger"]
     end
 
-    L -->|Click| O
+    subgraph Standalone_Preact_Pages ["Standalone Preact SPAs"]
+        EDT["EditorApp (editor.html / editor.tsx)"]
+        CONF["FSRSConfigApp (fsrsConfig.html / fsrsConfig.tsx)"]
+    end
+
+    L -->|Toggle Open/Close| O
     O --> RB
     O --> TAG
     O --> APP
@@ -40,7 +50,8 @@ graph TD
     RB -->|Submit Rating| FS
     FS --> DEB
     DEB --> SNAP
-    FSE -->|chrome.runtime.sendMessage| BGSW[Open editor.html]
+    FSE -->|chrome.runtime.sendMessage| EDT
+    CONF -->|Optimize Parameters| FS
 ```
 
 ---
@@ -58,112 +69,31 @@ If a user clicks the same rating button twice in under 1 minute:
 ### Scenario 2: Rating Correction (< 1 minute)
 If a user mis-clicks `Good` and immediately changes their selection to `Again`:
 1. The last review log entry is popped from `historyLog`.
-2. Card fields (`stability`, `difficulty`, `reps`, `lapses`, `due`, `state`) are restored from the `preState` snapshot.
-3. `reviewCard()` is re-executed from the restored base state using the new rating.
-
-```typescript
-// preState snapshot structure stored in ReviewLog
-export interface ReviewLog {
-    rating: Rating | number;
-    date: number;
-    duration?: number;
-    preState?: {
-        stability: number;
-        difficulty: number;
-        reps: number;
-        lapses: number;
-        state: State;
-        due: number;
-        last_review?: number | null;
-        elapsed_days?: number;
-        scheduled_days?: number;
-        learning_steps?: number;
-    };
-}
-```
-
-```mermaid
-flowchart TD
-    A["User submits rating (Again / Hard / Good / Easy)"] --> B{"Is card reviewed < 60s ago?"}
-    
-    B -- "No: Standard Review" --> C["Capture preState snapshot of card"]
-    C --> D["Execute FSRS calculateNextState()"]
-    D --> E["Append ReviewLog entry with preState"]
-    E --> F["Save updated card to chrome.storage.local"]
-    F --> G["Display 5s Undo Toast on page"]
-    
-    B -- "Yes: Rapid Re-Review" --> H{"Is new rating == previous rating?"}
-    H -- "Yes: Duplicate Submission" --> I["Suppress FSRS recalculation"]
-    I --> J["Add elapsed duration to current ReviewLog"]
-    J --> F
-    
-    H -- "No: Immediate Correction" --> K["Pop previous ReviewLog from history"]
-    K --> L["Restore card stability, difficulty & reps from preState"]
-    L --> D
-    
-    G --> M{"User clicks Undo button?"}
-    M -- "Yes" --> N["Restore card state from preState"]
-    N --> O["Remove last ReviewLog & clear toast"]
-    O --> F
-    M -- "No (5s timeout)" --> P["Dismiss toast & finalize review"]
-```
+2. Card mathematical parameters are restored to the `preState` snapshot saved prior to the mis-click.
+3. The new rating is applied cleanly against the restored `preState`.
 
 ---
 
-## 🚀 Problem Tracker Launcher Button & Visibility Control
+## 📝 Markdown Sanitization & Problem Approach Editor (`editor.tsx`)
 
-The in-page quick launcher button (`algo-fsrs-launcher`) floats along the edge of whitelisted problem pages, providing immediate single-click access to the review panel and card editor.
-
-* **User Configurable Toggle (`showLauncher`)**: Users can disable the floating launcher button from the extension popup options.
-* **Storage Synchronization**: Listens for changes to `extensionSettings.showLauncher`. When toggled to `false`, the button is smoothly hidden (`display: none`) and click listeners are suspended.
-* **Non-Visual Access**: When the visual launcher is hidden, cards and review panels can still be accessed seamlessly through browser keyboard shortcuts or the extension popup.
-
-```mermaid
-flowchart LR
-    A["Page Navigation / MutationObserver"] --> B{"Is domain whitelisted?"}
-    B -- "No" --> C["Exit / Do not mount UI"]
-    B -- "Yes" --> D["Read extensionSettings.showLauncher"]
-    D --> E{"showLauncher == true?"}
-    E -- "Yes" --> F["Mount #algo-fsrs-launcher on DOM edge"]
-    F --> G["Listen for user click"]
-    G --> H["Toggle #algo-fsrs-container overlay"]
-    E -- "No" --> I["Set launcher display: none"]
-    I --> J["Await keyboard shortcut or popup command"]
-    
-    K["User toggles showLauncher in Popup"] --> L["chrome.storage.onChanged event"]
-    L --> D
-```
-
----
-
-## 📝 Full-Screen Editor (`editor.ts`)
-
-The Editor UI handles standalone card creation and modification. Key features include:
-* Auto-populating problem title and URL from active tab parameters.
-* **Real-time Sanitized Markdown Preview**: Renders problem approach notes and complexity breakdowns using modern Marked.js parser coupled with DOMPurify sanitization ([`features/common/markdown.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/markdown.ts)) to eliminate script, form, or iframe injections.
-* Time and space complexity fields ($O(N)$, $O(1)$).
-* Interactive tag management with auto-suggestions.
-* **AlgoRecall Brand Identity**: Integrated header pill with official branding and version badge.
+The full-screen problem editor is a Preact SPA (`EditorApp`) featuring:
+* **`EditorHeader`**: Problem title input, platform source badge, and auto-save status indicator.
+* **`ComplexityInputs`**: Big-O notation fields for Time Complexity (e.g. `O(N log N)`) and Space Complexity (e.g. `O(1)`).
+* **`MarkdownPreview`**: Split-pane or toggle preview rendering markdown with GitHub Flavored syntax.
+* **XSS Defense**: Sanitizes all HTML output using DOMPurify through [`features/common/markdown.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/markdown.ts).
 
 ```mermaid
 flowchart LR
-    A["User types in Approach textarea"] --> B["Debounced input event (150ms)"]
-    B --> C["Pass raw string to renderMarkdown()"]
-    C --> D["Marked.js parses GitHub-flavored markdown"]
-    D --> E["Raw HTML generated"]
-    E --> F["DOMPurify sanitization (FORBID_TAGS: script, iframe, form...)"]
-    F --> G{"DOMPurify available?"}
-    G -- "Yes" --> H["Sanitized safe HTML string"]
-    G -- "No (fallback)" --> I["Strict Regex element stripping"]
-    I --> H
-    H --> J["Inject into #approach-preview container"]
+    A["Raw Markdown Note"] --> B["marked.js Parser (breaks: true, gfm: true)"]
+    B --> C["DOMPurify HTML Sanitizer"]
+    C --> D["MarkdownPreview Preact Component"]
+    D --> E["Safe Rendered Solution Notes"]
 ```
 
 ---
 
 ## 🔗 Related Documentation
-* 🧮 [FSRS Algorithm Theory](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/fsrs-algorithm.md)
-* 📖 [FSRS Rating Selection Guide](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/rating-guide.md)
-* ⚙️ [Developer & Customization Guide](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/customization.md)
-* 📋 [Feature Enhancements Requirements](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/requirements.md)
-* 🖥️ [Content Scripts Core](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/runtime-core/content-scripts.md)
+* 📘 [Architecture Overview](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/overview.md)
+* 🧮 [FSRS Algorithm Math](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/fsrs-algorithm.md)
+* ⚡ [WASM & Fast Optimizer Engine](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/optimizer-wasm.md)
+* 📖 [FSRS Rating & State Transition Guide](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/rating-guide.md)
