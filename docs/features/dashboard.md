@@ -1,53 +1,93 @@
 # Dashboard & Extension Views
 
-This document provides a technical overview of the primary extension dashboard pages and popup interfaces in **AlgoRecall**.
+This document provides a technical overview of the primary extension dashboard pages and popup interfaces in **AlgoRecall**. All views are implemented as component-driven **Preact single-page applications** (`.tsx`) that mount to minimal HTML shells (`#root`).
 
 ---
 
-## 🖼️ Dashboard Architecture
+## 🖼️ Dashboard Architecture & Preact Module Layout
 
-AlgoRecall provides dedicated HTML/TS popup and dashboard views:
+The dashboard suite is located in `features/dashboard/`:
 
 ```text
 features/dashboard/
-├── popup/           # Extension toolbar popup (search, stats, due list, quick rating)
-├── forecast/        # 30-day review workload forecast chart
-├── pomodoro/        # Persistent Pomodoro focus timer linked to background SW
-├── studyplan/       # AI & algorithmic study plan generator based on due cards & tags
-├── summary/         # Weekly digest generator view
-├── history/         # Chronological review log audit view
-└── heatmap/         # GitHub-style 365-day review activity heatmap
+├── popup/                       # Browser action popup Preact SPA
+│   ├── popup.html               # Minimal HTML entry shell (#root)
+│   ├── popup.css                # Scoped 350px popup viewport stylesheet
+│   ├── popup.tsx                # PopupApp root component & NavigationGrid
+│   ├── stats.tsx                # PopupStatsOverview, DailyGoalRing, GamificationCard
+│   ├── search.tsx               # QuickSearchComponent & PopupSearchResultItem
+│   ├── heatmap.tsx              # PopupHeatmapGrid & PopupHeatmapCell
+│   ├── notifications.tsx        # PopupNotificationSettings & PermissionWarningBanner
+│   ├── rating.tsx               # PopupRatingPromptCard (Web Store review prompt)
+│   └── DashboardComponent.tsx   # DashboardCoordinator contract & base class
+├── forecast/                    # 30-day review workload forecast SPA
+│   ├── forecast.html            # Minimal HTML entry shell (#root)
+│   ├── forecast.css             # Forecast cards & SVG workload bar chart
+│   └── forecast.tsx             # ForecastApp, ForecastMetricsHeader, ForecastCalendar
+├── pomodoro/                    # Persistent Pomodoro focus timer SPA
+│   ├── pomodoro.html            # Minimal HTML entry shell (#root)
+│   ├── pomodoro.css             # Focus/Break timer ring & phase theme styling
+│   └── pomodoro.tsx             # PomodoroApp, PomodoroTimerRing, PomodoroControls
+├── studyplan/                   # Exam Countdown Mode SPA
+│   ├── studyplan.html           # Minimal HTML entry shell (#root)
+│   ├── studyplan.css             # Countdown ring & schedule breakdown table
+│   └── studyplan.tsx            # StudyPlanApp, StudyPlanCountdownRing, SetupPanel
+├── summary/                     # Weekly & monthly digest performance report SPA
+│   ├── summary.html             # Minimal HTML entry shell (#root)
+│   ├── summary.css              # KPI hero cards, insight pills, topic mastery bars
+│   ├── summary.tsx              # SummaryApp, SummaryPeriodTabs, SummaryKpiGrid
+│   └── summaryGenerator.ts      # Pure calculation engine generating digest metrics
+├── history/                     # Chronological review log audit SPA
+│   ├── history.html             # Minimal HTML entry shell (#root)
+│   ├── history.css              # Review timeline, year/month/day drill-down cards
+│   └── history.tsx              # HistoryApp, HistoryViewToggle, HistoryBarChart
+└── heatmap/                     # Full-screen 365-day review activity heatmap SPA
+    ├── heatmap.html             # Minimal HTML entry shell (#root)
+    ├── heatmap.css              # Matrix grid, intensity levels, streak cards
+    ├── heatmap.tsx              # HeatmapApp, HeatmapFilterBar, HeatmapGrid
+    └── heatmap-stats.tsx        # StreakStatCard & streak calculation engine
 ```
 
 ```mermaid
-graph LR
-    subgraph Toolbar Popup
-        P[popup.html / popup.ts]
-        P1[Quick Due Search]
-        P2[Stats Mini-Widget]
-        P3[Heatmap Preview]
+graph TD
+    subgraph Browser_Action_Popup ["Popup SPA (popup.html -> PopupApp)"]
+        PH[PopupHeader: Brand & Theme Toggle]
+        PS[PopupStatsOverview: Total, Due, Retention]
+        PGR[PopupDailyGoalRing: SVG Progress Ring]
+        PGC[PopupGamificationCard: XP Bar & Level]
+        PQS[PopupSearchResultsList: Fast Filter Search]
+        PHM[PopupHeatmapGrid: Mini Contribution Strip]
+        PN[PopupNotificationSettings: Quiet Hours & Alarms]
+        PR[PopupRatingPromptCard: Store Review Trigger]
+        PNAV[PopupNavigationGrid: Launchers to Dedicated Tabs]
     end
 
-    subgraph Dedicated Dashboard Views
-        FC[forecast.html - Workload Forecast]
-        PM[pomodoro.html - Focus Timer]
-        SP[studyplan.html - Study Plan]
-        SM[summary.html - Weekly Digest]
-        HS[history.html - Review Logs]
+    subgraph Dedicated_Preact_Dashboards ["Dedicated Options Tabs (#root)"]
+        FC["ForecastApp (forecast.html)"]
+        PM["PomodoroApp (pomodoro.html)"]
+        SP["StudyPlanApp (studyplan.html)"]
+        SM["SummaryApp (summary.html)"]
+        HS["HistoryApp (history.html)"]
+        HM["HeatmapApp (heatmap.html)"]
+        DATA["DataApp (data.html)"]
+        CONF["FSRSConfigApp (fsrsConfig.html)"]
     end
 
-    P --> FC
-    P --> PM
-    P --> SP
-    P --> SM
-    P --> HS
+    PNAV --> FC
+    PNAV --> PM
+    PNAV --> SP
+    PNAV --> SM
+    PNAV --> HS
+    PNAV --> HM
+    PNAV --> DATA
+    PNAV --> CONF
 ```
 
 ---
 
-## ⏱️ Persistent Pomodoro Timer Sync (`pomodoro.ts`)
+## ⏱️ Persistent Pomodoro Timer Sync (`pomodoro.tsx`)
 
-The Pomodoro module provides a focus timer synchronized between the frontend UI and the background service worker:
+The Pomodoro module provides a focus timer synchronized between the Preact frontend UI (`PomodoroApp`) and the background service worker:
 1. **Running Timer**: When started, target completion timestamp (`targetEndTime`) is written to `pomodoroState` in `chrome.storage.local`.
 2. **Background Ticker**: `AlgoRecallBackground.startPomodoroTick()` updates the extension badge text (`15m`, `45s`) and icon title every second.
 3. **Service Worker Alarm**: A `pomodoroEnd` Chrome alarm is scheduled so that if the background worker goes idle, Chrome wakes it up at exact timer expiration.
@@ -57,13 +97,15 @@ The Pomodoro module provides a focus timer synchronized between the frontend UI 
 sequenceDiagram
     autonumber
     actor User
-    participant UI as Pomodoro UI (pomodoro.html)
+    participant UI as Preact PomodoroApp (pomodoro.tsx)
     participant ST as chrome.storage.local
-    participant BG as Background Service Worker
+    participant BG as Background Service Worker (background.ts)
     participant AL as Chrome Alarms (pomodoroEnd)
 
     User->>UI: Click "Start Focus" (25 min)
+    activate UI
     UI->>ST: Save pomodoroState (state: 'running', targetEndTime, phase: 'focus')
+    deactivate UI
     ST-->>BG: chrome.storage.onChanged event
     BG->>BG: startPomodoroTick() (Updates badge text every second)
     BG->>AL: chrome.alarms.create("pomodoroEnd", { when: targetEndTime })
@@ -78,138 +120,37 @@ sequenceDiagram
     ST-->>UI: Storage sync event updates active UI tab view
 ```
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-    Idle --> Focus: User clicks Start
-    Focus --> ShortBreak: 25 min elapsed (Sessions 1-3)
-    Focus --> LongBreak: 25 min elapsed (Session 4 complete)
-    ShortBreak --> Focus: 5 min break elapsed / User Start
-    LongBreak --> Focus: 15 min long break elapsed / User Start
-    Focus --> Paused: User clicks Pause
-    Paused --> Focus: User clicks Resume
-    Focus --> Idle: User clicks Reset
-    ShortBreak --> Idle: User clicks Reset
-    LongBreak --> Idle: User clicks Reset
-```
-
 ---
 
-## 📊 Forecast & Review Workload (`forecast.ts`)
+## 📊 Forecast & Review Workload (`forecast.tsx`)
 
 The Forecast module projects future review workload across a 30-day window:
-* Iterates over `fsrsCards` in storage.
-* Groups due timestamps (`card.due`) into calendar dates ($YYYY-MM-DD$).
-* Calculates projected review counts per day to help users plan study sessions.
+* **`ForecastMetricsHeader`**: Summarizes upcoming card volume, daily average workload, and today's due load.
+* **`ForecastCalendar`**: Generates a 30-day calendar matrix displaying daily due counts.
+* **`ForecastChart`**: Renders an interactive bar chart of workload intensity using CSS variable scaling.
 
 ---
 
-## 📜 Review History Audit (`history.ts`)
+## 🎯 Exam Countdown Mode (`studyplan.tsx`)
 
-The History view provides an audit trail of all past review interactions:
-* Extracts `historyLog` entries across all stored cards.
-* Displays rating choice (`Again`, `Hard`, `Good`, `Easy`), review date, duration, and stability progression.
-* Filters history by problem title, tag, or rating.
-
----
-
-## ⌨️ Keyboard Shortcuts & Centralized Action Service (`actionService.ts`)
-
-AlgoRecall implements a decoupled, headless action architecture coordinating popup click events and native browser keyboard shortcuts. All user-facing commands route through `ActionService` ([`features/common/services/actionService.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/services/actionService.ts)), executing reliably whether the popup DOM is open or closed.
-
-### 1. Browser Commands API Support (`chrome.commands`)
-The extension registers 24 commands conforming to Chromium's hard limit of at most 4 pre-bound `suggested_key` shortcuts:
-
-* **Pre-Bound Default Shortcuts**:
-  * `_execute_action`: `Ctrl+Shift+A` (macOS: `Cmd+Shift+A`) — Opens AlgoRecall Extension Popup.
-  * `check-due-reviews`: `Alt+Shift+R` (macOS: `Alt+Shift+R`) — Manually triggers due reviews check and updates action icon badge.
-  * `view-due-cards`: `Alt+Shift+D` (macOS: `Alt+Shift+D`) — Opens Data Dashboard filtered to due review queue (`data.html?view=due`).
-  * `open-study-plan`: `Alt+Shift+S` (macOS: `Alt+Shift+S`) — Opens Study Plan Generator (`studyplan.html`).
-
-* **Configurable Commands (Native Browser Shortcut Managers)**:
-  20 additional commands are declared with descriptions in manifests across Chrome, Firefox, and Safari for customized key binding in `chrome://extensions/shortcuts` or `about:addons`:
-  * Toggles: `toggle-theme`, `toggle-floating-marker`, `toggle-algo-launcher`, `toggle-notifications`.
-  * Navigation: `open-analytics`, `open-pomodoro`, `open-forecast`, `open-history`, `open-heatmap`, `open-summary`, `open-highlights`, `open-highlight-options`, `open-data`, `open-fsrs-settings`, `open-websites`, `open-help`, `open-welcome`, `view-all-cards`, `view-retention-cards`.
-  * Data & Reviews: `export-anki`, `export-backup`, `open-rate-extension`.
-
-* **Authoritative Patch Audit**:
-  The complete 53-item user functionality audit, classification, and shortcut mapping is maintained in [`docs/keyboard-shortcuts-audit.patch`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/keyboard-shortcuts-audit.patch).
-
-* **Cross-Browser Store Review Routing (`rateExtension()`)**:
-  Build-time injection via `BROWSER_CONFIG.reviewUrl` automatically directs users to their platform's specific store:
-  * **Chrome**: Dynamic slug formatting using `chrome.runtime.id` to open Chrome Web Store reviews.
-  * **Firefox**: Static slug opening Firefox Add-ons (`addons.mozilla.org`) reviews.
-  * **Safari**: Direct Mac App Store (`apps.apple.com`) product review page routing.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant Browser as Browser Window
-    participant Key as Chrome Commands API
-    participant Popup as Popup UI (popup.html)
-    participant BG as Background Service Worker
-    participant AS as ActionService
-    participant ST as chrome.storage.local
-    participant Tabs as Chrome Tabs API
-
-    alt Triggered via Native Keyboard Shortcut
-        User->>Browser: Press hotkey (e.g. Alt+Shift+D)
-        Browser->>Key: chrome.commands.onCommand
-        Key->>BG: handleCommand("view-due-cards")
-        BG->>AS: executeAction("view-due-cards", { background: hooks })
-    else Triggered via Popup UI Click
-        User->>Popup: Click "View Due Queue" button
-        Popup->>AS: executeAction("view-due-cards")
-    end
-
-    activate AS
-    AS->>AS: Resolve ACTION_URL_MAP ("features/common/data/data.html?view=due")
-    AS->>Tabs: chrome.tabs.create({ url })
-    AS-->>User: Desired view opened in browser tab
-    deactivate AS
-```
+Exam Mode redistributes card intervals evenly between the current date and an upcoming exam target date:
+* **`StudyPlanSetupPanel`**: Form allowing users to choose an exam date and daily review cap.
+* **`StudyPlanCountdownRing`**: Circular SVG dial displaying the days remaining until the target date.
+* **`StudyPlanScheduleTable`**: Detailed breakdown table listing distributed daily problem counts.
+* **Non-Destructive Scheduling**: Saves original computed intervals to `preExamDue` so standard FSRS schedules can be restored when exam mode concludes.
 
 ---
 
-## 🏷️ Due Cards Badge Counter & Preferences
+## 📈 Performance Summary Generator (`summary.tsx` & `summaryGenerator.ts`)
 
-* **Dynamic Action Badge**: The extension action icon dynamically reflects the real-time count of due review cards (`updateDueCardsBadge()`).
-* **User Toggle Control (`badgeEnabled`)**: Users can toggle badge counter visibility on or off in the Popup Notification Settings panel, persisting to `notificationSettings.badgeEnabled` in `chrome.storage.local`.
-* **Instant Sync**: Toggling the preference immediately updates or clears the toolbar badge without requiring a browser reload.
-
-```mermaid
-flowchart TD
-    A["Trigger: Card Reviewed / Storage Changed / Alarm Tick"] --> B["Compute count: cards where due <= Date.now()"]
-    B --> C{"Check notificationSettings.badgeEnabled"}
-    C -- "badgeEnabled: true" --> D{"Is count > 0?"}
-    D -- "Yes" --> E["chrome.action.setBadgeText({ text: String(count) })"]
-    D -- "No (0 cards due)" --> F["chrome.action.setBadgeText({ text: '' })"]
-    C -- "badgeEnabled: false" --> F
-    E --> G["Set badge background color: #e74c3c"]
-```
-
----
-
-## 🚀 Problem Tracker Launcher Toggle (`showLauncher`)
-
-* **Visibility Preference**: A dedicated switch in popup settings allows users to hide the in-page floating quick launcher button (`algo-fsrs-launcher`) on whitelisted problem pages.
-* **Storage Persistence**: Stored under `extensionSettings.showLauncher` in `chrome.storage.local`.
-* **Zero Disruption**: Keyboard shortcuts and context menus remain fully operational even when the visual launcher button is disabled.
-
----
-
-## 🎨 Reusable Brand Identity Component (`algo-brand-pill`)
-
-All standalone dashboard views (`data.html`, `help.html`, `websites.html`, `analytics.html`, `forecast.html`, `heatmap.html`, `history.html`, `pomodoro.html`, `studyplan.html`, `summary.html`, `highlights.html`, `highlightOptions.html`, `fsrsConfig.html`, `editor.html`) embed a unified brand header:
-* Displays the official AlgoRecall icon and title.
-* Dynamic version badge synchronized with the extension manifest.
-* Consistent styling via [`features/common/base.css`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/base.css).
+The Summary module provides automated retrospective digests for weekly or monthly study intervals:
+* **`SummaryKpiGrid`**: Retention percentage, reviews completed, net card growth, and streak days.
+* **`SummaryInsightsList`**: Smart recommendations generated on-the-fly (e.g., identifying lapse clusters).
+* **`SummaryTopicMasteryList`**: Progress bars categorizing topic tags by mastery level and retention rate.
 
 ---
 
 ## 🔗 Related Documentation
-* 📈 [Analytics Engine](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/analytics.md)
-* ⚙️ [Background Service Worker](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/runtime-core/background-service.md)
-* 🎯 [Tracker & Editor](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/tracker.md)
-* ⌨️ [Keyboard Shortcuts Audit Patch](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/keyboard-shortcuts-audit.patch)
+* 📘 [Architecture Overview](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/overview.md)
+* 📈 [Analytics Engine Deep Dive](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/analytics.md)
+* 📦 [State Management Architecture](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/state-management.md)

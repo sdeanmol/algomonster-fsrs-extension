@@ -1,102 +1,191 @@
 # State Management Architecture
 
-This document describes how state is managed and distributed across extension contexts in **AlgoRecall**. It details the `StorageData` schema, local storage reactivity via `chrome.storage.onChanged`, transient UI state, and cross-tab synchronization.
+This document describes how state is managed, distributed, and synchronized across extension execution contexts in **AlgoRecall**. It details the separation between **Preact component state** and **persistent extension storage**, the reactive `useStorage` custom hook, `chrome.storage.local` schemas, and cross-context reactivity via `chrome.storage.onChanged`.
 
 ---
 
-## 🗄️ Storage Schema (`types/domain.ts`)
+## 🗄️ Architecture: Separation of State Concerns
 
-AlgoRecall uses `chrome.storage.local` as its single source of truth. All domain entities, parameters, user preferences, and activity logs are stored under specific keys within the `StorageData` interface.
-
-```typescript
-export interface StorageData {
-    fsrsCards?: Card[];
-    fsrsActivity?: { [date: string]: number };
-    fsrsTopicWeights?: { [topic: string]: number[] };
-    fsrsGlobalParams?: FSRSParameters | Partial<FSRSParameters>;
-    notificationSettings?: NotificationSettings; // contains enabled, frequency, badgeEnabled
-    whitelistedWebsites?: WhitelistedWebsite[];
-    extensionSettings?: ExtensionSettings;       // contains showMarkerPopup, showLauncher, palettes
-    theme?: string;                              // 'dark' | 'light' (defaults to DEFAULT_THEME)
-    marks?: HighlightMark[];
-    bookmarks?: BookmarkItem[];
-    pomodoroState?: PomodoroState;
-    pomodoroSettings?: PomodoroSettings;
-    pomodoroStats?: PomodoroStats;
-    userSettings?: UserSettings;
-    [key: string]: unknown;
-}
-```
-
-> **Centralized Defaults**: All fallback values and initial schemas are maintained in [`features/common/constants.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/constants.ts) (`DEFAULT_EXTENSION_SETTINGS`, `DEFAULT_NOTIFICATION_SETTINGS`, `DEFAULT_POMODORO_SETTINGS`, etc.) to guarantee consistent behavior across content scripts, service workers, and popup components.
-
----
-
-## 🔄 Reactive Storage Sync (`chrome.storage.onChanged`)
-
-Because extension contexts (Content Scripts, Service Worker, Popup, Analytics) run in isolated JavaScript environments, state synchronization is achieved through `chrome.storage.onChanged` event listeners.
+In a Manifest V3 browser extension built with Preact, state management spans three distinct architectural boundaries:
 
 ```mermaid
 graph TD
-    subgraph State Origin
-        A[User Action in Popup / Content Script]
+    subgraph Preact_Component_Tree ["1. Preact Component State (In-Memory / Reactivity)"]
+        HOOKS["Hooks: useState, useMemo, useCallback, useRef"]
+        CUSTOM_HOOK["Custom Hook: useStorage<T>(key, defaultValue)"]
+        PROPS["Unidirectional Props Distribution (Parent -> Child)"]
+        HOOKS --> PROPS
+        CUSTOM_HOOK --> HOOKS
     end
 
-    subgraph Storage Layer
-        B[(chrome.storage.local.set)]
+    subgraph Browser_Storage ["2. Persistent Extension Storage (Single Source of Truth)"]
+        LOCAL[("chrome.storage.local (Permanent Domain Models & Config)")]
+        ON_CHANGED["chrome.storage.onChanged Event Broadcaster"]
+        LOCAL --> ON_CHANGED
     end
 
-    subgraph Reactive Subscriptions
-        C[Content Script: AlgoRecallOrchestrator.handleStorageChanged]
-        D[Background Worker: AlgoRecallBackground.handleStorageChanged]
-        E[Open Dashboard Tabs / Popups]
+    subgraph Extension_Contexts ["3. Non-Preact Execution Contexts"]
+        BG_MEM["Background Service Worker Memory (Ephemeral State)"]
+        CONTENT_MEM["Content Script Memory: window.AlgoRecall.state"]
     end
 
-    A -->|Write Changes| B
-    B -->|Broadcast Event| C
-    B -->|Broadcast Event| D
-    B -->|Broadcast Event| E
-
-    C -->|Update Local State| F[Re-render Highlights & Refresh Tracker Widget]
-    D -->|Update Alarms| G[Reschedule Review & Summary Alarms]
-    E -->|Re-render UI| H[Redraw Charts & Update Stats]
+    CUSTOM_HOOK <-->|"Async Get / Set"| LOCAL
+    ON_CHANGED -->|"Automatic Re-render"| CUSTOM_HOOK
+    BG_MEM <-->|"Read / Write"| LOCAL
+    CONTENT_MEM <-->|"Read / Write"| LOCAL
+    ON_CHANGED -->|"Event Listener"| BG_MEM
+    ON_CHANGED -->|"Event Listener"| CONTENT_MEM
 ```
 
-### Content Script Handler Example (`content/content.ts`)
+---
+
+## ⚛️ Preact Reactive State & The `useStorage` Hook
+
+To prevent state drift between Preact components and `chrome.storage.local`, AlgoRecall utilizes a custom reactive hook: [`features/common/ui/hooks/useStorage.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/ui/hooks/useStorage.ts).
+
+### Hook Contract & Synchronization Mechanism
+
 ```typescript
-handleStorageChanged(changes: { [key: string]: chrome.storage.StorageChange }, areaName: string): void {
-    if (areaName === 'local') {
-        if (changes.fsrsCards) {
-            this.state.cards = (changes.fsrsCards.newValue as Card[]) || [];
-            this.tracker.refreshWidgetState();
+export function useStorage<T>(
+    key: string,
+    defaultValue: T
+): [T, (newValue: T | ((prev: T) => T)) => Promise<void>, boolean] {
+    const [value, setValue] = useState<T>(defaultValue);
+    const [loading, setLoading] = useState<boolean>(true);
+
+    // 1. Initial fetch from chrome.storage.local
+    useEffect(() => {
+        let isMounted = true;
+        chrome.storage.local.get([key], (result) => {
+            if (isMounted && result && result[key] !== undefined) {
+                setValue(result[key] as T);
+            }
+            if (isMounted) setLoading(false);
+        });
+
+        // 2. React to external changes from other tabs or background worker
+        const handleStorageChange = (changes: { [k: string]: chrome.storage.StorageChange }, area: string) => {
+            if (area === 'local' && changes[key] && isMounted) {
+                setValue(changes[key].newValue as T);
+            }
+        };
+
+        chrome.storage.onChanged.addListener(handleStorageChange);
+        return () => {
+            isMounted = false;
+            chrome.storage.onChanged.removeListener(handleStorageChange);
+        };
+    }, [key]);
+
+    // 3. Setter function that atomically persists to chrome.storage.local
+    const updateValue = useCallback(async (newValueOrUpdater: T | ((prev: T) => T)): Promise<void> => {
+        let resolvedValue: T;
+        if (typeof newValueOrUpdater === 'function') {
+            const currentData = await chrome.storage.local.get([key]);
+            const currentVal = currentData?.[key] !== undefined ? currentData[key] : value;
+            resolvedValue = (newValueOrUpdater as (prev: T) => T)(currentVal);
+        } else {
+            resolvedValue = newValueOrUpdater;
         }
-        if (changes.marks) {
-            this.state.marks = (changes.marks.newValue as unknown[]) || [];
-            this.highlighter.applyHighlightsForCurrentPage();
-        }
-        if (changes.theme) {
-            this.state.currentTheme = changes.theme.newValue || 'dark';
-            this.applyThemeClass();
-        }
-    }
+        setValue(resolvedValue);
+        await chrome.storage.local.set({ [key]: resolvedValue });
+    }, [key, value]);
+
+    return [value, updateValue, loading];
+}
+```
+
+### Architectural Benefits of `useStorage`
+1. **Zero State Drift**: UI components always reflect the latest storage values, even when modified by background alarms or other tabs.
+2. **Optimistic UI Updates**: Local Preact state updates immediately (`setValue(resolvedValue)`), followed by asynchronous persistence.
+3. **Stale Closure Protection**: Updater functions `(prev => next)` fetch the latest storage state to prevent race conditions during rapid state transitions.
+4. **Automatic Resource Cleanup**: Event listeners are unregistered upon component unmount, preventing memory leaks.
+
+---
+
+## 🗄️ Domain Storage Schema (`types/domain.ts`)
+
+`chrome.storage.local` holds all persistent domain models, configuration objects, and study logs.
+
+```typescript
+export interface StorageData {
+    /** Tracked algorithmic flashcards with FSRS stability, difficulty, and review history */
+    fsrsCards?: Card[];
+    /** Daily review count activity map: { [isoDate "YYYY-MM-DD"]: count } */
+    fsrsActivity?: { [date: string]: number };
+    /** Custom per-topic FSRS weight multipliers: { [topicTag]: number[] } */
+    fsrsTopicWeights?: { [topic: string]: number[] };
+    /** Global personalized FSRS-4.5 algorithm weights and target retention */
+    fsrsGlobalParams?: FSRSParameters | Partial<FSRSParameters>;
+    /** Desktop and in-page notification preferences and check intervals */
+    notificationSettings?: NotificationSettings;
+    /** Whitelisted website domains where content scripts are active */
+    whitelistedWebsites?: WhitelistedWebsite[];
+    /** General UI preferences (palette selections, launcher toggle, marker toggle) */
+    extensionSettings?: ExtensionSettings;
+    /** Active visual theme ('dark' | 'light') */
+    theme?: string;
+    /** Persisted text highlight mark annotations across web pages */
+    marks?: HighlightMark[];
+    /** Saved problem page bookmarks */
+    bookmarks?: BookmarkItem[];
+    /** Live Pomodoro timer status ('idle' | 'running' | 'paused') and target timestamp */
+    pomodoroState?: PomodoroState;
+    /** Pomodoro session duration preferences (focus, short break, long break) */
+    pomodoroSettings?: PomodoroSettings;
+    /** Pomodoro study statistics (daily session counts, total focus minutes) */
+    pomodoroStats?: PomodoroStats;
+    /** User study plan and exam countdown deadline configuration */
+    studyPlanSettings?: StudyPlanSettings;
 }
 ```
 
 ---
 
-## ⚡ Transient State vs. Persistent State
+## 🔄 Multi-Context Data Synchronization Flow
 
-| State Category | Lifecycle | Storage Location | Example Entities |
-| :--- | :--- | :--- | :--- |
-| **Persistent Domain Data** | Permanent across sessions | `chrome.storage.local` | `fsrsCards`, `marks`, `bookmarks`, `fsrsActivity` |
-| **Persistent User Config** | Permanent across sessions | `chrome.storage.local` | `notificationSettings`, `fsrsGlobalParams`, `theme` |
-| **Transient Pomodoro State** | Active countdown session | `chrome.storage.local` + SW memory | `pomodoroState`, `targetEndTime` |
-| **Transient Content State** | In-memory during page session | `window.AlgoRecall.state` | `activeMarkRanges`, `hoveredMarkId`, `debounceTimer` |
+Because extension execution contexts run in separate JavaScript runtimes, state mutations must propagate reliably.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UI as Preact Component (e.g. PopupApp / DataApp)
+    participant Hook as useStorage Hook
+    participant Storage as chrome.storage.local
+    participant Content as Content Script (AlgoRecallOrchestrator)
+    participant BG as Background Worker (AlgoRecallBackground)
+
+    UI->>Hook: updateValue(newSettings)
+    activate Hook
+    Hook->>UI: setValue(newSettings) [Optimistic Re-render]
+    Hook->>Storage: chrome.storage.local.set({ notificationSettings })
+    deactivate Hook
+    activate Storage
+    Storage-->>Hook: chrome.storage.onChanged event fired
+    Storage-->>Content: chrome.storage.onChanged event fired
+    Storage-->>BG: chrome.storage.onChanged event fired
+    deactivate Storage
+
+    Content->>Content: Re-render floating widgets / update active theme
+    BG->>BG: Reschedule background alarms (checkFsrsReviews, weeklySummary)
+```
+
+---
+
+## ⚡ State Lifecycle Comparison Matrix
+
+| State Type | Execution Scope | Lifecycle | Storage Mechanism | Reactivity Trigger |
+| :--- | :--- | :--- | :--- | :--- |
+| **Component Local** | Individual Preact Component | Lifetime of mounted component | In-memory `useState` / `useRef` | State setter calls |
+| **Component Shared** | Preact Component Tree | Prop-drilled across views | Preact Props interfaces | Parent re-render |
+| **Storage-Backed Reactive** | Preact SPAs (`popup`, `data`, etc.) | Permanent across browser restarts | `useStorage` + `chrome.storage.local` | `chrome.storage.onChanged` |
+| **Content In-Memory** | Content Script Tab | Tab page lifetime | `window.AlgoRecall.state` | DOM events, MutationObserver |
+| **Background Ephemeral**| Service Worker | Ephemeral (terminated when idle) | Restored on demand from `chrome.storage.local` | Alarm / Message wakeups |
 
 ---
 
 ## 🔗 Related Documentation
 * 📘 [Architecture Overview](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/overview.md)
-* 🔄 [End-to-End Data Flow](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/data-flow.md)
-* 📐 [Global Types & Utilities](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/runtime-core/utils-and-types.md)
-* 🛠️ [Customization Guide](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/CUSTOMIZATION.md)
+* 🔄 [End-to-End Data Pipelines](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/data-flow.md)
+* 🛠️ [Common Utilities & Shared Components](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/common.md)
+* 📊 [Dashboard & Views Documentation](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/dashboard.md)
