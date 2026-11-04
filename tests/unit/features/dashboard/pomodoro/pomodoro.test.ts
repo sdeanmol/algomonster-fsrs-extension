@@ -402,14 +402,23 @@ describe('PomodoroTimer', () => {
       expect(() => document.getElementById('save-settings-btn')?.click()).not.toThrow();
     });
 
-    it('UX-011: start and pause buttons in pomodoro.html have accessible aria-labels', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const htmlPath = path.resolve(__dirname, '../../../../../features/dashboard/pomodoro/pomodoro.html');
-      const html = fs.readFileSync(htmlPath, 'utf8');
+    it('UX-011: start and pause buttons have accessible aria-labels and titles in PomodoroApp', () => {
+      const { render: preactRender } = require('preact');
+      const { PomodoroApp } = require('../../../../../features/dashboard/pomodoro/pomodoro');
+      const testContainer = document.createElement('div');
+      document.body.appendChild(testContainer);
 
-      expect(html).toContain('id="start-btn" class="btn btn-primary btn-round" title="Start Timer" aria-label="Start Timer"');
-      expect(html).toContain('id="pause-btn" class="btn btn-secondary btn-round" style="display:none;" title="Pause Timer" aria-label="Pause Timer"');
+      preactRender(require('preact').h(PomodoroApp, { timer }), testContainer);
+
+      const startBtn = testContainer.querySelector('#start-btn');
+      const pauseBtn = testContainer.querySelector('#pause-btn');
+
+      expect(startBtn?.getAttribute('aria-label')).toBe('Start Timer');
+      expect(startBtn?.getAttribute('title')).toBe('Start Timer');
+      expect(pauseBtn?.getAttribute('aria-label')).toBe('Pause Timer');
+      expect(pauseBtn?.getAttribute('title')).toBe('Pause Timer');
+
+      testContainer.remove();
     });
   });
 });

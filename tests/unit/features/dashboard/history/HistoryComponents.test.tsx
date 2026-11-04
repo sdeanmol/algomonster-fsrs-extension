@@ -8,7 +8,9 @@ import {
     HistoryViewToggle,
     HistoryBreadcrumb,
     HistorySummaryCard,
-    HistoryBarChart
+    HistoryBarChart,
+    HistoryApp,
+    FSRSHistoryDashboard
 } from '../../../../../features/dashboard/history/history';
 
 describe('History Preact Components', () => {
@@ -137,6 +139,46 @@ describe('History Preact Components', () => {
 
             (bars[0] as HTMLElement).click();
             expect(onBarAction).toHaveBeenCalled();
+        });
+    });
+
+    describe('HistoryApp', () => {
+        it('renders the complete HistoryApp tree including header, breadcrumb, and chart', () => {
+            const dashboard = new FSRSHistoryDashboard();
+            dashboard.activityData = { '2026-05-10': 3, '2025-11-20': 1 };
+            dashboard.extensionSettings = { showCharts: true };
+
+            render(<HistoryApp dashboard={dashboard} />, container);
+
+            expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+            expect(container.querySelector('h1')?.textContent).toContain('Review Activity History');
+            expect(container.querySelector('#breadcrumb')?.textContent).toBe('All Years');
+            expect(container.querySelector('#view-year')?.classList.contains('active')).toBe(true);
+            expect(container.querySelector('#history-chart-wrapper')).not.toBeNull();
+            expect(container.querySelectorAll('.card-year').length).toBe(2);
+        });
+
+        it('switches views via ViewToggle buttons in HistoryApp', async () => {
+            const dashboard = new FSRSHistoryDashboard();
+            dashboard.activityData = { '2026-05-10': 3 };
+
+            render(<HistoryApp dashboard={dashboard} />, container);
+
+            const monthBtn = container.querySelector('#view-month') as HTMLButtonElement;
+            monthBtn.click();
+            await Promise.resolve();
+
+            expect(container.querySelector('#view-month')?.classList.contains('active')).toBe(true);
+            expect(container.querySelector('#breadcrumb')?.textContent).toContain('All Years > 2026');
+        });
+
+        it('shows empty state when no activity data exists', () => {
+            const dashboard = new FSRSHistoryDashboard();
+            dashboard.activityData = {};
+
+            render(<HistoryApp dashboard={dashboard} />, container);
+
+            expect(container.textContent).toContain('No contribution activity recorded yet');
         });
     });
 });

@@ -2,7 +2,7 @@
   @file features/dashboard/pomodoro/pomodoro.html
   @context Options / Dedicated Tab UI
   @description Dedicated Pomodoro Study Timer page featuring configurable focus and break intervals, visual SVG timer progress ring, session counter dots, and daily focus statistics.
-  @linked-scripts features/common/theme-sync.js, features/dashboard/pomodoro/pomodoro.ts (compiled to pomodoro.js)
+  @linked-scripts features/common/theme-sync.js, features/dashboard/pomodoro/pomodoro.js
   @linked-styles features/common/base.css, features/dashboard/pomodoro/pomodoro.css
 -->
 <!DOCTYPE html>
@@ -16,119 +16,7 @@
     <link rel="stylesheet" href="pomodoro.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="pomodoro-header">
-            <div class="algorecall-brand-badge">
-                <svg class="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path>
-                    <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path>
-                    <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path>
-                </svg>
-                <span class="algorecall-brand-name">AlgoRecall</span>
-            </div>
-            <h1 class="pomodoro-title">Pomodoro Timer</h1>
-        </header>
-
-        <!-- Phase Indicator: Reflects current timer state (.active, .break-active) toggled by pomodoro.ts -->
-        <div class="phase-indicator">
-            <div class="phase-pill active" id="phase-focus">Focus</div>
-            <div class="phase-pill" id="phase-short-break">Short Break</div>
-            <div class="phase-pill" id="phase-long-break">Long Break</div>
-        </div>
-
-        <!-- Timer Display: SVG countdown ring and time label -->
-        <div class="timer-section">
-            <div class="timer-ring-wrap">
-                <svg class="timer-ring-svg" viewBox="0 0 200 200">
-                    <circle class="timer-ring-bg" cx="100" cy="100" r="88" />
-                    <!-- Dynamic stroke-dashoffset updated every tick by pomodoro.ts -->
-                    <circle class="timer-ring-fill" id="timer-ring-fill" cx="100" cy="100" r="88" />
-                </svg>
-                <div class="timer-display">
-                    <!-- Formatted MM:SS time display -->
-                    <span class="timer-time" id="timer-time">25:00</span>
-                    <span class="timer-phase-label" id="timer-phase-label">Focus Time</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Controls: Timer state handlers wired in pomodoro.ts -->
-        <div class="controls">
-            <!-- Start timer trigger -->
-            <button id="start-btn" class="btn btn-primary btn-round" title="Start Timer" aria-label="Start Timer">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width:20px;height:20px;" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-            </button>
-            <!-- Pause timer trigger (swapped with start-btn when running) -->
-            <button id="pause-btn" class="btn btn-secondary btn-round" style="display:none;" title="Pause Timer" aria-label="Pause Timer">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width:20px;height:20px;" aria-hidden="true"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-            </button>
-            <!-- Reset timer to beginning of current phase -->
-            <button id="reset-btn" class="btn btn-secondary btn-round-sm" title="Reset Timer" aria-label="Reset Timer">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width:16px;height:16px;" aria-hidden="true"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-            </button>
-            <!-- Skip to next phase (focus -> break or break -> focus) -->
-            <button id="skip-btn" class="btn btn-secondary btn-round-sm" title="Skip to Next Phase" aria-label="Skip to Next Phase">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width:16px;height:16px;" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
-            </button>
-        </div>
-
-        <!-- Session Counter: Dot indicators showing progress towards long break threshold -->
-        <div class="session-counter">
-            <span class="session-label">Session</span>
-            <div class="session-dots" id="session-dots">
-                <div class="session-dot active"></div>
-                <div class="session-dot"></div>
-                <div class="session-dot"></div>
-                <div class="session-dot"></div>
-            </div>
-            <span class="session-text" id="session-text">1 of 4</span>
-        </div>
-
-        <!-- Today's Stats: Aggregated focus time and completed sessions stored in chrome.storage -->
-        <div class="today-stats">
-            <div class="today-stat">
-                <span class="today-stat-value" id="today-sessions">0</span>
-                <span class="today-stat-label">Sessions Today</span>
-            </div>
-            <div class="today-stat">
-                <span class="today-stat-value" id="today-focus-time">0m</span>
-                <span class="today-stat-label">Focus Time</span>
-            </div>
-        </div>
-
-        <!-- Settings: Configurable phase durations and cycle counts -->
-        <details class="settings-panel">
-            <summary class="settings-toggle">
-                <svg class="svg-icon" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:6px;" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                Timer Settings
-            </summary>
-            <div class="settings-body">
-                <div class="settings-row">
-                    <div class="setting-group">
-                        <label for="focus-duration">Focus (min)</label>
-                        <input type="number" id="focus-duration" class="input-field setting-input" value="25" min="1" max="120">
-                    </div>
-                    <div class="setting-group">
-                        <label for="short-break-duration">Short Break (min)</label>
-                        <input type="number" id="short-break-duration" class="input-field setting-input" value="5" min="1" max="30">
-                    </div>
-                    <div class="setting-group">
-                        <label for="long-break-duration">Long Break (min)</label>
-                        <input type="number" id="long-break-duration" class="input-field setting-input" value="15" min="1" max="60">
-                    </div>
-                    <div class="setting-group">
-                        <label for="sessions-count">Sessions Before Long Break</label>
-                        <input type="number" id="sessions-count" class="input-field setting-input" value="4" min="2" max="10">
-                    </div>
-                </div>
-                <!-- Save settings trigger: saves durations to chrome.storage.local (pomodoro.ts) -->
-                <button id="save-settings-btn" class="btn btn-primary btn-sm" style="margin-top: 12px;">Save Settings</button>
-            </div>
-        </details>
-    </div>
-
-    <!-- Timer engine controller script -->
+    <div id="root"></div>
     <script src="pomodoro.js"></script>
 </body>
 </html>

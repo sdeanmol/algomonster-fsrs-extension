@@ -23,6 +23,7 @@
  */
 
 import { h, Fragment, render, VNode } from 'preact';
+import { useState, useEffect, useMemo } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { StorageData } from '../../../types/domain';
@@ -324,6 +325,237 @@ export function PomodoroSettingsForm({ settings, onSave }: PomodoroSettingsFormP
     );
 }
 
+export interface PomodoroAppProps {
+    timer?: PomodoroTimer;
+}
+
+/**
+ * Root Preact Component for the full Pomodoro Study Timer page.
+ * Renders header, phase pill selectors, SVG timer ring, control buttons, session dots,
+ * today's stats, and configurable timer settings.
+ */
+export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
+    const timer = useMemo(() => initialTimer || new PomodoroTimer(), [initialTimer]);
+    const [, setTick] = useState(0);
+
+    useEffect(() => {
+        if (!initialTimer) {
+            timer.init();
+        }
+        const interval = setInterval(() => {
+            setTick((t) => t + 1);
+        }, 500);
+        return () => clearInterval(interval);
+    }, [timer, initialTimer]);
+
+    const mins = Math.floor(timer.timeRemaining / 60);
+    const secs = timer.timeRemaining % 60;
+    const formattedTime = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    let phaseLabel = 'Focus Time';
+    if (timer.phase === 'shortBreak') phaseLabel = 'Short Break';
+    if (timer.phase === 'longBreak') phaseLabel = 'Long Break';
+
+    const circumference = 2 * Math.PI * 88;
+    const progress = timer.totalTime > 0 ? (timer.totalTime - timer.timeRemaining) / timer.totalTime : 0;
+    const offset = circumference * (1 - progress);
+
+    return (
+        <div className="container">
+            <header className="pomodoro-header">
+                <div className="algorecall-brand-badge">
+                    <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                        <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                        <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                    </svg>
+                    <span className="algorecall-brand-name">AlgoRecall</span>
+                </div>
+                <h1 className="pomodoro-title">Pomodoro Timer</h1>
+            </header>
+
+            <div className="phase-indicator">
+                <div
+                    id="phase-focus"
+                    className={`phase-pill ${timer.phase === 'focus' ? 'active' : ''}`}
+                    onClick={() => { timer.phase = 'focus'; timer.reset(); setTick((t) => t + 1); }}
+                >
+                    Focus
+                </div>
+                <div
+                    id="phase-short-break"
+                    className={`phase-pill ${timer.phase === 'shortBreak' ? 'active' : ''}`}
+                    onClick={() => { timer.phase = 'shortBreak'; timer.reset(); setTick((t) => t + 1); }}
+                >
+                    Short Break
+                </div>
+                <div
+                    id="phase-long-break"
+                    className={`phase-pill ${timer.phase === 'longBreak' ? 'active' : ''}`}
+                    onClick={() => { timer.phase = 'longBreak'; timer.reset(); setTick((t) => t + 1); }}
+                >
+                    Long Break
+                </div>
+            </div>
+
+            <div className="timer-section">
+                <div className="timer-ring-wrap">
+                    <svg className="timer-ring-svg" viewBox="0 0 200 200">
+                        <circle className="timer-ring-bg" cx="100" cy="100" r="88" />
+                        <circle
+                            className={`timer-ring-fill ${timer.phase !== 'focus' ? 'break-ring' : ''}`}
+                            id="timer-ring-fill"
+                            cx="100"
+                            cy="100"
+                            r="88"
+                            strokeDasharray={String(circumference)}
+                            strokeDashoffset={String(offset)}
+                        />
+                    </svg>
+                    <div className="timer-display">
+                        <span className="timer-time" id="timer-time">{formattedTime}</span>
+                        <span className="timer-phase-label" id="timer-phase-label">{phaseLabel}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="controls">
+                <button
+                    id="start-btn"
+                    className="btn btn-primary btn-round"
+                    title="Start Timer"
+                    aria-label="Start Timer"
+                    style={{ display: timer.state === 'running' ? 'none' : 'flex' }}
+                    onClick={() => { timer.start(); setTick((t) => t + 1); }}
+                >
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }} aria-hidden="true">
+                        <polygon points="5 3 19 12 5 21 5 3" fill="currentColor" />
+                    </svg>
+                </button>
+                <button
+                    id="pause-btn"
+                    className="btn btn-secondary btn-round"
+                    title="Pause Timer"
+                    aria-label="Pause Timer"
+                    style={{ display: timer.state === 'running' ? 'flex' : 'none' }}
+                    onClick={() => { timer.pause(); setTick((t) => t + 1); }}
+                >
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }} aria-hidden="true">
+                        <rect x="6" y="4" width="4" height="16" fill="currentColor" />
+                        <rect x="14" y="4" width="4" height="16" fill="currentColor" />
+                    </svg>
+                </button>
+                <button
+                    id="reset-btn"
+                    className="btn btn-secondary btn-round-sm"
+                    title="Reset Timer"
+                    aria-label="Reset Timer"
+                    onClick={() => { timer.reset(); setTick((t) => t + 1); }}
+                >
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '16px', height: '16px' }} aria-hidden="true">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                    </svg>
+                </button>
+                <button
+                    id="skip-btn"
+                    className="btn btn-secondary btn-round-sm"
+                    title="Skip to Next Phase"
+                    aria-label="Skip to Next Phase"
+                    onClick={() => { timer.skip(); setTick((t) => t + 1); }}
+                >
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '16px', height: '16px' }} aria-hidden="true">
+                        <polygon points="5 4 15 12 5 20 5 4" />
+                        <line x1="19" y1="5" x2="19" y2="19" />
+                    </svg>
+                </button>
+            </div>
+
+            <div className="session-counter">
+                <span className="session-label">Session</span>
+                <div className="session-dots" id="session-dots">
+                    {Array.from({ length: timer.settings.sessionsBeforeLongBreak }).map((_, idx) => {
+                        const sessionNum = idx + 1;
+                        let dotClass = 'session-dot';
+                        if (sessionNum < timer.currentSession) dotClass += ' complete';
+                        else if (sessionNum === timer.currentSession) dotClass += ' active';
+                        return <div key={sessionNum} className={dotClass} />;
+                    })}
+                </div>
+                <span className="session-text" id="session-text">
+                    {`${timer.currentSession} of ${timer.settings.sessionsBeforeLongBreak}`}
+                </span>
+            </div>
+
+            <div className="today-stats">
+                <div className="today-stat">
+                    <span className="today-stat-value" id="today-sessions">{timer.todaySessions}</span>
+                    <span className="today-stat-label">Sessions Today</span>
+                </div>
+                <div className="today-stat">
+                    <span className="today-stat-value" id="today-focus-time">
+                        {timer.todayFocusMinutes >= 60
+                            ? `${Math.floor(timer.todayFocusMinutes / 60)}h ${timer.todayFocusMinutes % 60}m`
+                            : `${timer.todayFocusMinutes}m`}
+                    </span>
+                    <span className="today-stat-label">Focus Time</span>
+                </div>
+            </div>
+
+            <details className="settings-panel">
+                <summary className="settings-toggle">
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', marginRight: '6px' }} aria-hidden="true">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                    Timer Settings
+                </summary>
+                <div className="settings-body">
+                    <div className="settings-row">
+                        <div className="setting-group">
+                            <label htmlFor="focus-duration">Focus (min)</label>
+                            <input type="number" id="focus-duration" className="input-field setting-input" defaultValue={timer.settings.focusDuration} min={1} max={120} />
+                        </div>
+                        <div className="setting-group">
+                            <label htmlFor="short-break-duration">Short Break (min)</label>
+                            <input type="number" id="short-break-duration" className="input-field setting-input" defaultValue={timer.settings.shortBreakDuration} min={1} max={30} />
+                        </div>
+                        <div className="setting-group">
+                            <label htmlFor="long-break-duration">Long Break (min)</label>
+                            <input type="number" id="long-break-duration" className="input-field setting-input" defaultValue={timer.settings.longBreakDuration} min={1} max={60} />
+                        </div>
+                        <div className="setting-group">
+                            <label htmlFor="sessions-count">Sessions Before Long Break</label>
+                            <input type="number" id="sessions-count" className="input-field setting-input" defaultValue={timer.settings.sessionsBeforeLongBreak} min={2} max={10} />
+                        </div>
+                    </div>
+                    <button
+                        id="save-settings-btn"
+                        className="btn btn-primary btn-sm"
+                        style={{ marginTop: '12px' }}
+                        onClick={() => {
+                            const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
+                            const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
+                            const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
+                            const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
+
+                            const newSettings: PomodoroSettings = {
+                                focusDuration: focusInput ? parseInt(focusInput.value, 10) || timer.settings.focusDuration : timer.settings.focusDuration,
+                                shortBreakDuration: shortInput ? parseInt(shortInput.value, 10) || timer.settings.shortBreakDuration : timer.settings.shortBreakDuration,
+                                longBreakDuration: longInput ? parseInt(longInput.value, 10) || timer.settings.longBreakDuration : timer.settings.longBreakDuration,
+                                sessionsBeforeLongBreak: sessionsInput ? parseInt(sessionsInput.value, 10) || timer.settings.sessionsBeforeLongBreak : timer.settings.sessionsBeforeLongBreak
+                            };
+                            timer.saveSettings(newSettings);
+                            setTick((t) => t + 1);
+                        }}
+                    >
+                        Save Settings
+                    </button>
+                </div>
+            </details>
+        </div>
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POMODORO CONTROLLER CLASS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -366,6 +598,15 @@ export class PomodoroTimer {
 
         this.todaySessions = 0;
         this.todayFocusMinutes = 0;
+    }
+
+    /**
+     * Formats total seconds into MM:SS display string.
+     */
+    formatTime(totalSeconds: number): string {
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
 
     /**
@@ -600,22 +841,33 @@ export class PomodoroTimer {
     }
 
     /**
+     * Resets current interval and timer state back to beginning of active phase.
+     */
+    resetTimer(): void {
+        this.reset();
+    }
+
+    /**
      * Reads updated durations from settings modal inputs and persists them to storage.
      * @fires chrome.storage.local.set
      */
-    saveSettings(): void {
+    saveSettings(newSettings?: Partial<PomodoroSettings>): void {
         try {
-            const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
-            const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
-            const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
-            const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
+            if (newSettings) {
+                this.settings = { ...this.settings, ...newSettings };
+            } else {
+                const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
+                const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
+                const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
+                const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
 
-            const focusDuration = parseInt(focusInput?.value || '25', 10) || 25;
-            const shortBreakDuration = parseInt(shortInput?.value || '5', 10) || 5;
-            const longBreakDuration = parseInt(longInput?.value || '15', 10) || 15;
-            const sessionsBeforeLongBreak = parseInt(sessionsInput?.value || '4', 10) || 4;
+                const focusDuration = parseInt(focusInput?.value || '25', 10) || 25;
+                const shortBreakDuration = parseInt(shortInput?.value || '5', 10) || 5;
+                const longBreakDuration = parseInt(longInput?.value || '15', 10) || 15;
+                const sessionsBeforeLongBreak = parseInt(sessionsInput?.value || '4', 10) || 4;
 
-            this.settings = { focusDuration, shortBreakDuration, longBreakDuration, sessionsBeforeLongBreak };
+                this.settings = { focusDuration, shortBreakDuration, longBreakDuration, sessionsBeforeLongBreak };
+            }
 
             chrome.storage.local.set({ pomodoroSettings: this.settings }, () => {
                 try {
@@ -945,12 +1197,19 @@ export class PomodoroTimer {
  */
 function initPomodoro(): void {
     try {
-        const win = window as unknown as { pomodoro?: PomodoroTimer };
-        win.pomodoro = new PomodoroTimer();
-        win.pomodoro.init();
-    } catch (err) {
-            UIUtils.catchError('PomodoroTimer', 'Initialization failed', err);
+        const root = document.getElementById('root');
+        if (root) {
+            const win = window as unknown as { pomodoro?: PomodoroTimer };
+            win.pomodoro = new PomodoroTimer();
+            render(<PomodoroApp timer={win.pomodoro} />, root);
+        } else {
+            const win = window as unknown as { pomodoro?: PomodoroTimer };
+            win.pomodoro = new PomodoroTimer();
+            win.pomodoro.init();
         }
+    } catch (err) {
+        UIUtils.catchError('PomodoroTimer', 'Initialization failed', err);
+    }
 }
 
 if (typeof document !== 'undefined') {
@@ -968,6 +1227,7 @@ if (typeof module !== "undefined" && module.exports) {
     (module.exports as any).PomodoroStatsDisplay = PomodoroStatsDisplay;
     (module.exports as any).PomodoroControls = PomodoroControls;
     (module.exports as any).PomodoroSettingsForm = PomodoroSettingsForm;
+    (module.exports as any).PomodoroApp = PomodoroApp;
     (module.exports as any).PomodoroTimer = PomodoroTimer;
     (module.exports as any).initPomodoro = initPomodoro;
 }

@@ -2,7 +2,7 @@
   @file features/dashboard/heatmap/heatmap.html
   @context Options / Dedicated Tab UI
   @description Dedicated Full-Screen Activity Heatmap page — displays year-to-date and lifetime algorithmic review frequencies, interactive intensity levels, streak gamification stats, and date filter dropdowns.
-  @linked-scripts features/common/theme-sync.js, features/dashboard/heatmap/heatmap.ts (compiled to heatmap.js), features/dashboard/heatmap/heatmap-stats.ts
+  @linked-scripts features/common/theme-sync.js, features/dashboard/heatmap/heatmap.js
   @linked-styles features/common/base.css, features/dashboard/heatmap/heatmap.css
 -->
 <!DOCTYPE html>
@@ -16,85 +16,7 @@
     <link rel="stylesheet" href="heatmap.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Header Section -->
-        <div class="header">
-            <div class="header-top">
-                <div class="algorecall-brand-badge">
-                    <svg class="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path>
-                        <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path>
-                        <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path>
-                    </svg>
-                    <span class="algorecall-brand-name">AlgoRecall</span>
-                </div>
-                <h1>
-                    <svg class="svg-icon page-header-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                    Contribution Heatmap
-                </h1>
-                <!-- Heatmap Legend: Visual guide for the 5 review frequency intensity levels -->
-                <div class="heatmap-legend">
-                    <span>Less</span>
-                    <span class="legend-box level-0"></span>
-                    <span class="legend-box level-1"></span>
-                    <span class="legend-box level-2"></span>
-                    <span class="legend-box level-3"></span>
-                    <span class="legend-box level-4"></span>
-                    <span>More</span>
-                </div>
-            </div>
-
-            <!-- Filter Panel: Granularity selector and dependent date dropdowns (heatmap.ts) -->
-            <div class="filter-bar">
-                <span class="filter-title">
-                    <svg class="svg-icon filter-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    Filter View:
-                </span>
-                <select id="filter-type" class="input-field select-field">
-                    <option value="lifetime">Lifetime History</option>
-                    <option value="year-wise">Year Wise</option>
-                    <option value="month-wise">Month Wise</option>
-                    <option value="day-wise">Day Wise</option>
-                </select>
-
-                <!-- Contextual dropdowns toggled by heatmap.ts based on filter-type -->
-                <select id="select-year" class="input-field select-field hide-select"></select>
-                <select id="select-month" class="input-field select-field hide-select"></select>
-                <select id="select-day" class="input-field select-field hide-select"></select>
-                
-                <span id="filter-summary-text" class="filter-summary"></span>
-            </div>
-        </div>
-        
-        <!-- Heatmap Board: Rendered 52-week or filtered contribution matrix -->
-        <div class="heatmap-wrapper">
-            <div class="heatmap-container">
-                <!-- Weekday Labels -->
-                <div class="weekday-labels">
-                    <span>Sun</span>
-                    <span>Mon</span>
-                    <span>Tue</span>
-                    <span>Wed</span>
-                    <span>Thu</span>
-                    <span>Fri</span>
-                    <span>Sat</span>
-                </div>
-                <!-- The Grid Cells: Populated with interactive .heatmap-cell elements by heatmap.ts -->
-                <div class="heatmap" id="full-heatmap-grid"></div>
-            </div>
-        </div>
-
-        <!-- Gamified Streaks Dashboard: Aggregated stats injected by heatmap-stats.ts -->
-        <div id="heatmap-stats-container" class="stats-grid">
-            <!-- Dynamic stats cards will be loaded here by JS -->
-        </div>
-        
-        <p class="tip-text">
-            <em>Tip: Click on any colored square to view the specific algorithmic patterns you reviewed that day!</em>
-        </p>
-    </div>
-    
-    <!-- Heatmap controller script -->
+    <div id="root"></div>
     <script src="heatmap.js"></script>
 </body>
 </html>

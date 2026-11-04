@@ -1,21 +1,23 @@
 /**
  * @file features/dashboard/history/history.tsx
- * @description Main controller for the dedicated contribution and review history dashboard.
+ * @description Main controller and Preact components for the dedicated contribution and review history dashboard.
  * Aggregates review logs across year, month, or day granularities, renders interactive
  * CSS column charts, and displays clickable drill-down cards linked to detailed card views in `data.html`.
  * Migrated to Preact with TypeScript for modular history views and visual charts.
  *
- * Architecture Role: History Standalone Page Controller.
+ * Architecture Role: History Standalone Page Controller and Preact Root Component.
  * Context: Extension Standalone Tab (`features/dashboard/history/history.html`).
  * Key Exports:
  * - `HistoryViewToggle`: Preact component for toggling year/month/day view granularities.
  * - `HistoryBreadcrumb`: Preact component rendering drill-down breadcrumb navigation.
  * - `HistorySummaryCard`: Preact component rendering year/month/day drill-down card.
  * - `HistoryBarChart`: Preact component rendering distribution bars and axes.
+ * - `HistoryApp`: Root Preact component owning layout, view mode, charts, and drill-down cards.
  * - `FSRSHistoryDashboard`: Controller class managing date grouping, view drill-downs, and chart rendering.
  */
 
-import { h, VNode } from 'preact';
+import { h, VNode, render, Fragment } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { Card, StorageData, ExtensionSettings, ReviewLog } from '../../../types/domain';
@@ -35,7 +37,7 @@ export interface HistoryViewToggleProps {
  */
 export function HistoryViewToggle({ currentView, onViewChange }: HistoryViewToggleProps): VNode {
     return (
-        <div className="view-toggle" role="group" aria-label="Calendar hierarchy level">
+        <div className="view-toggle controls" role="group" aria-label="Calendar hierarchy level">
             <button
                 id="view-year"
                 className={`btn btn-secondary ${currentView === 'year' ? 'active' : ''}`}
@@ -81,6 +83,22 @@ export function HistoryBreadcrumb({
     onNavigateYear,
     onNavigateMonth
 }: HistoryBreadcrumbProps): VNode {
+    const handleNavigateYear = () => {
+        try {
+            if (onNavigateYear) onNavigateYear();
+        } catch (err) {
+            UIUtils.catchError('HistoryBreadcrumb', 'Error navigating year', err);
+        }
+    };
+
+    const handleNavigateMonth = () => {
+        try {
+            if (selectedYear && onNavigateMonth) onNavigateMonth(selectedYear);
+        } catch (err) {
+            UIUtils.catchError('HistoryBreadcrumb', 'Error navigating month', err);
+        }
+    };
+
     if (currentView === 'year') {
         return <div id="breadcrumb" className="breadcrumb">All Years</div>;
     }
@@ -88,7 +106,7 @@ export function HistoryBreadcrumb({
     if (currentView === 'month') {
         return (
             <div id="breadcrumb" className="breadcrumb">
-                <span className="bc-year" role="button" tabIndex={0} onClick={onNavigateYear}>All Years</span>
+                <span className="bc-year" role="button" tabIndex={0} onClick={handleNavigateYear}>All Years</span>
                 {' > '}
                 {selectedYear}
             </div>
@@ -100,14 +118,14 @@ export function HistoryBreadcrumb({
 
     return (
         <div id="breadcrumb" className="breadcrumb">
-            <span className="bc-year" role="button" tabIndex={0} onClick={onNavigateYear}>All Years</span>
+            <span className="bc-year" role="button" tabIndex={0} onClick={handleNavigateYear}>All Years</span>
             {' > '}
             <span
                 className="bc-month"
                 role="button"
                 tabIndex={0}
                 data-year={selectedYear || ''}
-                onClick={() => selectedYear && onNavigateMonth && onNavigateMonth(selectedYear)}
+                onClick={handleNavigateMonth}
             >
                 {selectedYear}
             </span>
@@ -146,13 +164,25 @@ export function HistorySummaryCard({
     onViewCards
 }: HistorySummaryCardProps): VNode {
     const handleButtonClick = (e: Event) => {
-        e.stopPropagation();
-        if (onViewCards) onViewCards(e);
+        try {
+            e.stopPropagation();
+            if (onViewCards) onViewCards(e);
+        } catch (err) {
+            UIUtils.catchError('HistorySummaryCard', 'Error in view cards button click', err);
+        }
+    };
+
+    const handleCardClick = () => {
+        try {
+            if (onCardClick) onCardClick();
+        } catch (err) {
+            UIUtils.catchError('HistorySummaryCard', 'Error in card click', err);
+        }
     };
 
     if (type === 'year') {
         return (
-            <div className="card card-year" data-year={year} title="Click to view Months" onClick={onCardClick}>
+            <div className="card card-year" data-year={year} title="Click to view Months" onClick={handleCardClick}>
                 <div className="card-title">{title}</div>
                 <div className="card-value">{value}</div>
                 <div className="card-subtitle">
@@ -174,7 +204,7 @@ export function HistorySummaryCard({
 
     if (type === 'month') {
         return (
-            <div className="card card-month" data-year={year} data-month={month} title="Click to view Days" onClick={onCardClick}>
+            <div className="card card-month" data-year={year} data-month={month} title="Click to view Days" onClick={handleCardClick}>
                 <div className="card-title">{title}</div>
                 <div className="card-value">{value}</div>
                 <div className="card-subtitle">{subtitle}</div>
@@ -190,7 +220,7 @@ export function HistorySummaryCard({
     }
 
     return (
-        <div className="card card-day" data-date={date} title="View cards reviewed on this day" onClick={onCardClick}>
+        <div className="card card-day" data-date={date} title="View cards reviewed on this day" onClick={handleCardClick}>
             <div className="card-title">{title}</div>
             <div className="card-value">{value}</div>
             <div className="card-subtitle">{subtitle}</div>
@@ -223,7 +253,7 @@ export interface HistoryBarChartProps {
  */
 export function HistoryBarChart({ title, dataPoints, maxVal }: HistoryBarChartProps): VNode {
     return (
-        <div id="history-chart-wrapper" className="chart-wrapper">
+        <div className="chart-wrapper">
             <h3 className="chart-title-label">{title}</h3>
             <div className="chart-container-inner">
                 <div className="chart-viewport">
@@ -244,11 +274,22 @@ export function HistoryBarChart({ title, dataPoints, maxVal }: HistoryBarChartPr
                                     role={dp.action ? 'button' : undefined}
                                     tabIndex={dp.action ? 0 : undefined}
                                     aria-label={tooltipText}
-                                    onClick={dp.action}
+                                    style={dp.action ? { cursor: 'pointer' } : undefined}
+                                    onClick={(e) => {
+                                        try {
+                                            if (dp.action) dp.action(e);
+                                        } catch (aErr) {
+                                            UIUtils.catchError('HistoryBarChart', 'Error executing chart bar click action', aErr, { dp });
+                                        }
+                                    }}
                                     onKeyDown={(e: KeyboardEvent) => {
                                         if ((e.key === 'Enter' || e.key === ' ') && dp.action) {
-                                            e.preventDefault();
-                                            dp.action();
+                                            try {
+                                                e.preventDefault();
+                                                dp.action(e);
+                                            } catch (aErr) {
+                                                UIUtils.catchError('HistoryBarChart', 'Error executing chart bar keydown action', aErr, { dp });
+                                            }
                                         }
                                     }}
                                 >
@@ -264,6 +305,245 @@ export function HistoryBarChart({ title, dataPoints, maxVal }: HistoryBarChartPr
                         })}
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT PREACT COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface HistoryAppProps {
+    dashboard?: FSRSHistoryDashboard;
+}
+
+export function HistoryApp({ dashboard: initialDashboard }: HistoryAppProps): VNode {
+    const [dashboard] = useState(() => initialDashboard || new FSRSHistoryDashboard());
+    const [currentView, setCurrentView] = useState<'year' | 'month' | 'day'>(
+        (dashboard.currentView as 'year' | 'month' | 'day') || 'year'
+    );
+    const [selectedYear, setSelectedYear] = useState<string | null>(dashboard.selectedYear);
+    const [selectedMonth, setSelectedMonth] = useState<string | null>(dashboard.selectedMonth);
+    const [activityData, setActivityData] = useState<Record<string, number>>(dashboard.activityData || {});
+    const [extensionSettings, setExtensionSettings] = useState<ExtensionSettings>(dashboard.extensionSettings || {});
+    const [, setRenderTrigger] = useState(0);
+
+    const forceUpdate = () => setRenderTrigger(c => c + 1);
+
+    useEffect(() => {
+        dashboard.onUpdate = () => {
+            setCurrentView((dashboard.currentView as 'year' | 'month' | 'day') || 'year');
+            setSelectedYear(dashboard.selectedYear);
+            setSelectedMonth(dashboard.selectedMonth);
+            setActivityData({ ...dashboard.activityData });
+            setExtensionSettings({ ...dashboard.extensionSettings });
+            forceUpdate();
+        };
+
+        if (Object.keys(dashboard.activityData).length === 0) {
+            dashboard.init();
+        }
+    }, [dashboard]);
+
+    const handleSetView = (view: 'year' | 'month' | 'day', targetYear: string | null = null, targetMonth: string | null = null) => {
+        dashboard.setView(view, targetYear, targetMonth);
+        setCurrentView((dashboard.currentView as 'year' | 'month' | 'day') || 'year');
+        setSelectedYear(dashboard.selectedYear);
+        setSelectedMonth(dashboard.selectedMonth);
+        forceUpdate();
+    };
+
+    const handleOpenDataTab = (dateRange: string, e?: Event) => {
+        dashboard.openDataTab(dateRange, e);
+    };
+
+    const showCharts = extensionSettings.showCharts !== undefined ? extensionSettings.showCharts : true;
+    const hasActivity = Object.keys(activityData).length > 0;
+    const showChartWrapper = showCharts && hasActivity;
+
+    let chartTitle = '';
+    let chartDataPoints: HistoryBarDataPoint[] = [];
+
+    if (showChartWrapper) {
+        if (currentView === 'year') {
+            chartTitle = 'Reviews per Year';
+            const yearData = dashboard.aggregateByYear();
+            const years = Object.keys(yearData).sort();
+            chartDataPoints = years.map(yr => ({
+                label: yr,
+                value: yearData[yr].total,
+                action: () => handleSetView('month', yr)
+            }));
+        } else if (currentView === 'month' && selectedYear) {
+            chartTitle = `Reviews in ${selectedYear}`;
+            const monthData = dashboard.aggregateByMonth(selectedYear);
+            for (let m = 1; m <= 12; m++) {
+                const mStr = m.toString().padStart(2, '0');
+                const monthKey = `${selectedYear}-${mStr}`;
+                const count = monthData[monthKey] ? monthData[monthKey].total : 0;
+                chartDataPoints.push({
+                    label: dashboard.monthNames[m - 1].substring(0, 3),
+                    value: count,
+                    action: () => handleSetView('day', selectedYear, monthKey),
+                    tooltip: `${dashboard.monthNames[m - 1]} ${selectedYear}: ${count} reviews`
+                });
+            }
+        } else if (currentView === 'day' && selectedMonth) {
+            const [y, mo] = selectedMonth.split('-');
+            const mIdx = parseInt(mo, 10) - 1;
+            chartTitle = `Reviews in ${dashboard.monthNames[mIdx]} ${y}`;
+            const dayData = dashboard.aggregateByDay(selectedMonth);
+            const daysInMonth = new Date(parseInt(y, 10), parseInt(mo, 10), 0).getDate();
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dStr = d.toString().padStart(2, '0');
+                const dateStr = `${selectedMonth}-${dStr}`;
+                const count = dayData[dateStr] || 0;
+                chartDataPoints.push({
+                    label: d.toString(),
+                    value: count,
+                    action: count > 0 ? (e?: Event) => handleOpenDataTab(dateStr, e) : undefined,
+                    tooltip: `${new Date(dateStr + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${count} reviews`
+                });
+            }
+        }
+    }
+
+    const chartMaxVal = chartDataPoints.length > 0 ? Math.max(...chartDataPoints.map(p => p.value), 1) : 1;
+
+    let cardsContent: VNode | VNode[];
+    if (!hasActivity) {
+        cardsContent = <div className="empty-state">No contribution activity recorded yet. Start reviewing!</div>;
+    } else if (currentView === 'year') {
+        const yearData = dashboard.aggregateByYear();
+        const years = Object.keys(yearData).sort().reverse();
+        cardsContent = (
+            <Fragment>
+                {years.map(yr => (
+                    <HistorySummaryCard
+                        key={yr}
+                        type="year"
+                        title={yr}
+                        value={yearData[yr].total}
+                        subtitle="Patterns Reviewed"
+                        activeDays={yearData[yr].activeDays}
+                        year={yr}
+                        onCardClick={() => handleSetView('month', yr)}
+                        onViewCards={(e) => handleOpenDataTab(yr, e)}
+                    />
+                ))}
+            </Fragment>
+        );
+    } else if (currentView === 'month' && selectedYear) {
+        const monthData = dashboard.aggregateByMonth(selectedYear);
+        const monthKeys = Object.keys(monthData).sort().reverse();
+        if (monthKeys.length === 0) {
+            cardsContent = <div className="empty-state">No activity in {selectedYear}</div>;
+        } else {
+            cardsContent = (
+                <Fragment>
+                    {monthKeys.map(monthKey => {
+                        const mIndex = parseInt(monthKey.split('-')[1], 10) - 1;
+                        return (
+                            <HistorySummaryCard
+                                key={monthKey}
+                                type="month"
+                                title={dashboard.monthNames[mIndex]}
+                                value={monthData[monthKey].total}
+                                subtitle="Patterns Reviewed"
+                                year={selectedYear}
+                                month={monthKey}
+                                onCardClick={() => handleSetView('day', selectedYear, monthKey)}
+                                onViewCards={(e) => handleOpenDataTab(monthKey, e)}
+                            />
+                        );
+                    })}
+                </Fragment>
+            );
+        }
+    } else if (currentView === 'day' && selectedMonth) {
+        const dayData = dashboard.aggregateByDay(selectedMonth);
+        const dateStrings = Object.keys(dayData).sort().reverse();
+        if (dateStrings.length === 0) {
+            cardsContent = <div className="empty-state">No activity in this month.</div>;
+        } else {
+            cardsContent = (
+                <Fragment>
+                    {dateStrings.map(dateString => {
+                        const dateObj = new Date(dateString);
+                        const displayDate = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                        return (
+                            <HistorySummaryCard
+                                key={dateString}
+                                type="day"
+                                title={displayDate}
+                                value={dayData[dateString]}
+                                subtitle="Cards Reviewed"
+                                date={dateString}
+                                onCardClick={() => handleOpenDataTab(dateString)}
+                                onViewCards={(e) => handleOpenDataTab(dateString, e)}
+                            />
+                        );
+                    })}
+                </Fragment>
+            );
+        }
+    } else {
+        cardsContent = <div className="empty-state">No activity recorded.</div>;
+    }
+
+    return (
+        <div className="container">
+            <div className="header">
+                <div>
+                    <div className="algorecall-brand-badge">
+                        <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                            <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                        </svg>
+                        <span className="algorecall-brand-name">AlgoRecall</span>
+                    </div>
+                    <h1>
+                        <svg className="svg-icon page-header-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <line x1="18" y1="20" x2="18" y2="10" />
+                            <line x1="12" y1="20" x2="12" y2="4" />
+                            <line x1="6" y1="20" x2="6" y2="14" />
+                        </svg>
+                        Review Activity History
+                    </h1>
+                    <HistoryBreadcrumb
+                        currentView={currentView}
+                        selectedYear={selectedYear}
+                        selectedMonth={selectedMonth}
+                        monthNames={dashboard.monthNames}
+                        onNavigateYear={() => handleSetView('year')}
+                        onNavigateMonth={(yr) => handleSetView('month', yr)}
+                    />
+                </div>
+                <HistoryViewToggle
+                    currentView={currentView}
+                    onViewChange={(v) => handleSetView(v)}
+                />
+            </div>
+
+            <div
+                id="history-chart-wrapper"
+                className="panel chart-panel"
+                style={{ marginBottom: '24px', display: showChartWrapper ? 'block' : 'none' }}
+            >
+                {showChartWrapper && (
+                    <HistoryBarChart
+                        title={chartTitle}
+                        dataPoints={chartDataPoints}
+                        maxVal={chartMaxVal}
+                    />
+                )}
+            </div>
+
+            <div id="chart-container" className={`grid grid-${currentView}s`}>
+                {cardsContent}
             </div>
         </div>
     );
@@ -291,6 +571,8 @@ export class FSRSHistoryDashboard {
     selectedMonth: string | null;
     /** Array of localized month names used for display headers and breadcrumbs. */
     monthNames: string[];
+    /** State change observer callback. */
+    onUpdate?: () => void;
 
     /**
      * Initializes default history dashboard state with empty activity data and year view.
@@ -362,8 +644,8 @@ export class FSRSHistoryDashboard {
                     this.attachListeners();
                     this.renderView();
                 } catch (innerErr) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error during history dashboard render', innerErr);
-        }
+                    UIUtils.catchError('FSRSHistoryDashboard', 'Error during history dashboard render', innerErr);
+                }
             });
         } catch (err) {
             UIUtils.catchError('FSRSHistoryDashboard', 'Failed to fetch history storage', err);
@@ -379,22 +661,22 @@ export class FSRSHistoryDashboard {
                 try {
                     this.setView('year');
                 } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error setting view to year', err);
-        }
+                    UIUtils.catchError('FSRSHistoryDashboard', 'Error setting view to year', err);
+                }
             });
             document.getElementById('view-month')?.addEventListener('click', () => {
                 try {
                     this.setView('month');
                 } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error setting view to month', err);
-        }
+                    UIUtils.catchError('FSRSHistoryDashboard', 'Error setting view to month', err);
+                }
             });
             document.getElementById('view-day')?.addEventListener('click', () => {
                 try {
                     this.setView('day');
                 } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error setting view to day', err);
-        }
+                    UIUtils.catchError('FSRSHistoryDashboard', 'Error setting view to day', err);
+                }
             });
         } catch (err) {
             UIUtils.catchError('FSRSHistoryDashboard', 'Error attaching view listeners', err);
@@ -482,95 +764,119 @@ export class FSRSHistoryDashboard {
      */
     renderView(): void {
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<HistoryApp dashboard={this} />, root);
+                if (this.onUpdate) this.onUpdate();
+                return;
+            }
+
+            // Fallback for legacy DOM test environments without #root
             ['year', 'month', 'day'].forEach(v => {
                 document.getElementById(`view-${v}`)?.classList.toggle('active', v === this.currentView);
             });
 
             const breadcrumb = document.getElementById('breadcrumb');
-            if (!breadcrumb) return;
-
-            if (this.currentView === 'year') {
-                breadcrumb.innerHTML = `All Years`;
-            } else if (this.currentView === 'month') {
-                breadcrumb.innerHTML = `<span class="bc-year">All Years</span> > ${this.selectedYear}`;
-            } else if (this.currentView === 'day' && this.selectedMonth) {
-                const m = parseInt(this.selectedMonth.split('-')[1], 10) - 1;
-                breadcrumb.innerHTML = `<span class="bc-year">All Years</span> > <span class="bc-month" data-year="${this.selectedYear}">${this.selectedYear}</span> > ${this.monthNames[m]}`;
+            if (breadcrumb) {
+                if (this.currentView === 'year') {
+                    breadcrumb.innerHTML = `All Years`;
+                } else if (this.currentView === 'month') {
+                    breadcrumb.innerHTML = `<span class="bc-year" role="button" tabindex="0">All Years</span> > ${this.selectedYear}`;
+                } else if (this.currentView === 'day' && this.selectedMonth) {
+                    const m = parseInt(this.selectedMonth.split('-')[1], 10) - 1;
+                    breadcrumb.innerHTML = `<span class="bc-year" role="button" tabindex="0">All Years</span> > <span class="bc-month" role="button" tabindex="0" data-year="${this.selectedYear}">${this.selectedYear}</span> > ${this.monthNames[m]}`;
+                }
             }
 
             const container = document.getElementById('chart-container');
-            if (!container) return;
-            container.className = `grid grid-${this.currentView}s`;
-            container.innerHTML = '';
+            if (container) {
+                container.className = `grid grid-${this.currentView}s`;
 
-            if (Object.keys(this.activityData).length === 0) {
-                container.innerHTML = `<div class="empty-state">No contribution activity recorded yet. Start reviewing!</div>`;
-                return;
-            }
-
-            if (this.currentView === 'year') {
-                const yearData = this.aggregateByYear();
-                Object.keys(yearData).sort().reverse().forEach(year => {
-                    container.innerHTML += `
-                        <div class="card card-year" data-year="${year}" title="Click to view Months">
-                            <div class="card-title">${year}</div>
-                            <div class="card-value">${yearData[year].total}</div>
-                            <div class="card-subtitle">Patterns Reviewed<br>Active Days: ${yearData[year].activeDays}</div>
-                            <button class="view-data-btn btn-year" data-year="${year}">
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                                View Cards
-                            </button>
-                        </div>
-                    `;
-                });
-            }
-            else if (this.currentView === 'month' && this.selectedYear) {
-                const monthData = this.aggregateByMonth(this.selectedYear);
-                if (Object.keys(monthData).length === 0) {
-                    container.innerHTML = `<div class="empty-state">No activity in ${this.selectedYear}</div>`;
-                } else {
-                    Object.keys(monthData).sort().reverse().forEach(monthKey => {
-                        const mIndex = parseInt(monthKey.split('-')[1], 10) - 1;
-                        container.innerHTML += `
-                            <div class="card card-month" data-year="${this.selectedYear}" data-month="${monthKey}" title="Click to view Days">
-                                <div class="card-title">${this.monthNames[mIndex]}</div>
-                                <div class="card-value">${monthData[monthKey].total}</div>
-                                <div class="card-subtitle">Patterns Reviewed</div>
-                                <button class="view-data-btn btn-month" data-month="${monthKey}">
-                                    <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                                    View Cards
-                                </button>
-                            </div>
-                        `;
-                    });
-                }
-            }
-            else if (this.currentView === 'day' && this.selectedMonth) {
-                const dayData = this.aggregateByDay(this.selectedMonth);
-                if (Object.keys(dayData).length === 0) {
-                    container.innerHTML = `<div class="empty-state">No activity in this month.</div>`;
-                } else {
-                    Object.keys(dayData).sort().reverse().forEach(dateString => {
-                        const dateObj = new Date(dateString);
-                        const displayDate = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-
-                        container.innerHTML += `
-                            <div class="card card-day" data-date="${dateString}" title="View cards reviewed on this day">
-                                <div class="card-title">${displayDate}</div>
-                                <div class="card-value">${dayData[dateString]}</div>
-                                <div class="card-subtitle">Cards Reviewed</div>
-                                <div class="card-day-link">
-                                    <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; margin-right:4px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                                    View Cards
-                                </div>
-                            </div>
-                        `;
-                    });
+                if (Object.keys(this.activityData).length === 0) {
+                    render(<div className="empty-state">No contribution activity recorded yet. Start reviewing!</div>, container);
+                } else if (this.currentView === 'year') {
+                    const yearData = this.aggregateByYear();
+                    const years = Object.keys(yearData).sort().reverse();
+                    render(
+                        <Fragment>
+                            {years.map(yr => (
+                                <HistorySummaryCard
+                                    key={yr}
+                                    type="year"
+                                    title={yr}
+                                    value={yearData[yr].total}
+                                    subtitle="Patterns Reviewed"
+                                    activeDays={yearData[yr].activeDays}
+                                    year={yr}
+                                    onCardClick={() => this.setView('month', yr)}
+                                    onViewCards={(e) => this.openDataTab(yr, e)}
+                                />
+                            ))}
+                        </Fragment>,
+                        container
+                    );
+                } else if (this.currentView === 'month' && this.selectedYear) {
+                    const monthData = this.aggregateByMonth(this.selectedYear);
+                    const monthKeys = Object.keys(monthData).sort().reverse();
+                    if (monthKeys.length === 0) {
+                        render(<div className="empty-state">No activity in {this.selectedYear}</div>, container);
+                    } else {
+                        render(
+                            <Fragment>
+                                {monthKeys.map(monthKey => {
+                                    const mIndex = parseInt(monthKey.split('-')[1], 10) - 1;
+                                    return (
+                                        <HistorySummaryCard
+                                            key={monthKey}
+                                            type="month"
+                                            title={this.monthNames[mIndex]}
+                                            value={monthData[monthKey].total}
+                                            subtitle="Patterns Reviewed"
+                                            year={this.selectedYear || undefined}
+                                            month={monthKey}
+                                            onCardClick={() => this.setView('day', this.selectedYear, monthKey)}
+                                            onViewCards={(e) => this.openDataTab(monthKey, e)}
+                                        />
+                                    );
+                                })}
+                            </Fragment>,
+                            container
+                        );
+                    }
+                } else if (this.currentView === 'day' && this.selectedMonth) {
+                    const dayData = this.aggregateByDay(this.selectedMonth);
+                    const dateStrings = Object.keys(dayData).sort().reverse();
+                    if (dateStrings.length === 0) {
+                        render(<div className="empty-state">No activity in this month.</div>, container);
+                    } else {
+                        render(
+                            <Fragment>
+                                {dateStrings.map(dateString => {
+                                    const dateObj = new Date(dateString);
+                                    const displayDate = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                                    return (
+                                        <HistorySummaryCard
+                                            key={dateString}
+                                            type="day"
+                                            title={displayDate}
+                                            value={dayData[dateString]}
+                                            subtitle="Cards Reviewed"
+                                            date={dateString}
+                                            onCardClick={() => this.openDataTab(dateString)}
+                                            onViewCards={(e) => this.openDataTab(dateString, e)}
+                                        />
+                                    );
+                                })}
+                            </Fragment>,
+                            container
+                        );
+                    }
                 }
             }
 
             this.renderHistoryChart();
             this.bindDynamicListeners();
+            if (this.onUpdate) this.onUpdate();
         } catch (err) {
             UIUtils.catchError('FSRSHistoryDashboard', 'Error rendering history view', err, { currentView: this.currentView });
         }
@@ -591,14 +897,17 @@ export class FSRSHistoryDashboard {
 
             if (!showCharts || Object.keys(this.activityData).length === 0) {
                 chartWrapper.style.display = 'none';
+                render(null, chartWrapper);
                 return;
             }
 
             chartWrapper.style.display = 'block';
-            chartWrapper.innerHTML = '';
 
-            let dataPoints: Array<{ label: string; value: number; action: (e?: Event) => void; tooltip?: string }> = [];
+            let dataPoints: Array<{ label: string; value: number; action?: (e?: Event) => void; tooltip?: string }> = [];
+            let titleText = '';
+
             if (this.currentView === 'year') {
+                titleText = 'Reviews per Year';
                 const yearData = this.aggregateByYear();
                 const years = Object.keys(yearData).sort();
                 dataPoints = years.map(yr => ({
@@ -607,6 +916,7 @@ export class FSRSHistoryDashboard {
                     action: () => this.setView('month', yr)
                 }));
             } else if (this.currentView === 'month' && this.selectedYear) {
+                titleText = `Reviews in ${this.selectedYear}`;
                 const monthData = this.aggregateByMonth(this.selectedYear);
                 for (let m = 1; m <= 12; m++) {
                     const mStr = m.toString().padStart(2, '0');
@@ -620,8 +930,10 @@ export class FSRSHistoryDashboard {
                     });
                 }
             } else if (this.currentView === 'day' && this.selectedMonth) {
-                const dayData = this.aggregateByDay(this.selectedMonth);
                 const [year, month] = this.selectedMonth.split('-');
+                const mIndex = parseInt(month, 10) - 1;
+                titleText = `Reviews in ${this.monthNames[mIndex]} ${year}`;
+                const dayData = this.aggregateByDay(this.selectedMonth);
                 const daysInMonth = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
 
                 for (let d = 1; d <= daysInMonth; d++) {
@@ -631,100 +943,14 @@ export class FSRSHistoryDashboard {
                     dataPoints.push({
                         label: d.toString(),
                         value: count,
-                        action: (e?: Event) => this.openDataTab(dateStr, e),
+                        action: count > 0 ? (e?: Event) => this.openDataTab(dateStr, e) : undefined,
                         tooltip: `${new Date(dateStr + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${count} reviews`
                     });
                 }
             }
 
             const maxVal = Math.max(...dataPoints.map(p => p.value), 1);
-
-            const title = document.createElement('h3');
-            title.className = 'chart-title-label';
-            title.innerText = this.currentView === 'year'
-                ? 'Reviews per Year'
-                : this.currentView === 'month'
-                    ? `Reviews in ${this.selectedYear}`
-                    : `Reviews in ${this.monthNames[parseInt((this.selectedMonth || '').split('-')[1] || '1', 10) - 1]} ${(this.selectedMonth || '').split('-')[0]}`;
-            chartWrapper.appendChild(title);
-
-            const chartContainerInner = document.createElement('div');
-            chartContainerInner.className = 'chart-container-inner';
-
-            const viewport = document.createElement('div');
-            viewport.className = 'chart-viewport';
-
-            const gridLines = document.createElement('div');
-            gridLines.className = 'chart-grid-lines';
-            gridLines.innerHTML = `
-                <div class="grid-line" style="bottom: 0%;"><span>0</span></div>
-                <div class="grid-line" style="bottom: 50%;"><span>${Math.round(maxVal / 2)}</span></div>
-                <div class="grid-line" style="bottom: 100%;"><span>${maxVal}</span></div>
-            `;
-            viewport.appendChild(gridLines);
-
-            const barsContainer = document.createElement('div');
-            barsContainer.className = 'chart-bars';
-
-            dataPoints.forEach(dp => {
-                const barCol = document.createElement('div');
-                barCol.className = 'chart-bar-col';
-                if (dp.value > 0) barCol.classList.add('has-value');
-
-                const heightPct = (dp.value / maxVal) * 100;
-
-                const bar = document.createElement('div');
-                bar.className = 'chart-bar';
-                bar.style.height = `${Math.max(heightPct, 3)}%`;
-
-                if (dp.value === 0) {
-                    bar.classList.add('zero-bar');
-                }
-
-                const tooltipText = dp.tooltip || `${dp.label}: ${dp.value} reviews`;
-                const tooltip = document.createElement('div');
-                tooltip.className = 'chart-bar-tooltip';
-                tooltip.innerText = tooltipText;
-                bar.appendChild(tooltip);
-
-                const barLabel = document.createElement('div');
-                barLabel.className = 'chart-bar-label';
-                barLabel.innerText = dp.label;
-
-                barCol.appendChild(bar);
-                barCol.appendChild(barLabel);
-
-                if (dp.value > 0 || this.currentView !== 'day') {
-                    barCol.style.cursor = 'pointer';
-                    barCol.setAttribute('role', 'button');
-                    barCol.setAttribute('tabindex', '0');
-                    barCol.setAttribute('aria-label', tooltipText);
-
-                    barCol.addEventListener('click', (e) => {
-                        try {
-                            dp.action(e);
-                        } catch (aErr) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error executing chart bar click action', aErr, { dp });
-        }
-                    });
-                    barCol.addEventListener('keydown', (e: KeyboardEvent) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            try {
-                                e.preventDefault();
-                                dp.action(e);
-                            } catch (aErr) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error executing chart bar keydown action', aErr, { dp });
-        }
-                        }
-                    });
-                }
-
-                barsContainer.appendChild(barCol);
-            });
-
-            viewport.appendChild(barsContainer);
-            chartContainerInner.appendChild(viewport);
-            chartWrapper.appendChild(chartContainerInner);
+            render(<HistoryBarChart title={titleText} dataPoints={dataPoints} maxVal={maxVal} />, chartWrapper);
         } catch (err) {
             UIUtils.catchError('FSRSHistoryDashboard', 'Error rendering history chart', err);
         }
@@ -740,8 +966,8 @@ export class FSRSHistoryDashboard {
                     try {
                         this.setView('year');
                     } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error in breadcrumb year click handler', err);
-        }
+                        UIUtils.catchError('FSRSHistoryDashboard', 'Error in breadcrumb year click handler', err);
+                    }
                 });
             });
             document.querySelectorAll('.bc-month').forEach(el => {
@@ -750,8 +976,8 @@ export class FSRSHistoryDashboard {
                         const target = e.target as HTMLElement;
                         this.setView('month', target.getAttribute('data-year'));
                     } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error in breadcrumb month click handler', err);
-        }
+                        UIUtils.catchError('FSRSHistoryDashboard', 'Error in breadcrumb month click handler', err);
+                    }
                 });
             });
 
@@ -762,8 +988,8 @@ export class FSRSHistoryDashboard {
                         if (target.closest('button')) return;
                         this.setView('month', el.getAttribute('data-year'));
                     } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error in card year click handler', err);
-        }
+                        UIUtils.catchError('FSRSHistoryDashboard', 'Error in card year click handler', err);
+                    }
                 });
             });
             document.querySelectorAll('.card-month').forEach(el => {
@@ -773,8 +999,8 @@ export class FSRSHistoryDashboard {
                         if (target.closest('button')) return;
                         this.setView('day', el.getAttribute('data-year'), el.getAttribute('data-month'));
                     } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error in card month click handler', err);
-        }
+                        UIUtils.catchError('FSRSHistoryDashboard', 'Error in card month click handler', err);
+                    }
                 });
             });
 
@@ -783,8 +1009,8 @@ export class FSRSHistoryDashboard {
                     try {
                         this.openDataTab(el.getAttribute('data-year') || '', e);
                     } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error in btn year click handler', err);
-        }
+                        UIUtils.catchError('FSRSHistoryDashboard', 'Error in btn year click handler', err);
+                    }
                 });
             });
             document.querySelectorAll('.btn-month').forEach(el => {
@@ -792,8 +1018,8 @@ export class FSRSHistoryDashboard {
                     try {
                         this.openDataTab(el.getAttribute('data-month') || '', e);
                     } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error in btn month click handler', err);
-        }
+                        UIUtils.catchError('FSRSHistoryDashboard', 'Error in btn month click handler', err);
+                    }
                 });
             });
             document.querySelectorAll('.card-day').forEach(el => {
@@ -801,8 +1027,8 @@ export class FSRSHistoryDashboard {
                     try {
                         this.openDataTab(el.getAttribute('data-date') || '', e);
                     } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Error in card day click handler', err);
-        }
+                        UIUtils.catchError('FSRSHistoryDashboard', 'Error in card day click handler', err);
+                    }
                 });
             });
         } catch (err) {
@@ -879,13 +1105,18 @@ export class FSRSHistoryDashboard {
 /**
  * Initializes the history dashboard controller on DOM load.
  */
-function initHistory(): void {
+export function initHistory(): void {
     try {
+        const root = document.getElementById('root');
         const history = new FSRSHistoryDashboard();
-        history.init();
-    } catch (err) {
-            UIUtils.catchError('FSRSHistoryDashboard', 'Initialization failed', err);
+        if (root) {
+            render(<HistoryApp dashboard={history} />, root);
+        } else {
+            history.init();
         }
+    } catch (err) {
+        UIUtils.catchError('FSRSHistoryDashboard', 'Initialization failed', err);
+    }
 }
 
 if (typeof document !== 'undefined') {
@@ -902,5 +1133,6 @@ if (typeof module !== 'undefined' && module.exports) {
     (module.exports as any).HistoryBreadcrumb = HistoryBreadcrumb;
     (module.exports as any).HistorySummaryCard = HistorySummaryCard;
     (module.exports as any).HistoryBarChart = HistoryBarChart;
+    (module.exports as any).HistoryApp = HistoryApp;
+    (module.exports as any).initHistory = initHistory;
 }
-

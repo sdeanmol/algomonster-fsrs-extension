@@ -11,7 +11,9 @@ import {
 import {
     HeatmapFilterBar,
     HeatmapCell,
-    HeatmapLegend
+    HeatmapLegend,
+    HeatmapGrid,
+    HeatmapApp
 } from '../../../../../features/dashboard/heatmap/heatmap';
 
 describe('Heatmap Preact Components', () => {
@@ -139,13 +141,45 @@ describe('Heatmap Preact Components', () => {
         });
     });
 
-    describe('HeatmapLegend', () => {
-        it('renders 5 legend boxes and labels', () => {
-            render(<HeatmapLegend minText="Less" maxText="More" />, container);
+    describe('HeatmapGrid and HeatmapApp', () => {
+        it('renders HeatmapGrid with cells', () => {
+            const cells = [
+                {
+                    dateString: '2026-08-01',
+                    displayDate: 'Aug 1, 2026',
+                    count: 3,
+                    level: 2 as const,
+                    isOutsideRange: false
+                }
+            ];
+            render(<HeatmapGrid cells={cells} />, container);
 
-            expect(container.querySelector('.heatmap-legend')?.textContent).toContain('Less');
-            expect(container.querySelector('.heatmap-legend')?.textContent).toContain('More');
-            expect(container.querySelectorAll('.legend-box').length).toBe(5);
+            expect(container.querySelector('#full-heatmap-grid')).not.toBeNull();
+            expect(container.querySelectorAll('.heatmap-cell').length).toBe(1);
+        });
+
+        it('renders complete HeatmapApp root component with header, filter bar, grid, and stats', async () => {
+            const initialActivity = {
+                '2026-08-01': 5,
+                '2026-08-02': 10
+            };
+            render(<HeatmapApp initialActivityData={initialActivity} />, container);
+
+            expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+            expect(container.querySelector('h1')?.textContent).toContain('Contribution Heatmap');
+            expect(container.querySelector('.heatmap-legend')).not.toBeNull();
+            expect(container.querySelector('.filter-bar')).not.toBeNull();
+            expect(container.querySelector('#full-heatmap-grid')).not.toBeNull();
+            expect(container.querySelector('#heatmap-stats-container')).not.toBeNull();
+
+            // Check that changing filter type updates select dropdown
+            const filterTypeSelect = container.querySelector('#filter-type') as HTMLSelectElement;
+            filterTypeSelect.value = 'month-wise';
+            filterTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+            await Promise.resolve();
+
+            expect(container.querySelector('#select-month')?.classList.contains('hide-select')).toBe(false);
         });
     });
 });

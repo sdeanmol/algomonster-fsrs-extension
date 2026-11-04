@@ -9,7 +9,9 @@ import {
     SummaryKpiGrid,
     SummaryInsightsList,
     SummaryActivityChart,
-    SummaryTopicMasteryList
+    SummaryTopicMasteryList,
+    SummaryApp,
+    SummaryDashboard
 } from '../../../../../features/dashboard/summary/summary';
 import { SummaryReport } from '../../../../../features/dashboard/summary/summaryGenerator';
 
@@ -120,6 +122,34 @@ describe('Summary Preact Components', () => {
             expect(container.querySelector('.topic-name')?.textContent).toBe('Dynamic Programming');
             expect(container.querySelector('.topic-stats')?.textContent).toContain('90%');
             expect(container.querySelector('.topic-bar-fill')?.classList.contains('high')).toBe(true);
+        });
+    });
+
+    describe('SummaryApp', () => {
+        it('renders the complete SummaryApp dashboard', () => {
+            const dashboard = new SummaryDashboard();
+            render(<SummaryApp dashboard={dashboard} />, container);
+
+            expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+            expect(container.querySelector('h1')?.textContent).toContain('Notification & Digest Summary');
+            expect(container.querySelector('#period-weekly-btn')?.classList.contains('active')).toBe(true);
+            expect(container.querySelector('.kpi-grid')).not.toBeNull();
+            expect(container.querySelector('#insights-container')).not.toBeNull();
+            expect(container.querySelector('#activity-chart-container')).not.toBeNull();
+            expect(container.querySelector('#top-topics-container')).not.toBeNull();
+            expect(container.querySelector('#weak-topics-container')).not.toBeNull();
+        });
+
+        it('switches between weekly and monthly tabs inside SummaryApp', async () => {
+            const dashboard = new SummaryDashboard();
+            render(<SummaryApp dashboard={dashboard} />, container);
+
+            const monthlyBtn = container.querySelector('#period-monthly-btn') as HTMLElement;
+            monthlyBtn.click();
+            await Promise.resolve();
+
+            expect(monthlyBtn.classList.contains('active')).toBe(true);
+            expect(container.querySelector('#period-weekly-btn')?.classList.contains('active')).toBe(false);
         });
     });
 });

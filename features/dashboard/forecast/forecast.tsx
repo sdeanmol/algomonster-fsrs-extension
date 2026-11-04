@@ -3,19 +3,22 @@
  * @description Main controller for the dedicated review forecast dashboard page.
  * Projects upcoming review volumes up to 30 days based on scheduled card due dates,
  * rendering interactive CSS column charts, a 30-day calendar grid, and aggregate metrics.
- * Migrated to Preact with TypeScript for modular forecast rendering and full test parity.
+ * Migrated to a component-driven Preact architecture with minimal HTML entry shells and declarative rendering.
  *
- * Architecture Role: Forecast Standalone Page Controller.
+ * Architecture Role: Forecast Standalone Page Controller and Preact Root App.
  * Context: Extension Standalone Tab (`features/dashboard/forecast/forecast.html`).
  * Key Exports:
  * - `ForecastMetricsHeader`: Preact component for workload metrics summary tiles.
+ * - `ForecastSummaryCards`: Preact component for the 4 overview metrics tiles.
  * - `ForecastCalendarCell`: Preact component rendering an individual calendar day cell.
  * - `ForecastCalendar`: Preact component rendering the 30-day forecast calendar.
  * - `ForecastChart`: Preact component rendering the daily review volume bar chart.
+ * - `ForecastApp`: Root Preact application rendering the entire forecast dashboard.
  * - `ForecastDashboard`: Main dashboard class calculating daily review loads and rendering charts.
  */
 
-import { h, VNode } from 'preact';
+import { h, VNode, render } from 'preact';
+import { useState, useEffect, useMemo } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
@@ -68,6 +71,44 @@ export function ForecastMetricsHeader({
     );
 }
 
+export interface ForecastSummaryCardsProps {
+    totalUpcoming: number | string;
+    avgPerDay: string;
+    peakCount: number | string;
+    todayCount: number | string;
+}
+
+/**
+ * Preact component rendering the 4 top-level overview cards.
+ */
+export function ForecastSummaryCards({
+    totalUpcoming,
+    avgPerDay,
+    peakCount,
+    todayCount
+}: ForecastSummaryCardsProps): VNode {
+    return (
+        <div className="forecast-summary">
+            <div className="summary-card">
+                <div className="summary-value" id="forecast-total">{totalUpcoming}</div>
+                <div className="summary-label">Next 30 Days</div>
+            </div>
+            <div className="summary-card">
+                <div className="summary-value" id="forecast-avg">{avgPerDay}</div>
+                <div className="summary-label">Daily Average</div>
+            </div>
+            <div className="summary-card">
+                <div className="summary-value" id="forecast-peak">{peakCount}</div>
+                <div className="summary-label">Peak Day</div>
+            </div>
+            <div className="summary-card">
+                <div className="summary-value" id="forecast-today">{todayCount}</div>
+                <div className="summary-label">Due Today</div>
+            </div>
+        </div>
+    );
+}
+
 export interface ForecastCalendarCellProps {
     dayNumber: number;
     count: number;
@@ -102,30 +143,27 @@ export function ForecastCalendarCell({
 }
 
 export interface ForecastCalendarProps {
-    startDow: number;
+    startDow?: number;
     cells: ForecastCalendarCellProps[];
-    dayNames?: string[];
 }
 
 /**
- * Preact component rendering 30-day forecast calendar with weekday headers and legend.
+ * Preact component rendering the 30-day forecast calendar grid with headers and legend.
  */
-export function ForecastCalendar({
-    startDow,
-    cells,
-    dayNames = DAY_NAMES_SHORT
-}: ForecastCalendarProps): VNode {
+export function ForecastCalendar({ startDow = 0, cells = [] }: ForecastCalendarProps): VNode {
+    const emptyCells = Array.from({ length: startDow });
+
     return (
-        <div className="forecast-calendar-container">
-            <div id="forecast-calendar" className="forecast-calendar">
-                {dayNames.map((name) => (
+        <div className="forecast-calendar-wrapper">
+            <div className="forecast-calendar" id="forecast-calendar">
+                {DAY_NAMES_SHORT.map((name) => (
                     <div key={name} className="cal-header">{name}</div>
                 ))}
-                {Array.from({ length: startDow }).map((_, idx) => (
+                {emptyCells.map((_, idx) => (
                     <div key={`empty-${idx}`} className="cal-cell cal-empty" />
                 ))}
-                {cells.map((cell, idx) => (
-                    <ForecastCalendarCell key={`cell-${idx}`} {...cell} />
+                {cells.map((day, idx) => (
+                    <ForecastCalendarCell key={idx} {...day} />
                 ))}
             </div>
             <div className="cal-legend">
@@ -141,60 +179,76 @@ export function ForecastCalendar({
     );
 }
 
+export interface ForecastDataPoint {
+    index: number;
+    label?: string;
+    dateStr?: string;
+    displayDate: string;
+    value: number;
+    level?: number;
+    onClick?: () => void;
+}
+
 export interface ForecastChartProps {
-    dataPoints: Array<{
-        index: number;
-        label: string;
-        value: number;
-        displayDate: string;
-        level: number;
-        onClick?: () => void;
-    }>;
+    dataPoints: ForecastDataPoint[];
     maxLimit: number;
+    onBarClick?: (dp: ForecastDataPoint) => void;
 }
 
 /**
- * Preact component rendering the 30-day workload forecast bar chart.
+ * Preact component rendering the CSS column bar chart for daily workload volumes.
  */
-export function ForecastChart({ dataPoints, maxLimit }: ForecastChartProps): VNode {
+export function ForecastChart({ dataPoints, maxLimit, onBarClick }: ForecastChartProps): VNode {
+    const limit = Math.max(maxLimit, 1);
+
     return (
-        <div id="forecast-chart-wrapper" className="chart-wrapper">
+        <div id="forecast-chart-wrapper" className="panel chart-panel" style={{ marginBottom: '24px', display: 'block' }}>
             <h3 className="chart-title-label">Workload Forecast (Next 30 Days)</h3>
             <div className="chart-container-inner">
                 <div className="chart-viewport">
                     <div className="chart-grid-lines">
                         <div className="grid-line" style={{ bottom: '0%' }}><span>0</span></div>
-                        <div className="grid-line" style={{ bottom: '50%' }}><span>{Math.round(maxLimit / 2)}</span></div>
-                        <div className="grid-line" style={{ bottom: '100%' }}><span>{maxLimit}</span></div>
+                        <div className="grid-line" style={{ bottom: '50%' }}><span>{Math.round(limit / 2)}</span></div>
+                        <div className="grid-line" style={{ bottom: '100%' }}><span>{limit}</span></div>
                     </div>
                     <div className="chart-bars">
                         {dataPoints.map((dp) => {
-                            const heightPct = (dp.value / maxLimit) * 100;
-                            const isZero = dp.value === 0;
-                            const tooltipText = `${dp.displayDate}: ${dp.value} card${dp.value !== 1 ? 's' : ''} due`;
-
-                            let levelClass = '';
-                            if (!isZero) {
+                            const heightPct = (dp.value / limit) * 100;
+                            let levelClass = 'zero-bar';
+                            if (dp.value > 0) {
                                 if (dp.value <= 2) levelClass = 'cal-bar-level-1';
                                 else if (dp.value <= 5) levelClass = 'cal-bar-level-2';
                                 else if (dp.value <= 10) levelClass = 'cal-bar-level-3';
                                 else levelClass = 'cal-bar-level-4';
                             }
 
+                            const handleClick = () => {
+                                if (dp.onClick) dp.onClick();
+                                if (onBarClick) onBarClick(dp);
+                            };
+
+                            const labelText = dp.label !== undefined
+                                ? dp.label
+                                : dp.index === 0 ? 'Today' : dp.index % 5 === 0 ? `+${dp.index}` : '';
+
                             return (
                                 <div
                                     key={dp.index}
                                     className={`chart-bar-col ${dp.value > 0 ? 'has-value' : ''}`}
-                                    style={{ cursor: dp.value > 0 ? 'pointer' : 'default' }}
-                                    onClick={dp.value > 0 ? dp.onClick : undefined}
+                                    style={{ cursor: dp.value > 0 || dp.onClick ? 'pointer' : 'default' }}
+                                    onClick={handleClick}
                                 >
                                     <div
-                                        className={`chart-bar ${isZero ? 'zero-bar' : levelClass}`}
+                                        className={`chart-bar ${levelClass}`}
                                         style={{ height: `${Math.max(heightPct, 3)}%` }}
                                     >
-                                        <div className="chart-bar-tooltip">{tooltipText}</div>
+                                        <div className="chart-bar-tooltip">
+                                            {`${dp.displayDate}: ${dp.value} card${dp.value !== 1 ? 's' : ''} due`}
+                                        </div>
                                     </div>
-                                    <div className="chart-bar-label">{dp.label}</div>
+                                    <div className="chart-bar-label">
+                                        {labelText}
+                                    </div>
                                 </div>
                             );
                         })}
@@ -205,30 +259,201 @@ export function ForecastChart({ dataPoints, maxLimit }: ForecastChartProps): VNo
     );
 }
 
+export interface ForecastAppProps {
+    initialCards?: Card[];
+    initialSettings?: ExtensionSettings;
+}
+
+/**
+ * Root Preact Component for the full review forecast page.
+ * Renders header, 4-metric summary cards, workload bar chart, calendar grid, and legend.
+ */
+export function ForecastApp({ initialCards, initialSettings }: ForecastAppProps): VNode {
+    const [cards, setCards] = useState<Card[]>(initialCards || []);
+    const [settings, setSettings] = useState<ExtensionSettings>(initialSettings || {});
+
+    useEffect(() => {
+        if (!initialCards && typeof chrome !== 'undefined' && chrome.storage?.local) {
+            chrome.storage.local.get(['fsrsCards', 'extensionSettings'], (result: StorageData) => {
+                if (result.fsrsCards) setCards(result.fsrsCards);
+                if (result.extensionSettings) setSettings(result.extensionSettings);
+            });
+        }
+    }, [initialCards]);
+
+    const showCharts = settings.showCharts !== undefined ? settings.showCharts : true;
+
+    const { summary, dataPoints, maxVal, calendarCells, startDow } = useMemo(() => {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayStartTime = todayStart.getTime();
+
+        const dueCounts: Record<number, number> = {};
+        for (let i = 0; i <= FORECAST_DAYS_TO_SHOW; i++) {
+            dueCounts[i] = 0;
+        }
+
+        cards.forEach((card) => {
+            if (card.state === 0) return;
+            const diffMs = card.due - todayStartTime;
+            const dayOffset = Math.floor(diffMs / 86400000);
+            if (dayOffset <= 0) {
+                dueCounts[0] = (dueCounts[0] || 0) + 1;
+            } else if (dayOffset <= FORECAST_DAYS_TO_SHOW) {
+                dueCounts[dayOffset] = (dueCounts[dayOffset] || 0) + 1;
+            }
+        });
+
+        let totalUpcoming = 0;
+        let peak = 0;
+        const pts: ForecastDataPoint[] = [];
+
+        for (let i = 0; i <= FORECAST_DAYS_TO_SHOW; i++) {
+            const count = dueCounts[i] || 0;
+            totalUpcoming += count;
+            if (count > peak) peak = count;
+
+            const date = new Date(todayStart);
+            date.setDate(date.getDate() + i);
+
+            pts.push({
+                index: i,
+                dateStr: new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0],
+                displayDate: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+                value: count
+            });
+        }
+
+        const avg = (totalUpcoming / (FORECAST_DAYS_TO_SHOW + 1)).toFixed(1);
+        const todayCount = dueCounts[0] || 0;
+
+        const cells: ForecastCalendarCellProps[] = [];
+        for (let i = 0; i <= FORECAST_DAYS_TO_SHOW; i++) {
+            const count = dueCounts[i] || 0;
+            const date = new Date(todayStart);
+            date.setDate(date.getDate() + i);
+
+            let level: 0 | 1 | 2 | 3 | 4 = 0;
+            if (count === 0) level = 0;
+            else if (count <= 2) level = 1;
+            else if (count <= 5) level = 2;
+            else if (count <= 10) level = 3;
+            else level = 4;
+
+            const dateKey = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            const fullDate = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+            const onCellClick = () => {
+                try {
+                    if (typeof chrome !== 'undefined' && chrome.tabs?.create && chrome.runtime?.getURL) {
+                        const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dateKey}&offset=${i}`);
+                        chrome.tabs.create({ url: dataUrl });
+                    }
+                } catch (err) {
+                    UIUtils.catchError('ForecastDashboard', 'Error opening forecast date in data manager', err);
+                }
+            };
+
+            cells.push({
+                dayNumber: date.getDate(),
+                count,
+                isToday: i === 0,
+                level,
+                title: `${fullDate}: ${count} card${count !== 1 ? 's' : ''} due`,
+                onClick: onCellClick
+            });
+        }
+
+        return {
+            summary: {
+                totalUpcoming,
+                avgPerDay: avg,
+                peakCount: peak,
+                todayCount
+            },
+            dataPoints: pts,
+            maxVal: peak,
+            calendarCells: cells,
+            startDow: todayStart.getDay()
+        };
+    }, [cards]);
+
+    const handleBarClick = (dp: ForecastDataPoint) => {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.tabs?.create && chrome.runtime?.getURL) {
+                const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dp.dateStr}&offset=${dp.index}`);
+                chrome.tabs.create({ url: dataUrl });
+            }
+        } catch (err) {
+            UIUtils.catchError('ForecastDashboard', 'Error navigating on bar click', err);
+        }
+    };
+
+    return (
+        <div className="container">
+            <div className="header">
+                <div className="header-main">
+                    <div className="algorecall-brand-badge">
+                        <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1 1-2 1-3.5 0-2.5 2-5 5.5-6z" />
+                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                            <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                        </svg>
+                        <span className="algorecall-brand-name">AlgoRecall</span>
+                    </div>
+                    <h1>Review Forecast</h1>
+                    <p className="subtitle" id="forecast-subtitle">{`${cards.length} total cards tracked`}</p>
+                </div>
+                <div className="header-actions">
+                    <a href="../popup/popup.html" className="btn btn-secondary">
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ marginRight: '6px' }} aria-hidden="true">
+                            <line x1="19" y1="12" x2="5" y2="12" />
+                            <polyline points="12 19 5 12 12 5" />
+                        </svg>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <ForecastSummaryCards
+                totalUpcoming={summary.totalUpcoming}
+                avgPerDay={summary.avgPerDay}
+                peakCount={summary.peakCount}
+                todayCount={summary.todayCount}
+            />
+
+            {showCharts && (
+                <ForecastChart
+                    dataPoints={dataPoints}
+                    maxLimit={maxVal}
+                    onBarClick={handleBarClick}
+                />
+            )}
+
+            <div id="calendar-parent">
+                <ForecastCalendar startDow={startDow} cells={calendarCells} />
+            </div>
+        </div>
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// FORECAST CONTROLLER CLASS
+// FORECAST CONTROLLER CLASS (Backward-Compatibility Bridge)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Controller for the review workload forecast dashboard page.
- * Aggregates card due dates across the next 30 days and renders an interactive
- * column chart and calendar view allowing drill-down into specific forecast dates.
+ * Bridges storage interactions, computes daily card projections, and renders Preact views.
  */
 export class ForecastDashboard {
-    /** Cached extension settings, including chart visibility toggles. */
-    extensionSettings: ExtensionSettings;
+    cards: Card[];
+    extensionSettings: ExtensionSettings | null;
 
-    /**
-     * Creates an instance of ForecastDashboard with initial empty settings.
-     */
     constructor() {
-        this.extensionSettings = {};
+        this.cards = [];
+        this.extensionSettings = null;
     }
 
-    /**
-     * Bootstraps forecast settings and triggers UI loads by fetching card data from local storage.
-     * @listens chrome.storage.local
-     */
     init(): void {
         try {
             chrome.storage.local.get(['fsrsCards', 'extensionSettings'], (result: StorageData) => {
@@ -240,24 +465,29 @@ export class ForecastDashboard {
                         return;
                     }
 
-                    const cards: Card[] = result.fsrsCards || [];
-                    this.extensionSettings = result.extensionSettings || {};
-                    this.renderForecast(cards);
+                    this.cards = result.fsrsCards || [];
+                    this.extensionSettings = result.extensionSettings || null;
+
+                    const root = document.getElementById('root');
+                    if (root) {
+                        render(<ForecastApp initialCards={this.cards} initialSettings={this.extensionSettings || undefined} />, root);
+                    } else {
+                        this.renderForecast();
+                    }
                 } catch (innerErr) {
-            UIUtils.catchError('ForecastDashboard', 'Error rendering forecast', innerErr);
-        }
+                    UIUtils.catchError('ForecastDashboard', 'Error initializing forecast view', innerErr);
+                }
             });
         } catch (err) {
-            UIUtils.catchError('ForecastDashboard', 'Failed storage get in Forecast init', err);
+            UIUtils.catchError('ForecastDashboard', 'Failed to execute storage get in Forecast init', err);
         }
     }
 
-    /**
-     * Orchestrates the grouping of cards by due date, calculates peak/total workload stats,
-     * and renders both the workload forecast chart and the 30-day forecast calendar.
-     */
-    renderForecast(cards: Card[]): void {
+    renderForecast(cardsToRender?: Card[]): void {
         try {
+            const cards = cardsToRender || this.cards;
+            this.cards = cards;
+
             const now = new Date();
             const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const daysToShow = FORECAST_DAYS_TO_SHOW;
@@ -266,18 +496,16 @@ export class ForecastDashboard {
             let pastDueCount = 0;
 
             cards.forEach((card: Card) => {
-                if (card.state === 0) return; // Ignore 'New' unstudied cards in spaced-repetition forecast
+                if (card.state === 0) return;
 
                 const dueDate = new Date(card.due);
                 const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-                
                 const diffDays = Math.round((dueDay.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
 
                 if (diffDays < 0) {
                     pastDueCount++;
                 } else if (diffDays <= daysToShow) {
-                    const key = diffDays;
-                    dueCounts[key] = (dueCounts[key] || 0) + 1;
+                    dueCounts[diffDays] = (dueCounts[diffDays] || 0) + 1;
                 }
             });
 
@@ -289,13 +517,11 @@ export class ForecastDashboard {
             for (let i = 0; i <= daysToShow; i++) {
                 const count = dueCounts[i] || 0;
                 totalUpcoming += count;
-                
-                if (i > 0 && count > peakCount) {
-                    peakCount = count;
-                }
+                if (count > peakCount) peakCount = count;
             }
 
             const avgPerDay = totalUpcoming > 0 ? (totalUpcoming / (daysToShow + 1)).toFixed(1) : '0';
+            const todayCount = dueCounts[0] || 0;
 
             const totalEl = document.getElementById('forecast-total');
             const avgEl = document.getElementById('forecast-avg');
@@ -306,142 +532,104 @@ export class ForecastDashboard {
             if (totalEl) totalEl.textContent = String(totalUpcoming);
             if (avgEl) avgEl.textContent = avgPerDay;
             if (peakEl) peakEl.textContent = String(peakCount);
-            if (todayEl) todayEl.textContent = String(dueCounts[0] || 0);
+            if (todayEl) todayEl.textContent = String(todayCount);
             if (subtitleEl) {
                 subtitleEl.textContent = `${cards.length} total cards · Next 30 days starting ${this.formatDateShort(todayStart)}`;
             }
 
             this.renderForecastChart(dueCounts, todayStart, daysToShow);
+            this.renderCalendar(dueCounts, todayStart, daysToShow);
+        } catch (err) {
+            UIUtils.catchError('ForecastDashboard', 'Error rendering forecast metrics', err);
+        }
+    }
 
+    renderCalendar(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {
+        try {
             const calendar = document.getElementById('forecast-calendar');
             if (!calendar) return;
-            calendar.innerHTML = '';
 
-            const dayNames = DAY_NAMES_SHORT;
-            dayNames.forEach(name => {
-                const header = document.createElement('div');
-                header.className = 'cal-header';
-                header.textContent = name;
-                calendar.appendChild(header);
-            });
-
-            const startDow = todayStart.getDay();
-            for (let i = 0; i < startDow; i++) {
-                const empty = document.createElement('div');
-                empty.className = 'cal-cell cal-empty';
-                calendar.appendChild(empty);
-            }
+            const cells: ForecastCalendarCellProps[] = [];
 
             for (let i = 0; i <= daysToShow; i++) {
+                const count = dueCounts[i] || 0;
                 const date = new Date(todayStart);
                 date.setDate(date.getDate() + i);
-                const count = dueCounts[i] || 0;
 
-                const cell = document.createElement('div');
-                cell.className = 'cal-cell';
-                if (i === 0) cell.classList.add('cal-today');
+                let level: 0 | 1 | 2 | 3 | 4 = 0;
+                if (count === 0) level = 0;
+                else if (count <= 2) level = 1;
+                else if (count <= 5) level = 2;
+                else if (count <= 10) level = 3;
+                else level = 4;
 
-                if (count === 0) cell.classList.add('cal-level-0');
-                else if (count <= 2) cell.classList.add('cal-level-1');
-                else if (count <= 5) cell.classList.add('cal-level-2');
-                else if (count <= 10) cell.classList.add('cal-level-3');
-                else cell.classList.add('cal-level-4');
+                const dateKey = this.formatDateKey(date);
+                const fullDate = this.formatDateFull(date);
 
-                cell.innerHTML = `
-                    <span class="cal-day">${date.getDate()}</span>
-                    <span class="cal-count">${count > 0 ? count : ''}</span>
-                `;
-                cell.title = `${this.formatDateFull(date)}: ${count} card${count !== 1 ? 's' : ''} due`;
-
-                const cellDateStr = this.formatDateKey(date);
-                const cellDayOffset = i;
-                cell.addEventListener('click', () => {
+                const onCellClick = () => {
                     try {
                         if (count === 0) return;
-                        const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${cellDateStr}&offset=${cellDayOffset}`);
+                        const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dateKey}&offset=${i}`);
                         chrome.tabs.create({ url: dataUrl }, () => {
                             const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                             if (lastError) {
                                 const errorMessage = lastError.message || String(lastError);
-                                Logger.error('ForecastDashboard', `Error creating tab on calendar cell click: ${errorMessage}`, { cellDateStr, error: lastError });
+                                Logger.error('ForecastDashboard', `Error creating tab on calendar cell click: ${errorMessage}`, { dateKey, error: lastError });
                             }
                         });
                     } catch (clickErr) {
-            UIUtils.catchError('ForecastDashboard', 'Error in calendar cell click handler', clickErr, { cellDateStr });
-        }
-                });
+                        UIUtils.catchError('ForecastDashboard', 'Error in calendar cell click handler', clickErr, { dateKey });
+                    }
+                };
 
-                calendar.appendChild(cell);
+                cells.push({
+                    dayNumber: date.getDate(),
+                    count,
+                    isToday: i === 0,
+                    level,
+                    title: `${fullDate}: ${count} card${count !== 1 ? 's' : ''} due`,
+                    onClick: onCellClick
+                });
             }
 
-            const legend = document.createElement('div');
-            legend.className = 'cal-legend';
-            legend.innerHTML = `
-                <span class="cal-legend-label">Less</span>
-                <div class="cal-legend-cell cal-level-0"></div>
-                <div class="cal-legend-cell cal-level-1"></div>
-                <div class="cal-legend-cell cal-level-2"></div>
-                <div class="cal-legend-cell cal-level-3"></div>
-                <div class="cal-legend-cell cal-level-4"></div>
-                <span class="cal-legend-label">More</span>
-            `;
-            calendar.parentElement?.appendChild(legend);
+            const startDow = todayStart.getDay();
+            const emptyCells = Array.from({ length: startDow });
+
+            render(
+                <div>
+                    {DAY_NAMES_SHORT.map((name) => (
+                        <div key={name} className="cal-header">{name}</div>
+                    ))}
+                    {emptyCells.map((_, idx) => (
+                        <div key={`empty-${idx}`} className="cal-cell cal-empty" />
+                    ))}
+                    {cells.map((day, idx) => (
+                        <ForecastCalendarCell key={idx} {...day} />
+                    ))}
+                </div>,
+                calendar
+            );
+
+            const parent = calendar.parentElement;
+            if (parent && !parent.querySelector('.cal-legend')) {
+                const legend = document.createElement('div');
+                legend.className = 'cal-legend';
+                legend.innerHTML = `
+                    <span class="cal-legend-label">Less</span>
+                    <div class="cal-legend-cell cal-level-0"></div>
+                    <div class="cal-legend-cell cal-level-1"></div>
+                    <div class="cal-legend-cell cal-level-2"></div>
+                    <div class="cal-legend-cell cal-level-3"></div>
+                    <div class="cal-legend-cell cal-level-4"></div>
+                    <span class="cal-legend-label">More</span>
+                `;
+                parent.appendChild(legend);
+            }
         } catch (err) {
-            UIUtils.catchError('ForecastDashboard', 'Error orchestrating forecast rendering', err);
+            UIUtils.catchError('ForecastDashboard', 'Error orchestrating forecast calendar rendering', err);
         }
     }
 
-    /**
-     * Formats a date object into a short localized string (e.g., "Jan 5").
-     * @param date - Date to format.
-     * @returns Formatted short date string.
-     */
-    formatDateShort(date: Date): string {
-        try {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ForecastDashboard', `Error formatting short date: ${errorMessage}`, { date, err });
-            return date.toDateString();
-        }
-    }
-
-    /**
-     * Formats a date object into a full localized string with weekday (e.g., "Mon, Jan 5").
-     * @param date - Date to format.
-     * @returns Formatted full date string.
-     */
-    formatDateFull(date: Date): string {
-        try {
-            return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ForecastDashboard', `Error formatting full date: ${errorMessage}`, { date, err });
-            return date.toDateString();
-        }
-    }
-
-    /**
-     * Formats a date object into an ISO-style date key (`YYYY-MM-DD`) in local time.
-     * @param date - Date to convert.
-     * @returns `YYYY-MM-DD` date key string.
-     */
-    formatDateKey(date: Date): string {
-        try {
-            return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ForecastDashboard', `Error formatting date key: ${errorMessage}`, { date, err });
-            return new Date().toISOString().split('T')[0];
-        }
-    }
-
-    /**
-     * Renders a responsive CSS column bar chart showing daily review volume projections.
-     * @param dueCounts - Map of day offset index to projected number of due cards.
-     * @param todayStart - Midnight timestamp of the current day.
-     * @param daysToShow - Total number of forecast days to visualize.
-     */
     renderForecastChart(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {
         try {
             const chartWrapper = document.getElementById('forecast-chart-wrapper');
@@ -457,21 +645,9 @@ export class ForecastDashboard {
             }
 
             chartWrapper.style.display = 'block';
-            chartWrapper.innerHTML = '';
-
-            const title = document.createElement('h3');
-            title.className = 'chart-title-label';
-            title.innerText = 'Workload Forecast (Next 30 Days)';
-            chartWrapper.appendChild(title);
-
-            const chartContainerInner = document.createElement('div');
-            chartContainerInner.className = 'chart-container-inner';
-
-            const viewport = document.createElement('div');
-            viewport.className = 'chart-viewport';
 
             let maxVal = 0;
-            const dataPoints: Array<{ index: number; dateStr: string; displayDate: string; value: number }> = [];
+            const dataPoints: ForecastDataPoint[] = [];
 
             for (let i = 0; i <= daysToShow; i++) {
                 const count = dueCounts[i] || 0;
@@ -480,93 +656,73 @@ export class ForecastDashboard {
                 const date = new Date(todayStart);
                 date.setDate(date.getDate() + i);
 
+                const dateStr = this.formatDateKey(date);
+                const displayDate = this.formatDateFull(date);
+                const index = i;
+
+                const onBarClick = () => {
+                    try {
+                        const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dateStr}&offset=${index}`);
+                        chrome.tabs.create({ url: dataUrl }, () => {
+                            const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                            if (lastError) {
+                                const errorMessage = lastError.message || String(lastError);
+                                Logger.error('ForecastDashboard', `Error creating tab on bar click: ${errorMessage}`, { dateStr, error: lastError });
+                            }
+                        });
+                    } catch (clickErr) {
+                        UIUtils.catchError('ForecastDashboard', 'Error in bar click handler', clickErr, { dateStr });
+                    }
+                };
+
                 dataPoints.push({
                     index: i,
-                    dateStr: this.formatDateKey(date),
-                    displayDate: this.formatDateFull(date),
-                    value: count
+                    dateStr,
+                    displayDate,
+                    value: count,
+                    onClick: onBarClick
                 });
             }
 
-            const maxLimit = Math.max(maxVal, 1);
-
-            const gridLines = document.createElement('div');
-            gridLines.className = 'chart-grid-lines';
-            gridLines.innerHTML = `
-                <div class="grid-line" style="bottom: 0%;"><span>0</span></div>
-                <div class="grid-line" style="bottom: 50%;"><span>${Math.round(maxLimit / 2)}</span></div>
-                <div class="grid-line" style="bottom: 100%;"><span>${maxLimit}</span></div>
-            `;
-            viewport.appendChild(gridLines);
-
-            const barsContainer = document.createElement('div');
-            barsContainer.className = 'chart-bars';
-
-            dataPoints.forEach(dp => {
-                const barCol = document.createElement('div');
-                barCol.className = 'chart-bar-col';
-                if (dp.value > 0) barCol.classList.add('has-value');
-
-                const heightPct = (dp.value / maxLimit) * 100;
-
-                const bar = document.createElement('div');
-                bar.className = 'chart-bar';
-                bar.style.height = `${Math.max(heightPct, 3)}%`;
-
-                if (dp.value === 0) {
-                    bar.classList.add('zero-bar');
-                } else {
-                    if (dp.value <= 2) bar.classList.add('cal-bar-level-1');
-                    else if (dp.value <= 5) bar.classList.add('cal-bar-level-2');
-                    else if (dp.value <= 10) bar.classList.add('cal-bar-level-3');
-                    else bar.classList.add('cal-bar-level-4');
-                }
-
-                const tooltip = document.createElement('div');
-                tooltip.className = 'chart-bar-tooltip';
-                tooltip.innerText = `${dp.displayDate}: ${dp.value} card${dp.value !== 1 ? 's' : ''} due`;
-                bar.appendChild(tooltip);
-
-                const barLabel = document.createElement('div');
-                barLabel.className = 'chart-bar-label';
-                
-                if (dp.index === 0) {
-                    barLabel.innerText = 'Today';
-                } else if (dp.index % 5 === 0) {
-                    barLabel.innerText = `+${dp.index}`;
-                } else {
-                    barLabel.innerText = '';
-                }
-
-                barCol.appendChild(bar);
-                barCol.appendChild(barLabel);
-
-                if (dp.value > 0) {
-                    barCol.style.cursor = 'pointer';
-                    barCol.addEventListener('click', () => {
-                        try {
-                            const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dp.dateStr}&offset=${dp.index}`);
-                            chrome.tabs.create({ url: dataUrl }, () => {
-                                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                                if (lastError) {
-                                    const errorMessage = lastError.message || String(lastError);
-                                    Logger.error('ForecastDashboard', `Error creating tab on forecast chart bar click: ${errorMessage}`, { dateStr: dp.dateStr, error: lastError });
-                                }
-                            });
-                        } catch (clickErr) {
-            UIUtils.catchError('ForecastDashboard', 'Error in chart bar click handler', clickErr, { dp });
-        }
-                    });
-                }
-
-                barsContainer.appendChild(barCol);
-            });
-
-            viewport.appendChild(barsContainer);
-            chartContainerInner.appendChild(viewport);
-            chartWrapper.appendChild(chartContainerInner);
+            render(
+                <ForecastChart
+                    dataPoints={dataPoints}
+                    maxLimit={maxVal}
+                />,
+                chartWrapper
+            );
         } catch (err) {
             UIUtils.catchError('ForecastDashboard', 'Error rendering forecast chart', err);
+        }
+    }
+
+    formatDateShort(date: Date): string {
+        try {
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('ForecastDashboard', `Error formatting short date: ${errorMessage}`, { date, err });
+            return date.toDateString();
+        }
+    }
+
+    formatDateFull(date: Date): string {
+        try {
+            return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('ForecastDashboard', `Error formatting full date: ${errorMessage}`, { date, err });
+            return date.toDateString();
+        }
+    }
+
+    formatDateKey(date: Date): string {
+        try {
+            return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('ForecastDashboard', `Error formatting date key: ${errorMessage}`, { date, err });
+            return new Date().toISOString().split('T')[0];
         }
     }
 }
@@ -576,11 +732,16 @@ export class ForecastDashboard {
  */
 function initForecast(): void {
     try {
-        const forecast = new ForecastDashboard();
-        forecast.init();
-    } catch (err) {
-            UIUtils.catchError('ForecastDashboard', 'Initialization failed', err);
+        const root = document.getElementById('root');
+        if (root) {
+            render(<ForecastApp />, root);
+        } else {
+            const dashboard = new ForecastDashboard();
+            dashboard.init();
         }
+    } catch (err) {
+        UIUtils.catchError('ForecastDashboard', 'Initialization failed', err);
+    }
 }
 
 if (typeof document !== 'undefined') {
@@ -593,9 +754,10 @@ if (typeof document !== 'undefined') {
 
 if (typeof module !== 'undefined' && module.exports) {
     (module.exports as any).ForecastDashboard = ForecastDashboard;
+    (module.exports as any).ForecastApp = ForecastApp;
     (module.exports as any).ForecastMetricsHeader = ForecastMetricsHeader;
+    (module.exports as any).ForecastSummaryCards = ForecastSummaryCards;
     (module.exports as any).ForecastCalendarCell = ForecastCalendarCell;
     (module.exports as any).ForecastCalendar = ForecastCalendar;
     (module.exports as any).ForecastChart = ForecastChart;
 }
-

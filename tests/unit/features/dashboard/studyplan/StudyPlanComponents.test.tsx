@@ -8,7 +8,9 @@ import {
     StudyPlanSetupPanel,
     StudyPlanCountdownRing,
     StudyPlanActivePanel,
-    StudyPlanScheduleTable
+    StudyPlanScheduleTable,
+    StudyPlanApp,
+    StudyPlanController
 } from '../../../../../features/dashboard/studyplan/studyplan';
 
 describe('StudyPlan Preact Components', () => {
@@ -138,6 +140,39 @@ describe('StudyPlan Preact Components', () => {
             expect(trs[1].classList.contains('today-row')).toBe(true);
             expect(container.querySelector('.badge-today')?.textContent).toBe('Today');
             expect(container.querySelector('.badge-complete')?.textContent).toBe('Done');
+        });
+    });
+
+    describe('StudyPlanApp', () => {
+        it('renders SetupPanel when exam mode is inactive', () => {
+            const controller = new StudyPlanController();
+            controller.settings = null;
+
+            render(<StudyPlanApp controller={controller} />, container);
+
+            expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+            expect(container.querySelector('h1')?.textContent).toContain('Exam Countdown Mode');
+            expect(container.querySelector('#setup-panel')).not.toBeNull();
+            expect(container.querySelector('#active-panel')).toBeNull();
+        });
+
+        it('renders ActivePanel when exam mode is active', () => {
+            const controller = new StudyPlanController();
+            controller.settings = {
+                isActive: true,
+                examDate: '2026-12-31',
+                dailyTarget: 5,
+                activatedAt: Date.now() - 86400000
+            };
+            controller.allCards = [
+                { id: 'c1', due: Date.now() + 86400000 } as any
+            ];
+
+            render(<StudyPlanApp controller={controller} />, container);
+
+            expect(container.querySelector('#setup-panel')).toBeNull();
+            expect(container.querySelector('#active-panel')).not.toBeNull();
+            expect(container.querySelector('#active-daily-target')?.textContent).toBe('5');
         });
     });
 });

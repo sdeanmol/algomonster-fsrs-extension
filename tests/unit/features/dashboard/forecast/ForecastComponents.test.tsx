@@ -8,7 +8,9 @@ import {
     ForecastMetricsHeader,
     ForecastCalendarCell,
     ForecastCalendar,
-    ForecastChart
+    ForecastChart,
+    ForecastSummaryCards,
+    ForecastApp
 } from '../../../../../features/dashboard/forecast/forecast';
 
 describe('Forecast Preact Components', () => {
@@ -122,6 +124,23 @@ describe('Forecast Preact Components', () => {
 
             (cols[0] as HTMLElement).click();
             expect(onBarClick).toHaveBeenCalled();
+        });
+    });
+
+    describe('ForecastApp root component', () => {
+        it('renders complete ForecastApp with brand header, summary cards, chart, and calendar', () => {
+            const mockCards = [
+                { id: '1', state: 2, due: Date.now() + 86400000, stability: 1, difficulty: 1, historyLog: [] },
+                { id: '2', state: 2, due: Date.now() + 86400000 * 2, stability: 1, difficulty: 1, historyLog: [] }
+            ] as any;
+
+            render(<ForecastApp initialCards={mockCards} initialSettings={{ showCharts: true }} />, container);
+
+            expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
+            expect(container.querySelector('h1')?.textContent).toBe('Review Forecast');
+            expect(container.querySelector('.forecast-summary')).not.toBeNull();
+            expect(container.querySelector('#forecast-chart-wrapper')).not.toBeNull();
+            expect(container.querySelector('#forecast-calendar')).not.toBeNull();
         });
     });
 });

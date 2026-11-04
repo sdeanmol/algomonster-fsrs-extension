@@ -1,12 +1,12 @@
 /**
  * @file features/dashboard/studyplan/studyplan.tsx
- * @description Exam Countdown Mode and study planner controller.
+ * @description Exam Countdown Mode and study planner controller and Preact components.
  * Redistributes all FSRS cards evenly across remaining calendar days until the target exam date,
  * prioritizing overdue and low-stability cards. Preserves original computed due dates as a backup
  * so spaced repetition schedules can be restored when exam mode is deactivated.
  * Migrated to Preact with TypeScript for modular setup and countdown panels.
  *
- * Architecture Role: Exam Study Plan Standalone Page Controller.
+ * Architecture Role: Exam Study Plan Standalone Page Controller and Preact Root Component.
  * Context: Extension Standalone Tab (`features/dashboard/studyplan/studyplan.html`).
  * Key Exports:
  * - `StudyPlanSettings`: Configuration schema for active exam countdown deadlines.
@@ -14,10 +14,12 @@
  * - `StudyPlanCountdownRing`: Preact component rendering circular deadline dial.
  * - `StudyPlanActivePanel`: Preact component for active countdown metrics and controls.
  * - `StudyPlanScheduleTable`: Preact component rendering daily schedule breakdown.
+ * - `StudyPlanApp`: Root Preact component for the Exam Countdown Mode.
  * - `StudyPlanController`: Controller class managing redistribution logic, previews, and countdown display.
  */
 
-import { h, VNode } from 'preact';
+import { h, VNode, render, Fragment } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
@@ -66,28 +68,36 @@ export function StudyPlanSetupPanel({
     onActivate
 }: StudyPlanSetupPanelProps): VNode {
     return (
-        <div id="setup-panel" className="setup-panel">
-            <div className="input-group">
-                <label htmlFor="exam-date-input">Target Exam Date</label>
-                <input
-                    type="date"
-                    id="exam-date-input"
-                    className="input-field"
-                    min={examDateMin}
-                    onChange={onExamDateChange}
-                    onInput={onExamDateChange}
-                />
-            </div>
-            <div className="input-group">
-                <label htmlFor="daily-limit-input">Max Daily Reviews (Optional)</label>
-                <input
-                    type="number"
-                    id="daily-limit-input"
-                    className="input-field"
-                    placeholder="Auto-calculated"
-                    min={1}
-                    onInput={onDailyLimitChange}
-                />
+        <div id="setup-panel" className="panel setup-panel">
+            <h2 className="panel-title-lg">Set Your Exam Date</h2>
+            <p className="panel-description">
+                All pattern cards will be redistributed evenly across the remaining days until your exam, prioritizing the most difficult and overdue patterns first.
+            </p>
+
+            <div className="setup-form">
+                <div className="form-group input-group">
+                    <label htmlFor="exam-date-input">Exam Date</label>
+                    <input
+                        type="date"
+                        id="exam-date-input"
+                        className="input-field date-input"
+                        min={examDateMin}
+                        onChange={onExamDateChange}
+                        onInput={onExamDateChange}
+                    />
+                </div>
+                <div className="form-group input-group">
+                    <label htmlFor="daily-limit-input">Max Patterns per Day (optional)</label>
+                    <input
+                        type="number"
+                        id="daily-limit-input"
+                        className="input-field"
+                        placeholder="Auto-calculated"
+                        min={1}
+                        max={200}
+                        onInput={onDailyLimitChange}
+                    />
+                </div>
             </div>
 
             <div
@@ -95,26 +105,32 @@ export function StudyPlanSetupPanel({
                 className="setup-preview"
                 style={{ display: showPreview ? 'block' : 'none' }}
             >
-                <div className="preview-stat">
-                    <span>Days Remaining:</span>
-                    <strong id="preview-days">{daysLeft}</strong>
-                </div>
-                <div className="preview-stat">
-                    <span>Total Cards:</span>
-                    <strong id="preview-total">{totalCards}</strong>
-                </div>
-                <div className="preview-stat">
-                    <span>Daily Target:</span>
-                    <strong id="preview-daily">{dailyTarget}</strong>
+                <div className="preview-stats">
+                    <div className="preview-stat">
+                        <div className="preview-stat-value" id="preview-days">{daysLeft}</div>
+                        <div className="preview-stat-label">Days Left</div>
+                    </div>
+                    <div className="preview-stat">
+                        <div className="preview-stat-value" id="preview-total">{totalCards}</div>
+                        <div className="preview-stat-label">Total Patterns</div>
+                    </div>
+                    <div className="preview-stat">
+                        <div className="preview-stat-value" id="preview-daily">{dailyTarget}</div>
+                        <div className="preview-stat-label">Patterns/Day</div>
+                    </div>
                 </div>
             </div>
 
             <button
                 id="activate-btn"
-                className="btn btn-primary btn-block"
+                className="btn btn-primary btn-lg btn-block"
                 disabled={!showPreview}
                 onClick={onActivate}
             >
+                <svg className="svg-icon" viewBox="0 0 24 24" style={{ marginRight: '6px' }} aria-hidden="true">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
                 Activate Exam Mode
             </button>
         </div>
@@ -142,12 +158,12 @@ export function StudyPlanCountdownRing({
     const ringClass = daysLeft <= 3 ? 'urgent' : (daysLeft <= 7 ? 'warning' : '');
 
     return (
-        <div className="countdown-ring-container">
-            <svg className="countdown-ring" viewBox="0 0 120 120">
-                <circle className="ring-bg" cx="60" cy="60" r="52" />
+        <div className="countdown-ring-wrap countdown-ring-container">
+            <svg className="countdown-ring countdown-ring-svg" viewBox="0 0 120 120">
+                <circle className="countdown-ring-bg ring-bg" cx="60" cy="60" r="52" />
                 <circle
                     id="countdown-ring-fill"
-                    className={`ring-fill ${ringClass}`}
+                    className={`countdown-ring-fill ring-fill ${ringClass}`}
                     cx="60"
                     cy="60"
                     r="52"
@@ -155,70 +171,11 @@ export function StudyPlanCountdownRing({
                     strokeDashoffset={String(offset)}
                 />
             </svg>
-            <div className="countdown-text">
-                <span id="countdown-days" className="countdown-number">{daysLeft}</span>
-                <span id="countdown-title" className="countdown-label">{title}</span>
-                <span id="countdown-exam-date" className="countdown-date">{examDateFormatted}</span>
+            <div className="countdown-ring-text countdown-text">
+                <span id="countdown-days" className="countdown-days countdown-number">{daysLeft}</span>
+                <span className="countdown-label" id="countdown-title">{title}</span>
+                <span className="countdown-date" id="countdown-exam-date">{examDateFormatted}</span>
             </div>
-        </div>
-    );
-}
-
-export interface StudyPlanActivePanelProps {
-    totalCards: number;
-    dailyTarget: number;
-    completedCards: number;
-    daysLeft: number;
-    progress: number;
-    title: string;
-    examDateFormatted: string;
-    onDeactivate: () => void;
-}
-
-/**
- * Preact component rendering active exam mode dashboard and metrics.
- */
-export function StudyPlanActivePanel({
-    totalCards,
-    dailyTarget,
-    completedCards,
-    daysLeft,
-    progress,
-    title,
-    examDateFormatted,
-    onDeactivate
-}: StudyPlanActivePanelProps): VNode {
-    return (
-        <div id="active-panel" className="active-panel">
-            <StudyPlanCountdownRing
-                daysLeft={daysLeft}
-                progress={progress}
-                title={title}
-                examDateFormatted={examDateFormatted}
-            />
-
-            <div className="active-stats-grid">
-                <div className="stat-card">
-                    <span className="stat-label">Total Cards</span>
-                    <span id="active-total-cards" className="stat-value">{totalCards}</span>
-                </div>
-                <div className="stat-card">
-                    <span className="stat-label">Daily Target</span>
-                    <span id="active-daily-target" className="stat-value">{dailyTarget}</span>
-                </div>
-                <div className="stat-card">
-                    <span className="stat-label">Reviewed</span>
-                    <span id="active-completed" className="stat-value">{completedCards}</span>
-                </div>
-            </div>
-
-            <button
-                id="deactivate-btn"
-                className="btn btn-secondary btn-block"
-                onClick={onDeactivate}
-            >
-                Deactivate Exam Mode
-            </button>
         </div>
     );
 }
@@ -241,12 +198,12 @@ export interface StudyPlanScheduleTableProps {
  */
 export function StudyPlanScheduleTable({ rows }: StudyPlanScheduleTableProps): VNode {
     return (
-        <table className="schedule-table">
+        <table id="schedule-table" className="schedule-table">
             <thead>
                 <tr>
                     <th>Day</th>
                     <th>Date</th>
-                    <th>Cards</th>
+                    <th>Patterns Due</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -275,6 +232,234 @@ export function StudyPlanScheduleTable({ rows }: StudyPlanScheduleTableProps): V
     );
 }
 
+export interface StudyPlanActivePanelProps {
+    totalCards: number;
+    dailyTarget: number;
+    completedCards: number;
+    daysLeft: number;
+    progress: number;
+    title: string;
+    examDateFormatted: string;
+    rows?: StudyPlanScheduleRow[];
+    onDeactivate: () => void;
+}
+
+/**
+ * Preact component rendering active exam mode dashboard and metrics.
+ */
+export function StudyPlanActivePanel({
+    totalCards,
+    dailyTarget,
+    completedCards,
+    daysLeft,
+    progress,
+    title,
+    examDateFormatted,
+    rows = [],
+    onDeactivate
+}: StudyPlanActivePanelProps): VNode {
+    return (
+        <div id="active-panel" className="panel active-panel">
+            <div className="countdown-section">
+                <StudyPlanCountdownRing
+                    daysLeft={daysLeft}
+                    progress={progress}
+                    title={title}
+                    examDateFormatted={examDateFormatted}
+                />
+                <div className="countdown-info">
+                    <h2 className="countdown-title">{title}</h2>
+                    <div className="countdown-meta">
+                        <span>{examDateFormatted}</span>
+                    </div>
+                    <div className="countdown-stats-row active-stats-grid">
+                        <div className="countdown-stat stat-card">
+                            <span id="active-total-cards" className="countdown-stat-value stat-value">{totalCards}</span>
+                            <span className="countdown-stat-label stat-label">Total Patterns</span>
+                        </div>
+                        <div className="countdown-stat stat-card">
+                            <span id="active-daily-target" className="countdown-stat-value stat-value">{dailyTarget}</span>
+                            <span className="countdown-stat-label stat-label">Patterns/Day</span>
+                        </div>
+                        <div className="countdown-stat stat-card">
+                            <span id="active-completed" className="countdown-stat-value stat-value">{completedCards}</span>
+                            <span className="countdown-stat-label stat-label">Completed</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {rows.length > 0 && (
+                <div>
+                    <h3 className="section-title">Daily Review Schedule</h3>
+                    <div className="schedule-table-wrap">
+                        <StudyPlanScheduleTable rows={rows} />
+                    </div>
+                </div>
+            )}
+
+            <div className="active-actions">
+                <button
+                    id="deactivate-btn"
+                    className="btn btn-danger btn-secondary btn-block"
+                    onClick={onDeactivate}
+                >
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ marginRight: '6px', width: '14px', height: '14px' }} aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                    Deactivate Exam Mode
+                </button>
+                <p className="deactivate-note">
+                    Deactivating will restore all patterns to their original FSRS-computed due dates.
+                </p>
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT PREACT COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface StudyPlanAppProps {
+    controller?: StudyPlanController;
+}
+
+export function StudyPlanApp({ controller: initialController }: StudyPlanAppProps): VNode {
+    const [controller] = useState(() => initialController || new StudyPlanController());
+    const [isActive, setIsActive] = useState<boolean>(controller.settings?.isActive ?? false);
+    const [settings, setSettings] = useState<StudyPlanSettings | null>(controller.settings);
+    const [allCards, setAllCards] = useState<Card[]>(controller.allCards);
+    const [previewDays, setPreviewDays] = useState<number>(0);
+    const [previewTotal, setPreviewTotal] = useState<number>(0);
+    const [previewDaily, setPreviewDaily] = useState<number>(0);
+    const [showPreview, setShowPreview] = useState<boolean>(false);
+    const [, setRenderTrigger] = useState(0);
+
+    const forceUpdate = () => setRenderTrigger(c => c + 1);
+
+    useEffect(() => {
+        controller.onUpdate = () => {
+            setIsActive(controller.settings?.isActive ?? false);
+            setSettings(controller.settings ? { ...controller.settings } : null);
+            setAllCards([...controller.allCards]);
+            forceUpdate();
+        };
+
+        if (controller.allCards.length === 0 && !controller.settings) {
+            controller.init();
+        }
+    }, [controller]);
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const examDateMin = controller.formatDate(tomorrow);
+
+    const handleDateOrLimitChange = () => {
+        controller.updatePreview();
+        const prevDaysEl = document.getElementById('preview-days');
+        const prevTotalEl = document.getElementById('preview-total');
+        const prevDailyEl = document.getElementById('preview-daily');
+        const prevContainer = document.getElementById('setup-preview');
+
+        if (prevDaysEl && prevTotalEl && prevDailyEl && prevContainer) {
+            setPreviewDays(parseInt(prevDaysEl.textContent || '0', 10));
+            setPreviewTotal(parseInt(prevTotalEl.textContent || '0', 10));
+            setPreviewDaily(parseInt(prevDailyEl.textContent || '0', 10));
+            setShowPreview(prevContainer.style.display !== 'none');
+        }
+    };
+
+    const handleActivate = () => {
+        controller.activateExamMode();
+    };
+
+    const handleDeactivate = () => {
+        controller.deactivateExamMode();
+    };
+
+    // Calculate active metrics
+    let daysLeft = 0;
+    let progress = 0;
+    let title = 'Exam Countdown';
+    let examDateFormatted = '';
+    let completedCards = 0;
+    let scheduleRows: StudyPlanScheduleRow[] = [];
+
+    if (settings && isActive) {
+        const now = Date.now();
+        const examTime = new Date(settings.examDate + 'T23:59:59').getTime();
+        const totalDays = Math.ceil((examTime - settings.activatedAt) / (1000 * 60 * 60 * 24));
+        daysLeft = Math.max(0, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
+        const daysPassed = totalDays - daysLeft;
+        progress = totalDays > 0 ? Math.min(daysPassed / totalDays, 1) : 0;
+        title = daysLeft === 0 ? 'Exam Day!' : 'Exam Countdown';
+        examDateFormatted = new Date(settings.examDate).toLocaleDateString(undefined, {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        completedCards = allCards.filter(c => {
+            const lastReview = getLastReviewDate(c);
+            return lastReview && lastReview > settings.activatedAt;
+        }).length;
+
+        scheduleRows = controller.computeScheduleRows(totalDays);
+    }
+
+    return (
+        <div className="container">
+            <div className="header">
+                <div className="header-main">
+                    <div className="algorecall-brand-badge">
+                        <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                            <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                            <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                        </svg>
+                        <span className="algorecall-brand-name">AlgoRecall</span>
+                    </div>
+                    <h1>
+                        <svg className="svg-icon header-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                            <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        Exam Countdown Mode
+                    </h1>
+                    <p className="subtitle">Redistribute your reviews to guarantee full coverage before your exam date.</p>
+                </div>
+            </div>
+
+            {!isActive ? (
+                <StudyPlanSetupPanel
+                    examDateMin={examDateMin}
+                    daysLeft={previewDays}
+                    totalCards={previewTotal}
+                    dailyTarget={previewDaily}
+                    showPreview={showPreview}
+                    onExamDateChange={handleDateOrLimitChange}
+                    onDailyLimitChange={handleDateOrLimitChange}
+                    onActivate={handleActivate}
+                />
+            ) : (
+                <StudyPlanActivePanel
+                    totalCards={allCards.length}
+                    dailyTarget={settings?.dailyTarget || 0}
+                    completedCards={completedCards}
+                    daysLeft={daysLeft}
+                    progress={progress}
+                    title={title}
+                    examDateFormatted={examDateFormatted}
+                    rows={scheduleRows}
+                    onDeactivate={handleDeactivate}
+                />
+            )}
+        </div>
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STUDY PLAN CONTROLLER CLASS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -288,6 +473,8 @@ export class StudyPlanController {
     allCards: Card[];
     /** Active exam plan settings, or null if exam mode is inactive. */
     settings: StudyPlanSettings | null;
+    /** State change observer callback. */
+    onUpdate?: () => void;
 
     /**
      * Initializes the controller with empty cards array and null settings.
@@ -323,9 +510,11 @@ export class StudyPlanController {
                     } else {
                         this.renderSetupPanel();
                     }
+
+                    if (this.onUpdate) this.onUpdate();
                 } catch (innerErr) {
-            UIUtils.catchError('StudyPlan', 'Error initializing study plan UI from storage', innerErr);
-        }
+                    UIUtils.catchError('StudyPlan', 'Error initializing study plan UI from storage', innerErr);
+                }
             });
         } catch (err) {
             UIUtils.catchError('StudyPlan', 'Error initiating storage get for StudyPlanController', err);
@@ -351,8 +540,8 @@ export class StudyPlanController {
                     try {
                         this.updatePreview();
                     } catch (err) {
-            UIUtils.catchError('StudyPlan', 'Error in exam date input listener', err);
-        }
+                        UIUtils.catchError('StudyPlan', 'Error in exam date input listener', err);
+                    }
                 };
 
                 examDateInput.addEventListener('change', handleDateUpdate);
@@ -364,8 +553,8 @@ export class StudyPlanController {
                     try {
                         this.updatePreview();
                     } catch (err) {
-            UIUtils.catchError('StudyPlan', 'Error in daily limit input listener', err);
-        }
+                        UIUtils.catchError('StudyPlan', 'Error in daily limit input listener', err);
+                    }
                 });
             }
 
@@ -374,8 +563,8 @@ export class StudyPlanController {
                     try {
                         this.activateExamMode();
                     } catch (err) {
-            UIUtils.catchError('StudyPlan', 'Error in activate button listener', err);
-        }
+                        UIUtils.catchError('StudyPlan', 'Error in activate button listener', err);
+                    }
                 });
             }
 
@@ -384,8 +573,8 @@ export class StudyPlanController {
                     try {
                         this.deactivateExamMode();
                     } catch (err) {
-            UIUtils.catchError('StudyPlan', 'Error in deactivate button listener', err);
-        }
+                        UIUtils.catchError('StudyPlan', 'Error in deactivate button listener', err);
+                    }
                 });
             }
         } catch (err) {
@@ -432,10 +621,10 @@ export class StudyPlanController {
 
             const totalCards = this.allCards.length;
             const limitVal = parseInt(dailyLimitInput?.value || '', 10);
-            
+
             let dailyTarget = Math.ceil(totalCards / daysLeft);
             let willFinish = true;
-            
+
             if (!isNaN(limitVal) && limitVal > 0 && limitVal < dailyTarget) {
                 dailyTarget = limitVal;
                 willFinish = false;
@@ -472,7 +661,7 @@ export class StudyPlanController {
             const daysLeft = Math.max(1, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
             const limitVal = parseInt(dailyLimitInput?.value || '', 10);
             let cardsPerDay = Math.ceil(this.allCards.length / daysLeft);
-            
+
             if (!isNaN(limitVal) && limitVal > 0 && limitVal < cardsPerDay) {
                 cardsPerDay = limitVal;
             }
@@ -499,9 +688,9 @@ export class StudyPlanController {
 
             sortedCards.forEach((card, index) => {
                 const dayOffset = Math.floor(index / cardsPerDay);
-                
+
                 if (dayOffset >= daysLeft) return;
-                
+
                 const dueDate = new Date(startOfToday);
                 dueDate.setDate(dueDate.getDate() + dayOffset);
                 dueDate.setHours(9, 0, 0, 0);
@@ -519,9 +708,9 @@ export class StudyPlanController {
                 activatedAt: now
             };
 
-            chrome.storage.local.set({ 
-                fsrsCards: this.allCards, 
-                studyPlanSettings: settings 
+            chrome.storage.local.set({
+                fsrsCards: this.allCards,
+                studyPlanSettings: settings
             }, () => {
                 try {
                     const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
@@ -532,9 +721,10 @@ export class StudyPlanController {
                     }
                     this.settings = settings;
                     this.renderActivePanel();
+                    if (this.onUpdate) this.onUpdate();
                 } catch (cbErr) {
-            UIUtils.catchError('StudyPlan', 'Error in storage set callback for activateExamMode', cbErr);
-        }
+                    UIUtils.catchError('StudyPlan', 'Error in storage set callback for activateExamMode', cbErr);
+                }
             });
         } catch (err) {
             UIUtils.catchError('StudyPlan', 'Error activating exam mode', err);
@@ -573,9 +763,10 @@ export class StudyPlanController {
                     }
                     this.settings = null;
                     this.renderSetupPanel();
+                    if (this.onUpdate) this.onUpdate();
                 } catch (cbErr) {
-            UIUtils.catchError('StudyPlan', 'Error in storage set callback for deactivateExamMode', cbErr);
-        }
+                    UIUtils.catchError('StudyPlan', 'Error in storage set callback for deactivateExamMode', cbErr);
+                }
             });
         } catch (err) {
             UIUtils.catchError('StudyPlan', 'Error deactivating exam mode', err);
@@ -587,6 +778,12 @@ export class StudyPlanController {
      */
     renderSetupPanel(): void {
         try {
+            const root = document.getElementById('root');
+            if (root) {
+                render(<StudyPlanApp controller={this} />, root);
+                return;
+            }
+
             const setupPanel = document.getElementById('setup-panel');
             const activePanel = document.getElementById('active-panel');
             if (setupPanel) setupPanel.style.display = 'block';
@@ -604,6 +801,13 @@ export class StudyPlanController {
     renderActivePanel(): void {
         try {
             if (!this.settings) return;
+
+            const root = document.getElementById('root');
+            if (root) {
+                render(<StudyPlanApp controller={this} />, root);
+                return;
+            }
+
             const setupPanel = document.getElementById('setup-panel');
             const activePanel = document.getElementById('active-panel');
             if (setupPanel) setupPanel.style.display = 'none';
@@ -621,7 +825,7 @@ export class StudyPlanController {
             if (ringFill) {
                 ringFill.setAttribute('stroke-dasharray', String(circumference));
                 ringFill.setAttribute('stroke-dashoffset', String(circumference - (progress * circumference)));
-                
+
                 if (daysLeft <= 3) ringFill.classList.add('urgent');
                 else if (daysLeft <= 7) ringFill.classList.add('warning');
             }
@@ -659,6 +863,44 @@ export class StudyPlanController {
     }
 
     /**
+     * Computes schedule row data objects for the daily review schedule table.
+     */
+    computeScheduleRows(totalDays: number): StudyPlanScheduleRow[] {
+        if (!this.settings) return [];
+        const rows: StudyPlanScheduleRow[] = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayTime = today.getTime();
+        const daysToShow = Math.min(totalDays, 30);
+
+        for (let i = 0; i < daysToShow; i++) {
+            const dayDate = new Date(this.settings.activatedAt);
+            dayDate.setHours(0, 0, 0, 0);
+            dayDate.setDate(dayDate.getDate() + i);
+
+            const dayStart = dayDate.getTime();
+            const nextDay = new Date(dayDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const dayEnd = nextDay.getTime();
+
+            const cardsForDay = this.allCards.filter(c => c.due >= dayStart && c.due < dayEnd).length;
+            const isToday = dayDate.getTime() === todayTime;
+            const isPast = dayDate.getTime() < todayTime;
+            const status: 'Done' | 'Today' | 'Upcoming' = isPast ? 'Done' : (isToday ? 'Today' : 'Upcoming');
+
+            rows.push({
+                dayIndex: i + 1,
+                dateFormatted: dayDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+                cardsCount: cardsForDay,
+                status,
+                isToday,
+                isPast
+            });
+        }
+        return rows;
+    }
+
+    /**
      * Renders the daily review schedule breakdown table.
      */
     renderScheduleTable(totalDays: number, daysLeft: number): void {
@@ -666,51 +908,32 @@ export class StudyPlanController {
             if (!this.settings) return;
             const tbody = document.getElementById('schedule-body');
             if (!tbody) return;
-            tbody.innerHTML = '';
 
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayTime = today.getTime();
-
-            const daysToShow = Math.min(totalDays, 30);
-
-            for (let i = 0; i < daysToShow; i++) {
-                const dayDate = new Date(this.settings.activatedAt);
-                dayDate.setHours(0, 0, 0, 0);
-                dayDate.setDate(dayDate.getDate() + i);
-                
-                const dayStart = dayDate.getTime();
-                
-                const nextDay = new Date(dayDate);
-                nextDay.setDate(nextDay.getDate() + 1);
-                const dayEnd = nextDay.getTime();
-
-                const cardsForDay = this.allCards.filter(c => c.due >= dayStart && c.due < dayEnd).length;
-                
-                const isToday = dayDate.getTime() === todayTime;
-                const isPast = dayDate.getTime() < todayTime;
-
-                let statusBadge = '';
-                if (isPast) {
-                    statusBadge = '<span class="badge badge-complete">Done</span>';
-                } else if (isToday) {
-                    statusBadge = '<span class="badge badge-today">Today</span>';
-                } else {
-                    statusBadge = '<span class="badge badge-upcoming">Upcoming</span>';
-                }
-
-                const rowClass = isToday ? 'today-row' : (isPast ? 'past-row' : '');
-
-                const tr = document.createElement('tr');
-                tr.className = rowClass;
-                tr.innerHTML = `
-                    <td>Day ${i + 1}</td>
-                    <td>${dayDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</td>
-                    <td>${cardsForDay}</td>
-                    <td>${statusBadge}</td>
-                `;
-                tbody.appendChild(tr);
-            }
+            const rows = this.computeScheduleRows(totalDays);
+            render(
+                <Fragment>
+                    {rows.map(row => (
+                        <tr
+                            key={row.dayIndex}
+                            className={row.isToday ? 'today-row' : (row.isPast ? 'past-row' : '')}
+                        >
+                            <td>Day {row.dayIndex}</td>
+                            <td>{row.dateFormatted}</td>
+                            <td>{row.cardsCount}</td>
+                            <td>
+                                <span
+                                    className={`badge badge-${
+                                        row.status === 'Done' ? 'complete' : (row.status === 'Today' ? 'today' : 'upcoming')
+                                    }`}
+                                >
+                                    {row.status}
+                                </span>
+                            </td>
+                        </tr>
+                    ))}
+                </Fragment>,
+                tbody
+            );
         } catch (err) {
             UIUtils.catchError('StudyPlan', 'Error rendering schedule table', err, { totalDays, daysLeft });
         }
@@ -720,13 +943,18 @@ export class StudyPlanController {
 /**
  * Initializes the study plan controller on DOM load.
  */
-function initStudyPlan(): void {
+export function initStudyPlan(): void {
     try {
+        const root = document.getElementById('root');
         const controller = new StudyPlanController();
-        controller.init();
-    } catch (err) {
-            UIUtils.catchError('StudyPlan', 'Initialization failed', err);
+        if (root) {
+            render(<StudyPlanApp controller={controller} />, root);
+        } else {
+            controller.init();
         }
+    } catch (err) {
+        UIUtils.catchError('StudyPlan', 'Initialization failed', err);
+    }
 }
 
 if (typeof document !== 'undefined') {
@@ -743,5 +971,6 @@ if (typeof module !== 'undefined' && module.exports) {
     (module.exports as any).StudyPlanCountdownRing = StudyPlanCountdownRing;
     (module.exports as any).StudyPlanActivePanel = StudyPlanActivePanel;
     (module.exports as any).StudyPlanScheduleTable = StudyPlanScheduleTable;
+    (module.exports as any).StudyPlanApp = StudyPlanApp;
+    (module.exports as any).initStudyPlan = initStudyPlan;
 }
-
