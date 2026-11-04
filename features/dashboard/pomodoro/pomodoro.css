@@ -1,8 +1,8 @@
 /**
  * @file features/dashboard/pomodoro/pomodoro.css
- * @context Pomodoro Timer UI / Dedicated Options Tab
+ * @context Pomodoro Timer UI | Dedicated Options Tab
  * @description Styles for focus and break countdown cycles, dynamic SVG circular stroke meter, session counters, and phase indicator buttons.
- * @isolation Global within the Pomodoro Timer page context.
+ * @associated-components features/dashboard/pomodoro/pomodoro.tsx (PomodoroApp, PomodoroDisplay, PomodoroControls, PomodoroSettingsForm)
  * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-success, --md-text-high, --md-text-low).
  */
 body {

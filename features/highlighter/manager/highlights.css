@@ -1,8 +1,8 @@
 /**
  * @file features/highlighter/manager/highlights.css
- * @context Options UI / Highlights Manager Tab
+ * @context Options UI | Highlights Manager Tab
  * @description Styling rules for highlighted text cards, action buttons, search filtering, color bubble selectors, and details list panels.
- * @isolation Global within the Highlights Manager page.
+ * @associated-components features/highlighter/manager/highlights.tsx (HighlightsApp, HighlightsTable, FilterBar)
  * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-text-high, --md-text-med, --md-text-low, --md-danger, --shadow-1, --shadow-2).
  */
 body {

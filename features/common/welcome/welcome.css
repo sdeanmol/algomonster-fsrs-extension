@@ -1,10 +1,10 @@
 /**
  * @file features/common/welcome/welcome.css
- * @context Onboarding Wizard UI (features/common/welcome/welcome.html)
+ * @context Onboarding Wizard UI | Post-Installation Walkthrough
  * @description Stylesheet for the post-installation welcome tour wizard.
  * Defines responsive modal card container, step progress dot indicators,
  * slide-in card transitions, theme selection cards, and permission buttons.
- * @isolation Global (Page-scoped to welcome.html)
+ * @associated-components features/common/welcome/welcome.tsx (WelcomeApp, StepIndicators, WelcomeNavigation)
  * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 body {

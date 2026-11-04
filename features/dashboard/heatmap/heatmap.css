@@ -1,8 +1,8 @@
 /**
  * @file features/dashboard/heatmap/heatmap.css
- * @context Activity Heatmap UI / Dedicated Options Tab
+ * @context Activity Heatmap UI | Dedicated Options Tab
  * @description Styling rules for dedicated full-screen contribution heatmap grid, intensity levels, streak gamification dashboard cards, and filter controls.
- * @isolation Global within the Heatmap page context.
+ * @associated-components features/dashboard/heatmap/heatmap.tsx (HeatmapApp, HeatmapGrid), heatmap-stats.tsx (StreakCounterCard, HeatmapStatsSummary)
  * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
  */
 body {

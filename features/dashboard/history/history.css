@@ -1,8 +1,9 @@
 /**
  * @file features/dashboard/history/history.css
- * @context Review Activity History UI / Dedicated Options Tab
- * @description Styling rules for review activity history timeline, year/month/day drill-down cards, breadcrumbs, and detail bars.
- * @isolation Global within the History page context.
+ * @context Review Activity History UI | Dedicated Options Tab
+ * @description Styling rules for review activity history timeline, year/month/day drill-down cards,
+ * breadcrumbs, review bar charts, and card links.
+ * @associated-components features/dashboard/history/history.tsx (HistoryApp, HistoryBreadcrumb, HistorySummaryCard, HistoryBarChart)
  * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-primary-container, --md-on-primary-container, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
  */
 body {
@@ -133,13 +134,6 @@ h1 {
     border-color: var(--md-primary);
     background: var(--md-surface-variant);
     box-shadow: var(--shadow-2);
-}
-
-.card.no-click {
-    cursor: default;
-    transform: none;
-    border-color: var(--md-border);
-    background: var(--md-surface);
 }
 
 .card-title {

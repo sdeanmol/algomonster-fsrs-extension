@@ -1,11 +1,10 @@
 /**
  * @file features/highlighter/style.css
- * @context Injected Content Script (Injected on coding problem pages: LeetCode, AlgoMonster, etc.)
+ * @context Injected Content Script Overlay | Host Page Injections
  * @description Master stylesheet for in-page content script overlays. Controls floating review
  * launcher (FAB), FSRS study widget, text highlight selection tooltip, color swatches,
  * and high-priority in-page toast notifications.
- * @isolation Isolated Scoping Applied (Scoped prefix selectors #algo-fsrs-*, #algo-highlight-*,
- * and .algo-custom-notification with extreme z-index layers up to 2147483647 to prevent host page collisions)
+ * @associated-components features/highlighter/highlighter.tsx (HighlighterTooltipView), features/tracker/tracker.tsx (TrackerCardReviewView)
  * @custom-properties
  *   --w-bg, --w-surface, --w-bg-dark: Scoped widget surface background tokens
  *   --w-text, --w-text-med, --w-text-low: Hierarchical widget typography tokens
@@ -227,13 +226,6 @@
 
 .fsrs-primary-btn:active {
     transform: scale(0.97);
-}
-
-#fsrs-divider {
-    border: 0;
-    height: 1px;
-    background: var(--w-border);
-    margin: 14px 0;
 }
 
 /* Tag details panel */
@@ -536,23 +528,6 @@ input.tag-inline-input::placeholder {
     padding: 4px;
     outline: none;
     transition: border-color 0.2s;
-}
-
-.algo-link-card-btn {
-    background: var(--w-surface);
-    color: var(--w-primary);
-    border: 1px solid var(--w-border);
-    border-radius: 6px;
-    padding: 4px 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-.algo-link-card-btn:hover {
-    background: var(--w-border);
-    transform: scale(1.05);
 }
 
 .algo-note-input {

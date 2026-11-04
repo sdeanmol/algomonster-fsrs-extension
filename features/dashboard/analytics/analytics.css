@@ -1,8 +1,9 @@
 /**
  * @file features/dashboard/analytics/analytics.css
- * @context Analytics SPA / Dedicated Options Tab
- * @description Master stylesheet for the multi-tab analytics dashboard SPA, containing sidebar navigation, global KPI indicators, tab panes, Chart.js wrappers, and responsive breakpoints.
- * @isolation Global within the Analytics Dashboard page context.
+ * @context Analytics SPA | Dedicated Extension Dashboard Tab
+ * @description Master stylesheet for the multi-tab analytics dashboard SPA, containing sidebar navigation,
+ * global KPI indicators, tab panes, SVG chart wrappers, memory health rings, and responsive breakpoints.
+ * @associated-components features/dashboard/analytics/analytics.tsx, overview/, memory/, performance/, readiness/, tags/, insights/
  * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-primary-alpha, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
  */
 
@@ -786,68 +787,6 @@
     stroke: currentColor;
     fill: none;
     stroke-width: 2;
-}
-
-.review-time-chart {
-    display: flex;
-    justify-content: space-around;
-    align-items: flex-end;
-    height: 250px;
-    padding-top: 20px;
-}
-
-.time-bucket-col {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-}
-
-.time-bucket-stats {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-size: 0.8rem;
-    color: var(--md-text-med);
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.time-bucket-col:hover .time-bucket-stats {
-    opacity: 1;
-}
-
-.time-bar-wrapper {
-    height: 150px;
-    width: 40px;
-    display: flex;
-    align-items: flex-end;
-    background: var(--md-bg);
-    border-radius: 6px;
-    overflow: hidden;
-}
-
-.time-bar {
-    width: 100%;
-    background: var(--md-primary);
-    border-radius: 6px;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    padding-top: 6px;
-    transition: height 0.5s ease-out;
-}
-
-.time-bar-val {
-    color: white;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
-.time-bucket-lbl {
-    font-weight: 600;
-    font-size: 0.9rem;
 }
 
 /* Utilities */

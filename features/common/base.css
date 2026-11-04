@@ -1,11 +1,11 @@
 /**
  * @file features/common/base.css
- * @context Extension Pages (Popup, Options, Help, Welcome, Data, Analytics, Dashboard)
+ * @context Shared Design System | Global Extension Pages
  * @description Core design system stylesheet establishing Material Design 3 (MD3) design tokens,
  * CSS custom properties for dark and light palettes, shared typography, button variants,
  * input fields, toggle switches, toast notifications, responsive utilities, and branding badges.
- * @isolation Global (Reset rules applied across standalone extension HTML pages)
- * @custom-properties
+ * @associated-components Toggle.tsx, HelpApp, DataApp, AnalyticsApp, PopupApp, EditorApp, FSRSConfigApp
+ * @custom-properties Key CSS variables consumed or defined in this file:
  *   --md-bg: Primary page canvas background
  *   --md-surface: Card and panel surface background
  *   --md-surface-variant: Elevated surface and input field background
@@ -386,31 +386,6 @@ table {
     border-collapse: collapse;
 }
 
-/* Global Responsive Layout Utilities */
-.flex-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-}
-
-.responsive-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-    gap: 20px;
-}
-
-.grid-auto-fit-sm {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
-    gap: 12px;
-}
-
-.grid-auto-fit-md {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-    gap: 16px;
-}
-
 /* Dynamic Text & Word Break Utilities */
 .overflow-break {
     overflow-wrap: anywhere;
@@ -423,17 +398,6 @@ table {
     text-overflow: ellipsis;
 }
 
-/* Fluid Typography */
-.fluid-h1 {
-    font-size: clamp(1.4rem, 4vw, 2.5rem);
-    line-height: 1.2;
-}
-
-.fluid-h2 {
-    font-size: clamp(1.15rem, 3vw, 2rem);
-    line-height: 1.3;
-}
-
 /* Images & Media Scaling */
 img,
 svg,
@@ -441,16 +405,6 @@ video,
 canvas {
     max-width: 100%;
     height: auto;
-}
-
-/* Modal and Overlay Constraints */
-.modal-content,
-.dialog-content {
-    max-width: min(95vw, 600px);
-    max-height: 90vh;
-    overflow-y: auto;
-    margin: auto;
-    box-sizing: border-box;
 }
 
 /* ==========================================================================

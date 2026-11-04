@@ -1,10 +1,10 @@
 /**
  * @file features/common/help/help.css
- * @context Standalone Options Page UI (features/common/help/help.html)
+ * @context Standalone Options Page UI | Help & Documentation Center
  * @description Stylesheet for the interactive Help Center and manual pages.
  * Controls sticky tab navigation, search bar input, card layouts, callout boxes,
  * search highlight markers, and responsive multi-column guides.
- * @isolation Global (Page-scoped to help.html)
+ * @associated-components features/common/help/help.tsx (HelpApp, HelpTabBar, HelpContactCard), helpContent.tsx
  * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 body {
@@ -37,17 +37,6 @@ body {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-}
-
-.header-emoji {
-    display: none;
-}
-
-.main-logo-icon {
-    width: 44px;
-    height: 44px;
-    stroke: var(--md-primary);
-    filter: drop-shadow(0 4px 12px rgba(168, 199, 250, 0.3));
 }
 
 .header h1 {
@@ -548,14 +537,6 @@ body {
     border-radius: 8px;
     padding: 14px 16px;
     margin: 14px 0;
-}
-
-.callout-box-warning {
-    border-left-color: var(--md-warning);
-}
-
-.callout-box-danger {
-    border-left-color: var(--md-danger);
 }
 
 .callout-box h4 {

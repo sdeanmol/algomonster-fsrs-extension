@@ -1,8 +1,9 @@
 /**
  * @file features/dashboard/popup/popup.css
- * @context Popup UI / Extension Browser Action
- * @description Main popup stylesheet defining layouts for hero statistics, quick problem search, contribution heatmap, gamification XP bar, study tools, and notification settings.
- * @isolation Scoped to 350px browser action popup viewport (width: 350px, overflow-x: hidden).
+ * @context Popup UI | Extension Browser Action Panel
+ * @description Main popup stylesheet defining layouts for hero statistics, quick problem search,
+ * contribution heatmap, gamification XP bar, study tools, and notification settings.
+ * @associated-components features/dashboard/popup/popup.tsx, DashboardComponent.tsx, stats.tsx, rating.tsx, search.tsx, heatmap.tsx, notifications.tsx
  * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-secondary, --md-success, --md-warning, --md-danger, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
  */
 html {
@@ -572,29 +573,6 @@ body {
     align-items: center;
 }
 
-.gamification-progress-text {
-    font-weight: 800;
-    color: var(--md-warning);
-    font-size: 11px;
-}
-
-.gamification-bar {
-    background-color: var(--md-bg);
-    height: 8px;
-    border-radius: 4px;
-    overflow: hidden;
-    width: 100%;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.gamification-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #f0932b, var(--md-warning));
-    width: 0%;
-    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 0 8px rgba(249, 171, 0, 0.4);
-}
-
 .gamification-msg {
     font-size: 11px;
     color: var(--md-text-med);
@@ -1156,15 +1134,6 @@ details[open] .details-summary .chevron {
 
 :root.light-theme .details-body {
     background: rgba(0, 0, 0, 0.01);
-}
-
-.sub-title {
-    margin: 0 0 10px 0;
-    font-size: 11px;
-    font-weight: 800;
-    color: var(--md-text-low);
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
 }
 
 /* Nav List (Settings Items) */

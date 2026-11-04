@@ -1,8 +1,8 @@
 /**
  * @file features/dashboard/studyplan/studyplan.css
- * @context Exam Mode UI / Dedicated Options Tab
+ * @context Exam Mode UI | Dedicated Options Tab
  * @description Styling rules for Exam Countdown Mode, setup input forms, workload projection cards, SVG countdown timer ring, and daily review schedule tables.
- * @isolation Global within the Exam Mode page context.
+ * @associated-components features/dashboard/studyplan/studyplan.tsx (StudyPlanApp, StudyPlanSetupPanel, StudyPlanCountdownRing, StudyPlanScheduleTable)
  * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-danger, --md-success, --shadow-1, --shadow-2).
  */
 body {

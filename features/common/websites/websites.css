@@ -1,10 +1,10 @@
 /**
  * @file features/common/websites/websites.css
- * @context Standalone Options Page UI (features/common/websites/websites.html)
+ * @context Standalone Options Page UI | Authorized Platforms Whitelist Manager
  * @description Stylesheet for the Authorized Platforms and domain whitelist manager.
  * Defines input layouts for adding new platform domains, platform cards, badge chips,
  * and deletion action buttons.
- * @isolation Global (Page-scoped to websites.html)
+ * @associated-components features/common/websites/websites.tsx (WebsitesApp, DomainAddForm, WhitelistedSitesList)
  * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 .container {

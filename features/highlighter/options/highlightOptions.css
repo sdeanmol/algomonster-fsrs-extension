@@ -1,8 +1,8 @@
 /**
  * @file features/highlighter/options/highlightOptions.css
- * @context Options UI / Highlighter Settings Tab
+ * @context Options UI | Highlighter Settings Tab
  * @description Styling rules for default highlight color selection grids, dynamic color slot controls, and custom palette cards.
- * @isolation Global within the Highlighter Options page context.
+ * @associated-components features/highlighter/options/highlightOptions.tsx (HighlightOptionsApp, PaletteCard, PaletteColorSwatch)
  * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-primary-container, --md-on-primary-container, --md-danger, --md-warning, --shadow-1, --shadow-2).
  */
 body {

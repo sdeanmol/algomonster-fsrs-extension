@@ -1,8 +1,8 @@
 /**
  * @file features/dashboard/forecast/forecast.css
- * @context Review Forecast UI / Dedicated Options Tab
+ * @context Review Forecast UI | Dedicated Options Tab
  * @description Styling rules for 30-day review workload forecast cards, SVG workload bar chart, and calendar grid day cells.
- * @isolation Global within the Forecast page context.
+ * @associated-components features/dashboard/forecast/forecast.tsx (ForecastApp, ForecastSummaryCards, ForecastCalendar, ForecastChart)
  * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-danger, --md-warning, --md-success, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
  */
 body {

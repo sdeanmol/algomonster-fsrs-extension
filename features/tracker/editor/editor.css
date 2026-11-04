@@ -1,10 +1,10 @@
 /**
  * @file features/tracker/editor/editor.css
- * @context Standalone Tab / Modal UI (features/tracker/editor/editor.html)
+ * @context Standalone Tab / Modal UI | Markdown Problem Notes Editor
  * @description Stylesheet for the fullscreen Markdown problem notes and complexity analysis editor.
  * Controls full-viewport editor container, header metadata bar, Big-O complexity inputs,
  * distraction-free textarea, and marked.js typography rendering in preview mode.
- * @isolation Global (Page-scoped to editor.html)
+ * @associated-components features/tracker/editor/editor.tsx (EditorApp, EditorWorkspace, ComplexityInputs, MarkdownLivePreview)
  * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 body {

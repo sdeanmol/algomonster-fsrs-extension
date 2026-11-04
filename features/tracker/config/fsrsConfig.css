@@ -1,10 +1,10 @@
 /**
  * @file features/tracker/config/fsrsConfig.css
- * @context Standalone Options Page UI (features/tracker/config/fsrsConfig.html)
+ * @context Standalone Options Page UI | FSRS Algorithm Configuration
  * @description Stylesheet for the FSRS parameters customization dashboard.
  * Styles range sliders, preset chips, optimization review progress bar, 17-coefficient
  * grid with hover tooltips, and tag-specific profile list items.
- * @isolation Global (Page-scoped to fsrsConfig.html)
+ * @associated-components features/tracker/config/fsrsConfig.tsx (FSRSConfigApp, ConfigSliderRow, PresetChips, OptimizerSection)
  * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 .container {
@@ -502,32 +502,6 @@ label {
     border-radius: 8px;
     padding: 3px;
     gap: 4px;
-}
-
-.mode-pill {
-    background: transparent;
-    border: none;
-    color: var(--md-text-med);
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.mode-pill:hover {
-    color: var(--md-text-high);
-}
-
-/**
- * Dynamic State: .mode-pill.active
- * Added by features/tracker/config/fsrsConfig.ts (setMode) to highlight
- * the active configuration mode pill (Simple vs Advanced).
- */
-.mode-pill.active {
-    background: var(--md-primary);
-    color: #ffffff;
 }
 
 /* Retention Preset Chips */
