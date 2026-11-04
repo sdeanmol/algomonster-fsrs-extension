@@ -1,5 +1,5 @@
 /**
- * @file features/dashboard/analytics/readiness/readiness.ts
+ * @file features/dashboard/analytics/readiness/readiness.tsx
  * @description Exam Readiness tab controller. Predicts expected recall per subject/tag
  * based on the FSRS exponential memory decay formula for an upcoming exam date.
  *
@@ -9,9 +9,79 @@
  * - {@link ReadinessTab}: View controller class managing target days input and subject recall projections.
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { Logger } from '@common/logger';
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
-import { DataUtils } from '../utils/dataUtils';
+import { DataUtils, ExamReadinessStats, ExamReadinessTagResult } from '../utils/dataUtils';
+
+export interface ReadinessTopicCardProps {
+    topic: ExamReadinessTagResult;
+    daysAhead: number;
+}
+
+export const ReadinessTopicCard: FunctionalComponent<ReadinessTopicCardProps> = ({ topic, daysAhead }) => {
+    const barWidth = Math.min(100, Math.max(0, topic.expectedRecall));
+    return (
+        <div class="readiness-topic-card">
+            <div class="topic-info">
+                <div class="topic-name-wrap">
+                    <span class="topic-name">{topic.tag}</span>
+                    <span class="topic-meta">{topic.count} card{topic.count !== 1 ? 's' : ''} &middot; Avg Stability: {topic.avgStability}d</span>
+                </div>
+                <div class={`topic-score-badge ${topic.statusClass}`}>
+                    {topic.expectedRecall}%
+                </div>
+            </div>
+            <div class="topic-progress-bg">
+                <div class={`topic-progress-fill ${topic.statusClass}`} style={{ width: `${barWidth}%` }} />
+            </div>
+            <div class="topic-footer">
+                <span class={`status-pill ${topic.statusClass}`}>{topic.status}</span>
+                <span class="target-recall-hint">FSRS Retrievability at T+{daysAhead}d</span>
+            </div>
+        </div>
+    );
+};
+
+export interface ReadinessMetricsGridProps {
+    stats: ExamReadinessStats;
+    formattedDate: string;
+}
+
+export const ReadinessMetricsGrid: FunctionalComponent<ReadinessMetricsGridProps> = ({ stats, formattedDate }) => {
+    const recallClass = stats.overallRecall >= RECALL_THRESHOLD_GOOD
+        ? 'text-success'
+        : (stats.overallRecall >= RECALL_THRESHOLD_WARNING ? 'text-warning' : 'text-danger');
+    const atRiskClass = stats.atRiskCount > 0 ? 'text-danger' : 'text-success';
+
+    return (
+        <div class="readiness-metrics-grid">
+            <div class="readiness-metric-card">
+                <span class="metric-title">Overall Expected Recall</span>
+                <div class="metric-val-wrap">
+                    <span class={`metric-value ${recallClass}`}>{stats.overallRecall}%</span>
+                </div>
+                <span class="metric-sub">Deck-wide FSRS projected retention</span>
+            </div>
+
+            <div class="readiness-metric-card">
+                <span class="metric-title">Exam Target</span>
+                <div class="metric-val-wrap">
+                    <span class="metric-value text-accent">{stats.daysAhead}d</span>
+                </div>
+                <span class="metric-sub">{formattedDate}</span>
+            </div>
+
+            <div class="readiness-metric-card">
+                <span class="metric-title">At-Risk Topics</span>
+                <div class="metric-val-wrap">
+                    <span class={`metric-value ${atRiskClass}`}>{stats.atRiskCount}</span>
+                </div>
+                <span class="metric-sub">Subjects below 75% recall target</span>
+            </div>
+        </div>
+    );
+};
 
 /**
  * Controller for the Exam Readiness tab, calculating projected recall on an upcoming date.

@@ -1,3 +1,122 @@
+
+import { h, VNode } from "preact";
+
+export interface PopupStatsOverviewProps {
+    totalCards: number;
+    dueCards: number;
+    retentionRate: number;
+}
+
+export function PopupStatsOverview({ totalCards, dueCards, retentionRate }: PopupStatsOverviewProps): VNode {
+    return (
+        <div className="stats-boxes">
+            <div id="box-total" className="stat-box">
+                <span className="stat-label">Total Cards</span>
+                <span id="total-cards" className="stat-number">{totalCards}</span>
+            </div>
+            <div id="box-due" className="stat-box">
+                <span className="stat-label">Due Today</span>
+                <span id="due-cards" className="stat-number">{dueCards}</span>
+            </div>
+            <div id="box-retention" className="stat-box">
+                <span className="stat-label">Retention</span>
+                <span id="retention-rate" className="stat-number">{retentionRate}%</span>
+            </div>
+        </div>
+    );
+}
+
+export interface PopupDailyGoalRingProps {
+    todayReviewed: number;
+    dailyGoal: number;
+    progress: number;
+    isGoalMet: boolean;
+}
+
+export function PopupDailyGoalRing({ todayReviewed, dailyGoal, progress, isGoalMet }: PopupDailyGoalRingProps): VNode {
+    const circumference = 2 * Math.PI * 40;
+    const offset = circumference - (Math.min(progress, 1) * circumference);
+
+    return (
+        <div className="daily-goal-card">
+            <div className="daily-goal-ring-container">
+                <svg className="daily-goal-svg" viewBox="0 0 100 100">
+                    <circle className="daily-goal-bg" cx="50" cy="50" r="40" />
+                    <circle
+                        id="daily-goal-ring-fill"
+                        className={`daily-goal-fill ${isGoalMet ? "goal-met" : ""}`}
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        strokeDasharray={String(circumference)}
+                        strokeDashoffset={String(offset)}
+                    />
+                </svg>
+                <div className="daily-goal-center-text">
+                    <span id="daily-goal-count" className="daily-goal-count">{todayReviewed}</span>
+                    <span className="daily-goal-divider">/</span>
+                    <span id="daily-goal-target" className="daily-goal-target">{dailyGoal}</span>
+                </div>
+            </div>
+            <div className="daily-goal-info">
+                <span className="daily-goal-title">Daily Review Goal</span>
+                <span id="daily-goal-status" className="daily-goal-status">
+                    {isGoalMet ? "Goal completed! 🎉" : `${dailyGoal - todayReviewed} more to reach goal`}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+export interface PopupStreakBadgeProps {
+    currentStreak: number;
+    longestStreak: number;
+}
+
+export function PopupStreakBadge({ currentStreak, longestStreak }: PopupStreakBadgeProps): VNode {
+    return (
+        <div id="streak-card" className="streak-card">
+            <span className="streak-icon">🔥</span>
+            <div className="streak-details">
+                <span id="streak-days" className="streak-number">{currentStreak} Day{currentStreak === 1 ? "" : "s"}</span>
+                <span className="streak-subtitle">Current Streak</span>
+            </div>
+            <div className="longest-streak-details">
+                <span id="longest-streak-days" className="longest-streak-number">{longestStreak}</span>
+                <span className="longest-streak-subtitle">Best</span>
+            </div>
+        </div>
+    );
+}
+
+export interface PopupLevelBadgeProps {
+    level: number;
+    levelTitle: string;
+    currentXP: number;
+    nextLevelXP: number;
+    progress: number;
+}
+
+export function PopupLevelBadge({ level, levelTitle, currentXP, nextLevelXP, progress }: PopupLevelBadgeProps): VNode {
+    return (
+        <div className="level-badge-card">
+            <div className="level-badge-top">
+                <span id="user-level" className="level-badge-number">Level {level}</span>
+                <span id="user-title" className="level-badge-title">{levelTitle}</span>
+            </div>
+            <div className="level-progress-bar-bg">
+                <div
+                    id="user-level-progress"
+                    className="level-progress-bar-fill"
+                    style={{ width: `${Math.min(progress, 100)}%` }}
+                />
+            </div>
+            <div className="level-xp-text">
+                <span id="user-current-xp">{currentXP}</span> / <span id="user-next-xp">{nextLevelXP} XP</span>
+            </div>
+        </div>
+    );
+}
 /**
  * @file features/dashboard/popup/stats.ts
  * @description Manages progress tracking, daily goals, gamification elements, and streaking metrics inside the options popup.
@@ -700,4 +819,12 @@ export class StatsComponent extends DashboardComponent {
             UIUtils.catchError('StatsComponent', 'Error initializing confetti animation', err);
         }
     }
+}
+
+if (typeof module !== "undefined" && module.exports) {
+    (module.exports as any).StatsComponent = StatsComponent;
+    (module.exports as any).PopupStatsOverview = PopupStatsOverview;
+    (module.exports as any).PopupDailyGoalRing = PopupDailyGoalRing;
+    (module.exports as any).PopupStreakBadge = PopupStreakBadge;
+    (module.exports as any).PopupLevelBadge = PopupLevelBadge;
 }

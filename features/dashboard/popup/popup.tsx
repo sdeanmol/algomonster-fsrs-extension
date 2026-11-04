@@ -1,3 +1,179 @@
+
+import { h, VNode } from "preact";
+
+export interface PopupHeaderProps {
+    onToggleTheme?: () => void;
+    onOpenAnalytics?: () => void;
+}
+
+export function PopupHeader({ onToggleTheme, onOpenAnalytics }: PopupHeaderProps): VNode {
+    return (
+        <header className="popup-header">
+            <div className="brand-badge">
+                <span className="brand-name">AlgoRecall</span>
+            </div>
+            <div className="header-actions">
+                <button
+                    id="header-analytics-btn"
+                    className="icon-btn"
+                    title="Open Full Analytics Dashboard"
+                    onClick={onOpenAnalytics}
+                >
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: "16px", height: "16px" }}>
+                        <line x1="18" y1="20" x2="18" y2="10" />
+                        <line x1="12" y1="20" x2="12" y2="4" />
+                        <line x1="6" y1="20" x2="6" y2="14" />
+                    </svg>
+                </button>
+                <button
+                    id="theme-toggle-btn"
+                    className="icon-btn"
+                    title="Toggle Dark / Light Theme"
+                    onClick={onToggleTheme}
+                >
+                    🌓
+                </button>
+            </div>
+        </header>
+    );
+}
+
+export interface PopupNavigationGridProps {
+    onOpenAnalytics?: () => void;
+    onOpenHeatmap?: () => void;
+    onOpenForecast?: () => void;
+    onOpenHistory?: () => void;
+    onOpenStudyPlan?: () => void;
+    onOpenPomodoro?: () => void;
+    onOpenSummary?: () => void;
+    onOpenConfigureFsrs?: () => void;
+    onOpenPlatforms?: () => void;
+    onOpenHelp?: () => void;
+}
+
+export function PopupNavigationGrid({
+    onOpenAnalytics,
+    onOpenHeatmap,
+    onOpenForecast,
+    onOpenHistory,
+    onOpenStudyPlan,
+    onOpenPomodoro,
+    onOpenSummary,
+    onOpenConfigureFsrs,
+    onOpenPlatforms,
+    onOpenHelp
+}: PopupNavigationGridProps): VNode {
+    return (
+        <div className="navigation-grid">
+            <button id="open-analytics-btn" className="nav-btn" onClick={onOpenAnalytics}>
+                Analytics
+            </button>
+            <button id="open-heatmap-tab-btn" className="nav-btn" onClick={onOpenHeatmap}>
+                Heatmap
+            </button>
+            <button id="open-forecast-btn" className="nav-btn" onClick={onOpenForecast}>
+                Forecast
+            </button>
+            <button id="open-history-btn" className="nav-btn" onClick={onOpenHistory}>
+                History
+            </button>
+            <button id="open-studyplan-btn" className="nav-btn" onClick={onOpenStudyPlan}>
+                Study Plan
+            </button>
+            <button id="open-pomodoro-btn" className="nav-btn" onClick={onOpenPomodoro}>
+                Pomodoro
+            </button>
+            <button id="open-summary-page-btn" className="nav-btn" onClick={onOpenSummary}>
+                Summary
+            </button>
+            <button id="configure-fsrs-btn" className="nav-btn" onClick={onOpenConfigureFsrs}>
+                Settings
+            </button>
+            <button id="manage-platforms-btn" className="nav-btn" onClick={onOpenPlatforms}>
+                Platforms
+            </button>
+            <button id="help-btn" className="nav-btn" onClick={onOpenHelp}>
+                Help
+            </button>
+        </div>
+    );
+}
+
+export interface PopupSettingsTogglesProps {
+    markerEnabled: boolean;
+    chartsEnabled: boolean;
+    launcherEnabled: boolean;
+    devModeEnabled: boolean;
+    onToggleMarker?: (enabled: boolean) => void;
+    onToggleCharts?: (enabled: boolean) => void;
+    onToggleLauncher?: (enabled: boolean) => void;
+    onToggleDevMode?: (enabled: boolean) => void;
+}
+
+export function PopupSettingsToggles({
+    markerEnabled,
+    chartsEnabled,
+    launcherEnabled,
+    devModeEnabled,
+    onToggleMarker,
+    onToggleCharts,
+    onToggleLauncher,
+    onToggleDevMode
+}: PopupSettingsTogglesProps): VNode {
+    return (
+        <div className="popup-settings-card">
+            <div className="setting-toggle-row">
+                <label htmlFor="toggle-text-marker">Floating Highlighter</label>
+                <input
+                    type="checkbox"
+                    id="toggle-text-marker"
+                    checked={markerEnabled}
+                    onChange={(e) => onToggleMarker && onToggleMarker((e.target as HTMLInputElement).checked)}
+                />
+            </div>
+            <div className="setting-toggle-row">
+                <label htmlFor="toggle-show-charts">Activity Charts</label>
+                <input
+                    type="checkbox"
+                    id="toggle-show-charts"
+                    checked={chartsEnabled}
+                    onChange={(e) => onToggleCharts && onToggleCharts((e.target as HTMLInputElement).checked)}
+                />
+            </div>
+            <div className="setting-toggle-row">
+                <label htmlFor="toggle-tracker-launcher">Problem Tracker Button</label>
+                <input
+                    type="checkbox"
+                    id="toggle-tracker-launcher"
+                    checked={launcherEnabled}
+                    onChange={(e) => onToggleLauncher && onToggleLauncher((e.target as HTMLInputElement).checked)}
+                />
+            </div>
+            <div className="setting-toggle-row">
+                <label htmlFor="toggle-dev-mode">Developer Mode</label>
+                <input
+                    type="checkbox"
+                    id="toggle-dev-mode"
+                    checked={devModeEnabled}
+                    onChange={(e) => onToggleDevMode && onToggleDevMode((e.target as HTMLInputElement).checked)}
+                />
+            </div>
+        </div>
+    );
+}
+
+export interface PopupStatusToastProps {
+    message: string | null;
+}
+
+export function PopupStatusToast({ message }: PopupStatusToastProps): VNode | null {
+    if (!message) return null;
+    return (
+        <div id="status-msg" className="status-toast show">
+            {message}
+        </div>
+    );
+}
 /**
  * @file features/dashboard/popup/popup.ts
  * @description Central coordinator for the AlgoRecall popup dashboard window.
@@ -1022,4 +1198,13 @@ if (typeof document !== 'undefined') {
     } else {
         initPopupDashboard();
     }
+}
+
+if (typeof module !== "undefined" && module.exports) {
+    (module.exports as any).AlgoRecallDashboard = AlgoRecallDashboard;
+    (module.exports as any).PopupHeader = PopupHeader;
+    (module.exports as any).PopupNavigationGrid = PopupNavigationGrid;
+    (module.exports as any).PopupSettingsToggles = PopupSettingsToggles;
+    (module.exports as any).PopupStatusToast = PopupStatusToast;
+    (module.exports as any).initPopupDashboard = initPopupDashboard;
 }

@@ -1,10 +1,11 @@
 /**
- * @file features/dashboard/analytics/overview/memoryHealth.ts
+ * @file features/dashboard/analytics/overview/memoryHealth.tsx
  * @description Component for rendering the overall Memory Health score, radial status ring,
  * and key performance metrics (retention, lapses, stability, review streak) within the analytics overview.
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, SummaryStats } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
@@ -24,6 +25,101 @@ export interface MemoryHealthInputStats {
     /** Average memory stability across all cards in days */
     avgStability?: number;
 }
+
+export interface MemoryHealthRadialRingProps {
+    healthScore: number;
+    statusClass: string;
+}
+
+export const MemoryHealthRadialRing: FunctionalComponent<MemoryHealthRadialRingProps> = ({ healthScore, statusClass }) => {
+    const strokeDashoffset = 314 - (314 * healthScore / 100);
+    return (
+        <svg class="health-ring" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="50" />
+            <circle
+                class={`ring-progress ${statusClass}`}
+                cx="60"
+                cy="60"
+                r="50"
+                stroke-dasharray="314"
+                stroke-dashoffset={strokeDashoffset}
+            />
+        </svg>
+    );
+};
+
+export interface MemoryHealthMetricsGridProps {
+    stats: MemoryHealthInputStats;
+}
+
+export const MemoryHealthMetricsGrid: FunctionalComponent<MemoryHealthMetricsGridProps> = ({ stats }) => {
+    return (
+        <div class="health-metrics-grid">
+            <div class="health-metric">
+                <div class="hm-val">{stats.trueRetention ?? 0}%</div>
+                <div class="hm-lbl">Retention <span class="help-icon" data-tooltip="Probability you will remember your cards right now (FSRS Retrievability).">?</span></div>
+            </div>
+            <div class="health-metric">
+                <div class="hm-val">{stats.totalLapses ?? 0}</div>
+                <div class="hm-lbl">Total Lapses <span class="help-icon" data-tooltip="Total number of times you have forgotten a card (rated 'Again').">?</span></div>
+            </div>
+            <div class="health-metric">
+                <div class="hm-val">{(stats.avgStability || 0).toFixed(1)}d</div>
+                <div class="hm-lbl">Avg Stability <span class="help-icon" data-tooltip="Average time it takes for your retention to drop from 100% to 90%.">?</span></div>
+            </div>
+            <div class="health-metric">
+                <div class="hm-val">{stats.streak ?? 0}d</div>
+                <div class="hm-lbl">Streak <span class="help-icon" data-tooltip="Consecutive days you have studied at least one card.">?</span></div>
+            </div>
+        </div>
+    );
+};
+
+export interface MemoryHealthCardProps {
+    healthScore: number;
+    statusText: string;
+    statusClass: string;
+    trend: string;
+    trendMsg: string;
+    trendClass: string;
+    stats: MemoryHealthInputStats;
+}
+
+export const MemoryHealthCard: FunctionalComponent<MemoryHealthCardProps> = ({
+    healthScore,
+    statusText,
+    statusClass,
+    trend,
+    trendMsg,
+    trendClass,
+    stats
+}) => {
+    return (
+        <div class="memory-health-card">
+            <div class="ana-panel-header">
+                <span class="ana-panel-title">
+                    Memory Health Score
+                    <span class="help-icon" data-tooltip="A composite score out of 100 based on your current retention rate and how consistently you review. Aim for 85+.">?</span>
+                </span>
+            </div>
+            <div class="health-content">
+                <div class="health-ring-wrapper">
+                    <MemoryHealthRadialRing healthScore={healthScore} statusClass={statusClass} />
+                    <div class="health-score-center">
+                        <span class="score-value">{healthScore}</span>
+                        <span class="score-max">/ 100</span>
+                    </div>
+                </div>
+                <div class="health-details">
+                    <div class={`health-status ${statusClass}`}>{statusText}</div>
+                    <div class={`health-trend ${trendClass}`}>{trend}</div>
+                    <p class="health-msg">{trendMsg}</p>
+                </div>
+            </div>
+            <MemoryHealthMetricsGrid stats={stats} />
+        </div>
+    );
+};
 
 /**
  * Visualizes overall deck memory health using an animated SVG radial progress ring
@@ -183,3 +279,4 @@ export class MemoryHealth {
         `;
     }
 }
+

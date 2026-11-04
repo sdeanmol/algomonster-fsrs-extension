@@ -1,20 +1,123 @@
 /**
- * @file features/dashboard/popup/search.ts
+ * @file features/dashboard/popup/search.tsx
  * @description Quick card search component within the popup dashboard.
  * Provides a debounced text search input and tag filter dropdown to quickly locate
  * tracked algorithms, view status badges (Due vs Safe), and launch problem URLs.
+ * Migrated to Preact with TypeScript for modular search result cards and filter inputs.
  *
  * Architecture Role: Popup Sub-View Component (Quick Problem Search).
  * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
  * Key Exports:
- * - {@link QuickSearchComponent}: Sub-view component class managing the quick search input and result list.
+ * - `PopupSearchResultItem`: Preact component rendering an individual search match card.
+ * - `PopupSearchResultsList`: Preact component rendering the results dropdown list and pagination link.
+ * - `QuickSearchComponent`: Sub-view component class managing the quick search input and result list.
  */
 
+import { h, VNode } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { Card, StorageData } from '../../../types/domain';
 import { SEARCH_DEBOUNCE_MS, SEARCH_MAX_RESULTS } from '../../common/constants';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PopupSearchResultItemProps {
+    problemTitle: string;
+    problemUrl: string;
+    isDue: boolean;
+    tags: string[];
+}
+
+/**
+ * Preact component rendering an individual card match in the quick search popup list.
+ */
+export function PopupSearchResultItem({
+    problemTitle,
+    problemUrl,
+    isDue,
+    tags
+}: PopupSearchResultItemProps): VNode {
+    const title = problemTitle || 'Untitled';
+    const statusBadgeClass = isDue ? 'popup-badge-due' : 'popup-badge-safe';
+    const statusText = isDue ? 'Due' : 'Safe';
+
+    return (
+        <a
+            href={problemUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="popup-search-item"
+            title={title}
+            aria-label={title}
+        >
+            <div className="popup-search-item-top">
+                <span className="popup-search-title">{title}</span>
+                <span className={`popup-badge ${statusBadgeClass}`}>{statusText}</span>
+            </div>
+            <div className="popup-search-item-tags">
+                {(tags || []).slice(0, 3).map((tag, idx) => (
+                    <span key={idx} className="popup-tag">{tag}</span>
+                ))}
+            </div>
+        </a>
+    );
+}
+
+export interface PopupSearchResultsListProps {
+    cards: Array<{
+        id: string;
+        problemTitle: string;
+        problemUrl: string;
+        isDue: boolean;
+        tags: string[];
+    }>;
+    totalMatches: number;
+    maxDisplay?: number;
+    viewAllUrl?: string;
+}
+
+/**
+ * Preact component rendering the complete list of search results.
+ */
+export function PopupSearchResultsList({
+    cards,
+    totalMatches,
+    maxDisplay = SEARCH_MAX_RESULTS,
+    viewAllUrl
+}: PopupSearchResultsListProps): VNode {
+    if (cards.length === 0) {
+        return (
+            <div id="popup-search-results" className="popup-search-results" style={{ display: 'block' }}>
+                <div className="popup-search-empty">No matching patterns found.</div>
+            </div>
+        );
+    }
+
+    return (
+        <div id="popup-search-results" className="popup-search-results" style={{ display: 'block' }}>
+            {cards.slice(0, maxDisplay).map((card) => (
+                <PopupSearchResultItem key={card.id} {...card} />
+            ))}
+            {totalMatches > maxDisplay && viewAllUrl && (
+                <a
+                    href={viewAllUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="popup-search-view-all"
+                >
+                    View all {totalMatches} results →
+                </a>
+            )}
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEARCH CONTROLLER COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Sub-component for the popup dashboard providing debounced problem search
@@ -196,3 +299,10 @@ export class QuickSearchComponent extends DashboardComponent {
         }
     }
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).QuickSearchComponent = QuickSearchComponent;
+    (module.exports as any).PopupSearchResultItem = PopupSearchResultItem;
+    (module.exports as any).PopupSearchResultsList = PopupSearchResultsList;
+}
+

@@ -52,8 +52,8 @@ module.exports = (env) => {
     'features/tracker/editor/editor': './features/tracker/editor/editor.tsx',
 
     // Dashboard UIs
-    'features/dashboard/popup/popup': './features/dashboard/popup/popup.ts',
-    'features/dashboard/analytics/analytics': './features/dashboard/analytics/analytics.ts',
+    'features/dashboard/popup/popup': './features/dashboard/popup/popup.tsx',
+    'features/dashboard/analytics/analytics': './features/dashboard/analytics/analytics.tsx',
     'features/dashboard/heatmap/heatmap': './features/dashboard/heatmap/heatmap.tsx',
     'features/dashboard/pomodoro/pomodoro': './features/dashboard/pomodoro/pomodoro.tsx',
     'features/dashboard/history/history': './features/dashboard/history/history.tsx',

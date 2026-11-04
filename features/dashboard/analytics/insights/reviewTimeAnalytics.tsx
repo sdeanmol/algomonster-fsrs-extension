@@ -1,5 +1,5 @@
 /**
- * @file features/dashboard/analytics/insights/reviewTimeAnalytics.ts
+ * @file features/dashboard/analytics/insights/reviewTimeAnalytics.tsx
  * @description Renders visual line charts and comparative statistics analyzing memory retention
  * and card review speed grouped by time of day (Morning, Afternoon, Evening, Night).
  *
@@ -10,6 +10,7 @@
  * - {@link ReviewTimeAnalytics}: Chart renderer class plotting time bucket recall curves.
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, ReviewTimeInsights } from '../utils/dataUtils';
 import { TIME_OF_DAY_BUCKET_NAMES } from '../../../common/constants';
@@ -18,6 +19,22 @@ import { TIME_OF_DAY_BUCKET_NAMES } from '../../../common/constants';
  * Data item representing review volume and accuracy within a specific time-of-day bucket.
  */
 export type ReviewTimeBucketItem = ReviewTimeInsights['data'][number];
+
+export interface ReviewTimeHighlightBannerProps {
+    highlightText: string;
+}
+
+export const ReviewTimeHighlightBanner: FunctionalComponent<ReviewTimeHighlightBannerProps> = ({ highlightText }) => {
+    return (
+        <div class="insights-highlight">
+            <svg class="svg-icon" viewBox="0 0 24 24">
+                <path d="M12 2v10l4.5 4.5" />
+                <circle cx="12" cy="12" r="10" />
+            </svg>
+            <span dangerouslySetInnerHTML={{ __html: highlightText }} />
+        </div>
+    );
+};
 
 /**
  * Component that renders an SVG line chart correlating recall accuracy with time-of-day study buckets.
@@ -190,3 +207,4 @@ export class ReviewTimeAnalytics {
         return html;
     }
 }
+

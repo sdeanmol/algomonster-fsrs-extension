@@ -1,13 +1,56 @@
 /**
- * @file features/dashboard/analytics/tags/retentionBarChart.ts
+ * @file features/dashboard/analytics/tags/retentionBarChart.tsx
  * @description Renders a sorted horizontal bar chart comparing memory performance metrics
  * (retention, stability, card count, or lapse rate) across the top 10 tags.
  * Supports interactive tag filtering via Chrome tab creation.
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { Logger } from '@common/logger';
-import { DataUtils } from '../utils/dataUtils';
+import { DataUtils, TagStats } from '../utils/dataUtils';
+import { getTagColorClass } from './coverageTable';
+
+export interface RetentionBarRowProps {
+    tag: string;
+    due: number;
+    val: number;
+    displayVal: string;
+    fillClass: string;
+    onTagClick?: (tag: string) => void;
+}
+
+export const RetentionBarRow: FunctionalComponent<RetentionBarRowProps> = ({
+    tag,
+    due,
+    val,
+    displayVal,
+    fillClass,
+    onTagClick
+}) => {
+    const colorClass = getTagColorClass(due);
+    return (
+        <div class="h-bar-row">
+            <div class="h-bar-label">
+                <span
+                    class={`tag-badge clickable-tag ${colorClass}`}
+                    data-tag={tag}
+                    style={{ cursor: 'pointer' }}
+                    title="View all cards for this tag"
+                    onClick={() => onTagClick && onTagClick(tag)}
+                >
+                    {tag}
+                </span>
+            </div>
+            <div class="h-bar-track-wrapper">
+                <div class="h-bar-track">
+                    <div class={`h-bar-fill ${fillClass}`} style={{ width: `${val}%` }} />
+                </div>
+            </div>
+            <div class="h-bar-value">{displayVal}</div>
+        </div>
+    );
+};
 
 /**
  * Visualizes comparative performance across tags using horizontal progress bars.
@@ -155,3 +198,4 @@ export class RetentionBarChart {
         }
     }
 }
+

@@ -1,5 +1,5 @@
 /**
- * @file features/dashboard/analytics/analytics.ts
+ * @file features/dashboard/analytics/analytics.tsx
  * @description Master single-page application (SPA) controller for the Analytics Dashboard.
  * Coordinates tabbed sub-views (Overview, Readiness, Memory, Simulation, Tags, Performance, Insights),
  * manages asynchronous scheduler data bootstrapping, and updates top-level global KPI cards.
@@ -11,6 +11,7 @@
  * - {@link AnalyticsTabComponent}: Common render contract for child tab view controllers.
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { Logger } from '@common/logger';
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING, DUE_CARDS_THRESHOLD_WARNING } from '@common/constants';
 import { DataUtils, SummaryStats } from './utils/dataUtils';
@@ -40,10 +41,53 @@ export interface AnalyticsTabComponent {
     render(containerId: string): void;
 }
 
+export interface AnalyticsGlobalKpiBarProps {
+    stats: SummaryStats;
+    examRecall: number;
+}
+
+export const AnalyticsGlobalKpiBar: FunctionalComponent<AnalyticsGlobalKpiBarProps> = ({ stats, examRecall }) => {
+    const dueCount = stats.dueToday !== undefined ? stats.dueToday : (stats.due || 0);
+    const retentionVal = stats.trueRetention !== undefined && stats.trueRetention > 0 ? stats.trueRetention : (stats.retention || 0);
+
+    const retentionPillClass = retentionVal >= RECALL_THRESHOLD_GOOD
+        ? 'success'
+        : (retentionVal >= RECALL_THRESHOLD_WARNING ? 'warning' : 'danger');
+
+    const duePillClass = dueCount === 0
+        ? 'success'
+        : (dueCount <= DUE_CARDS_THRESHOLD_WARNING ? 'warning' : 'danger');
+
+    const recallPillClass = examRecall >= RECALL_THRESHOLD_GOOD
+        ? 'success'
+        : (examRecall >= RECALL_THRESHOLD_WARNING ? 'warning' : 'danger');
+
+    return (
+        <div class="global-kpi-bar">
+            <div class="kpi-pill" id="global-kpi-pill-cards">
+                <span class="kpi-val" id="global-kpi-cards">{stats.totalCards || 0}</span>
+                <span class="kpi-lbl">Cards</span>
+            </div>
+            <div class={`kpi-pill ${retentionPillClass}`} id="global-kpi-pill-retention">
+                <span class="kpi-val" id="global-kpi-retention">{retentionVal}%</span>
+                <span class="kpi-lbl">Retention</span>
+            </div>
+            <div class={`kpi-pill ${duePillClass}`} id="global-kpi-pill-due">
+                <span class="kpi-val" id="global-kpi-due">{dueCount}</span>
+                <span class="kpi-lbl">Due Today</span>
+            </div>
+            <div class={`kpi-pill ${recallPillClass}`} id="global-kpi-pill-readiness">
+                <span class="kpi-val" id="global-kpi-readiness">{examRecall}%</span>
+                <span class="kpi-lbl">Exam Recall</span>
+            </div>
+        </div>
+    );
+};
+
 /**
  * Central coordinator and tab router for the Analytics Dashboard SPA.
  */
-class AnalyticsDashboardSPA {
+export class AnalyticsDashboardSPA {
     /** Shared statistical calculation engine instance, or null before initialization. */
     dataUtils: DataUtils | null;
     /** Currently active tab identifier. */
@@ -308,7 +352,6 @@ class AnalyticsDashboardSPA {
                             <button onclick="window.location.reload()" class="px-4 py-2 bg-red-600/40 hover:bg-red-600/60 text-white text-xs font-semibold rounded-lg transition-colors">Reload Page</button>
                         </div>`;
                     }
-                    // Comment: Catch UI rendering failure gracefully to keep remainder of Analytics SPA intact
                 }
             }
         } catch (tabErr) {
@@ -328,7 +371,6 @@ function initSPA(): void {
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         Logger.error('AnalyticsDashboardSPA', `Failed to initialize Analytics SPA: ${errorMessage}`, { err });
-        // Comment: Non-fatal global initialization catch
     }
 }
 
@@ -342,3 +384,4 @@ try {
     const errorMessage = err instanceof Error ? err.message : String(err);
     Logger.error('AnalyticsDashboardSPA', `Error setting up DOM readiness listener: ${errorMessage}`, { err });
 }
+

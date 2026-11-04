@@ -1,20 +1,110 @@
 /**
- * @file features/dashboard/popup/rating.ts
+ * @file features/dashboard/popup/rating.tsx
  * @description Manages store review and feedback prompts shown to users in the popup options dashboard.
  * Dynamically resolves browser-specific Web Store / Add-on links (Chrome, Firefox AMO, Safari)
  * from build-time configuration, tracks snooze durations, and handles rating status persistence.
+ * Migrated to Preact with TypeScript for modular feedback cards and thank-you states.
  *
  * Architecture Role: Popup Sub-View Component (Rating & Store Feedback).
  * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
  * Key Exports:
- * - {@link RatingComponent}: Sub-view component class managing the store review prompt card.
+ * - `PopupRatingPromptCard`: Preact component rendering the prompt and thanks cards.
+ * - `RatingComponent`: Sub-view component class managing the store review prompt card.
  */
 
+import { h, VNode } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PopupRatingPromptCardProps {
+    status: 'unrated' | 'snoozed' | 'rated';
+    promptText: string;
+    buttonLabel: string;
+    reviewUrl: string;
+    onSnooze: () => void;
+    onAlreadyRated: () => void;
+    onEdit: () => void;
+}
+
+/**
+ * Preact component rendering the store feedback card with prompt and thanks states.
+ */
+export function PopupRatingPromptCard({
+    status,
+    promptText,
+    buttonLabel,
+    reviewUrl,
+    onSnooze,
+    onAlreadyRated,
+    onEdit
+}: PopupRatingPromptCardProps): VNode {
+    const isHidden = status === 'snoozed';
+    const isRated = status === 'rated';
+
+    return (
+        <div
+            id="rating-prompt-card"
+            className={`rating-card ${isHidden ? 'hide-panel' : ''}`}
+        >
+            <div
+                id="rating-prompt-state"
+                className={`rating-state-content ${isRated ? 'hide-panel' : ''}`}
+            >
+                <p id="rating-prompt-text">{promptText}</p>
+                <div className="rating-actions">
+                    <a
+                        id="rate-store-btn"
+                        href={reviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-primary btn-sm"
+                    >
+                        <span id="rate-store-label">{buttonLabel}</span>
+                    </a>
+                    <button
+                        id="already-rated-btn"
+                        className="btn btn-secondary btn-sm"
+                        onClick={onAlreadyRated}
+                    >
+                        Already Rated
+                    </button>
+                    <button
+                        id="snooze-rate-btn"
+                        className="btn btn-link btn-sm"
+                        onClick={onSnooze}
+                    >
+                        Maybe Later
+                    </button>
+                </div>
+            </div>
+
+            <div
+                id="rating-thanks-state"
+                className={`rating-state-content ${!isRated ? 'hide-panel' : ''}`}
+            >
+                <p>Thank you for supporting AlgoRecall!</p>
+                <button
+                    id="edit-rating-btn"
+                    className="btn btn-secondary btn-sm"
+                    onClick={onEdit}
+                >
+                    Update Review
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RATING CONTROLLER COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Sub-component for the popup dashboard that manages extension store rating prompts,
@@ -49,13 +139,9 @@ export class RatingComponent extends DashboardComponent {
             if (!card) return;
 
             // Inject browser-specific store text and review URL from build-time config.
-            // BROWSER_CONFIG.reviewUrl and BROWSER_CONFIG.ratingButtonLabel are set at bundle
-            // time by webpack DefinePlugin — no runtime browser detection needed.
             const reviewUrl = BROWSER_CONFIG.reviewUrl;
 
             if (rateBtn) {
-                // Only Chrome Web Store URLs embed the extension ID at runtime.
-                // Firefox AMO and Safari App Store URLs are static slugs.
                 if (BROWSER_CONFIG.target === 'chrome') {
                     const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : undefined;
                     rateBtn.href = extId
@@ -115,7 +201,7 @@ export class RatingComponent extends DashboardComponent {
                 card.classList.add('hide-panel');
             }
 
-            // UA-014: Consolidate store review CTAs — hide static review banner when prompt card is visible
+            // Consolidate store review CTAs — hide static review banner when prompt card is visible
             const staticBanner = document.querySelector('.static-review-banner') as HTMLElement | null;
             if (staticBanner) {
                 staticBanner.style.display = card.classList.contains('hide-panel') ? 'block' : 'none';
@@ -179,14 +265,11 @@ export class RatingComponent extends DashboardComponent {
             if (editBtn) {
                 editBtn.addEventListener('click', async () => {
                     try {
-                        // Navigate to the appropriate store review page for this browser target
                         let url = BROWSER_CONFIG.reviewUrl;
                         if (BROWSER_CONFIG.target === 'chrome') {
-                            // Chrome: substitute the runtime extension ID into the CWS URL
                             const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : 'unknown';
                             url = url.replace('YOUR_EXTENSION_ID', extId);
                         }
-                        // Firefox AMO and Safari App Store URLs are static — no substitution needed.
                         chrome.tabs.create({ url });
                         await chrome.storage.local.set({
                             ratingPromptState: { status: 'unrated', snoozedUntil: 0 }
@@ -203,3 +286,9 @@ export class RatingComponent extends DashboardComponent {
         }
     }
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).RatingComponent = RatingComponent;
+    (module.exports as any).PopupRatingPromptCard = PopupRatingPromptCard;
+}
+

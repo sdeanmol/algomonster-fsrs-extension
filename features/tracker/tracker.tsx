@@ -1,5 +1,5 @@
 /**
- * @file features/tracker/tracker.ts
+ * @file features/tracker/tracker.tsx
  * @description Main Spaced Repetition floating widget interface injected inside target coding domains.
  * Provides controls for recording approaches, entering study card notes, assigning initial difficulty,
  * tagging, drag positioning toggles, and executing interactive revision card sessions with hotkeys.
@@ -8,8 +8,10 @@
  * 
  * Key Exports:
  * - `Tracker`: In-page floating widget controller for flashcard review sessions, approaches, and ratings.
+ * - Preact components: `TrackerFloatingLauncher`, `TrackerHeader`, `TrackerNavBar`, `TrackerRatingBar`, `TrackerCardReviewView`.
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
 import { TagInputControl } from '../common/utils/tagInput';
 import { Card, StorageData, ExtensionSettings } from '../../types/domain';
@@ -64,7 +66,6 @@ function getAlgoRecallGlobal(): AlgoRecallGlobal {
         win.AlgoRecall = win.AlgoRecall || ({} as AlgoRecallGlobal);
         return win.AlgoRecall;
     } catch (err) {
-        // Comment: Safe recovery fallback if window global access fails (e.g., non-DOM test environment)
         const errorMessage = err instanceof Error ? err.message : String(err);
         Logger.error('Tracker', `Failed to access window in getAlgoRecallGlobal: ${errorMessage}`, { err });
         return {
@@ -84,13 +85,293 @@ function getRenderMarkdown(): ((text: string) => string) | undefined {
     try {
         return (window as unknown as { renderMarkdown?: (text: string) => string }).renderMarkdown;
     } catch (err) {
-        // Comment: Safe recovery fallback if window is inaccessible when looking for markdown renderer
         const errorMessage = err instanceof Error ? err.message : String(err);
         Logger.warn('Tracker', `Failed to access window in getRenderMarkdown: ${errorMessage}`, { err });
         return undefined;
     }
 }
 
+// ==========================================
+// PREACT UI COMPONENTS
+// ==========================================
+
+export interface TrackerFloatingLauncherProps {
+    isOpen?: boolean;
+    onClick?: (e: MouseEvent) => void;
+}
+
+export const TrackerFloatingLauncher: FunctionalComponent<TrackerFloatingLauncherProps> = ({ isOpen = false, onClick }) => {
+    return (
+        <div
+            id="algo-fsrs-launcher"
+            role="button"
+            aria-label="Open AlgoRecall Tracker"
+            aria-expanded={isOpen ? 'true' : 'false'}
+            aria-controls="algo-fsrs-container"
+            tabIndex={0}
+            title="AlgoRecall Tracker (Drag to move, Right-click to reset position)"
+            onClick={onClick}
+        >
+            <svg class="launcher-svg" viewBox="0 0 24 24" style={{ width: '26px', height: '26px', stroke: 'currentColor', fill: 'none', strokeWidth: 2 }}>
+                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z" />
+                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
+                <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+            </svg>
+        </div>
+    );
+};
+
+export interface TrackerHeaderProps {
+    onMinimize?: () => void;
+    onClose?: () => void;
+}
+
+export const TrackerHeader: FunctionalComponent<TrackerHeaderProps> = ({ onMinimize, onClose }) => {
+    return (
+        <div id="fsrs-header">
+            <div class="fsrs-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
+                <span>AlgoRecall Tracker</span>
+            </div>
+            <div class="fsrs-controls">
+                <button id="fsrs-min-btn" class="fsrs-icon-btn" aria-label="Minimize" aria-expanded="true" aria-controls="algo-fsrs-container" title="Minimize" onClick={onMinimize}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                </button>
+                <button id="fsrs-close-btn" class="fsrs-icon-btn" aria-label="Close" title="Close" onClick={onClose}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+            </div>
+        </div>
+    );
+};
+
+export interface TrackerNavBarProps {
+    cards: Card[];
+    activeCardId: string | null;
+    onSelectCard?: (cardId: string) => void;
+    onAddCard?: () => void;
+}
+
+export const TrackerNavBar: FunctionalComponent<TrackerNavBarProps> = ({ cards, activeCardId, onSelectCard, onAddCard }) => {
+    return (
+        <div id="fsrs-nav-bar" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid rgba(255,255,255,0.08)', overflowX: 'auto' }}>
+            {cards.map((c, idx) => {
+                const isActive = (c.id === activeCardId);
+                const tagLabel = (c.tags && c.tags.length > 0) ? ` (${c.tags.join(', ')})` : '';
+                const cardTitleText = `Card ${idx + 1}${tagLabel}`;
+                return (
+                    <button
+                        key={c.id}
+                        class="fsrs-card-tab-btn"
+                        data-card-id={c.id}
+                        title={cardTitleText}
+                        style={{
+                            background: isActive ? '#4CAF50' : 'rgba(255,255,255,0.1)',
+                            color: isActive ? '#fff' : '#ccc',
+                            fontWeight: isActive ? 'bold' : 'normal',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '3px 8px',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            maxHeight: '4.5em',
+                            wordBreak: 'break-word',
+                            whiteSpace: 'normal',
+                            maxWidth: '120px',
+                            flexShrink: 0,
+                            lineHeight: 1.3
+                        }}
+                        onClick={() => onSelectCard && onSelectCard(c.id)}
+                    >
+                        {cardTitleText}
+                    </button>
+                );
+            })}
+            <button
+                class="fsrs-card-tab-btn"
+                data-card-id="__new__"
+                title="+ Add Card"
+                style={{
+                    background: activeCardId === '__new__' ? '#2196F3' : 'rgba(33,150,243,0.2)',
+                    color: activeCardId === '__new__' ? '#fff' : '#64b5f6',
+                    fontWeight: activeCardId === '__new__' ? 'bold' : 'normal',
+                    border: activeCardId === '__new__' ? 'none' : '1px dashed #2196F3',
+                    borderRadius: '4px',
+                    padding: '3px 8px',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    flexShrink: 0
+                }}
+                onClick={onAddCard}
+            >
+                + Add Card
+            </button>
+        </div>
+    );
+};
+
+export interface TrackerRatingBarProps {
+    onRate?: (rating: number) => void;
+    lastRating?: number;
+    existingId?: string;
+}
+
+export const TrackerRatingBar: FunctionalComponent<TrackerRatingBarProps> = ({ onRate, lastRating, existingId }) => {
+    return (
+        <div class="fsrs-rating-buttons" id="fsrs-save-ratings" data-existing-id={existingId}>
+            <button
+                data-rating="1"
+                class="fsrs-btn-again"
+                title="Hard to remember (Shortcut: 1)"
+                aria-label="Hard to remember (Shortcut: 1)"
+                style={{ opacity: lastRating === 1 ? '1' : lastRating ? '0.4' : '1', boxShadow: lastRating === 1 ? '0 0 0 2px #fff inset' : 'none' }}
+                onClick={() => onRate && onRate(1)}
+            >
+                Again
+            </button>
+            <button
+                data-rating="2"
+                class="fsrs-btn-hard"
+                title="Remembered with effort (Shortcut: 2)"
+                aria-label="Remembered with effort (Shortcut: 2)"
+                style={{ opacity: lastRating === 2 ? '1' : lastRating ? '0.4' : '1', boxShadow: lastRating === 2 ? '0 0 0 2px #fff inset' : 'none' }}
+                onClick={() => onRate && onRate(2)}
+            >
+                Hard
+            </button>
+            <button
+                data-rating="3"
+                class="fsrs-btn-good"
+                title="Remembered easily (Shortcut: 3)"
+                aria-label="Remembered easily (Shortcut: 3)"
+                style={{ opacity: lastRating === 3 ? '1' : lastRating ? '0.4' : '1', boxShadow: lastRating === 3 ? '0 0 0 2px #fff inset' : 'none' }}
+                onClick={() => onRate && onRate(3)}
+            >
+                Good
+            </button>
+            <button
+                data-rating="4"
+                class="fsrs-btn-easy"
+                title="Too easy (Shortcut: 4)"
+                aria-label="Too easy (Shortcut: 4)"
+                style={{ opacity: lastRating === 4 ? '1' : lastRating ? '0.4' : '1', boxShadow: lastRating === 4 ? '0 0 0 2px #fff inset' : 'none' }}
+                onClick={() => onRate && onRate(4)}
+            >
+                Easy
+            </button>
+        </div>
+    );
+};
+
+export interface TrackerCardReviewViewProps {
+    card: Card;
+    index: number;
+    total: number;
+    activeFilter?: string | null;
+    isAnswerShown?: boolean;
+    onShowAnswer?: () => void;
+    onBack?: () => void;
+    onRate?: (rating: number) => void;
+}
+
+export const TrackerCardReviewView: FunctionalComponent<TrackerCardReviewViewProps> = ({
+    card,
+    index,
+    total,
+    activeFilter,
+    isAnswerShown = false,
+    onShowAnswer,
+    onBack,
+    onRate
+}) => {
+    const progressPct = total > 0 ? Math.round((index / total) * 100) : 0;
+    const renderFn = getRenderMarkdown();
+    const approachHtml = typeof renderFn === 'function'
+        ? renderFn(card.approach || '')
+        : (card.approach || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+
+    return (
+        <div id="fsrs-review-ui">
+            <div class="fsrs-review-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
+                    <h4 style={{ margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.problemTitle}</h4>
+                    {activeFilter ? (
+                        <div class="fsrs-filter-badge">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style={{ width: '11px', height: '11px' }}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+                            {activeFilter}
+                        </div>
+                    ) : null}
+                </div>
+                <button id="fsrs-back-btn" title="Go Back" style={{ background: 'none', border: 'none', color: 'var(--md-text-low)', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }} aria-label="Go Back" onClick={onBack}>
+                    <svg class="svg-icon" viewBox="0 0 24 24" style={{ width: '12px', height: '12px' }}><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
+                    Back
+                </button>
+            </div>
+            <div class="fsrs-progress-bar">
+                <div class="fsrs-progress-fill" style={{ width: `${progressPct}%` }} />
+            </div>
+            <div class="fsrs-review-meta">
+                <span class="fsrs-progress-text">{index} of {total}</span>
+            </div>
+            {card.tags && card.tags.length > 0 ? (
+                <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <svg class="svg-icon" viewBox="0 0 24 24" style={{ stroke: '#888', width: '13px', height: '13px' }}><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                    <span>{card.tags.join(', ')}</span>
+                </div>
+            ) : null}
+            <p style={{ marginBottom: '15px' }}>
+                <a href={card.problemUrl} target="_blank" style={{ color: '#4CAF50', textDecoration: 'none', fontWeight: 'bold', borderBottom: '1px solid #4CAF50', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <svg class="svg-icon" viewBox="0 0 24 24" style={{ stroke: '#4CAF50', width: '13px', height: '13px' }}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+                    Open Problem Page
+                </a>
+            </p>
+            <div id="fsrs-approach-answer" style={{ display: isAnswerShown ? 'block' : 'none' }}>
+                <div class="fsrs-markdown">
+                    <strong>Your Approach:</strong>
+                    <span dangerouslySetInnerHTML={{ __html: approachHtml }} />
+                </div>
+                <div class="fsrs-rating-buttons">
+                    <div class="fsrs-rating-btn-wrapper">
+                        <button data-rating="1" style={{ background: '#e74c3c' }} onClick={() => onRate && onRate(1)}>Again</button>
+                        <kbd class="fsrs-kbd-hint">1</kbd>
+                    </div>
+                    <div class="fsrs-rating-btn-wrapper">
+                        <button data-rating="2" style={{ background: '#e67e22' }} onClick={() => onRate && onRate(2)}>Hard</button>
+                        <kbd class="fsrs-kbd-hint">2</kbd>
+                    </div>
+                    <div class="fsrs-rating-btn-wrapper">
+                        <button data-rating="3" style={{ background: '#2ecc71' }} onClick={() => onRate && onRate(3)}>Good</button>
+                        <kbd class="fsrs-kbd-hint">3</kbd>
+                    </div>
+                    <div class="fsrs-rating-btn-wrapper">
+                        <button data-rating="4" style={{ background: '#3498db' }} onClick={() => onRate && onRate(4)}>Easy</button>
+                        <kbd class="fsrs-kbd-hint">4</kbd>
+                    </div>
+                </div>
+            </div>
+            {!isAnswerShown ? (
+                <button id="fsrs-show-answer-btn" class="fsrs-primary-btn" onClick={onShowAnswer}>
+                    <span>Show Approach</span>
+                    <kbd class="fsrs-kbd-hint" style={{ marginLeft: '8px' }}>Space</kbd>
+                </button>
+            ) : null}
+        </div>
+    );
+};
+
+// ==========================================
+// TRACKER CONTROLLER CLASS (FULL COMPATIBILITY)
+// ==========================================
 
 /**
  * @class FSRSTracker
@@ -98,7 +379,7 @@ function getRenderMarkdown(): ((text: string) => string) | undefined {
  * Provides controls for recording approaches, entering study card notes, assigning initial difficulty,
  * tagging, drag positioning toggles, and executing interactive revision card sessions with hotkeys.
  */
-class Tracker {
+export class Tracker {
     /** Optional topic tag filter restricting due cards in the active review queue. */
     activeReviewFilter: string | null;
     /** Current zero-based index of the card being reviewed. */
@@ -140,7 +421,6 @@ class Tracker {
         try {
             return getAlgoRecallGlobal().state;
         } catch (err) {
-            // Comment: Return safe fallback empty state if global state access fails
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to get AlgoRecall state: ${errorMessage}`, { err });
             return { cards: [], topicWeights: {}, scheduler: new FsrsScheduler() };
@@ -155,7 +435,6 @@ class Tracker {
         try {
             return getAlgoRecallGlobal().Utils;
         } catch (err) {
-            // Comment: Return safe fallback empty utils if global utils access fails
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to get AlgoRecall utils: ${errorMessage}`, { err });
             return { getAutoTags: () => [], getExtractedProblemTitle: () => '' };
@@ -170,7 +449,6 @@ class Tracker {
         try {
             return getAlgoRecallGlobal().Notifier;
         } catch (err) {
-            // Comment: Return safe fallback null notifier if global access fails
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to get AlgoRecall notifier: ${errorMessage}`, { err });
             return null;
@@ -193,7 +471,6 @@ class Tracker {
                         Logger.error('Tracker', `Chrome storage error saving FSRS cards: ${errorMessage}`, { error: chrome.runtime.lastError });
                     }
                 } catch (callbackErr) {
-                    // Comment: Safe recovery inside storage set callback
                     const errorMessage = callbackErr instanceof Error ? callbackErr.message : String(callbackErr);
                     Logger.error('Tracker', `Error in saveCards storage callback: ${errorMessage}`, { callbackErr });
                 }
@@ -201,7 +478,6 @@ class Tracker {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             if (logger) logger.error('Tracker', `Failed to save FSRS cards to storage: ${errorMessage}`, { cardCount: this.state.cards?.length || 0, err });
-            // Comment: Non-fatal storage write catch
         }
     }
 
@@ -232,7 +508,6 @@ class Tracker {
                                 Logger.error('Tracker', `Chrome storage error setting fsrsActivity: ${errorMessage}`, { error: chrome.runtime.lastError });
                             }
                         } catch (setErr) {
-                            // Comment: Safe recovery in nested storage set callback for activity logging
                             const errorMessage = setErr instanceof Error ? setErr.message : String(setErr);
                             Logger.error('Tracker', `Error setting activity log: ${errorMessage}`, { setErr });
                         }
@@ -334,7 +609,6 @@ class Tracker {
                             this.activeCardId = cid;
                             this.refreshWidgetState();
                         } catch (tabErr) {
-                            // Comment: Recover from card tab click error to keep navigation working
                             const errorMessage = tabErr instanceof Error ? tabErr.message : String(tabErr);
                             Logger.error('Tracker', `Error switching card tab: ${errorMessage}`, { tabErr });
                         }
@@ -419,14 +693,12 @@ class Tracker {
                             btn.style.boxShadow = "none";
                         });
                     } catch (draftErr) {
-                        // Comment: Safe recovery inside approachDrafts storage callback
                         const errorMessage = draftErr instanceof Error ? draftErr.message : String(draftErr);
                         Logger.error('Tracker', `Error in approachDrafts storage callback: ${errorMessage}`, { draftErr });
                     }
                 });
             }
         } catch (err) {
-            // Comment: Safe recovery for widget state refresh to avoid breaking host page UI
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to refresh widget state: ${errorMessage}`, { err });
         }
@@ -550,7 +822,6 @@ class Tracker {
                         launcher.style.cursor = 'grabbing';
                     }
                 } catch (err) {
-                    // Comment: Safe recovery from mouse move calculation error during launcher drag
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error handling launcher mousemove: ${errorMessage}`, { err });
                 }
@@ -568,13 +839,11 @@ class Tracker {
                         try {
                             launcher.style.cursor = 'pointer';
                         } catch (cursorErr) {
-                            // Comment: Safe recovery in cursor timeout reset
                             const errorMessage = cursorErr instanceof Error ? cursorErr.message : String(cursorErr);
                             Logger.error('Tracker', `Error resetting launcher cursor on mouseup: ${errorMessage}`, { cursorErr });
                         }
                     }, 50);
                 } catch (err) {
-                    // Comment: Safe recovery during drag cleanup on mouseup
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error handling launcher mouseup: ${errorMessage}`, { err });
                 }
@@ -599,7 +868,6 @@ class Tracker {
                     document.addEventListener('pointerup', onMouseUp);
                     document.addEventListener('pointercancel', onMouseUp);
                 } catch (err) {
-                    // Comment: Safe recovery on launcher pointerdown
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error on launcher pointerdown: ${errorMessage}`, { err });
                 }
@@ -622,7 +890,6 @@ class Tracker {
                     if (firstFocusable) firstFocusable.focus();
                     this.refreshWidgetState();
                 } catch (err) {
-                    // Comment: Safe recovery on launcher click
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error on launcher click: ${errorMessage}`, { err });
                 }
@@ -638,7 +905,6 @@ class Tracker {
                         this.refreshWidgetState();
                     }
                 } catch (err) {
-                    // Comment: Safe recovery on launcher keydown
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error on launcher keydown: ${errorMessage}`, { err });
                 }
@@ -652,13 +918,11 @@ class Tracker {
                     launcher.style.right = '';
                     launcher.style.bottom = '';
                 } catch (err) {
-                    // Comment: Safe recovery on launcher contextmenu reset
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error resetting launcher position via contextmenu: ${errorMessage}`, { err });
                 }
             });
 
-            
             container.addEventListener('keydown', (e: KeyboardEvent) => {
                 if (e.key === 'Escape') {
                     e.preventDefault();
@@ -697,7 +961,6 @@ class Tracker {
                     }
                     if (previouslyFocused) previouslyFocused.focus();
                 } catch (err) {
-                    // Comment: Safe recovery on minimize button click
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error on minimize button click: ${errorMessage}`, { err });
                 }
@@ -713,7 +976,6 @@ class Tracker {
                     }
                     if (previouslyFocused) previouslyFocused.focus();
                 } catch (err) {
-                    // Comment: Safe recovery on close button click
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error on close button click: ${errorMessage}`, { err });
                 }
@@ -770,20 +1032,17 @@ class Tracker {
                                             }
                                         });
                                     } catch (msgErr) {
-                                        // Comment: Safe recovery sending open_fullscreen_editor message
                                         const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
                                         Logger.error('Tracker', `Error sending open_fullscreen_editor message: ${errorMessage}`, { msgErr });
                                     }
                                 });
                             } catch (draftErr) {
-                                // Comment: Safe recovery in draft callback for fullscreen button
                                 const errorMessage = draftErr instanceof Error ? draftErr.message : String(draftErr);
                                 Logger.error('Tracker', `Error handling draft for fullscreen editor: ${errorMessage}`, { draftErr });
                             }
                         });
                     }
                 } catch (err) {
-                    // Comment: Safe recovery when clicking fullscreen button
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error in fullscreen button click handler: ${errorMessage}`, { err });
                 }
@@ -804,7 +1063,6 @@ class Tracker {
                         }
                     }
                 } catch (err) {
-                    // Comment: Safe recovery during card deletion
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error deleting card: ${errorMessage}`, { err });
                 }
@@ -830,7 +1088,6 @@ class Tracker {
                                     targetBtn.innerText = originalText;
                                     targetBtn.style.background = "#555";
                                 } catch (timerErr) {
-                                    // Comment: Safe recovery in update button style reset timer
                                     const errorMessage = timerErr instanceof Error ? timerErr.message : String(timerErr);
                                     Logger.error('Tracker', `Error resetting update button text: ${errorMessage}`, { timerErr });
                                 }
@@ -838,7 +1095,6 @@ class Tracker {
                         }
                     }
                 } catch (err) {
-                    // Comment: Safe recovery when updating card text
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error updating card text: ${errorMessage}`, { err });
                 }
@@ -909,7 +1165,6 @@ class Tracker {
                                     });
                                 }
                             } catch (draftErr) {
-                                // Comment: Recover from draft cleanup error without failing the rating operation
                                 const errorMessage = draftErr instanceof Error ? draftErr.message : String(draftErr);
                                 Logger.error('Tracker', `Error deleting draft after rating save: ${errorMessage}`, { draftErr });
                             }
@@ -924,13 +1179,11 @@ class Tracker {
                             try {
                                 target.innerText = originalText;
                             } catch (timerErr) {
-                                // Comment: Safe recovery resetting rating button text
                                 const errorMessage = timerErr instanceof Error ? timerErr.message : String(timerErr);
                                 Logger.error('Tracker', `Error resetting save-rating button text: ${errorMessage}`, { timerErr });
                             }
                         }, 1500);
                     } catch (err) {
-                        // Comment: Safe recovery during save-rating click operation
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('Tracker', `Error saving card rating: ${errorMessage}`, { err });
                     }
@@ -943,12 +1196,10 @@ class Tracker {
                     globalAlgo.orchestrator.applyThemeClass();
                 }
             } catch (themeErr) {
-                // Comment: Safe recovery applying theme class
                 const errorMessage = themeErr instanceof Error ? themeErr.message : String(themeErr);
                 Logger.error('Tracker', `Failed to apply theme class: ${errorMessage}`, { themeErr });
             }
         } catch (err) {
-            // Comment: Safe recovery during UI initialization to prevent unhandled exception breaking host DOM
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to create UI elements: ${errorMessage}`, { err });
         }
@@ -996,14 +1247,12 @@ class Tracker {
                             }
                         });
                     } catch (draftErr) {
-                        // Comment: Safe recovery inside saveDraft storage callback
                         const errorMessage = draftErr instanceof Error ? draftErr.message : String(draftErr);
                         Logger.error('Tracker', `Error in saveDraft storage callback: ${errorMessage}`, { draftErr });
                     }
                 });
             }
         } catch (err) {
-            // Comment: Non-fatal draft auto-saving catch to ensure typing is never interrupted
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to save draft: ${errorMessage}`, { err });
         }
@@ -1025,7 +1274,6 @@ class Tracker {
             }
             return due.sort((a: Card, b: Card) => a.due - b.due);
         } catch (err) {
-            // Comment: Return empty array fallback on error to prevent breaking callers iterating over due cards
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to compute due cards: ${errorMessage}`, { filterTag, err });
             return [];
@@ -1099,7 +1347,6 @@ class Tracker {
                         chips.forEach(c => c.classList.remove('fsrs-tag-chip-active'));
                         chip.classList.add('fsrs-tag-chip-active');
                     } catch (err) {
-                        // Comment: Safe recovery on tag chip click
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('Tracker', `Error selecting tag chip: ${errorMessage}`, { err });
                     }
@@ -1114,7 +1361,6 @@ class Tracker {
                     fsrsBody.style.display = 'block';
                     this.refreshWidgetState();
                 } catch (err) {
-                    // Comment: Safe recovery on picker back button
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error on picker back button click: ${errorMessage}`, { err });
                 }
@@ -1128,13 +1374,11 @@ class Tracker {
                     if (this.activeReviewFilter === '__all__') this.activeReviewFilter = null;
                     this._startReviewSession();
                 } catch (err) {
-                    // Comment: Safe recovery starting filtered review session
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error on start filtered review click: ${errorMessage}`, { err });
                 }
             });
         } catch (err) {
-            // Comment: Safe recovery for startReview workflow
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to start review workflow: ${errorMessage}`, { err });
         }
@@ -1167,7 +1411,6 @@ class Tracker {
 
             this.showCard();
         } catch (err) {
-            // Comment: Safe recovery launching review session
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to start review session: ${errorMessage}`, { err });
         }
@@ -1285,7 +1528,6 @@ class Tracker {
                     this.activeReviewFilter = null;
                     this.refreshWidgetState();
                 } catch (err) {
-                    // Comment: Safe recovery on review back button click
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error on review back button click: ${errorMessage}`, { err });
                 }
@@ -1297,7 +1539,6 @@ class Tracker {
                     const answerDiv = document.getElementById('fsrs-approach-answer');
                     if (answerDiv) answerDiv.style.display = 'block';
                 } catch (err) {
-                    // Comment: Safe recovery showing approach answer
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error showing approach answer: ${errorMessage}`, { err });
                 }
@@ -1316,7 +1557,6 @@ class Tracker {
                         this.handleRating(currentCard, parseInt(target.getAttribute('data-rating') || '1', 10), timeTaken);
                         this.showCard();
                     } catch (err) {
-                        // Comment: Safe recovery on rating card click
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('Tracker', `Error handling rating button click in review: ${errorMessage}`, { err });
                     }
@@ -1358,14 +1598,12 @@ class Tracker {
                         }
                     }
                 } catch (err) {
-                    // Comment: Safe recovery in keyboard shortcut handler to prevent input interruptions
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Tracker', `Error in review keyboard shortcut handler: ${errorMessage}`, { err });
                 }
             };
             document.addEventListener('keydown', this._reviewKeyHandler);
         } catch (err) {
-            // Comment: Safe recovery rendering showCard UI
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to show card: ${errorMessage}`, { err });
         }
@@ -1402,7 +1640,6 @@ class Tracker {
             this.saveCards();
             this.logReviewActivity();
         } catch (err) {
-            // Comment: Safe recovery handling card rating calculation to avoid corrupting session state
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to handle card rating: ${errorMessage}`, { cardId: card.id, rating, err });
         }
@@ -1421,7 +1658,6 @@ class Tracker {
                 this._reviewKeyHandler = null;
             }
         } catch (err) {
-            // Comment: Non-fatal keyboard listener cleanup error catch
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Error during review keyboard cleanup: ${errorMessage}`, { err });
         }
@@ -1434,10 +1670,22 @@ if (typeof window !== 'undefined') {
         win.AlgoRecall = win.AlgoRecall || {};
         win.AlgoRecall.Tracker = Tracker;
     } catch (err) {
-        // Comment: Safe recovery during global scope registration
         const errorMessage = err instanceof Error ? err.message : String(err);
         Logger.error('Tracker', `Failed to register Tracker on window global scope: ${errorMessage}`, { err });
     }
 }
 
+// Preserve CommonJS and default exports
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any) = Tracker;
+    (module.exports as any).default = Tracker;
+    (module.exports as any).Tracker = Tracker;
+    (module.exports as any).TrackerFloatingLauncher = TrackerFloatingLauncher;
+    (module.exports as any).TrackerHeader = TrackerHeader;
+    (module.exports as any).TrackerNavBar = TrackerNavBar;
+    (module.exports as any).TrackerRatingBar = TrackerRatingBar;
+    (module.exports as any).TrackerCardReviewView = TrackerCardReviewView;
+}
+
 export default Tracker;
+

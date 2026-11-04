@@ -1,16 +1,40 @@
 /**
- * @file features/dashboard/analytics/memory/retentionChart.ts
+ * @file features/dashboard/analytics/memory/retentionChart.tsx
  * @description Renders interactive multi-line retention decay charts with optional confidence bands
  * within the memory analytics view. Groups flashcards by tag, deck, or difficulty, plotting FSRS
  * forgetting trajectories across a 30-day horizon with hoverable data point tooltips.
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { ConfidenceBand } from './confidenceBand';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 import { ANALYTICS_CHART_COLORS, RETENTION_TIME_POINTS } from '../../../common/constants';
+
+export interface RetentionLegendGroup {
+    name: string;
+    count: number;
+    color: string;
+}
+
+export interface RetentionChartLegendProps {
+    groups: RetentionLegendGroup[];
+}
+
+export const RetentionChartLegend: FunctionalComponent<RetentionChartLegendProps> = ({ groups }) => {
+    return (
+        <div class="retention-legend">
+            {groups.map(g => (
+                <div class="retention-legend-item" key={g.name}>
+                    <span class="retention-legend-dot" style={{ background: g.color }} />
+                    {g.name}
+                </div>
+            ))}
+        </div>
+    );
+};
 
 /**
  * Visualizes memory decay trajectories across flashcard cohorts.
@@ -314,3 +338,4 @@ export class RetentionChart {
         return legendHtml;
     }
 }
+

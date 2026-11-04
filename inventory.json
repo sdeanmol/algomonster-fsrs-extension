@@ -431,496 +431,6 @@
       "knownIssues": [],
       "migrationNotes": "Framework-independent utility, service, calculation engine or persistence logic"
     },
-    "features/dashboard/analytics/analytics.ts": {
-      "path": "features/dashboard/analytics/analytics.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "analytics",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "@common/constants",
-        "./utils/dataUtils",
-        "./overview/overview",
-        "./memory/memory",
-        "./tags/tags",
-        "./performance/performance",
-        "./insights/insights",
-        "./readiness/readiness",
-        "./memory/futureMemorySimulation",
-        "../../../types/domain",
-        "../../tracker/scheduler/scheduler"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/insights/insights.ts": {
-      "path": "features/dashboard/analytics/insights/insights.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "insights",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "../../../common/utils/uiUtils",
-        "./reviewTimeAnalytics",
-        "../utils/dataUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/insights/reviewTimeAnalytics.ts": {
-      "path": "features/dashboard/analytics/insights/reviewTimeAnalytics.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "reviewTimeAnalytics",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "../../../common/utils/uiUtils",
-        "../utils/dataUtils",
-        "../../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/memory/confidenceBand.ts": {
-      "path": "features/dashboard/analytics/memory/confidenceBand.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "confidenceBand",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "../../../common/utils/uiUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/memory/futureMemorySimulation.ts": {
-      "path": "features/dashboard/analytics/memory/futureMemorySimulation.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "futureMemorySimulation",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/constants",
-        "../../../common/utils/uiUtils",
-        "../utils/dataUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/memory/memory.ts": {
-      "path": "features/dashboard/analytics/memory/memory.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "memory",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "../../../common/utils/uiUtils",
-        "./retentionChart",
-        "./predictionComparison",
-        "../utils/dataUtils",
-        "../../../../types/domain",
-        "../../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/memory/predictionComparison.ts": {
-      "path": "features/dashboard/analytics/memory/predictionComparison.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "predictionComparison",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "../../../common/utils/uiUtils",
-        "../utils/dataUtils",
-        "../../../tracker/scheduler/scheduler",
-        "../../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/memory/retentionChart.ts": {
-      "path": "features/dashboard/analytics/memory/retentionChart.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "retentionChart",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "../../../common/utils/uiUtils",
-        "./confidenceBand",
-        "../utils/dataUtils",
-        "../../../tracker/scheduler/scheduler",
-        "../../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/overview/learningVelocity.ts": {
-      "path": "features/dashboard/analytics/overview/learningVelocity.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "learningVelocity",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "../../../common/utils/uiUtils",
-        "../utils/dataUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/overview/memoryHealth.ts": {
-      "path": "features/dashboard/analytics/overview/memoryHealth.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "memoryHealth",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "../../../common/utils/uiUtils",
-        "../utils/dataUtils",
-        "../../../tracker/scheduler/scheduler"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/overview/miniForecast.ts": {
-      "path": "features/dashboard/analytics/overview/miniForecast.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "miniForecast",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "../../../common/utils/uiUtils",
-        "../utils/dataUtils",
-        "../../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/overview/overview.ts": {
-      "path": "features/dashboard/analytics/overview/overview.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "overview",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "../../../common/utils/uiUtils",
-        "./memoryHealth",
-        "./learningVelocity",
-        "./miniForecast",
-        "../utils/dataUtils",
-        "../../../tracker/scheduler/scheduler"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/performance/performance.ts": {
-      "path": "features/dashboard/analytics/performance/performance.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "performance",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "./recoveryTracking",
-        "./reviewStats",
-        "../utils/dataUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/performance/recoveryTracking.ts": {
-      "path": "features/dashboard/analytics/performance/recoveryTracking.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "recoveryTracking",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../../common/utils/cardUtils",
-        "../utils/dataUtils",
-        "../../../../types/domain"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/performance/reviewStats.ts": {
-      "path": "features/dashboard/analytics/performance/reviewStats.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "reviewStats",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../utils/dataUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/readiness/readiness.ts": {
-      "path": "features/dashboard/analytics/readiness/readiness.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "readiness",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "@common/constants",
-        "../utils/dataUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/tags/coverageTable.ts": {
-      "path": "features/dashboard/analytics/tags/coverageTable.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "coverageTable",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../utils/dataUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/tags/retentionBarChart.ts": {
-      "path": "features/dashboard/analytics/tags/retentionBarChart.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "retentionBarChart",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../utils/dataUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/analytics/tags/tags.ts": {
-      "path": "features/dashboard/analytics/tags/tags.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "tags",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "./coverageTable",
-        "./retentionBarChart",
-        "../utils/dataUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
     "features/dashboard/analytics/utils/dataUtils.ts": {
       "path": "features/dashboard/analytics/utils/dataUtils.ts",
       "category": "Category C: Business Logic",
@@ -942,205 +452,12 @@
         "Unit test suite verification"
       ],
       "testsCompleted": [
-        "Baseline Jest run (PASS)"
+        "Unit test suite verification (PASS)",
+        "Build check (tsc & webpack) (PASS)"
       ],
-      "verificationStatus": "PENDING",
+      "verificationStatus": "VERIFIED",
       "knownIssues": [],
-      "migrationNotes": "Framework-independent utility, service, calculation engine or persistence logic"
-    },
-    "features/dashboard/popup/DashboardComponent.ts": {
-      "path": "features/dashboard/popup/DashboardComponent.ts",
-      "category": "Category B: UI Controllers",
-      "responsibility": "DashboardComponent",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "Base interface/contract for popup sub-components"
-    },
-    "features/dashboard/popup/heatmap.ts": {
-      "path": "features/dashboard/popup/heatmap.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "heatmap",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "./DashboardComponent",
-        "../../../types/domain",
-        "../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/popup/notifications.ts": {
-      "path": "features/dashboard/popup/notifications.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "notifications",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "./DashboardComponent",
-        "../../../types/domain",
-        "../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/popup/popup.ts": {
-      "path": "features/dashboard/popup/popup.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "popup",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "./stats",
-        "./heatmap",
-        "./notifications",
-        "./rating",
-        "./search",
-        "../../common/data/backupManager",
-        "../../../types/domain",
-        "../../common/browserConfig",
-        "../../common/services/actionService"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/popup/rating.ts": {
-      "path": "features/dashboard/popup/rating.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "rating",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "./DashboardComponent",
-        "../../../types/domain",
-        "../../common/browserConfig"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/popup/search.ts": {
-      "path": "features/dashboard/popup/search.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "search",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "./DashboardComponent",
-        "../../../types/domain",
-        "../../common/constants"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
-    },
-    "features/dashboard/popup/stats.ts": {
-      "path": "features/dashboard/popup/stats.ts",
-      "category": "Category A: UI Components",
-      "responsibility": "stats",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
-      "migrationPhase": "Phase 4",
-      "dependencies": [
-        "@common/logger",
-        "../../common/utils/uiUtils",
-        "@common/constants",
-        "./DashboardComponent",
-        "../../common/utils/cardUtils",
-        "../../../types/domain",
-        "../../tracker/scheduler/scheduler"
-      ],
-      "dependentFiles": [],
-      "migrationStatus": "planned",
-      "testsRequired": [
-        "Build check (tsc & webpack)",
-        "Unit test suite verification"
-      ],
-      "testsCompleted": [
-        "Baseline Jest run (PASS)"
-      ],
-      "verificationStatus": "PENDING",
-      "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
+      "migrationNotes": "Framework-independent mathematical calculation engine and data utilities."
     },
     "features/dashboard/summary/summaryGenerator.ts": {
       "path": "features/dashboard/summary/summaryGenerator.ts",
@@ -1201,26 +518,27 @@
     },
     "features/highlighter/manager/highlights-helpers.ts": {
       "path": "features/highlighter/manager/highlights-helpers.ts",
-      "category": "Category A: UI Components",
+      "category": "Category C: Framework-Independent Utilities",
       "responsibility": "highlights-helpers",
-      "currentImplementation": "Vanilla TypeScript",
-      "requiresPreactConversion": true,
+      "currentImplementation": "TypeScript (Framework-Independent Utility)",
+      "requiresPreactConversion": false,
       "migrationPhase": "Phase 4",
       "dependencies": [
         "@common/logger"
       ],
       "dependentFiles": [],
-      "migrationStatus": "planned",
+      "migrationStatus": "verified",
       "testsRequired": [
         "Build check (tsc & webpack)",
         "Unit test suite verification"
       ],
       "testsCompleted": [
-        "Baseline Jest run (PASS)"
+        "tests/unit/features/highlighter/manager/highlightsHelpers.test.ts (PASS)",
+        "Build check (tsc & webpack) (PASS)"
       ],
-      "verificationStatus": "PENDING",
+      "verificationStatus": "VERIFIED",
       "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
+      "migrationNotes": "Framework-independent string formatting and clipboard helper utility module. Preserved without Preact dependency."
     },
     "features/tracker/config/fsrsConfig.tsx": {
       "path": "features/tracker/config/fsrsConfig.tsx",
@@ -1389,11 +707,11 @@
       "knownIssues": [],
       "migrationNotes": "Mathematical spaced repetition calculation and optimization engine"
     },
-    "features/tracker/tracker.ts": {
-      "path": "features/tracker/tracker.ts",
+    "features/tracker/tracker.tsx": {
+      "path": "features/tracker/tracker.tsx",
       "category": "Category A: UI Components",
-      "responsibility": "tracker",
-      "currentImplementation": "Vanilla TypeScript",
+      "responsibility": "In-page floating tracker widget and review UI",
+      "currentImplementation": "Preact with TypeScript",
       "requiresPreactConversion": true,
       "migrationPhase": "Phase 4",
       "dependencies": [
@@ -1405,17 +723,22 @@
         "@common/logger"
       ],
       "dependentFiles": [],
-      "migrationStatus": "planned",
+      "migrationStatus": "verified",
       "testsRequired": [
         "Build check (tsc & webpack)",
-        "Unit test suite verification"
+        "Unit test suite verification",
+        "Integration test suite",
+        "Preact component test suite"
       ],
       "testsCompleted": [
-        "Baseline Jest run (PASS)"
+        "tests/unit/features/tracker/tracker.test.ts (PASS)",
+        "tests/unit/features/tracker/TrackerComponents.test.tsx (PASS)",
+        "tests/integration/tracker.test.js (PASS)",
+        "npm run build (PASS)"
       ],
-      "verificationStatus": "PENDING",
+      "verificationStatus": "VERIFIED",
       "knownIssues": [],
-      "migrationNotes": "UI component rendering, user interactions, or DOM view management"
+      "migrationNotes": "Preact components (TrackerFloatingLauncher, TrackerHeader, TrackerNavBar, TrackerRatingBar, TrackerCardReviewView) with full Tracker controller preserving dragging, keyboard shortcuts, DOM contracts, and storage lifecycle."
     },
     "types/backup.ts": {
       "path": "types/backup.ts",
@@ -1843,6 +1166,730 @@
       "verificationStatus": "VERIFIED",
       "knownIssues": [],
       "migrationNotes": "Migrated SummaryDashboard to Preact components (SummaryPeriodTabs, SummaryKpiGrid, SummaryInsightsList, SummaryActivityChart, SummaryTopicMasteryList) preserving dynamic reporting and 100% test parity."
+    },
+    "features/dashboard/popup/DashboardComponent.tsx": {
+      "path": "features/dashboard/popup/DashboardComponent.tsx",
+      "category": "Category B: UI Controllers",
+      "responsibility": "Popup sub-view and dashboard orchestration",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 5",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check",
+        "Unit tests",
+        "Preact component tests"
+      ],
+      "testsCompleted": [
+        "Jest unit tests (PASS)",
+        "Preact component test suite (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated to Preact components and controller classes with 100% test parity."
+    },
+    "features/dashboard/popup/heatmap.tsx": {
+      "path": "features/dashboard/popup/heatmap.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Popup sub-view and dashboard orchestration",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 5",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check",
+        "Unit tests",
+        "Preact component tests"
+      ],
+      "testsCompleted": [
+        "Jest unit tests (PASS)",
+        "Preact component test suite (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated to Preact components and controller classes with 100% test parity."
+    },
+    "features/dashboard/popup/search.tsx": {
+      "path": "features/dashboard/popup/search.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Popup sub-view and dashboard orchestration",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 5",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check",
+        "Unit tests",
+        "Preact component tests"
+      ],
+      "testsCompleted": [
+        "Jest unit tests (PASS)",
+        "Preact component test suite (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated to Preact components and controller classes with 100% test parity."
+    },
+    "features/dashboard/popup/rating.tsx": {
+      "path": "features/dashboard/popup/rating.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Popup sub-view and dashboard orchestration",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 5",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check",
+        "Unit tests",
+        "Preact component tests"
+      ],
+      "testsCompleted": [
+        "Jest unit tests (PASS)",
+        "Preact component test suite (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated to Preact components and controller classes with 100% test parity."
+    },
+    "features/dashboard/popup/stats.tsx": {
+      "path": "features/dashboard/popup/stats.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Popup sub-view and dashboard orchestration",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 5",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check",
+        "Unit tests",
+        "Preact component tests"
+      ],
+      "testsCompleted": [
+        "Jest unit tests (PASS)",
+        "Preact component test suite (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated to Preact components and controller classes with 100% test parity."
+    },
+    "features/dashboard/popup/notifications.tsx": {
+      "path": "features/dashboard/popup/notifications.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Popup sub-view and dashboard orchestration",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 5",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check",
+        "Unit tests",
+        "Preact component tests"
+      ],
+      "testsCompleted": [
+        "Jest unit tests (PASS)",
+        "Preact component test suite (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated to Preact components and controller classes with 100% test parity."
+    },
+    "features/dashboard/popup/popup.tsx": {
+      "path": "features/dashboard/popup/popup.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "Popup sub-view and dashboard orchestration",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4 - Batch 5",
+      "dependencies": [
+        "@common/logger",
+        "../../common/utils/uiUtils",
+        "preact"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check",
+        "Unit tests",
+        "Preact component tests"
+      ],
+      "testsCompleted": [
+        "Jest unit tests (PASS)",
+        "Preact component test suite (PASS)",
+        "npm run build (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Migrated to Preact components and controller classes with 100% test parity."
+    },
+    "features/dashboard/analytics/analytics.tsx": {
+      "path": "features/dashboard/analytics/analytics.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "analytics",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "@common/logger",
+        "@common/constants",
+        "./utils/dataUtils",
+        "./overview/overview",
+        "./memory/memory",
+        "./tags/tags",
+        "./performance/performance",
+        "./insights/insights",
+        "./readiness/readiness",
+        "./memory/futureMemorySimulation",
+        "../../../types/domain",
+        "../../tracker/scheduler/scheduler"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/insights/insights.tsx": {
+      "path": "features/dashboard/analytics/insights/insights.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "insights",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "../../../common/utils/uiUtils",
+        "./reviewTimeAnalytics",
+        "../utils/dataUtils"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/insights/reviewTimeAnalytics.tsx": {
+      "path": "features/dashboard/analytics/insights/reviewTimeAnalytics.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "reviewTimeAnalytics",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "../../../common/utils/uiUtils",
+        "../utils/dataUtils",
+        "../../../common/constants"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/memory/confidenceBand.tsx": {
+      "path": "features/dashboard/analytics/memory/confidenceBand.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "confidenceBand",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "../../../common/utils/uiUtils"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/memory/futureMemorySimulation.tsx": {
+      "path": "features/dashboard/analytics/memory/futureMemorySimulation.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "futureMemorySimulation",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "@common/constants",
+        "../../../common/utils/uiUtils",
+        "../utils/dataUtils"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/memory/memory.tsx": {
+      "path": "features/dashboard/analytics/memory/memory.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "memory",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "../../../common/utils/uiUtils",
+        "./retentionChart",
+        "./predictionComparison",
+        "../utils/dataUtils",
+        "../../../../types/domain",
+        "../../../common/constants"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/memory/predictionComparison.tsx": {
+      "path": "features/dashboard/analytics/memory/predictionComparison.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "predictionComparison",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "../../../common/utils/uiUtils",
+        "../utils/dataUtils",
+        "../../../tracker/scheduler/scheduler",
+        "../../../common/constants"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/memory/retentionChart.tsx": {
+      "path": "features/dashboard/analytics/memory/retentionChart.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "retentionChart",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "../../../common/utils/uiUtils",
+        "./confidenceBand",
+        "../utils/dataUtils",
+        "../../../tracker/scheduler/scheduler",
+        "../../../common/constants"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/overview/learningVelocity.tsx": {
+      "path": "features/dashboard/analytics/overview/learningVelocity.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "learningVelocity",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "../../../common/utils/uiUtils",
+        "../utils/dataUtils"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/overview/memoryHealth.tsx": {
+      "path": "features/dashboard/analytics/overview/memoryHealth.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "memoryHealth",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "../../../common/utils/uiUtils",
+        "../utils/dataUtils",
+        "../../../tracker/scheduler/scheduler"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/overview/miniForecast.tsx": {
+      "path": "features/dashboard/analytics/overview/miniForecast.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "miniForecast",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "../../../common/utils/uiUtils",
+        "../utils/dataUtils",
+        "../../../common/constants"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/overview/overview.tsx": {
+      "path": "features/dashboard/analytics/overview/overview.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "overview",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "../../../common/utils/uiUtils",
+        "./memoryHealth",
+        "./learningVelocity",
+        "./miniForecast",
+        "../utils/dataUtils",
+        "../../../tracker/scheduler/scheduler"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/performance/performance.tsx": {
+      "path": "features/dashboard/analytics/performance/performance.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "performance",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "@common/logger",
+        "./recoveryTracking",
+        "./reviewStats",
+        "../utils/dataUtils"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/performance/recoveryTracking.tsx": {
+      "path": "features/dashboard/analytics/performance/recoveryTracking.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "recoveryTracking",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "@common/logger",
+        "../../../common/utils/cardUtils",
+        "../utils/dataUtils",
+        "../../../../types/domain"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/performance/reviewStats.tsx": {
+      "path": "features/dashboard/analytics/performance/reviewStats.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "reviewStats",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "@common/logger",
+        "../utils/dataUtils"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/readiness/readiness.tsx": {
+      "path": "features/dashboard/analytics/readiness/readiness.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "readiness",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "@common/logger",
+        "@common/constants",
+        "../utils/dataUtils"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/tags/coverageTable.tsx": {
+      "path": "features/dashboard/analytics/tags/coverageTable.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "coverageTable",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "@common/logger",
+        "../utils/dataUtils"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/tags/retentionBarChart.tsx": {
+      "path": "features/dashboard/analytics/tags/retentionBarChart.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "retentionBarChart",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "@common/logger",
+        "../utils/dataUtils"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
+    },
+    "features/dashboard/analytics/tags/tags.tsx": {
+      "path": "features/dashboard/analytics/tags/tags.tsx",
+      "category": "Category A: UI Components",
+      "responsibility": "tags",
+      "currentImplementation": "Preact with TypeScript",
+      "requiresPreactConversion": true,
+      "migrationPhase": "Phase 4",
+      "dependencies": [
+        "@common/logger",
+        "./coverageTable",
+        "./retentionBarChart",
+        "../utils/dataUtils"
+      ],
+      "dependentFiles": [],
+      "migrationStatus": "verified",
+      "testsRequired": [
+        "Build check (tsc & webpack)",
+        "Unit test suite verification"
+      ],
+      "testsCompleted": [
+        "Unit test suite verification (PASS)",
+        "Preact component test suite (PASS)",
+        "Build check (tsc & webpack) (PASS)"
+      ],
+      "verificationStatus": "VERIFIED",
+      "knownIssues": [],
+      "migrationNotes": "Converted to Preact with TypeScript with preserved controller API and dedicated Preact component test suite."
     }
   }
 }

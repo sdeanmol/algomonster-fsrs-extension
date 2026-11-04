@@ -1,17 +1,84 @@
 /**
- * @file features/dashboard/analytics/overview/overview.ts
+ * @file features/dashboard/analytics/overview/overview.tsx
  * @description Main controller for the Analytics Overview tab component.
  * Coordinates rendering of Memory Health scores, Learning Velocity KPI sparklines,
  * a mini 7-day upcoming review forecast strip, and dynamic next action guidance banners.
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { MemoryHealth } from './memoryHealth';
 import { LearningVelocity } from './learningVelocity';
 import { MiniForecast } from './miniForecast';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
+
+export interface OverviewNextActionBannerProps {
+    type: 'caught-up' | 'pending' | 'dropping';
+    dueCount?: number;
+    health?: number;
+}
+
+export const OverviewNextActionBanner: FunctionalComponent<OverviewNextActionBannerProps> = ({ type, dueCount, health }) => {
+    if (type === 'pending') {
+        return (
+            <div class="actionable-insight-banner warning">
+                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <div class="insight-content">
+                    <h3>Next Action: Reviews Pending</h3>
+                    <p>You have <strong>{dueCount} cards due</strong> right now. Your next action is to head back to the dashboard and clear your queue.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (type === 'dropping') {
+        return (
+            <div class="actionable-insight-banner warning">
+                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <div class="insight-content">
+                    <h3>Next Action: Memory Health Dropping</h3>
+                    <p>Your memory health is currently at {health}%. Your next action should be a <strong>custom study session</strong> to review difficult cards before you forget them.</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div class="actionable-insight-banner success">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <div class="insight-content">
+                <h3>Next Action: You are all caught up!</h3>
+                <p>Your next step is to <strong>enjoy the rest of your day</strong>. Alternatively, you can learn some new cards.</p>
+            </div>
+        </div>
+    );
+};
+
+export const OverviewTabContent: FunctionalComponent = () => {
+    return (
+        <Fragment>
+            <div id="overview-next-action-container" />
+            <div class="overview-grid">
+                <div id="memory-health-container" class="overview-panel" />
+                <div id="learning-velocity-container" class="overview-panel" />
+            </div>
+            <div id="mini-forecast-container" />
+        </Fragment>
+    );
+};
 
 /**
  * Controller for the Overview tab view in the analytics dashboard.
@@ -176,3 +243,4 @@ export class OverviewTab {
         `;
     }
 }
+

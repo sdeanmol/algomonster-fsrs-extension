@@ -1,10 +1,11 @@
 /**
- * @file features/dashboard/analytics/memory/predictionComparison.ts
+ * @file features/dashboard/analytics/memory/predictionComparison.tsx
  * @description Renders an SVG comparison chart plotting theoretical FSRS predicted memory retention
  * against actual empirical recall performance across standardized time intervals (0-30 days).
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
@@ -27,6 +28,31 @@ export interface ComparisonPoint {
     /** Scaled Y coordinate in the SVG coordinate space */
     y: number;
 }
+
+export interface PredictionComparisonLegendProps {
+    gapText: string;
+    diff: number;
+}
+
+export const PredictionComparisonLegend: FunctionalComponent<PredictionComparisonLegendProps> = ({ gapText, diff }) => {
+    return (
+        <Fragment>
+            <div class="prediction-legend">
+                <div class="retention-legend-item">
+                    <span class="retention-legend-dot" style={{ background: 'transparent', border: '2px dashed #a8c7fa' }} />
+                    Predicted Retention
+                </div>
+                <div class="retention-legend-item">
+                    <span class="retention-legend-dot" style={{ background: '#f28b82' }} />
+                    Actual Recall
+                </div>
+            </div>
+            <div class={`prediction-warning ${diff > 0.05 ? 'warning-active' : ''}`}>
+                {gapText}
+            </div>
+        </Fragment>
+    );
+};
 
 /**
  * Visualizes model calibration by comparing expected memory retention (dashed line)
@@ -205,3 +231,4 @@ export class PredictionComparison {
         `;
     }
 }
+

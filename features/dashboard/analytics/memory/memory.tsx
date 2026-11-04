@@ -1,17 +1,97 @@
 /**
- * @file features/dashboard/analytics/memory/memory.ts
+ * @file features/dashboard/analytics/memory/memory.tsx
  * @description Main controller for the Memory & Retention tab in the analytics dashboard.
  * Coordinates multi-line forgetting curves, predicted vs actual recall comparisons,
  * FSRS personalized model status badges, and overdue review remediation guidance.
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { RetentionChart } from './retentionChart';
 import { PredictionComparison } from './predictionComparison';
 import { DataUtils } from '../utils/dataUtils';
 import { StorageData } from '../../../../types/domain';
 import { DEFAULT_FSRS_REQUEST_RETENTION, RETENTION_DROP_THRESHOLD } from '../../../common/constants';
+
+export interface PersonalMemoryModelBannerProps {
+    isPersonalized: boolean;
+    timestamp: string;
+}
+
+export const PersonalMemoryModelBanner: FunctionalComponent<PersonalMemoryModelBannerProps> = ({ isPersonalized, timestamp }) => {
+    return (
+        <div class="memory-panel ana-panel-wide" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px' }}>
+            <div>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '14px' }}>Personal Memory Model</h3>
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--md-text-low)' }}>Uses your history to predict forgetting.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--md-text-low)', display: 'block', textTransform: 'uppercase' }}>Source</span>
+                    {isPersonalized ? (
+                        <span class="tag-badge" style={{ background: 'var(--md-primary-container)', color: 'var(--md-primary)' }}>Optimized</span>
+                    ) : (
+                        <span class="tag-badge" style={{ background: 'var(--md-surface-variant)', color: 'var(--md-text-low)' }}>Default Weights</span>
+                    )}
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--md-text-low)', display: 'block', textTransform: 'uppercase' }}>Last Trained</span>
+                    <span style={{ fontSize: '14px', fontWeight: 600 }}>{timestamp}</span>
+                </div>
+                <a href="../../tracker/config/fsrsConfig.html" target="_blank" class="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>Configure</a>
+            </div>
+        </div>
+    );
+};
+
+export const MemoryTabContent: FunctionalComponent = () => {
+    return (
+        <div class="memory-grid">
+            <div id="memory-next-action-container" />
+            <div id="personal-memory-status-container" />
+            <div class="memory-panel ana-panel-wide">
+                <div class="ana-panel-header">
+                    <span class="ana-panel-title">
+                        Multiple Retention Curves
+                        <span class="help-icon" data-tooltip="Shows how your memory of a card decays over time. A flatter curve means better long-term memory.">?</span>
+                    </span>
+                    <div class="memory-controls" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div id="tag-filter-wrapper" style={{ display: 'flex', alignItems: 'center' }}>
+                            <input
+                                type="text"
+                                id="retention-tag-filter"
+                                class="modern-input"
+                                placeholder="Filter by tag..."
+                                style={{ width: '140px', padding: '6px 10px', fontSize: '13px', height: '32px', borderRadius: '6px', border: '1px solid var(--md-outline-variant)' }}
+                            />
+                        </div>
+                        <select id="retention-group-by" class="modern-select" style={{ height: '32px', padding: '0 28px 0 10px', fontSize: '13px', borderRadius: '6px' }}>
+                            <option value="tag">By Tag</option>
+                            <option value="deck">By Deck</option>
+                            <option value="difficulty">By Difficulty</option>
+                        </select>
+                        <label class="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer', margin: 0 }}>
+                            <input type="checkbox" id="toggle-confidence-bands" style={{ margin: 0, cursor: 'pointer' }} />
+                            Show confidence band
+                        </label>
+                    </div>
+                </div>
+                <div id="retention-curves-container" class="ana-chart-area" />
+            </div>
+
+            <div class="memory-panel ana-panel-wide">
+                <div class="ana-panel-header">
+                    <span class="ana-panel-title">
+                        Actual vs Predicted Recall
+                        <span class="help-icon" data-tooltip="Compares your real-world review performance against the scheduling mathematical prediction model. Large gaps mean the algorithm might need tuning.">?</span>
+                    </span>
+                </div>
+                <div id="prediction-comparison-container" class="ana-chart-area" />
+            </div>
+        </div>
+    );
+};
 
 /**
  * Controller for the Memory & Retention tab view in the analytics dashboard.
@@ -286,3 +366,4 @@ export class MemoryTab {
         }
     }
 }
+

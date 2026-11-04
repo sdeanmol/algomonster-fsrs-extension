@@ -1,14 +1,67 @@
 /**
- * @file features/dashboard/analytics/memory/futureMemorySimulation.ts
+ * @file features/dashboard/analytics/memory/futureMemorySimulation.tsx
  * @description Interactive Future Memory Simulation component predicting deck-wide retention decay
  * if a user ceases studying. Features milestone snapshots (Today, 30d, 90d, 180d), an interactive
  * slider to simulate hypothetical day pauses, and an SVG decay trajectory curve.
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, FutureMemorySimulationStats } from '../utils/dataUtils';
+
+export interface SimulationStepCardProps {
+    label: string;
+    badgeText: string;
+    badgeClass: string;
+    stepClass: string;
+    retention: number;
+}
+
+export const SimulationStepCard: FunctionalComponent<SimulationStepCardProps> = ({
+    label,
+    badgeText,
+    badgeClass,
+    stepClass,
+    retention
+}) => {
+    const isGood = retention >= RECALL_THRESHOLD_GOOD;
+    const isWarning = retention >= RECALL_THRESHOLD_WARNING;
+    const textClass = isGood ? 'text-success' : isWarning ? 'text-warning' : 'text-danger';
+    const fillClass = isGood ? 'fill-success' : isWarning ? 'fill-warning' : 'fill-danger';
+
+    return (
+        <div class={`sim-step-card ${stepClass}`}>
+            <div class="step-header">
+                <span class="step-label">{label}</span>
+                <span class={`step-badge ${badgeClass}`}>{badgeText}</span>
+            </div>
+            <div class="step-value-wrap">
+                <span class={`step-value ${textClass}`}>{retention}%</span>
+                <span class="step-sub">Retention</span>
+            </div>
+            <div class="step-bar-bg">
+                <div class={`step-bar-fill ${fillClass}`} style={{ width: `${retention}%` }} />
+            </div>
+        </div>
+    );
+};
+
+export interface SimulationStepsGridProps {
+    data: FutureMemorySimulationStats;
+}
+
+export const SimulationStepsGrid: FunctionalComponent<SimulationStepsGridProps> = ({ data }) => {
+    return (
+        <div class="sim-steps-grid">
+            <SimulationStepCard label="Today" badgeText="Current" badgeClass="badge-today" stepClass="step-today" retention={data.today} />
+            <SimulationStepCard label="After 30 Days" badgeText="+30d" badgeClass="badge-30d" stepClass="step-30d" retention={data.d30} />
+            <SimulationStepCard label="After 90 Days" badgeText="+90d" badgeClass="badge-90d" stepClass="step-90d" retention={data.d90} />
+            <SimulationStepCard label="After 180 Days" badgeText="+180d" badgeClass="badge-180d" stepClass="step-180d" retention={data.d180} />
+        </div>
+    );
+};
 
 /**
  * Visualizes projected memory decay over time under a zero-review scenario.
@@ -321,3 +374,4 @@ export class FutureMemorySimulation {
         `;
     }
 }
+

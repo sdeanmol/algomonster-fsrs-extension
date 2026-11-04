@@ -1,19 +1,89 @@
 /**
- * @file features/dashboard/popup/heatmap.ts
+ * @file features/dashboard/popup/heatmap.tsx
  * @description Mini contribution activity heatmap component rendered inside the popup dashboard.
  * Visualizes recent daily review frequency (last 12 weeks or lifetime) as colored cells.
+ * Migrated to Preact with TypeScript for declarative cell rendering and test parity.
  *
  * Architecture Role: Popup Sub-View Component (Heatmap).
  * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
  * Key Exports:
- * - {@link HeatmapComponent}: Sub-view component class rendering the popup mini heatmap grid.
+ * - `PopupHeatmapCell`: Preact component rendering an individual day cell.
+ * - `PopupHeatmapGrid`: Preact component rendering the grid and scroll container.
+ * - `HeatmapComponent`: Sub-view component class rendering the popup mini heatmap grid.
  */
 
+import { h, VNode } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData } from '../../../types/domain';
 import { MS_PER_DAY, DAYS_PER_WEEK, HEATMAP_LEVEL_THRESHOLDS } from '../../common/constants';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PREACT UI COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PopupHeatmapCellProps {
+    dateString: string;
+    count: number;
+    level: 0 | 1 | 2 | 3 | 4;
+}
+
+/**
+ * Preact component rendering a single heatmap cell inside the popup.
+ */
+export function PopupHeatmapCell({ dateString, count, level }: PopupHeatmapCellProps): VNode {
+    const ariaLabelText = count === 1 ? `1 review on ${dateString}` : `${count} reviews on ${dateString}`;
+
+    return (
+        <div
+            className={`heatmap-cell level-${level}`}
+            role="img"
+            aria-label={ariaLabelText}
+            title={ariaLabelText}
+            tabIndex={0}
+        />
+    );
+}
+
+export interface PopupHeatmapGridProps {
+    cells: PopupHeatmapCellProps[];
+    isLifetime: boolean;
+    onToggleLifetime?: () => void;
+}
+
+/**
+ * Preact component rendering the mini heatmap grid container.
+ */
+export function PopupHeatmapGrid({
+    cells,
+    isLifetime,
+    onToggleLifetime
+}: PopupHeatmapGridProps): VNode {
+    return (
+        <div className="popup-heatmap-container">
+            <div className="popup-heatmap-header">
+                <span className="popup-heatmap-title">Review Activity</span>
+                <button
+                    id="toggle-lifetime-btn"
+                    className="btn btn-secondary btn-sm"
+                    onClick={onToggleLifetime}
+                >
+                    {isLifetime ? 'Show Last 12 Weeks' : 'Show Lifetime'}
+                </button>
+            </div>
+            <div id="heatmap-grid" className="heatmap-grid">
+                {cells.map((cell) => (
+                    <PopupHeatmapCell key={cell.dateString} {...cell} />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEATMAP CONTROLLER COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Sub-component for the popup dashboard that renders a compact contribution heatmap.
@@ -127,3 +197,10 @@ export class HeatmapComponent extends DashboardComponent {
         }
     }
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).HeatmapComponent = HeatmapComponent;
+    (module.exports as any).PopupHeatmapCell = PopupHeatmapCell;
+    (module.exports as any).PopupHeatmapGrid = PopupHeatmapGrid;
+}
+

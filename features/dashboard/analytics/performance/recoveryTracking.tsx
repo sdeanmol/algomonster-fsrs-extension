@@ -1,15 +1,93 @@
 /**
- * @file features/dashboard/analytics/performance/recoveryTracking.ts
+ * @file features/dashboard/analytics/performance/recoveryTracking.tsx
  * @description Renders trouble spots and recovered flashcards analytics.
  * Categorizes lapsed cards into 'Recovered' (previously lapsed cards that have re-achieved
  * memory stability) and 'Still Struggling' (cards with recent lapses requiring attention).
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { Logger } from '@common/logger';
 import { getLastReviewDate } from '../../../common/utils/cardUtils';
 import { DataUtils } from '../utils/dataUtils';
 import { Card, ReviewLog } from '../../../../types/domain';
+
+export interface RecoveryTableProps {
+    cards: Card[];
+    isRecovered: boolean;
+}
+
+export const RecoveryTable: FunctionalComponent<RecoveryTableProps> = ({ cards, isRecovered }) => {
+    if (!cards || cards.length === 0) {
+        return <div class="retention-empty">No cards found in this category.</div>;
+    }
+
+    return (
+        <div class="table-responsive">
+            <table class="recovery-table">
+                <thead>
+                    <tr>
+                        <th>Card</th>
+                        <th>Lapses</th>
+                        <th>Since Lapse</th>
+                        <th>Stability</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {cards.map(c => {
+                        const url = c.problemUrl || '#';
+                        const title = c.problemTitle || 'Untitled';
+                        const lapses = c.lapses || 0;
+                        const stab = c.stability > 0 ? c.stability.toFixed(1) + 'd' : '0d';
+                        
+                        let daysSince = 0;
+                        let lastLapseLog: ReviewLog | null = null;
+                        
+                        if (c.historyLog && c.historyLog.length > 0) {
+                            const logs = c.historyLog.slice().reverse();
+                            for (const log of logs) {
+                                if (typeof log === 'object' && log !== null && log.rating === 1) {
+                                    lastLapseLog = log;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (lastLapseLog && lastLapseLog.date) {
+                            daysSince = Math.floor((Date.now() - lastLapseLog.date) / (1000 * 60 * 60 * 24));
+                        } else {
+                            const lr = getLastReviewDate(c);
+                            if (lr) {
+                                daysSince = Math.floor((Date.now() - lr) / (1000 * 60 * 60 * 24));
+                            }
+                        }
+
+                        return (
+                            <tr key={c.id}>
+                                <td class="trunc">
+                                    <a href={url} target="_blank" class="lapse-title-link" title={title} aria-label={title}>
+                                        {title}
+                                    </a>
+                                </td>
+                                <td>{lapses}</td>
+                                <td>{daysSince > 0 ? daysSince + 'd' : '-'}</td>
+                                <td>{stab}</td>
+                                <td>
+                                    {isRecovered ? (
+                                        <span style={{ color: 'var(--md-success)' }}>✓</span>
+                                    ) : (
+                                        <span style={{ color: 'var(--md-danger)' }}>⚠</span>
+                                    )}
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+};
 
 /**
  * Visualizes memory recovery after card lapses.
@@ -176,3 +254,4 @@ export class RecoveryTracking {
         }
     }
 }
+

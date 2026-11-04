@@ -1,12 +1,44 @@
 /**
- * @file features/dashboard/analytics/performance/reviewStats.ts
+ * @file features/dashboard/analytics/performance/reviewStats.tsx
  * @description Renders study review volume histograms and activity statistics over daily (14 days),
  * weekly (12 weeks), or monthly (12 months) periods.
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { Logger } from '@common/logger';
 import { DataUtils } from '../utils/dataUtils';
+
+export interface ReviewStatMiniProps {
+    value: string | number;
+    label: string;
+}
+
+export const ReviewStatMini: FunctionalComponent<ReviewStatMiniProps> = ({ value, label }) => {
+    return (
+        <div class="review-stat-mini">
+            <div class="review-stat-value">{value}</div>
+            <div class="review-stat-label">{label}</div>
+        </div>
+    );
+};
+
+export interface ReviewBarColProps {
+    tooltip: string;
+    label: string;
+    value: number;
+    heightPct: number;
+}
+
+export const ReviewBarCol: FunctionalComponent<ReviewBarColProps> = ({ tooltip, label, value, heightPct }) => {
+    const barClass = value === 0 ? 'review-bar review-bar-zero' : 'review-bar';
+    return (
+        <div class="review-bar-col" title={tooltip}>
+            <div class={barClass} style={{ height: `${Math.max(heightPct, 3)}%` }} />
+            <div class="review-bar-label">{label}</div>
+        </div>
+    );
+};
 
 /**
  * Visualizes historical review volume as vertical bars and summarizes key review metrics
@@ -162,3 +194,4 @@ export class ReviewStats {
         }
     }
 }
+

@@ -1,5 +1,5 @@
 /**
- * @file features/dashboard/analytics/tags/coverageTable.ts
+ * @file features/dashboard/analytics/tags/coverageTable.tsx
  * @description Renders the tag coverage and stability table for tag analytics.
  * Displays card counts, deck proportion percentages, FSRS retrievability, average memory
  * stability, and due card indicators for each distinct tag in the user's collection.
@@ -7,8 +7,78 @@
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { Logger } from '@common/logger';
-import { DataUtils } from '../utils/dataUtils';
+import { DataUtils, TagStats } from '../utils/dataUtils';
+
+export interface CoverageTableProps {
+    stats: TagStats[];
+    totalCards: number;
+    onTagClick?: (tag: string) => void;
+}
+
+export const getTagColorClass = (dueCount: number): string => {
+    if (dueCount === 0) return 'tag-color-4';
+    if (dueCount <= 5) return 'tag-color-2';
+    if (dueCount <= 10) return 'tag-color-5';
+    if (dueCount <= 20) return 'tag-color-1';
+    return 'tag-color-6';
+};
+
+export const CoverageTableComponent: FunctionalComponent<CoverageTableProps> = ({ stats, totalCards, onTagClick }) => {
+    if (!stats || stats.length === 0) {
+        return <div class="retention-empty">No tags found.</div>;
+    }
+
+    return (
+        <div class="table-responsive">
+            <table class="coverage-table">
+                <thead>
+                    <tr>
+                        <th>Tag</th>
+                        <th>Cards</th>
+                        <th>Coverage <span class="help-icon" data-tooltip="The percentage of your total flashcard deck that belongs to this specific tag. Helps you identify if you are over-studying or under-studying a specific subject.">?</span></th>
+                        <th>Retrievability <span class="help-icon" data-tooltip="The current probability of successfully recalling cards in this tag, calculated mathematically using the FSRS forgetting curve.">?</span></th>
+                        <th>Avg Stability <span class="help-icon tooltip-right-align" data-tooltip="The average time (in days) it takes for your memory to decay from 100% to 90% for cards in this tag.">?</span></th>
+                        <th>Due <span class="help-icon tooltip-right-align" data-tooltip="The number of cards in this tag that are currently due for review.">?</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {stats.map(s => {
+                        const pct = totalCards > 0 ? Math.round((s.count / totalCards) * 100) : 0;
+                        const colorClass = getTagColorClass(s.due);
+
+                        return (
+                            <tr key={s.tag}>
+                                <td class="tag-name-cell">
+                                    <span
+                                        class={`tag-badge clickable-tag ${colorClass}`}
+                                        data-tag={s.tag}
+                                        style={{ cursor: 'pointer' }}
+                                        title="View all cards for this tag"
+                                        onClick={() => onTagClick && onTagClick(s.tag)}
+                                    >
+                                        {s.tag}
+                                    </span>
+                                </td>
+                                <td>{s.count}</td>
+                                <td class="coverage-bar-cell">
+                                    <div class="cov-val">{pct}%</div>
+                                    <div class="lapse-bar-track">
+                                        <div class="lapse-bar-fill cov-fill" style={{ width: `${pct}%` }} />
+                                    </div>
+                                </td>
+                                <td>{s.trueRetention}%</td>
+                                <td>{s.avgStability.toFixed(1)}d</td>
+                                <td class={s.due > 0 ? 'due-alert' : ''}>{s.due}</td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+};
 
 /**
  * Renders an interactive tabular breakdown of card coverage, retrievability,
@@ -124,3 +194,4 @@ export class CoverageTable {
         }
     }
 }
+

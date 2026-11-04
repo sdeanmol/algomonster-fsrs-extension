@@ -1,3 +1,132 @@
+
+import { h, VNode } from "preact";
+
+export interface PopupPermissionWarningBannerProps {
+    permission: "default" | "granted" | "denied";
+    onEnable: () => void;
+}
+
+export function PopupPermissionWarningBanner({ permission, onEnable }: PopupPermissionWarningBannerProps): VNode | null {
+    if (permission === "granted") return null;
+
+    const isDenied = permission === "denied";
+
+    return (
+        <div id="permission-warning-banner" className="warning-banner">
+            <span>
+                {isDenied
+                    ? "⚠️ Notifications blocked. Enable them in settings for reminders."
+                    : "⚠️ Reminders work best with notifications enabled."}
+            </span>
+            {!isDenied && (
+                <button
+                    id="enable-notifications-btn"
+                    className="btn btn-warning btn-sm"
+                    onClick={onEnable}
+                >
+                    Enable
+                </button>
+            )}
+        </div>
+    );
+}
+
+export interface PopupNotificationSettingsProps {
+    enabled: boolean;
+    interval: number;
+    requireInteraction: boolean;
+    quietHoursEnabled: boolean;
+    quietStart: string;
+    quietEnd: string;
+    badgeEnabled: boolean;
+    weeklyDigestEnabled: boolean;
+    onToggleNotifications?: (enabled: boolean) => void;
+    onIntervalChange?: (interval: number) => void;
+    onToggleSticky?: (sticky: boolean) => void;
+    onToggleQuietHours?: (enabled: boolean) => void;
+    onToggleBadge?: (enabled: boolean) => void;
+    onToggleWeeklyDigest?: (enabled: boolean) => void;
+}
+
+export function PopupNotificationSettings({
+    enabled,
+    interval,
+    requireInteraction,
+    quietHoursEnabled,
+    quietStart,
+    quietEnd,
+    badgeEnabled,
+    weeklyDigestEnabled,
+    onToggleNotifications,
+    onIntervalChange,
+    onToggleSticky,
+    onToggleQuietHours,
+    onToggleBadge,
+    onToggleWeeklyDigest
+}: PopupNotificationSettingsProps): VNode {
+    return (
+        <div className="notification-settings-panel">
+            <div className="setting-row">
+                <label htmlFor="toggle-notifications">Enable Notifications</label>
+                <input
+                    type="checkbox"
+                    id="toggle-notifications"
+                    checked={enabled}
+                    onChange={(e) => onToggleNotifications && onToggleNotifications((e.target as HTMLInputElement).checked)}
+                />
+            </div>
+            <div className="setting-row">
+                <label htmlFor="notification-interval">Reminder Frequency</label>
+                <select
+                    id="notification-interval"
+                    value={interval}
+                    onChange={(e) => onIntervalChange && onIntervalChange(parseInt((e.target as HTMLSelectElement).value, 10))}
+                >
+                    <option value="60">Every 1 hour</option>
+                    <option value="120">Every 2 hours</option>
+                    <option value="240">Every 4 hours</option>
+                    <option value="480">Every 8 hours</option>
+                </select>
+            </div>
+            <div className="setting-row">
+                <label htmlFor="toggle-sticky-notification">Sticky Reminders</label>
+                <input
+                    type="checkbox"
+                    id="toggle-sticky-notification"
+                    checked={requireInteraction}
+                    onChange={(e) => onToggleSticky && onToggleSticky((e.target as HTMLInputElement).checked)}
+                />
+            </div>
+            <div className="setting-row">
+                <label htmlFor="toggle-quiet-hours">Quiet Hours</label>
+                <input
+                    type="checkbox"
+                    id="toggle-quiet-hours"
+                    checked={quietHoursEnabled}
+                    onChange={(e) => onToggleQuietHours && onToggleQuietHours((e.target as HTMLInputElement).checked)}
+                />
+            </div>
+            <div className="setting-row">
+                <label htmlFor="toggle-badge-due-count">Show Due Count on Badge</label>
+                <input
+                    type="checkbox"
+                    id="toggle-badge-due-count"
+                    checked={badgeEnabled}
+                    onChange={(e) => onToggleBadge && onToggleBadge((e.target as HTMLInputElement).checked)}
+                />
+            </div>
+            <div className="setting-row">
+                <label htmlFor="toggle-weekly-digest">Weekly Email Digest</label>
+                <input
+                    type="checkbox"
+                    id="toggle-weekly-digest"
+                    checked={weeklyDigestEnabled}
+                    onChange={(e) => onToggleWeeklyDigest && onToggleWeeklyDigest((e.target as HTMLInputElement).checked)}
+                />
+            </div>
+        </div>
+    );
+}
 /**
  * @file features/dashboard/popup/notifications.ts
  * @description Controls notification and reminder configuration panels inside the dashboard popup.
@@ -402,4 +531,10 @@ export class NotificationsComponent extends DashboardComponent {
             UIUtils.catchError('NotificationsComponent', 'Error binding notification events', err);
         }
     }
+}
+
+if (typeof module !== "undefined" && module.exports) {
+    (module.exports as any).NotificationsComponent = NotificationsComponent;
+    (module.exports as any).PopupPermissionWarningBanner = PopupPermissionWarningBanner;
+    (module.exports as any).PopupNotificationSettings = PopupNotificationSettings;
 }

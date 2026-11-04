@@ -1,14 +1,15 @@
 /**
- * @file features/dashboard/popup/DashboardComponent.ts
+ * @file features/dashboard/popup/DashboardComponent.tsx
  * @description Base class and coordinator interface for modular popup dashboard panels.
  * Encapsulates the component lifecycle (data fetching, DOM event binding, status toasts)
  * across stats, heatmap, notifications, ratings, and search sub-views.
+ * Migrated to Preact with TypeScript for unified component hierarchies.
  *
  * Architecture Role: Popup Sub-View Component Contract.
  * Context: Extension Popup UI (`features/dashboard/popup/popup.html`).
  * Key Exports:
- * - {@link DashboardCoordinator}: Navigation and notification contract for parent orchestrator.
- * - {@link DashboardComponent}: Abstract base class providing lifecycle hooks for child panels.
+ * - `DashboardCoordinator`: Navigation and notification contract for parent orchestrator.
+ * - `DashboardComponent`: Abstract base class providing lifecycle hooks for child panels.
  */
 
 import { Logger } from '@common/logger';
@@ -16,7 +17,7 @@ import { UIUtils } from '../../common/utils/uiUtils';
 
 /**
  * Contract for popup dashboard navigation and panel lifecycle management.
- * Implemented by {@link AlgoRecallDashboard} to receive notifications from child components.
+ * Implemented by AlgoRecallDashboard to receive notifications from child components.
  */
 export interface DashboardCoordinator {
     /**
@@ -68,3 +69,8 @@ export abstract class DashboardComponent {
         }
     }
 }
+
+if (typeof module !== 'undefined' && module.exports) {
+    (module.exports as any).DashboardComponent = DashboardComponent;
+}
+

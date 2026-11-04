@@ -1,14 +1,111 @@
 /**
- * @file features/dashboard/analytics/overview/miniForecast.ts
+ * @file features/dashboard/analytics/overview/miniForecast.tsx
  * @description Component for rendering the mini 7-day upcoming review forecast strip
  * within the analytics overview dashboard. Displays clickable daily review load tiles
  * that open filtered card queue lists via Chrome tabs.
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
 import { MS_PER_DAY, DAY_NAMES_SHORT } from '../../../common/constants';
+
+export interface ForecastDayTileProps {
+    isToday: boolean;
+    dayName: string;
+    formattedDate: string;
+    count: number;
+    countClass: string;
+    dateStr: string;
+    offset: number;
+    onClick?: (dateStr: string, offset: number) => void;
+}
+
+export const ForecastDayTile: FunctionalComponent<ForecastDayTileProps> = ({
+    isToday,
+    dayName,
+    formattedDate,
+    count,
+    countClass,
+    dateStr,
+    offset,
+    onClick
+}) => {
+    return (
+        <div
+            class={`forecast-day-card ${isToday ? 'today' : ''}`}
+            title={`${count} card${count !== 1 ? 's' : ''} due`}
+            data-date={dateStr}
+            data-offset={offset}
+            style={{ cursor: 'pointer' }}
+            onClick={() => onClick && onClick(dateStr, offset)}
+        >
+            <div class="forecast-day-name">{isToday ? 'Today' : dayName}</div>
+            <div class="forecast-day-date">{formattedDate}</div>
+            <div class={`forecast-day-count ${countClass}`}>{count}</div>
+            <div class="forecast-day-label">{count === 1 ? 'card' : 'cards'}</div>
+        </div>
+    );
+};
+
+export interface MiniForecastStripProps {
+    days: Array<{
+        isToday: boolean;
+        dayName: string;
+        formattedDate: string;
+        count: number;
+        countClass: string;
+        dateStr: string;
+        offset: number;
+    }>;
+    onFullForecastClick?: () => void;
+    onDayClick?: (dateStr: string, offset: number) => void;
+}
+
+export const MiniForecastStrip: FunctionalComponent<MiniForecastStripProps> = ({
+    days,
+    onFullForecastClick,
+    onDayClick
+}) => {
+    return (
+        <div class="ana-panel-wide" style={{ marginTop: '24px' }}>
+            <div class="ana-panel-header">
+                <span class="ana-panel-title">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style={{ width: '16px', height: '16px', marginRight: '6px', stroke: 'currentColor', fill: 'none', verticalAlign: 'middle', strokeWidth: 2 }}>
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Upcoming Reviews — Next 7 Days
+                </span>
+                <a
+                    id="full-forecast-link"
+                    href="#"
+                    class="ana-panel-link"
+                    style={{ color: 'var(--md-primary)', textDecoration: 'none', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        if (onFullForecastClick) onFullForecastClick();
+                    }}
+                >
+                    Full 30-Day Forecast
+                    <svg class="svg-icon" viewBox="0 0 24 24" style={{ width: '12px', height: '12px', stroke: 'currentColor', fill: 'none', strokeWidth: 2 }}>
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                </a>
+            </div>
+            <div class="ana-forecast-strip" style={{ display: 'flex', gap: '12px', overflowX: 'auto', padding: '8px 0' }}>
+                {days.map(d => (
+                    <ForecastDayTile key={d.dateStr} {...d} onClick={onDayClick} />
+                ))}
+            </div>
+        </div>
+    );
+};
 
 /**
  * Visualizes a compact 7-day upcoming review workload forecast.
@@ -174,3 +271,4 @@ export class MiniForecast {
         });
     }
 }
+

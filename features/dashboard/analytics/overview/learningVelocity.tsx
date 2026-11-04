@@ -1,13 +1,125 @@
 /**
- * @file features/dashboard/analytics/overview/learningVelocity.ts
+ * @file features/dashboard/analytics/overview/learningVelocity.tsx
  * @description Component for rendering learning velocity metrics and SVG sparkline charts
  * within the analytics overview dashboard. Displays new cards per day, graduated cards per week,
  * total reviews completed, and recent velocity trends.
  * @context Popup / Analytics SPA Dashboard
  */
 
+import { h, Fragment, FunctionalComponent } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
-import { DataUtils } from '../utils/dataUtils';
+import { DataUtils, LearningVelocity as LearningVelocityData } from '../utils/dataUtils';
+
+export interface LearningVelocityKpiCardProps {
+    title: string;
+    tooltip: string;
+    trendValue: number;
+    mainValue: string | number;
+    unit: string;
+    sparklineSvg?: string;
+    sparklinePoints?: number[];
+    sparklineColor?: string;
+}
+
+export const LearningVelocityKpiCard: FunctionalComponent<LearningVelocityKpiCardProps> = ({
+    title,
+    tooltip,
+    trendValue,
+    mainValue,
+    unit,
+    sparklineSvg,
+    sparklinePoints,
+    sparklineColor = '#a8c7fa'
+}) => {
+    let trendNode = <span class="kpi-trend" style="color:var(--md-text-low);">0%</span>;
+    if (trendValue > 0) {
+        trendNode = <span class="kpi-trend trend-up">▲ {trendValue}%</span>;
+    } else if (trendValue < 0) {
+        trendNode = <span class="kpi-trend trend-down">▼ {Math.abs(trendValue)}%</span>;
+    }
+
+    let renderedSparkline = null;
+    if (sparklineSvg) {
+        renderedSparkline = <div class="kpi-sparkline" dangerouslySetInnerHTML={{ __html: sparklineSvg }} />;
+    } else if (sparklinePoints && sparklinePoints.length > 0) {
+        const maxVal = Math.max(...sparklinePoints, 1);
+        const pts: string[] = [];
+        const xStep = 100 / Math.max(1, sparklinePoints.length - 1);
+        for (let i = 0; i < sparklinePoints.length; i++) {
+            const y = 35 - ((sparklinePoints[i] / maxVal) * 30);
+            pts.push(`${i * xStep},${y}`);
+        }
+        renderedSparkline = (
+            <div class="kpi-sparkline">
+                <svg viewBox="0 0 100 40" class="sparkline-svg" preserveAspectRatio="none">
+                    <polyline points={pts.join(' ')} stroke={sparklineColor} fill="none" stroke-width="2" stroke-linecap="round" />
+                </svg>
+            </div>
+        );
+    } else {
+        renderedSparkline = <div class="kpi-sparkline" />;
+    }
+
+    return (
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <span class="kpi-title">
+                    {title}
+                    <span class="help-icon" data-tooltip={tooltip}>?</span>
+                </span>
+                {trendNode}
+            </div>
+            <div class="kpi-value">{mainValue} <span class="kpi-unit">{unit}</span></div>
+            {renderedSparkline}
+        </div>
+    );
+};
+
+export interface LearningVelocityPanelProps {
+    velocity: LearningVelocityData;
+}
+
+export const LearningVelocityPanel: FunctionalComponent<LearningVelocityPanelProps> = ({ velocity }) => {
+    return (
+        <Fragment>
+            <div class="ana-panel-header" style="margin-bottom:0;">
+                <span class="ana-panel-title">
+                    Learning Velocity
+                    <span class="help-icon" data-tooltip="How fast you are acquiring new knowledge and moving cards into long-term memory.">?</span>
+                </span>
+            </div>
+            <div class="velocity-kpi-grid">
+                <LearningVelocityKpiCard
+                    title="New Cards/Day"
+                    tooltip="The average number of new cards you learn each day."
+                    trendValue={velocity.newCardsTrend}
+                    mainValue={velocity.newCardsPerDay}
+                    unit="/day"
+                    sparklinePoints={velocity.sparklineNew}
+                    sparklineColor="#a8c7fa"
+                />
+                <LearningVelocityKpiCard
+                    title="Graduated/Week"
+                    tooltip="Cards that have successfully moved out of the learning phase this week."
+                    trendValue={velocity.graduatedTrend}
+                    mainValue={velocity.graduatedPerWeek}
+                    unit="/week"
+                    sparklinePoints={velocity.sparklineGrad}
+                    sparklineColor="#50e3c2"
+                />
+                <LearningVelocityKpiCard
+                    title="Total Reviews"
+                    tooltip="The overall count of reviews you've completed across all time."
+                    trendValue={velocity.reviewsTrend}
+                    mainValue={velocity.reviewsPerDay}
+                    unit="/day"
+                    sparklinePoints={velocity.sparklineRev}
+                    sparklineColor="#f5a623"
+                />
+            </div>
+        </Fragment>
+    );
+};
 
 /**
  * Visualizes the rate of knowledge acquisition and progression into long-term memory.
