@@ -1,12 +1,38 @@
 
+/**
+ * @file Popup Summary Statistics and Daily Goals (Preact)
+ * @module features/dashboard/popup/stats
+ * @context Browser Action Popup UI (`features/dashboard/popup/popup.html`)
+ * @description Renders summary statistics (Total Cards, Due Today, Retention Rate),
+ * daily goal circular SVG progress ring, and Gamification XP level bar with streak counters.
+ *
+ * Key Exports:
+ * - `PopupStatsOverview`: Preact component for the 3-box summary KPI cards.
+ * - `PopupDailyGoalRing`: Preact component for circular SVG daily review goal ring.
+ * - `PopupGamificationCard`: Preact component for XP bar, level, and streak badge.
+ * - `StatsComponent`: Coordinator class managing stats calculation and storage synchronization.
+ */
+
 import { h, VNode } from "preact";
 
+/**
+ * Props for the PopupStatsOverview component.
+ */
 export interface PopupStatsOverviewProps {
+    /** Total number of cards tracked across all platforms */
     totalCards: number;
+    /** Number of cards currently due for review */
     dueCards: number;
+    /** Overall retention percentage (0-100) */
     retentionRate: number;
 }
 
+/**
+ * Preact component rendering the 3-column KPI summary stat boxes in the popup.
+ *
+ * @param props - Card counts and retention metrics.
+ * @returns VNode rendered stat boxes container.
+ */
 export function PopupStatsOverview({ totalCards, dueCards, retentionRate }: PopupStatsOverviewProps): VNode {
     return (
         <div className="stats-boxes">

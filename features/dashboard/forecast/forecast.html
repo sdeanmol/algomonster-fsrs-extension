@@ -1,17 +1,18 @@
 <!--
   @file features/dashboard/forecast/forecast.html
-  @context Options / Dedicated Tab UI
-  @description Review Forecast page — projects 30-day spaced repetition review workload distributions with daily average/peak stats, bar chart, and interactive calendar cells.
-  @linked-scripts features/common/theme-sync.js, features/dashboard/forecast/forecast.js
-  @linked-styles features/common/base.css, features/dashboard/forecast/forecast.css
+  @context Options Page / Standalone Forecast Tab
+  @description Multi-week workload projection calendar and future review simulation chart.
+  @mounts-preact #root (<ForecastApp />)
+  @linked-bundles features/common/theme-sync.js, dist/fsrsScheduler.bundle.js, features/dashboard/forecast/forecast.js
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
-    <title>AlgoRecall — Review Forecast</title>
+    <title>AlgoRecall Workload Forecast</title>
     <script src="../../common/theme-sync.js"></script>
+    <script src="../../../dist/fsrsScheduler.bundle.js"></script>
     <link rel="stylesheet" href="../../common/base.css">
     <link rel="stylesheet" href="forecast.css">
 </head>

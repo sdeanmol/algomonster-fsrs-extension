@@ -27,17 +27,28 @@ export interface HelpTabItem {
 }
 
 /**
+ * Props for the HelpTabBar component.
+ */
+export interface HelpTabBarProps {
+    /** List of tab descriptor objects */
+    tabs: HelpTabItem[];
+    /** Identifier of the currently active tab */
+    activeTab: string;
+    /** Callback invoked when a tab button is clicked */
+    onSelect: (tabId: string) => void;
+}
+
+/**
  * Preact Component for rendering the accessible Help Center tab bar.
+ *
+ * @param props - Tabs metadata, active tab identifier, and select callback.
+ * @returns JSX rendered navigation bar.
  */
 export function HelpTabBar({
     tabs,
     activeTab,
     onSelect
-}: {
-    tabs: HelpTabItem[];
-    activeTab: string;
-    onSelect: (tabId: string) => void;
-}): JSX.Element {
+}: HelpTabBarProps): JSX.Element {
     return (
         <nav className="tabs-container" role="tablist">
             {tabs.map((tab) => {
@@ -63,10 +74,17 @@ export function HelpTabBar({
 // ROOT PREACT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Props for the root HelpApp component.
+ */
 export interface HelpAppProps {
+    /** Optional controller instance passed during testing or legacy integration */
     spa?: HelpCenterSPA;
 }
 
+/**
+ * Standard tab navigation items for the Help Center documentation chapters.
+ */
 export const DEFAULT_HELP_TABS: HelpTabItem[] = [
     { id: 'overview', label: '🚀 Getting Started & Strategy' },
     { id: 'fsrs', label: '🧠 FSRS & Review Engine' },

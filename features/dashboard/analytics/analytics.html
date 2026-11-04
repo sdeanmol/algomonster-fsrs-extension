@@ -1,13 +1,12 @@
 <!--
   @file features/dashboard/analytics/analytics.html
-  @context Single-Page Application (SPA) / Full Options Dashboard
-  @description Multi-tab analytics SPA featuring 7 comprehensive modules: Overview, Exam Readiness, Memory Retention, Future Memory Simulation, Tag Analytics, Performance, and Insights.
-  @linked-scripts features/common/theme-sync.js, dist/fsrsScheduler.bundle.js, features/dashboard/analytics/analytics.ts (compiled to analytics.js)
-  @linked-styles features/common/base.css, features/dashboard/analytics/analytics.css
+  @context Options Page / Single-Page Application (SPA)
+  @description Multi-tab analytics dashboard featuring 7 modules: Overview, Readiness, Memory, Simulation, Tags, Performance, and Insights.
+  @mounts-preact #root (<AnalyticsApp />)
+  @linked-bundles features/common/theme-sync.js, dist/fsrsScheduler.bundle.js, features/dashboard/analytics/analytics.js
 -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
@@ -17,10 +16,8 @@
     <link rel="stylesheet" href="../../common/base.css">
     <link rel="stylesheet" href="analytics.css">
 </head>
-
 <body>
     <div id="root"></div>
     <script type="module" src="analytics.js"></script>
 </body>
-
 </html>

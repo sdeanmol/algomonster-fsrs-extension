@@ -1,11 +1,35 @@
 
+/**
+ * @file Popup Notification Preferences and Alarms Configuration (Preact)
+ * @module features/dashboard/popup/notifications
+ * @context Browser Action Popup UI (`features/dashboard/popup/popup.html`)
+ * @description Provides controls for notification toggle switches, check interval dropdowns,
+ * quiet hours time range pickers, sticky desktop notification options, badge counters, and test dispatches.
+ *
+ * Key Exports:
+ * - `PopupPermissionWarningBanner`: Warning banner displayed when browser notification permissions are missing.
+ * - `PopupNotificationSettings`: Preact component rendering the collapsible notification preferences section.
+ * - `NotificationsComponent`: Coordinator class managing storage synchronization and alarms.
+ */
+
 import { h, VNode } from "preact";
 
+/**
+ * Props for the PopupPermissionWarningBanner component.
+ */
 export interface PopupPermissionWarningBannerProps {
+    /** Current browser notification permission state ('default' | 'granted' | 'denied') */
     permission: "default" | "granted" | "denied";
+    /** Callback to request browser notification permission */
     onEnable: () => void;
 }
 
+/**
+ * Preact component rendering a permission warning banner when notifications are blocked or ungranted.
+ *
+ * @param props - Permission status and enable callback.
+ * @returns VNode rendered banner or null if granted.
+ */
 export function PopupPermissionWarningBanner({ permission, onEnable }: PopupPermissionWarningBannerProps): VNode | null {
     if (permission === "granted") return null;
 

@@ -24,15 +24,25 @@ export interface WhitelistedSite {
 }
 
 /**
+ * Props for the WhitelistedSitesList component.
+ */
+export interface WhitelistedSitesListProps {
+    /** Array of active whitelisted domain items */
+    sites: WhitelistedSite[];
+    /** Callback invoked when user clicks delete on a domain row */
+    onDelete: (domain: string) => void;
+}
+
+/**
  * Preact Component for rendering the whitelisted sites list.
+ *
+ * @param props - Current sites array and delete callback.
+ * @returns JSX rendered list items for whitelisted domains.
  */
 export function WhitelistedSitesList({
     sites,
     onDelete
-}: {
-    sites: WhitelistedSite[];
-    onDelete: (domain: string) => void;
-}): JSX.Element {
+}: WhitelistedSitesListProps): JSX.Element {
     if (sites.length === 0) {
         return (
             <li style={{ justifyContent: 'center', color: 'var(--md-text-low)', fontStyle: 'italic' }}>
@@ -92,10 +102,23 @@ export function WhitelistedSitesList({
 // ROOT PREACT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Props for the root WebsitesApp component.
+ */
 export interface WebsitesAppProps {
+    /** Optional controller instance passed during testing or legacy integration */
     manager?: WhitelistedWebsitesManager;
 }
 
+/**
+ * Root Preact component for managing whitelisted coding platform domains.
+ *
+ * Allows users to add custom hostnames, review default supported sites,
+ * trigger dynamic Chrome permissions requests, and register in-page content scripts.
+ *
+ * @param props - Component configuration containing optional test manager.
+ * @returns JSX rendered websites management page.
+ */
 export function WebsitesApp({ manager: initialManager }: WebsitesAppProps): JSX.Element {
     const [manager] = useState(() => initialManager || new WhitelistedWebsitesManager());
     const [sites, setSites] = useState<WhitelistedSite[]>([]);

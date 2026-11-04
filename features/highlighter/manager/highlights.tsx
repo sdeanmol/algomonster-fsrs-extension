@@ -28,17 +28,28 @@ try {
 }
 
 /**
+ * Props for the ColorFilterBubbles component.
+ */
+export interface ColorFilterBubblesProps {
+    /** Distinct list of hex colors found in the loaded highlights */
+    colors: string[];
+    /** Currently active filter color, or null if all colors are shown */
+    activeColor: string | null;
+    /** Callback when a color bubble is toggled */
+    onToggleColor: (color: string) => void;
+}
+
+/**
  * Preact component for color filter swatches.
+ *
+ * @param props - Colors list, active filter, and toggle handler.
+ * @returns JSX rendered color bubble filter bar.
  */
 export function ColorFilterBubbles({
     colors,
     activeColor,
     onToggleColor
-}: {
-    colors: string[];
-    activeColor: string | null;
-    onToggleColor: (color: string) => void;
-}): JSX.Element {
+}: ColorFilterBubblesProps): JSX.Element {
     if (colors.length === 0) {
         return <span style={{ fontSize: '12px', color: '#666' }}>No colors</span>;
     }
@@ -60,7 +71,26 @@ export function ColorFilterBubbles({
 }
 
 /**
+ * Props for the HighlightCardView component.
+ */
+export interface HighlightCardViewProps {
+    /** Text highlight mark domain entity */
+    mark: HighlightMark;
+    /** Title or URL of the host problem page */
+    pageTitle: string;
+    /** Current active search query for keyword highlighting */
+    searchQuery: string;
+    /** Callback to copy snippet text to clipboard */
+    onCopy: (text: string) => void;
+    /** Callback to delete this highlight mark */
+    onDelete: (id: string) => void;
+}
+
+/**
  * Preact component for an individual highlight card.
+ *
+ * @param props - Mark details, page title, search term, and action handlers.
+ * @returns JSX rendered highlight card with copy/delete actions.
  */
 export function HighlightCardView({
     mark,
@@ -68,13 +98,7 @@ export function HighlightCardView({
     searchQuery,
     onCopy,
     onDelete
-}: {
-    mark: HighlightMark;
-    pageTitle: string;
-    searchQuery: string;
-    onCopy: (text: string) => void;
-    onDelete: (id: string) => void;
-}): JSX.Element {
+}: HighlightCardViewProps): JSX.Element {
     const markId = mark.id || mark.createdAt.toString();
     const dateString = new Date(mark.createdAt).toLocaleDateString(undefined, {
         year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -169,7 +193,26 @@ export function HighlightCardView({
 }
 
 /**
+ * Props for the HighlightsListView component.
+ */
+export interface HighlightsListViewProps {
+    /** Filtered array of highlight marks to display */
+    marks: HighlightMark[];
+    /** Array of page bookmarks used to correlate URLs with problem titles */
+    bookmarks: BookmarkItem[];
+    /** Active keyword search string */
+    searchQuery: string;
+    /** Callback to copy snippet text to clipboard */
+    onCopy: (text: string) => void;
+    /** Callback to delete an individual highlight mark */
+    onDelete: (id: string) => void;
+}
+
+/**
  * Preact component rendering the filtered highlights list or empty state.
+ *
+ * @param props - Filtered marks, bookmarks, query, and event handlers.
+ * @returns JSX rendered list of highlight cards or empty state message.
  */
 export function HighlightsListView({
     marks,
@@ -177,13 +220,7 @@ export function HighlightsListView({
     searchQuery,
     onCopy,
     onDelete
-}: {
-    marks: HighlightMark[];
-    bookmarks: BookmarkItem[];
-    searchQuery: string;
-    onCopy: (text: string) => void;
-    onDelete: (id: string) => void;
-}): JSX.Element {
+}: HighlightsListViewProps): JSX.Element {
     if (marks.length === 0) {
         return <div className="empty-state">No matching highlights found. Try adjusting your search or filters.</div>;
     }
@@ -212,12 +249,22 @@ export function HighlightsListView({
 // ROOT PREACT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Props for the root HighlightsApp component.
+ */
 export interface HighlightsAppProps {
+    /** Optional controller instance passed during testing or legacy integration */
     manager?: HighlightsManager;
 }
 
 /**
  * Root Preact component governing the full Highlights Manager dashboard.
+ *
+ * Provides full-text search, multi-color filtering, domain grouping, date sorting,
+ * clipboard replication, deletion, and Markdown export for saved text highlights.
+ *
+ * @param props - Component configuration containing optional test manager.
+ * @returns JSX rendered highlights manager application view.
  */
 export function HighlightsApp({ manager: initialManager }: HighlightsAppProps): JSX.Element {
     const [manager] = useState(() => initialManager || new HighlightsManager());

@@ -1,11 +1,37 @@
 
+/**
+ * @file Browser Action Popup Primary Application (Preact)
+ * @module features/dashboard/popup/popup
+ * @context Browser Action Popup UI (`features/dashboard/popup/popup.html`)
+ * @description Master entry point and single-page application for the browser action popup.
+ * Orchestrates hero stats overview, daily study goal progress ring, contribution heatmap,
+ * quick search with tag filtering, notification preferences, study tool launchers, and backup/restore.
+ *
+ * Key Exports:
+ * - `PopupApp`: Root Preact application component.
+ * - `PopupHeader`: Preact header component with brand badge, analytics launcher, and theme toggle.
+ * - `PopupNavigationGrid`: Preact grid launcher for study tools and configuration pages.
+ * - `AlgoRecallDashboard`: Coordinator controller orchestrating popup sub-views and storage sync.
+ */
+
 import { h, VNode, render, FunctionalComponent } from "preact";
 
+/**
+ * Props for the PopupHeader component.
+ */
 export interface PopupHeaderProps {
+    /** Callback to toggle between light and dark theme */
     onToggleTheme?: () => void;
+    /** Callback to open the full analytics dashboard in a new tab */
     onOpenAnalytics?: () => void;
 }
 
+/**
+ * Preact component rendering the popup header bar with branding and actions.
+ *
+ * @param props - Header action callbacks for theme and analytics.
+ * @returns VNode rendered header element.
+ */
 export function PopupHeader({ onToggleTheme, onOpenAnalytics }: PopupHeaderProps): VNode {
     return (
         <header className="popup-header">

@@ -33,17 +33,28 @@ export interface Palette {
 export { ExtensionSettings };
 
 /**
+ * Props for the PaletteEditorSlots component.
+ */
+export interface PaletteEditorSlotsProps {
+    /** Array of hex color strings currently in the palette */
+    colors: string[];
+    /** Callback when a specific color slot hex value changes */
+    onColorChange: (index: number, newColor: string) => void;
+    /** Callback to delete a color slot */
+    onDeleteSlot: (index: number) => void;
+}
+
+/**
  * Preact Component for rendering the color slot editor rows.
+ *
+ * @param props - Color list and mutation callbacks.
+ * @returns JSX rendered palette slot input rows.
  */
 export function PaletteEditorSlots({
     colors,
     onColorChange,
     onDeleteSlot
-}: {
-    colors: string[];
-    onColorChange: (index: number, newColor: string) => void;
-    onDeleteSlot: (index: number) => void;
-}): JSX.Element {
+}: PaletteEditorSlotsProps): JSX.Element {
     return (
         <Fragment>
             {colors.map((color, idx) => (
@@ -94,7 +105,26 @@ export function PaletteEditorSlots({
 }
 
 /**
+ * Props for the PalettesList component.
+ */
+export interface PalettesListProps {
+    /** Array of saved palette definitions */
+    palettes: Palette[];
+    /** Index of the currently active/selected palette */
+    activePaletteIndex?: number;
+    /** Callback to set a palette as the active highlight palette */
+    onActivate: (index: number) => void;
+    /** Callback to load a palette into the color slot editor */
+    onEdit: (index: number) => void;
+    /** Callback to delete a palette */
+    onDelete: (index: number) => void;
+}
+
+/**
  * Preact Component for rendering the list of saved palette preview cards.
+ *
+ * @param props - Palettes array, active index, and action callbacks.
+ * @returns JSX rendered palette cards.
  */
 export function PalettesList({
     palettes,
@@ -102,13 +132,7 @@ export function PalettesList({
     onActivate,
     onEdit,
     onDelete
-}: {
-    palettes: Palette[];
-    activePaletteIndex?: number;
-    onActivate: (index: number) => void;
-    onEdit: (index: number) => void;
-    onDelete: (index: number) => void;
-}): JSX.Element {
+}: PalettesListProps): JSX.Element {
     return (
         <Fragment>
             {palettes.map((palette, idx) => {
@@ -150,10 +174,23 @@ export function PalettesList({
 // ROOT PREACT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Props for the root HighlightOptionsApp component.
+ */
 export interface HighlightOptionsAppProps {
+    /** Optional controller instance passed during testing or legacy integration */
     manager?: HighlightOptionsManager;
 }
 
+/**
+ * Root Preact component for Highlighter Appearance & Palettes settings.
+ *
+ * Provides controls for configuring default marker colors, building custom 5-color palettes,
+ * selecting active color schemes, and persisting settings to `chrome.storage.local`.
+ *
+ * @param props - Component configuration containing optional test manager.
+ * @returns JSX rendered highlighter options view.
+ */
 export function HighlightOptionsApp({ manager: initialManager }: HighlightOptionsAppProps): JSX.Element {
     const [manager] = useState(() => initialManager || new HighlightOptionsManager());
     const [settings, setSettings] = useState<ExtensionSettings>(manager.extensionSettings || {});

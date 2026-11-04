@@ -22,13 +22,21 @@ import { PLATFORM_NAMES, MONTH_NAMES } from '../constants';
 // PREACT UI COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Props for the CardsTableEmptyState component.
+ */
 export interface CardsTableEmptyStateProps {
+    /** Whether search query or filter tags are actively applied */
     isFilterActive: boolean;
+    /** Optional callback to reset all active filters */
     onClearFilters?: () => void;
 }
 
 /**
  * Preact component for the empty state placeholder when no cards match filters.
+ *
+ * @param props - Filter status flag and reset callback.
+ * @returns VNode rendered placeholder card.
  */
 export function CardsTableEmptyState({
     isFilterActive,
@@ -80,18 +88,31 @@ export function CardsTableEmptyState({
     );
 }
 
+/**
+ * Props for the CardsTableRow component.
+ */
 export interface CardsTableRowProps {
+    /** Problem card domain entity */
     card: Card;
+    /** Whether this row's selection checkbox is checked */
     isChecked: boolean;
+    /** Whether the lapses count column is displayed */
     showLapses?: boolean;
+    /** Human-readable FSRS state badge text (e.g., "New", "Learning", "Review") */
     stateLabel: string;
+    /** Callback when row checkbox is toggled */
     onToggleCheck?: (cardId: string, checked: boolean) => void;
+    /** Callback to open problem edit modal */
     onEdit?: (cardId: string) => void;
+    /** Callback to delete card */
     onDelete?: (cardId: string) => void;
 }
 
 /**
  * Preact component for an individual problem card table row.
+ *
+ * @param props - Card data, selection state, column visibility, and action handlers.
+ * @returns VNode rendered table row element.
  */
 export function CardsTableRow({
     card,
@@ -203,21 +224,37 @@ export function CardsTableRow({
     );
 }
 
+/**
+ * Props for the CardsTable component.
+ */
 export interface CardsTableProps {
+    /** Filtered array of problem cards to render in the table */
     cards: Card[];
+    /** Set of currently selected card IDs */
     selectedCardIds: Set<string>;
+    /** Whether the lapses count column is displayed */
     showLapses?: boolean;
+    /** Whether search query or filter tags are actively applied */
     isFilterActive?: boolean;
+    /** Formatter returning human-readable FSRS state name from state enum */
     getStateLabel: (state: number) => string;
+    /** Callback when master select-all checkbox is toggled */
     onToggleSelectAll?: (checked: boolean) => void;
+    /** Callback when an individual card checkbox is toggled */
     onToggleCard?: (cardId: string, checked: boolean) => void;
+    /** Callback to open card edit modal */
     onEditCard?: (cardId: string) => void;
+    /** Callback to delete card */
     onDeleteCard?: (cardId: string) => void;
+    /** Callback to reset active filters */
     onClearFilters?: () => void;
 }
 
 /**
  * Preact component rendering the responsive problem patterns table.
+ *
+ * @param props - Table dataset, selection state, column formatters, and event handlers.
+ * @returns VNode rendered responsive table or empty state placeholder.
  */
 export function CardsTable({
     cards,
@@ -285,16 +322,27 @@ export function CardsTable({
     );
 }
 
+/**
+ * Props for the BulkActionsBar component.
+ */
 export interface BulkActionsBarProps {
+    /** Number of currently checked problem cards */
     selectedCount: number;
+    /** Callback to delete all selected cards */
     onDelete: () => void;
+    /** Callback to prompt bulk re-tagging */
     onRetag: () => void;
+    /** Callback to prompt bulk interval rescheduling */
     onReschedule: () => void;
+    /** Callback to clear selection */
     onDeselect: () => void;
 }
 
 /**
  * Preact component for the floating multi-selection bulk actions bar.
+ *
+ * @param props - Selected counter and action handlers (delete, retag, reschedule, deselect).
+ * @returns VNode rendered floating action toolbar.
  */
 export function BulkActionsBar({
     selectedCount,
@@ -344,12 +392,23 @@ export function BulkActionsBar({
 // ROOT PREACT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Props for the root DataApp component.
+ */
 export interface DataAppProps {
+    /** Optional controller instance passed during testing or legacy integration */
     dashboard?: FSRSDataDashboard;
 }
 
 /**
  * Root Preact component governing the full Data Dashboard application.
+ *
+ * Manages database table view of tracked problem patterns, full-text search,
+ * multi-dimensional filtering, column sorting, card modal editing, bulk operations,
+ * and memory health statistics.
+ *
+ * @param props - Component configuration containing optional test dashboard.
+ * @returns VNode rendered full page data dashboard.
  */
 export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     const [dashboard] = useState(() => initialDashboard || new FSRSDataDashboard());

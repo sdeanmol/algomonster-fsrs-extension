@@ -1,21 +1,16 @@
 <!--
   @file features/common/websites/websites.html
-  @context Options Page / Standalone Platform Manager Tab
-  @description Host permissions and domain whitelist manager. Allows users to authorize AlgoRecall
-  on custom coding platforms, view default supported domains, and revoke origin permissions dynamically.
-  @linked-scripts
-    - ../theme-sync.js (Global dark/light theme synchronizer)
-    - websites.js (features/common/websites/websites.ts - Whitelist state and chrome.permissions manager)
-  @linked-styles
-    - ../base.css (Material Design 3 tokens and shared components)
-    - websites.css (Whitelist card grid, domain list items, and permission buttons)
+  @context Options Page / Platform Management UI
+  @description Supported coding domain whitelist manager and custom website permission controller.
+  @mounts-preact #root (<WebsitesApp />)
+  @linked-bundles features/common/theme-sync.js, features/common/websites/websites.js
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
-    <title>Manage Active Platforms — AlgoRecall</title>
+    <title>Manage Active Websites</title>
     <script src="../theme-sync.js"></script>
     <link rel="stylesheet" href="../base.css">
     <link rel="stylesheet" href="websites.css">

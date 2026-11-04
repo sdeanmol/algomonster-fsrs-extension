@@ -1,21 +1,39 @@
 /**
  * @file Preact Accessible Toggle Switch Component
  * @module features/common/ui/components/Toggle
+ * @context Shared Preact UI Component (Options Pages, Popup, Settings Modals)
  * @description Standardized, accessible switch toggle replacing repetitive imperative toggle boilerplate.
+ * Renders an accessible checkbox switch accompanied by primary labels and secondary descriptions.
  */
 
 import { h, JSX } from 'preact';
 
+/**
+ * Props for the Toggle component.
+ */
 export interface ToggleProps {
+    /** Optional HTML ID attribute for input-label binding */
     id?: string;
+    /** Current checked state of the switch */
     checked: boolean;
+    /** Callback invoked with the new boolean state when toggled */
     onChange: (checked: boolean) => void;
+    /** Primary descriptive text label displayed next to the toggle */
     label?: string;
+    /** Optional secondary subtitle or help text explaining the toggle's function */
     description?: string;
+    /** Whether the toggle is disabled and non-interactive */
     disabled?: boolean;
+    /** Optional additional CSS class names for styling customization */
     className?: string;
 }
 
+/**
+ * Reusable accessible toggle switch component for settings and preference toggles.
+ *
+ * @param props - Component properties defining value, callback, labels, and state.
+ * @returns JSX rendered toggle switch row element.
+ */
 export function Toggle({
     id,
     checked,

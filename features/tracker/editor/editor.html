@@ -2,7 +2,9 @@
   @file features/tracker/editor/editor.html
   @context Standalone Tab / Modal Notes Editor
   @description Full-page Markdown approach notes and complexity analysis editor for coding problems.
-  Minimal declarative shell mounting the root Preact EditorApp component.
+  @mounts-preact #root (<EditorApp />)
+  @linked-scripts features/common/theme-sync.js, features/common/marked.min.js, features/tracker/editor/editor.js
+  @linked-styles features/common/base.css, features/tracker/editor/editor.css
 -->
 <!DOCTYPE html>
 <html lang="en">

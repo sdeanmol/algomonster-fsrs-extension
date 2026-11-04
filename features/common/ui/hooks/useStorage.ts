@@ -1,13 +1,28 @@
 /**
  * @file Reactive Chrome Storage Hook for Preact
  * @module features/common/ui/hooks/useStorage
- * @description Provides reactive two-way binding between Preact components and chrome.storage.local.
- * Automatically synchronizes state when changes occur in other contexts via chrome.storage.onChanged.
+ * @context Shared Preact Hook (Options Pages, Popup, Analytics, Dashboard)
+ * @description Provides reactive two-way binding between Preact components and `chrome.storage.local`.
+ * Automatically synchronizes state when changes occur in other contexts via `chrome.storage.onChanged`.
  */
 
 import { useState, useEffect, useCallback } from 'preact/hooks';
 import { Logger } from '@common/logger';
 
+/**
+ * Custom Preact hook for reactive two-way binding with `chrome.storage.local`.
+ *
+ * Automatically fetches the initial stored value, listens for changes dispatched from other
+ * extension contexts (background service worker, content scripts, or other tabs), and synchronizes
+ * updates back to `chrome.storage.local`.
+ *
+ * @template T - The schema type of the stored item.
+ * @param key - The string key in `chrome.storage.local`.
+ * @param defaultValue - Fallback default value used if key does not yet exist in storage.
+ * @returns A tuple of `[value, setValue, loading]` similar to standard `useState`, plus async persistence.
+ * @listens chrome.storage.onChanged
+ * @fires chrome.storage.local.set
+ */
 export function useStorage<T>(
     key: string,
     defaultValue: T

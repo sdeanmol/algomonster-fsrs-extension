@@ -12,14 +12,23 @@ import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { BROWSER_CONFIG } from '@common/browserConfig';
 
+/**
+ * Props for the StepIndicators component.
+ */
 export interface StepIndicatorProps {
+    /** The 1-based index of the currently active onboarding step */
     currentStep: number;
+    /** Total number of wizard steps */
     totalSteps: number;
+    /** Optional callback invoked when a step dot is clicked */
     onSelectStep?: (step: number) => void;
 }
 
 /**
  * Preact Component for rendering the wizard step indicator dots.
+ *
+ * @param props - Current step index, total steps, and navigation callback.
+ * @returns JSX rendered dot navigation row.
  */
 export function StepIndicators({
     currentStep,
@@ -49,10 +58,26 @@ export function StepIndicators({
 // ROOT PREACT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Props for the root WelcomeApp onboarding component.
+ */
 export interface WelcomeAppProps {
+    /** Optional controller instance passed during testing or legacy integration */
     controller?: OnboardingWelcome;
 }
 
+/**
+ * Root Preact component for the extension onboarding walkthrough.
+ *
+ * Guides the user through a 4-step wizard:
+ * 1. Intro to FSRS spaced repetition
+ * 2. Visual theme selection (Dark vs Light)
+ * 3. Notification permissions & desktop review alerts
+ * 4. Completion & initial navigation to problem solving platforms
+ *
+ * @param props - Component configuration containing optional test controller.
+ * @returns JSX rendered onboarding wizard dialog.
+ */
 export function WelcomeApp({ controller: initialController }: WelcomeAppProps): JSX.Element {
     const [controller] = useState(() => initialController || new OnboardingWelcome());
     const [currentStep, setCurrentStep] = useState<number>(controller.currentStep || 1);
