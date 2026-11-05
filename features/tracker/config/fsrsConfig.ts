@@ -3,39 +3,81 @@
  * @description Manages configuration preferences for the Free Spaced Repetition Scheduler (FSRS).
  * Allows customized requests retention sliders, custom coefficients weights (17 parameters w0-w16),
  * and custom per-topic profiles mapped directly to tags.
+ * 
+ * Context: Standalone configuration tab (`fsrsConfig.html`) within the Chrome extension.
+ * 
+ * Key Exports:
+ * - `WeightHelpDetail`: Interface describing explanatory tooltips for individual FSRS parameters.
+ * - `EligibilityResult`: Interface representing review history qualification metrics for auto-training.
+ * - `FSRSConfigManager`: Main controller class orchestrating UI forms, training routines, and persistence.
  */
 
 import FsrsOptimizer from '../scheduler/fsrsOptimizer';
 import FsrsOptimizerFast from '../scheduler/fsrsOptimizerFast';
 import { Card, FSRSParameters, StorageData } from '../../../types/domain';
 import { Logger } from '@common/logger';
+import { UIUtils } from '@common/utils/uiUtils';
+import {
+    DEFAULT_FSRS_W,
+    DEFAULT_FSRS_DECAY,
+    DEFAULT_FSRS_FACTOR,
+    DEFAULT_FSRS_REQUEST_RETENTION
+} from '@common/constants';
 
+/**
+ * Explanatory tooltip and contextual guidance metadata for an FSRS weight coefficient.
+ */
 export interface WeightHelpDetail {
+    /** Human-readable title of the weight parameter. */
     title: string;
+    /** Functional purpose of the coefficient in memory modeling equations. */
     purpose: string;
+    /** Practical significance of tweaking this value up or down. */
     significance: string;
 }
 
+/**
+ * Result metrics evaluating whether user review volume meets the threshold for weight optimization.
+ */
 export interface EligibilityResult {
+    /** Whether review volume meets or exceeds the required training threshold. */
     eligible: boolean;
+    /** Total number of qualified historical reviews. */
     count: number;
+    /** Total number of unique cards with multiple reviews. */
     uniqueCards?: number;
+    /** Target review count threshold required for training. */
     threshold: number;
 }
 
+/**
+ * Controller for FSRS configuration settings and weight optimization workflows.
+ */
 export class FSRSConfigManager {
+    /** Baseline FSRS weights (w0 through w16). */
     public defaultWeights: number[];
+    /** Baseline memory decay coefficient. */
     public defaultDecay: number;
+    /** Baseline interval calculation factor. */
     public defaultFactor: number;
+    /** Baseline desired retention probability (e.g. 0.90 for 90%). */
     public defaultRetention: number;
+    /** Detailed explanatory descriptions for each of the 17 weights. */
     public weightsHelpDetails: WeightHelpDetail[];
+    /** Condensed string summaries of weight help entries. */
     public weightsHelp: string[];
+    /** Current view mode: 'simple' for basic retention slider, 'advanced' for all coefficients. */
+    public currentMode: 'simple' | 'advanced';
 
+    /**
+     * Initializes configuration manager defaults and documentation mappings.
+     */
     constructor() {
-        this.defaultWeights = [0.4, 0.6, 2.4, 5.8, 4.93, 0.94, 0.86, 0.01, 1.49, 0.14, 0.94, 2.18, 0.05, 0.34, 1.26, 0.29, 2.61];
-        this.defaultDecay = -0.5;
-        this.defaultFactor = 0.234567;
-        this.defaultRetention = 0.90;
+        this.currentMode = 'simple';
+        this.defaultWeights = [...DEFAULT_FSRS_W];
+        this.defaultDecay = DEFAULT_FSRS_DECAY;
+        this.defaultFactor = DEFAULT_FSRS_FACTOR;
+        this.defaultRetention = DEFAULT_FSRS_REQUEST_RETENTION;
 
         this.weightsHelpDetails = [
             {
@@ -129,7 +171,8 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Initializes elements and binds click listeners.
+     * Initializes elements, loads configurations from storage, and binds DOM event listeners.
+     * @returns {void}
      */
     init(): void {
         try {
@@ -143,14 +186,64 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Registers control listeners for UI inputs.
+     * Toggles between Simple (retention slider only) and Advanced (full 17-parameter weights matrix) configuration modes.
+     * 
+     * @param {'simple' | 'advanced'} mode - Desired configuration interface mode.
+     * @returns {void}
+     */
+    setMode(mode: 'simple' | 'advanced'): void {
+        this.currentMode = mode;
+        const simpleBtn = document.getElementById('mode-simple-btn');
+        const advancedBtn = document.getElementById('mode-advanced-btn');
+
+        if (mode === 'simple') {
+            simpleBtn?.classList.add('active');
+            simpleBtn?.setAttribute('aria-selected', 'true');
+            advancedBtn?.classList.remove('active');
+            advancedBtn?.setAttribute('aria-selected', 'false');
+            document.querySelectorAll<HTMLElement>('.advanced-config-only').forEach(el => {
+                el.style.display = 'none';
+            });
+        } else {
+            advancedBtn?.classList.add('active');
+            advancedBtn?.setAttribute('aria-selected', 'true');
+            simpleBtn?.classList.remove('active');
+            simpleBtn?.setAttribute('aria-selected', 'false');
+            document.querySelectorAll<HTMLElement>('.advanced-config-only').forEach(el => {
+                el.style.display = '';
+            });
+        }
+    }
+
+    /**
+     * Registers UI event listeners for buttons, sliders, preset chips, and input changes.
+     * 
+     * @returns {void}
      */
     bindEvents(): void {
         try {
+            const modeSimpleBtn = document.getElementById('mode-simple-btn');
+            const modeAdvancedBtn = document.getElementById('mode-advanced-btn');
+            if (modeSimpleBtn) modeSimpleBtn.addEventListener('click', () => this.setMode('simple'));
+            if (modeAdvancedBtn) modeAdvancedBtn.addEventListener('click', () => this.setMode('advanced'));
+
+            document.querySelectorAll('.preset-chip').forEach(chip => {
+                chip.addEventListener('click', (e: Event) => {
+                    const target = e.currentTarget as HTMLElement;
+                    const retentionStr = target.getAttribute('data-retention');
+                    if (retentionStr && slider && badge) {
+                        slider.value = retentionStr;
+                        badge.textContent = `${Math.round(parseFloat(retentionStr) * 100)}%`;
+                        document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+                        target.classList.add('active');
+                    }
+                });
+            });
+
             const backBtn = document.getElementById('back-to-popup-btn');
             if (backBtn) {
                 backBtn.addEventListener('click', () => {
-                    window.close();
+                    UIUtils.closeCurrentTab();
                 });
             }
 
@@ -207,7 +300,11 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Checks history to see if enough reviews exist to unlock optimization.
+     * Checks review history volume against the eligibility threshold to enable or disable the Auto Train button.
+     * Updates the training progress bar and status message in the UI.
+     * 
+     * @async
+     * @returns {Promise<void>}
      */
     async checkOptimizationEligibility(): Promise<void> {
         try {
@@ -254,7 +351,14 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Executes the Auto Train weights workflow.
+     * Executes the personalized weights optimization training routine.
+     * Attempts to train via the WASM/WASI optimizer (`FsrsOptimizer`), falling back to the pure JS
+     * Nelder-Mead simplex optimizer (`FsrsOptimizerFast`) on failure or unsupported environments.
+     * Saves resulting weights to `chrome.storage.local` and triggers a system notification.
+     * 
+     * @async
+     * @fires chrome.notifications.create
+     * @returns {Promise<void>}
      */
     async handleAutoTrain(): Promise<void> {
         const btn = document.getElementById('btn-auto-train') as HTMLButtonElement | null;
@@ -344,6 +448,11 @@ export class FSRSConfigManager {
         }
     }
 
+    /**
+     * Reads all current 17 weight inputs and initiates a JSON file download (`fsrs_weights_export.json`).
+     * 
+     * @returns {void}
+     */
     handleExportWeights(): void {
         try {
             const weights: number[] = [];
@@ -367,7 +476,10 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Loads current settings from local storage and initiates rendering of panels.
+     * Loads saved FSRS parameters and per-tag profiles from `chrome.storage.local`
+     * and initializes slider and input field values.
+     * 
+     * @returns {void}
      */
     loadFSRSConfig(): void {
         try {
@@ -407,7 +519,10 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Dynamically builds HTML number input fields for the 17 mathematical w-weights.
+     * Dynamically renders input elements and interactive help tooltips for the 17 mathematical w-weights.
+     * 
+     * @param {number[]} weightsArray - Array of 17 floating-point weight coefficients.
+     * @returns {void}
      */
     injectWeightsInputs(weightsArray: number[]): void {
         try {
@@ -463,7 +578,11 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Checks if there's enough history to optimize.
+     * Evaluates card review logs to calculate total review counts and eligibility against the target threshold.
+     * 
+     * @param {Card[]} history - Array of all card objects in storage.
+     * @param {number} [threshold=1000] - Minimum review count threshold to qualify.
+     * @returns {EligibilityResult} Qualification metrics.
      */
     computeEligibility(history: Card[], threshold: number = 1000): EligibilityResult {
         try {
@@ -494,7 +613,10 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Renders lists of active custom topic/tag FSRS weights overrides.
+     * Renders the list of active per-tag custom FSRS weight overrides with deletion controls.
+     * 
+     * @param {{ [tag: string]: number[] }} topicWeights - Mapping of topic/tag names to their 17-weight coefficient arrays.
+     * @returns {void}
      */
     renderTagProfiles(topicWeights: { [tag: string]: number[] }): void {
         try {
@@ -538,7 +660,10 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Validates and saves global FSRS configuration parameters back to storage.
+     * Validates input values and saves the global FSRS configuration (weights, decay, factor, target retention)
+     * back into `chrome.storage.local`.
+     * 
+     * @returns {void}
      */
     saveGlobalConfig(): void {
         try {
@@ -568,6 +693,10 @@ export class FSRSConfigManager {
 
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                 chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
+                    if (chrome.runtime?.lastError) {
+                        Logger.error('FSRSConfig', `Storage get error in saveGlobalConfig: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                        return;
+                    }
                     const existing = result.fsrsGlobalParams || {};
                     const newParams: FSRSParameters = {
                         ...existing,
@@ -578,6 +707,9 @@ export class FSRSConfigManager {
                     };
 
                     chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
+                        if (chrome.runtime?.lastError) {
+                            Logger.error('FSRSConfig', `Storage set error in saveGlobalConfig: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                        }
                         this.showToast("FSRS global configurations saved!");
                     });
                 });
@@ -591,7 +723,9 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Restores all global parameters to algorithmic baseline defaults.
+     * Confirms and restores all global parameters and coefficients to factory defaults in storage.
+     * 
+     * @returns {void}
      */
     restoreDefaults(): void {
         try {
@@ -625,7 +759,9 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Restores only the global parameters (retention, decay, factor).
+     * Resets only retention, decay, and factor parameters to default values while preserving customized weights.
+     * 
+     * @returns {void}
      */
     restoreGlobalParameters(): void {
         try {
@@ -651,7 +787,9 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Resets optimization status (removes personalized tag and timestamp).
+     * Resets personalization status flags, discarding trained weights in favor of default parameters.
+     * 
+     * @returns {void}
      */
     resetOptimization(): void {
         try {
@@ -677,7 +815,9 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Restores only the FSRS coefficients (w0-w16).
+     * Resets only the 17 mathematical w-weights to baseline values.
+     * 
+     * @returns {void}
      */
     restoreWeights(): void {
         try {
@@ -703,7 +843,9 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Validates inputs and binds a new 17-coefficient custom profile to a specific tag filter.
+     * Validates and saves a custom 17-weight profile mapped to a specific problem tag in storage.
+     * 
+     * @returns {void}
      */
     handleAddTagProfile(): void {
         try {
@@ -747,7 +889,10 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Deletes custom tag profile bindings from database storage.
+     * Deletes a custom tag profile override from storage and reloads the profile list.
+     * 
+     * @param {string} tag - Name of the tag profile to delete.
+     * @returns {void}
      */
     handleDeleteTagProfile(tag: string): void {
         try {
@@ -770,7 +915,11 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Triggers a status toast element.
+     * Displays a temporary floating notification toast in the configuration view.
+     * 
+     * @param {string} msg - Message to display.
+     * @param {boolean} [isError=false] - Whether to style the toast with error coloration.
+     * @returns {void}
      */
     showToast(msg: string, isError: boolean = false): void {
         try {
@@ -781,8 +930,9 @@ export class FSRSConfigManager {
             setTimeout(() => {
                 toast.className = 'toast';
             }, 2500);
-        } catch {
-            // Comment: Ignore toast DOM display errors
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.debug('FSRSConfig', `Ignore toast DOM display errors: ${errorMessage}`, { msg, err });
         }
     }
 }

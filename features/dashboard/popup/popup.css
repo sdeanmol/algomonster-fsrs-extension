@@ -1,7 +1,9 @@
-/*
+/**
  * @file features/dashboard/popup/popup.css
- * @description Redesigned styling rules for main popup extension panel container elements.
- * Upstream dependency: features/common/base.css
+ * @context Popup UI / Extension Browser Action
+ * @description Main popup stylesheet defining layouts for hero statistics, quick problem search, contribution heatmap, gamification XP bar, study tools, and notification settings.
+ * @isolation Scoped to 350px browser action popup viewport (width: 350px, overflow-x: hidden).
+ * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-secondary, --md-success, --md-warning, --md-danger, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
  */
 html {
     width: 350px;
@@ -22,6 +24,7 @@ body {
     overflow-x: hidden;
 }
 
+/* Dynamic Visibility Utility: used extensively by popup TypeScript modules to hide/show panels */
 .hide-panel {
     display: none !important;
 }
@@ -133,6 +136,16 @@ body {
     transform: scale(0.95);
 }
 
+.icon-btn:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+
+:root.light-theme .icon-btn:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
 /* Header Analytics Button Highlight */
 .analytics-header-btn {
     background: rgba(99, 102, 241, 0.15);
@@ -147,7 +160,7 @@ body {
 }
 
 .analytics-header-btn:hover {
-    background: linear-gradient(135deg, var(--md-primary), #6366f1) !important;
+    background: linear-gradient(135deg, var(--md-primary), #5b50e6) !important;
     color: #ffffff !important;
     border-color: transparent !important;
     box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
@@ -301,6 +314,7 @@ body {
     margin-bottom: 16px;
 }
 
+/* Overview Hero Stat Box: Clickable metric cards with dynamic urgency classes applied by popup/stats.ts */
 .stat-box {
     background-color: var(--md-surface-variant);
     border-radius: 10px;
@@ -335,13 +349,14 @@ body {
 
 .stat-label {
     display: block;
-    font-size: 10px;
-    color: var(--md-text-low);
+    font-size: 11px;
+    color: var(--md-secondary);
     text-transform: uppercase;
     letter-spacing: 0.8px;
     font-weight: 700;
 }
 
+/* Stat Box Health States: added dynamically based on due backlog & retention percentage */
 .stat-box.success .stat-value {
     color: var(--md-success);
     text-shadow: 0 2px 4px rgba(129, 201, 149, 0.2);
@@ -645,7 +660,7 @@ body {
 }
 
 .goal-ring-label {
-    font-size: 9px;
+    font-size: 11px;
     color: var(--md-text-low);
     font-weight: 700;
     margin-top: 1px;
@@ -812,6 +827,7 @@ body {
     padding-bottom: 6px;
 }
 
+/* Heatmap Calendar Matrix: generated dynamically by popup/heatmap.ts */
 .heatmap {
     display: grid;
     grid-template-rows: repeat(7, 10px);
@@ -834,20 +850,21 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+/* Activity Intensity Classes: dynamically assigned to cells based on review volume */
 .level-0 {
     background-color: var(--md-surface-variant);
 }
 
 .level-1 {
-    background-color: #0c3321;
+    background-color: color-mix(in srgb, var(--md-success) 25%, var(--md-surface-variant));
 }
 
 .level-2 {
-    background-color: #0e5630;
+    background-color: color-mix(in srgb, var(--md-success) 50%, var(--md-surface-variant));
 }
 
 .level-3 {
-    background-color: #178347;
+    background-color: color-mix(in srgb, var(--md-success) 75%, var(--md-surface-variant));
 }
 
 .level-4 {
@@ -953,6 +970,11 @@ input:checked+.slider {
     border-color: var(--md-primary);
 }
 
+input:focus-visible+.slider {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+
 input:checked+.slider:before {
     background-color: #fff;
     transform: translateX(18px);
@@ -1053,10 +1075,22 @@ input:checked+.slider:before {
 }
 
 .time-input {
-    color-scheme: dark;
     padding: 4px 8px;
     border-radius: 6px;
     font-size: 11px;
+    color-scheme: dark;
+}
+:root.light-theme .time-input {
+    color-scheme: light;
+}
+:root .time-input {
+    color-scheme: dark;
+}
+[data-theme="dark"] .time-input {
+    color-scheme: dark;
+}
+[data-theme="light"] .time-input {
+    color-scheme: light;
 }
 
 .time-separator {
@@ -1201,6 +1235,11 @@ details[open] .details-summary .chevron {
 
 .data-btn:active {
     transform: scale(0.96);
+}
+
+.data-btn:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
 }
 
 .data-btn:hover {
@@ -1532,7 +1571,7 @@ details[open] .details-summary .chevron {
     }
 
     .stat-label {
-        font-size: 9px;
+        font-size: 11px;
         letter-spacing: 0.2px;
     }
 
@@ -1554,3 +1593,6 @@ details[open] .details-summary .chevron {
         font-size: 10px;
     }
 }
+
+/* UX-010: Safari notification card flash prevention */
+.safari-build #notification-settings-card { display: none !important; }

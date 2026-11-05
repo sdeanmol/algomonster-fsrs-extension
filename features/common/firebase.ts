@@ -1,21 +1,27 @@
+/**
+ * @file Firebase Client SDK Initialization and Service Singletons
+ * @module features/common/firebase
+ * @context Shared across Extension contexts (Background, Dashboard, Popup)
+ * @description Initializes Firebase App, Firebase Authentication, and Cloud Firestore clients
+ * with non-fatal exception handling and fallback dummy stubs to ensure offline resilience.
+ */
+
 import { initializeApp, FirebaseApp, FirebaseOptions } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { Logger } from '@common/logger';
+import { DEFAULT_FIREBASE_CONFIG } from './constants';
 
-// TODO: Replace with your actual Firebase config object from the Firebase Console
-const firebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaSyDummyKeyForDevelopment1234567890",
-  authDomain: "algorecall-fsrs-dev.firebaseapp.com",
-  projectId: "algorecall-fsrs-dev",
-  storageBucket: "algorecall-fsrs-dev.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdef1234567890"
-};
+/**
+ * Firebase application configuration options loaded from defaults.
+ */
+const firebaseConfig: FirebaseOptions = DEFAULT_FIREBASE_CONFIG;
 
-// Initialize Firebase with exception handling
+/** Initialized Firebase application instance or empty fallback object */
 let app: FirebaseApp;
+/** Initialized Firebase Authentication service or fallback object */
 let auth: Auth;
+/** Initialized Cloud Firestore database service or fallback object */
 let db: Firestore;
 
 try {
@@ -25,7 +31,7 @@ try {
 } catch (err) {
   const errorMessage = err instanceof Error ? err.message : String(err);
   Logger.error('Firebase', `Failed to initialize Firebase app: ${errorMessage}`, { err });
-  // Comment: Non-fatal Firebase initialization fallback
+  // Non-fatal Firebase initialization fallback
   app = {} as FirebaseApp;
   auth = {} as Auth;
   db = {} as Firestore;

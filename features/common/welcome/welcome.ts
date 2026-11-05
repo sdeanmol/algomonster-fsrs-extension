@@ -1,18 +1,30 @@
 /**
- * @file features/common/welcome/welcome.ts
+ * @file Interactive First-Run Onboarding Welcome Walkthrough
+ * @module features/common/welcome/welcome
+ * @context Extension Welcome Page (features/common/welcome/welcome.html)
  * @description Controls the step-by-step interactive welcome onboarding workflow.
  * Manages steps pagination, initial theme configuration, and notification permission requests.
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../utils/uiUtils';
+import { BROWSER_CONFIG } from '@common/browserConfig';
 
-class OnboardingWelcome {
+/**
+ * Controller class driving multi-step onboarding wizard screens.
+ */
+export class OnboardingWelcome {
+    /** Active wizard step index (1-based) */
     currentStep: number;
+    /** Total number of wizard steps */
     totalSteps: number;
 
+    /**
+     * Initializes step tracker starting at Step 1 of 4.
+     */
     constructor() {
         this.currentStep = 1;
-        this.totalSteps = 3;
+        this.totalSteps = 4;
     }
 
     /**
@@ -23,10 +35,27 @@ class OnboardingWelcome {
             this.bindEvents();
             this.syncThemePreference();
             this.checkNotificationState();
+            this.renderBrowserSpecificInstructions();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error initializing OnboardingWelcome: ${errorMessage}`, { err });
-            // Comment: Non-fatal onboarding setup catch
+            UIUtils.catchError('Onboarding', 'Error initializing OnboardingWelcome', err);
+        }
+    }
+
+    /**
+     * Renders browser-appropriate extension pinning and toolbar instructions.
+     */
+    renderBrowserSpecificInstructions(): void {
+        try {
+            const pinInstructionsEl = document.getElementById('welcome-pin-instructions');
+            if (!pinInstructionsEl) return;
+
+            if (BROWSER_CONFIG.target === 'safari') {
+                pinInstructionsEl.innerHTML = `<strong>1. Open Safari Settings ⚙️ &rarr; Extensions</strong> and ensure AlgoRecall is turned on.<br><strong>2. Check your Safari toolbar</strong> to access your review counter at any time.`;
+            } else {
+                pinInstructionsEl.innerHTML = `<strong>1. Click the puzzle icon 🧩</strong> in ${BROWSER_CONFIG.displayName}'s top right toolbar.<br><strong>2. Pin AlgoRecall 📌</strong> to keep your review counter always visible.`;
+            }
+        } catch (err) {
+            UIUtils.catchError('Onboarding', 'Error rendering browser-specific pin instructions', err);
         }
     }
 
@@ -44,8 +73,7 @@ class OnboardingWelcome {
                         this.goToStep(this.currentStep - 1);
                     }
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Onboarding', `Error in prev button click handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('Onboarding', 'Error in prev button click handler', err);
                 }
             });
 
@@ -58,8 +86,7 @@ class OnboardingWelcome {
                         window.location.href = '../help/help.html';
                     }
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Onboarding', `Error in next button click handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('Onboarding', 'Error in next button click handler', err);
                 }
             });
 
@@ -70,8 +97,7 @@ class OnboardingWelcome {
                 try {
                     this.setThemePreference('dark');
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Onboarding', `Error in dark theme button click handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('Onboarding', 'Error in dark theme button click handler', err);
                 }
             });
 
@@ -79,8 +105,16 @@ class OnboardingWelcome {
                 try {
                     this.setThemePreference('light');
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Onboarding', `Error in light theme button click handler: ${errorMessage}`, { err });
+                    UIUtils.catchError('Onboarding', 'Error in light theme button click handler', err);
+                }
+            });
+
+            const skipBtn = document.getElementById('welcome-skip-btn');
+            skipBtn?.addEventListener('click', () => {
+                try {
+                    window.close();
+                } catch (err) {
+                    UIUtils.catchError('Onboarding', 'Error skipping onboarding tour', err);
                 }
             });
 
@@ -92,61 +126,67 @@ class OnboardingWelcome {
                             try {
                                 this.checkNotificationState();
                                 if (permission === 'granted') {
-                                    this.showToast("Notification settings initialized successfully!");
+                                    UIUtils.showToast("Notification permissions granted!");
                                 } else {
-                                    this.showToast("Notifications were disabled.");
+                                    UIUtils.showToast("Notifications were disabled at the OS level.");
                                 }
                             } catch (permHandlerErr) {
-                                const errorMessage = permHandlerErr instanceof Error ? permHandlerErr.message : String(permHandlerErr);
-                                Logger.error('Onboarding', `Error in permission response handler: ${errorMessage}`, { permHandlerErr });
+                                UIUtils.catchError('Onboarding', 'Error in permission response handler', permHandlerErr);
                             }
                         }).catch((err) => {
-                            const errorMessage = err instanceof Error ? err.message : String(err);
-                            Logger.error('Onboarding', `Notification permission request error: ${errorMessage}`, { err });
-                            // Comment: Catch rejected permission Promise gracefully
+                            UIUtils.catchError('Onboarding', 'Notification permission request error', err);
                         });
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Onboarding', `Error calling requestPermission: ${errorMessage}`, { err });
-                        // Comment: Catch browser notification API exception gracefully
+                        UIUtils.catchError('Onboarding', 'Error calling requestPermission', err);
                     }
                 }
             });
+
+            const notifToggle = document.getElementById('welcome-notif-toggle') as HTMLInputElement;
+            notifToggle?.addEventListener('change', (e) => {
+                const target = e.target as HTMLInputElement;
+                try {
+                    chrome.storage.local.get(['notificationSettings'], (result) => {
+                        if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching notificationSettings')) return;
+                        const settings = result.notificationSettings || { enabled: true };
+                        settings.enabled = target.checked;
+                        chrome.storage.local.set({ notificationSettings: settings }, () => {
+                            if (UIUtils.checkStorageError('Onboarding', 'Storage error saving notificationSettings')) return;
+                            UIUtils.showToast(target.checked ? "Reminders Enabled" : "Reminders Disabled");
+                        });
+                    });
+                } catch (err) {
+                    UIUtils.catchError('Onboarding', 'Error toggling notifications', err);
+                }
+            });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error binding event listeners: ${errorMessage}`, { err });
-            // Comment: Catch event listener setup error
+            UIUtils.catchError('Onboarding', 'Error binding event listeners', err);
         }
     }
 
     /**
      * Fetches current theme selection and syncs button state.
+     * @fires chrome.storage.local.get
      */
     syncThemePreference(): void {
         try {
             chrome.storage.local.get(['theme'], (result: { theme?: string }) => {
                 try {
-                    if (chrome.runtime.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Onboarding', `Storage error fetching theme: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        return;
-                    }
+                    if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching theme')) return;
                     const theme = result.theme || 'dark';
                     this.setActiveThemeButton(theme);
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('Onboarding', `Error processing storage theme result: ${errorMessage}`, { innerErr });
+                    UIUtils.catchError('Onboarding', 'Error processing storage theme result', innerErr);
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Failed to sync theme preference: ${errorMessage}`, { err });
-            // Comment: Non-fatal theme sync catch
+            UIUtils.catchError('Onboarding', 'Failed to sync theme preference', err);
         }
     }
 
     /**
      * Navigates visual onboarding cards to target step number.
+     * @param step - Target step number (1 to 4).
      */
     goToStep(step: number): void {
         try {
@@ -155,8 +195,16 @@ class OnboardingWelcome {
             document.getElementById(`step-${step}`)?.classList.add('active');
 
             // Toggle indicator dot
-            document.getElementById(`dot-${this.currentStep}`)?.classList.remove('active');
-            document.getElementById(`dot-${step}`)?.classList.add('active');
+            const oldDot = document.getElementById(`dot-${this.currentStep}`);
+            if (oldDot) {
+                oldDot.classList.remove('active');
+                oldDot.removeAttribute('aria-current');
+            }
+            const newDot = document.getElementById(`dot-${step}`);
+            if (newDot) {
+                newDot.classList.add('active');
+                newDot.setAttribute('aria-current', 'step');
+            }
 
             this.currentStep = step;
 
@@ -167,8 +215,12 @@ class OnboardingWelcome {
             if (prevBtn) {
                 if (this.currentStep === 1) {
                     prevBtn.classList.add('invisible');
+                    prevBtn.setAttribute('disabled', 'true');
+                    prevBtn.setAttribute('aria-hidden', 'true');
                 } else {
                     prevBtn.classList.remove('invisible');
+                    prevBtn.removeAttribute('disabled');
+                    prevBtn.removeAttribute('aria-hidden');
                 }
             }
 
@@ -180,14 +232,13 @@ class OnboardingWelcome {
                 }
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error navigating to step ${step}: ${errorMessage}`, { step, err });
-            // Comment: Catch step navigation UI update error
+            UIUtils.catchError('Onboarding', `Error navigating to step ${step}`, err, { step });
         }
     }
 
     /**
      * Renders UI toggle buttons as active/selected matching requested theme.
+     * @param theme - Theme identifier string ('dark' | 'light').
      */
     setActiveThemeButton(theme: string): void {
         try {
@@ -202,43 +253,52 @@ class OnboardingWelcome {
                 lightBtn?.classList.remove('active');
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error setting active theme button for '${theme}': ${errorMessage}`, { theme, err });
+            UIUtils.catchError('Onboarding', `Error setting active theme button for '${theme}'`, err, { theme });
         }
     }
 
     /**
      * Persists theme configuration changes and updates UI buttons.
+     * @param theme - Theme identifier string ('dark' | 'light').
+     * @fires chrome.storage.local.set
      */
     setThemePreference(theme: string): void {
         try {
             chrome.storage.local.set({ theme: theme }, () => {
                 try {
-                    if (chrome.runtime.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Onboarding', `Storage set error saving theme: ${errorMessage}`, { theme, error: chrome.runtime.lastError });
-                        return;
-                    }
+                    if (UIUtils.checkStorageError('Onboarding', 'Storage set error saving theme', { theme })) return;
                     this.setActiveThemeButton(theme);
-                    this.showToast(`Switched to ${theme === 'dark' ? 'Dark' : 'Light'} Mode!`);
+                    UIUtils.showToast(`Switched to ${theme === 'dark' ? 'Dark' : 'Light'} Mode!`);
                 } catch (setErr) {
-                    const errorMessage = setErr instanceof Error ? setErr.message : String(setErr);
-                    Logger.error('Onboarding', `Error in storage set callback for theme: ${errorMessage}`, { theme, setErr });
+                    UIUtils.catchError('Onboarding', 'Error in storage set callback for theme', setErr, { theme });
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error persisting theme preference '${theme}': ${errorMessage}`, { theme, err });
+            UIUtils.catchError('Onboarding', `Error persisting theme preference '${theme}'`, err, { theme });
         }
     }
 
     /**
      * Checks system notification permissions and toggles onboarding badge indicators.
+     * @fires chrome.storage.local.get
      */
     checkNotificationState(): void {
         try {
             const badge = document.getElementById('welcome-notif-status');
             const btn = document.getElementById('welcome-enable-btn');
+            const toggle = document.getElementById('welcome-notif-toggle') as HTMLInputElement;
+
+            try {
+                chrome.storage.local.get(['notificationSettings'], (result) => {
+                    if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching notificationSettings in checkNotificationState')) return;
+                    if (toggle) {
+                        toggle.checked = result.notificationSettings ? result.notificationSettings.enabled !== false : true;
+                    }
+                });
+            } catch (err) {
+                UIUtils.catchError('Onboarding', 'Error fetching notificationSettings', err);
+            }
+
             if (!badge || !btn) return;
 
             if (typeof Notification !== 'undefined') {
@@ -253,32 +313,7 @@ class OnboardingWelcome {
                 }
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error checking notification state: ${errorMessage}`, { err });
-            // Comment: Non-fatal notification state check catch
-        }
-    }
-
-    /**
-     * Displays status feedback messages in onboarding page container.
-     */
-    showToast(msg: string): void {
-        try {
-            const toast = document.getElementById('status-toast');
-            if (!toast) return;
-            toast.textContent = msg;
-            toast.className = 'toast show';
-            setTimeout(() => {
-                try {
-                    toast.className = 'toast';
-                } catch (animErr) {
-                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
-                    Logger.error('Onboarding', `Error hiding toast animation: ${errorMessage}`, { animErr });
-                }
-            }, 2000);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Onboarding', `Error showing toast message '${msg}': ${errorMessage}`, { msg, err });
+            UIUtils.catchError('Onboarding', 'Error checking notification state', err);
         }
     }
 }
@@ -288,8 +323,7 @@ function initWelcome(): void {
         const welcome = new OnboardingWelcome();
         welcome.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('Onboarding', `Initialization failed: ${errorMessage}`, { err });
+        UIUtils.catchError('Onboarding', 'Initialization failed', err);
     }
 }
 

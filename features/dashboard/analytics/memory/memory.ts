@@ -1,20 +1,37 @@
 /**
  * @file features/dashboard/analytics/memory/memory.ts
- * @description Main controller for the Memory & Retention tab.
+ * @description Main controller for the Memory & Retention tab in the analytics dashboard.
+ * Coordinates multi-line forgetting curves, predicted vs actual recall comparisons,
+ * FSRS personalized model status badges, and overdue review remediation guidance.
+ * @context Popup / Analytics SPA Dashboard
  */
 
-import { Logger } from '@common/logger';
+import { UIUtils } from '../../../common/utils/uiUtils';
 import { RetentionChart } from './retentionChart';
 import { PredictionComparison } from './predictionComparison';
 import { DataUtils } from '../utils/dataUtils';
 import { StorageData } from '../../../../types/domain';
+import { DEFAULT_FSRS_REQUEST_RETENTION, RETENTION_DROP_THRESHOLD } from '../../../common/constants';
 
+/**
+ * Controller for the Memory & Retention tab view in the analytics dashboard.
+ * Orchestrates retention decay visualizations, model calibration comparisons,
+ * and personal FSRS parameter weight status.
+ */
 export class MemoryTab {
+    /** Data utility instance for card statistics and FSRS parameters */
     dataUtils: DataUtils;
+    /** Sub-component rendering interactive forgetting curves with optional confidence intervals */
     retentionChart: RetentionChart;
+    /** Sub-component comparing model predictions against observed review outcomes */
     predictionComparison: PredictionComparison;
+    /** Flag indicating whether the primary static DOM shell has already been mounted */
     rendered: boolean;
 
+    /**
+     * Initializes the MemoryTab controller and child visualization components.
+     * @param dataUtils - Card statistics and scheduler helper instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -22,8 +39,7 @@ export class MemoryTab {
             this.predictionComparison = new PredictionComparison(this.dataUtils);
             this.rendered = false;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('MemoryTab', `Error initializing MemoryTab constructor: ${errorMessage}`, { err });
+            UIUtils.catchError('MemoryTab', 'Error initializing MemoryTab constructor', err);
             this.dataUtils = dataUtils;
             this.retentionChart = new RetentionChart(dataUtils);
             this.predictionComparison = new PredictionComparison(dataUtils);
@@ -31,6 +47,12 @@ export class MemoryTab {
         }
     }
 
+    /**
+     * Renders the complete Memory & Retention view into the target container element.
+     * Builds static layout on initial run and refreshes charts and guidance on subsequent calls.
+     * @param containerId - DOM ID of the container element hosting the memory tab.
+     * @returns void
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -77,54 +99,7 @@ export class MemoryTab {
                     </div>
                 `;
 
-                const groupBySelect = container.querySelector('#retention-group-by') as HTMLSelectElement | null;
-                const confidenceToggle = container.querySelector('#toggle-confidence-bands') as HTMLInputElement | null;
-                const tagFilterInput = container.querySelector('#retention-tag-filter') as HTMLInputElement | null;
-                const tagFilterWrapper = container.querySelector('#tag-filter-wrapper') as HTMLElement | null;
-
-                if (groupBySelect) {
-                    groupBySelect.addEventListener('change', (e: Event) => {
-                        try {
-                            const target = e.target as HTMLSelectElement;
-                            const groupBy = target.value;
-                            this.retentionChart.setGroupBy(groupBy);
-                            this.retentionChart.render('retention-curves-container');
-
-                            if (tagFilterWrapper) {
-                                tagFilterWrapper.style.display = (groupBy === 'tag') ? 'flex' : 'none';
-                            }
-                        } catch (groupErr) {
-                            const errorMessage = groupErr instanceof Error ? groupErr.message : String(groupErr);
-                            Logger.error('MemoryTab', `Error handling retention-group-by select change: ${errorMessage}`, { groupErr });
-                        }
-                    });
-                }
-
-                if (tagFilterInput) {
-                    tagFilterInput.addEventListener('input', (e: Event) => {
-                        try {
-                            const target = e.target as HTMLInputElement;
-                            this.retentionChart.setFilterTag(target.value);
-                            this.retentionChart.render('retention-curves-container');
-                        } catch (tagErr) {
-                            const errorMessage = tagErr instanceof Error ? tagErr.message : String(tagErr);
-                            Logger.error('MemoryTab', `Error handling retention-tag-filter input change: ${errorMessage}`, { tagErr });
-                        }
-                    });
-                }
-
-                if (confidenceToggle) {
-                    confidenceToggle.addEventListener('change', (e: Event) => {
-                        try {
-                            const target = e.target as HTMLInputElement;
-                            this.retentionChart.setShowConfidence(target.checked);
-                            this.retentionChart.render('retention-curves-container');
-                        } catch (toggleErr) {
-                            const errorMessage = toggleErr instanceof Error ? toggleErr.message : String(toggleErr);
-                            Logger.error('MemoryTab', `Error handling toggle-confidence-bands change: ${errorMessage}`, { toggleErr });
-                        }
-                    });
-                }
+                this.bindEventListeners(container);
 
                 this.rendered = true;
             }
@@ -134,11 +109,17 @@ export class MemoryTab {
             this.renderNextAction('memory-next-action-container');
             this.renderPersonalMemoryStatus('personal-memory-status-container');
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('MemoryTab', `Error rendering MemoryTab: ${errorMessage}`, { containerId, err });
+            UIUtils.catchError('MemoryTab', 'Error rendering MemoryTab', err, { containerId });
         }
     }
 
+    /**
+     * Fetches FSRS parameters from browser storage to render the global training status banner
+     * (whether the user is using default cold-start weights or personalized optimized weights).
+     * @param containerId - DOM ID of the container element hosting the status panel.
+     * @returns void
+     * @fires chrome.storage.local.get
+     */
     renderPersonalMemoryStatus(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -147,9 +128,8 @@ export class MemoryTab {
             if (typeof chrome !== 'undefined' && chrome.storage?.local) {
                 chrome.storage.local.get(['fsrsGlobalParams'], (result: StorageData & { fsrsGlobalParams?: { version?: string; timestamp?: number } }) => {
                     try {
-                        if (chrome.runtime?.lastError) {
-                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                            Logger.error('MemoryTab', `Chrome storage error when fetching fsrsGlobalParams: ${errorMessage}`);
+                        if (UIUtils.checkStorageError('MemoryTab', 'Browser storage error when fetching fsrsGlobalParams')) {
+                            // Logged automatically
                         }
 
                         const params = (result && result.fsrsGlobalParams) || {};
@@ -181,17 +161,21 @@ export class MemoryTab {
                             </div>
                         `;
                     } catch (cbErr) {
-                        const errorMessage = cbErr instanceof Error ? cbErr.message : String(cbErr);
-                        Logger.error('MemoryTab', `Error in storage callback for personal memory status: ${errorMessage}`, { cbErr });
+                        UIUtils.catchError('MemoryTab', 'Error in storage callback for personal memory status', cbErr);
                     }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('MemoryTab', `Error rendering personal memory status: ${errorMessage}`, { containerId, err });
+            UIUtils.catchError('MemoryTab', 'Error rendering personal memory status', err, { containerId });
         }
     }
 
+    /**
+     * Determines the optimal next action for the user based on their current 
+     * retention and due card backlog, rendering an actionable warning or success banner.
+     * @param containerId - DOM ID of the container element hosting the next action banner.
+     * @returns void
+     */
     renderNextAction(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -201,7 +185,7 @@ export class MemoryTab {
 
             const requestedRetention = this.dataUtils.scheduler
                 ? Math.round(this.dataUtils.scheduler.getDefaultRequestRetention() * 100)
-                : 90;
+                : Math.round(DEFAULT_FSRS_REQUEST_RETENTION * 100);
             const actualRetention = stats.retention || 0;
 
             const retentionDrop = requestedRetention - actualRetention;
@@ -218,7 +202,7 @@ export class MemoryTab {
                         </div>
                     </div>
                 `;
-            } else if (retentionDrop > 5 && actualRetention > 0) {
+            } else if (retentionDrop > RETENTION_DROP_THRESHOLD && actualRetention > 0) {
                 container.innerHTML = `
                     <div class="actionable-insight-banner warning" style="margin-bottom:0;">
                         <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -244,8 +228,61 @@ export class MemoryTab {
                 `;
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('MemoryTab', `Error rendering memory next action: ${errorMessage}`, { containerId, err });
+            UIUtils.catchError('MemoryTab', 'Error rendering memory next action', err, { containerId });
+        }
+    }
+
+    /**
+     * Binds event listeners to the interactive controls for the retention chart
+     * (grouping selector, tag filter text input, and confidence interval toggle).
+     * @param container - Root DOM container hosting the memory controls.
+     * @returns void
+     */
+    private bindEventListeners(container: HTMLElement): void {
+        const groupBySelect = container.querySelector('#retention-group-by') as HTMLSelectElement | null;
+        const confidenceToggle = container.querySelector('#toggle-confidence-bands') as HTMLInputElement | null;
+        const tagFilterInput = container.querySelector('#retention-tag-filter') as HTMLInputElement | null;
+        const tagFilterWrapper = container.querySelector('#tag-filter-wrapper') as HTMLElement | null;
+
+        if (groupBySelect) {
+            groupBySelect.addEventListener('change', (e: Event) => {
+                try {
+                    const target = e.target as HTMLSelectElement;
+                    const groupBy = target.value;
+                    this.retentionChart.setGroupBy(groupBy);
+                    this.retentionChart.render('retention-curves-container');
+
+                    if (tagFilterWrapper) {
+                        tagFilterWrapper.style.display = (groupBy === 'tag') ? 'flex' : 'none';
+                    }
+                } catch (groupErr) {
+                    UIUtils.catchError('MemoryTab', 'Error handling retention-group-by select change', groupErr);
+                }
+            });
+        }
+
+        if (tagFilterInput) {
+            tagFilterInput.addEventListener('input', (e: Event) => {
+                try {
+                    const target = e.target as HTMLInputElement;
+                    this.retentionChart.setFilterTag(target.value);
+                    this.retentionChart.render('retention-curves-container');
+                } catch (tagErr) {
+                    UIUtils.catchError('MemoryTab', 'Error handling retention-tag-filter input change', tagErr);
+                }
+            });
+        }
+
+        if (confidenceToggle) {
+            confidenceToggle.addEventListener('change', (e: Event) => {
+                try {
+                    const target = e.target as HTMLInputElement;
+                    this.retentionChart.setShowConfidence(target.checked);
+                    this.retentionChart.render('retention-curves-container');
+                } catch (toggleErr) {
+                    UIUtils.catchError('MemoryTab', 'Error handling toggle-confidence-bands change', toggleErr);
+                }
+            });
         }
     }
 }

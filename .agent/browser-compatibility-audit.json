@@ -1,0 +1,249 @@
+{
+  "generatedAt": "2026-10-01T05:30:00Z",
+  "task": "Add Safari browser target to Chrome+Firefox extension",
+  "files": [
+    {
+      "file": "browser/chrome/manifest.json",
+      "status": "analyzed",
+      "category": "chrome-specific",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": false, "issues": ["Chrome-specific fields: cross_origin_embedder_policy, service_worker"], "requiredChanges": [] },
+      "safari": { "compatible": false, "issues": ["Safari uses browser/safari/manifest.json"], "requiredChanges": [] },
+      "buildTimeInjectionRequired": false,
+      "runtimeDetectionRequired": false,
+      "action": "No changes. Already correct.",
+      "verified": true
+    },
+    {
+      "file": "browser/firefox/manifest.json",
+      "status": "analyzed",
+      "category": "firefox-specific",
+      "chrome": { "compatible": false, "issues": ["Firefox-only: browser_specific_settings.gecko, background.scripts"], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": false, "issues": ["Safari uses browser/safari/manifest.json"], "requiredChanges": [] },
+      "buildTimeInjectionRequired": false,
+      "runtimeDetectionRequired": false,
+      "action": "No changes. Already correct.",
+      "verified": true
+    },
+    {
+      "file": "browser/safari/manifest.json",
+      "status": "analyzed",
+      "category": "safari-specific",
+      "chrome": { "compatible": false, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": false, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "buildTimeInjectionRequired": false,
+      "runtimeDetectionRequired": false,
+      "action": "CREATED. Omits unsupported permissions: notifications, downloads. Omits Chrome-only: cross_origin_embedder_policy, cross_origin_opener_policy. Omits Firefox-only: browser_specific_settings. Includes 'alarms' as it is supported in Safari 14+.",
+      "verified": true
+    },
+    {
+      "file": "features/common/browserConfig.ts",
+      "status": "analyzed",
+      "category": "browser-dependent",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "browserSpecificStrings": [
+        { "location": "browserConfig.ts", "chrome": "Rate us 5 stars on Chrome Web Store to help us grow!", "firefox": "Rate us 5 stars on Firefox Add-ons to help us grow!", "safari": "Rate us 5 stars on the App Store to help us grow!" },
+        { "location": "browserConfig.ts", "chrome": "Rate on Chrome Web Store", "firefox": "Rate on Firefox Add-ons", "safari": "Rate on the App Store" }
+      ],
+      "browserSpecificCode": ["supportsNotifications=false for safari", "supportsDownloads=false for safari", "supportsAlarms=true for safari"],
+      "buildTimeInjectionRequired": true,
+      "runtimeDetectionRequired": false,
+      "action": "MODIFIED. Added safari to BrowserTarget union. Added supportsNotifications/supportsAlarms/supportsDownloads flags. supportsAlarms is true for Safari (fully supported). Added Safari display name, storeName='App Store', rating texts.",
+      "verified": true
+    },
+    {
+      "file": "webpack.config.js",
+      "status": "analyzed",
+      "category": "browser-dependent",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "browserSpecificUrls": ["chromewebstore.google.com", "addons.mozilla.org", "apps.apple.com"],
+      "buildTimeInjectionRequired": true,
+      "runtimeDetectionRequired": false,
+      "action": "MODIFIED. Added safari entry to BROWSER_STORE_CONFIG.",
+      "verified": true
+    },
+    {
+      "file": "package.json",
+      "status": "analyzed",
+      "category": "build-tooling",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "action": "MODIFIED. Added build:safari, release:safari, dev:safari. Updated check:isolation:all.",
+      "verified": true
+    },
+    {
+      "file": "background/background.ts",
+      "status": "analyzed",
+      "category": "browser-dependent",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": {
+        "compatible": true,
+        "issues": ["chrome.notifications NOT SUPPORTED on Safari"],
+        "requiredChanges": ["Guarded with BROWSER_CONFIG.supportsNotifications"]
+      },
+      "browserSpecificApis": ["chrome.notifications (Safari unsupported)"],
+      "buildTimeInjectionRequired": true,
+      "runtimeDetectionRequired": false,
+      "action": "MODIFIED. Added BROWSER_CONFIG import. Added supportsAlarms guards (resolves true) and supportsNotifications guards (resolves false).",
+      "verified": true
+    },
+    {
+      "file": "features/common/data/backupManager.ts",
+      "status": "analyzed",
+      "category": "browser-dependent",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": ["chrome.downloads NOT SUPPORTED on Safari"], "requiredChanges": ["Anchor-click fallback added"] },
+      "browserSpecificApis": ["chrome.downloads (Safari unsupported)"],
+      "buildTimeInjectionRequired": true,
+      "runtimeDetectionRequired": false,
+      "action": "MODIFIED. Added BROWSER_CONFIG import. Wrapped chrome.downloads.download with supportsDownloads guard. Anchor-click fallback for Safari.",
+      "verified": true
+    },
+    {
+      "file": "features/highlighter/manager/highlights.ts",
+      "status": "analyzed",
+      "category": "browser-dependent",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": ["chrome.downloads NOT SUPPORTED on Safari"], "requiredChanges": ["Anchor-click fallback added"] },
+      "browserSpecificApis": ["chrome.downloads (Safari unsupported)"],
+      "buildTimeInjectionRequired": true,
+      "runtimeDetectionRequired": false,
+      "action": "MODIFIED. Added BROWSER_CONFIG import. Wrapped chrome.downloads.download with supportsDownloads guard. Anchor-click fallback for Safari.",
+      "verified": true
+    },
+    {
+      "file": "features/dashboard/popup/popup.ts",
+      "status": "analyzed",
+      "category": "browser-dependent",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": ["chrome.downloads (2x) NOT SUPPORTED on Safari"], "requiredChanges": ["Anchor-click fallbacks added"] },
+      "browserSpecificApis": ["chrome.downloads (Safari unsupported, 2 usages)"],
+      "buildTimeInjectionRequired": true,
+      "runtimeDetectionRequired": false,
+      "action": "MODIFIED. Added BROWSER_CONFIG import. Wrapped both chrome.downloads.download calls. Anchor-click fallbacks for Safari.",
+      "verified": true
+    },
+    {
+      "file": "features/dashboard/popup/rating.ts",
+      "status": "analyzed",
+      "category": "browser-dependent",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "browserSpecificStrings": ["ratingPromptText", "ratingButtonLabel", "reviewUrl"],
+      "buildTimeInjectionRequired": true,
+      "runtimeDetectionRequired": false,
+      "action": "MODIFIED. Updated comments: Safari App Store URL is static, no extension ID substitution needed (unlike Chrome CWS).",
+      "verified": true
+    },
+    {
+      "file": "features/tracker/config/fsrsConfig.ts",
+      "status": "analyzed",
+      "category": "shared",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "browserSpecificApis": ["chrome.notifications (already typeof-guarded at runtime)"],
+      "action": "No change. Already uses typeof chrome !== 'undefined' && chrome.notifications guard.",
+      "verified": true
+    },
+    {
+      "file": "scripts/check-artifact-isolation.js",
+      "status": "analyzed",
+      "category": "build-tooling",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "action": "MODIFIED. Extended to audit Safari. 38/38 checks pass.",
+      "verified": true
+    },
+    {
+      "file": ".github/workflows/test.yml",
+      "status": "analyzed",
+      "category": "ci-cd",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "action": "MODIFIED. Added build:safari step (webpack only on ubuntu-latest). Safari bundle uploaded as CI artifact.",
+      "verified": true
+    },
+    {
+      "file": "content/content.ts",
+      "status": "analyzed",
+      "category": "shared",
+      "chrome": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "firefox": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "safari": { "compatible": true, "issues": [], "requiredChanges": [] },
+      "action": "No change. chrome.runtime/storage supported on Safari 15.4+.",
+      "verified": true
+    },
+    {
+      "file": "content/state.ts", "status": "analyzed", "category": "shared",
+      "chrome": { "compatible": true }, "firefox": { "compatible": true }, "safari": { "compatible": true },
+      "action": "No change. Browser-independent.", "verified": true
+    },
+    {
+      "file": "content/utils.ts", "status": "analyzed", "category": "shared",
+      "chrome": { "compatible": true }, "firefox": { "compatible": true }, "safari": { "compatible": true },
+      "action": "No change. Browser-independent.", "verified": true
+    },
+    {
+      "file": "content/notifications.ts", "status": "analyzed", "category": "shared",
+      "chrome": { "compatible": true }, "firefox": { "compatible": true }, "safari": { "compatible": true },
+      "action": "No change. DOM-based UI notification, not chrome.notifications.", "verified": true
+    },
+    {
+      "file": "types/chrome.d.ts", "status": "analyzed", "category": "type-declaration",
+      "chrome": { "compatible": true }, "firefox": { "compatible": true }, "safari": { "compatible": true },
+      "action": "No change. Safari uses same chrome.* namespace alias.", "verified": true
+    },
+    {
+      "file": "types/domain.ts", "status": "analyzed", "category": "shared",
+      "chrome": { "compatible": true }, "firefox": { "compatible": true }, "safari": { "compatible": true },
+      "action": "No change. Browser-independent types.", "verified": true
+    },
+    {
+      "file": "jest.config.js", "status": "analyzed", "category": "test-configuration",
+      "chrome": { "compatible": true }, "firefox": { "compatible": true }, "safari": { "compatible": true },
+      "action": "No change. Globals default to chrome which evaluates supportsX flags to true correctly.", "verified": true
+    },
+    {
+      "file": "icons/icon.png", "status": "analyzed", "category": "shared",
+      "chrome": { "compatible": true }, "firefox": { "compatible": true }, "safari": { "compatible": true },
+      "action": "No change. Shared by all three builds.", "verified": true
+    },
+    {
+      "file": "tsconfig.json", "status": "analyzed", "category": "shared",
+      "chrome": { "compatible": true }, "firefox": { "compatible": true }, "safari": { "compatible": true },
+      "action": "No change. ES2020 target compatible with Safari 15.4+.", "verified": true
+    }
+  ],
+  "safariPackagingNotes": {
+    "mechanism": "xcrun safari-web-extension-packager",
+    "command": "xcrun safari-web-extension-packager dist/safari --project-location release/safari/AlgoRecallSafari --force",
+    "prerequisites": ["macOS with Xcode installed", "Apple Developer Program for signing"],
+    "targets": ["Safari on macOS", "Safari on iOS/iPadOS (universal Xcode project)"],
+    "ciStrategy": "webpack bundle built on ubuntu-latest, xcrun packaging done manually on macOS or a separate macOS CI job"
+  },
+  "summary": {
+    "filesAnalyzed": 23,
+    "filesModified": 8,
+    "filesCreated": 1,
+    "filesPending": 0,
+    "chromeBuild": "PASS",
+    "firefoxBuild": "PASS",
+    "safariBuild": "PASS",
+    "artifactIsolationChecks": "38/38 PASS"
+  }
+}

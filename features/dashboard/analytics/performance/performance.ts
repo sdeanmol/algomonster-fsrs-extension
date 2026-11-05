@@ -1,6 +1,9 @@
 /**
  * @file features/dashboard/analytics/performance/performance.ts
- * @description Main controller for the Performance & Recovery tab.
+ * @description Main controller for the Performance & Recovery tab in the analytics dashboard.
+ * Coordinates review volume history breakdowns (daily, weekly, monthly) and lapse recovery tracking
+ * for cards undergoing memory rehabilitation.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { Logger } from '@common/logger';
@@ -8,12 +11,25 @@ import { RecoveryTracking } from './recoveryTracking';
 import { ReviewStats } from './reviewStats';
 import { DataUtils } from '../utils/dataUtils';
 
+/**
+ * Controller for the Performance & Recovery analytics tab.
+ * Aggregates study activity volume timelines and tracks recovery progress
+ * for flashcards that have experienced memory lapses.
+ */
 export class PerformanceTab {
+    /** Data utility instance for card statistics and activity queries */
     dataUtils: DataUtils;
+    /** Sub-component rendering review activity histograms and period averages */
     reviewStats: ReviewStats;
+    /** Sub-component tracking recovered versus struggling lapsed cards */
     recoveryTracking: RecoveryTracking;
+    /** Flag indicating whether the primary static DOM shell has already been mounted */
     rendered: boolean;
 
+    /**
+     * Initializes the PerformanceTab controller and instantiates child components.
+     * @param dataUtils - Card statistics and study history utility instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -30,6 +46,12 @@ export class PerformanceTab {
         }
     }
 
+    /**
+     * Renders the Performance tab DOM structure into the specified container element.
+     * Sets up event listeners for period switching and tag filtering on first mount.
+     * @param containerId - DOM ID of the container element hosting the tab.
+     * @returns void
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -113,6 +135,13 @@ export class PerformanceTab {
         }
     }
 
+    /**
+     * Inspects cards for high difficulty combined with one or more lapses,
+     * rendering an actionable advice banner instructing the user to reformulate problem cards,
+     * or a positive reinforcement banner if no trouble spots exist.
+     * @param containerId - DOM ID of the container element hosting the banner.
+     * @returns void
+     */
     renderNextAction(containerId: string): void {
         try {
             const container = document.getElementById(containerId);

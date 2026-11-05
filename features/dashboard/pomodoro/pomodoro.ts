@@ -1,53 +1,99 @@
 /**
  * @file features/dashboard/pomodoro/pomodoro.ts
- * @description Pomodoro Study Timer UI controller.
- * Syncs visually with the background service worker which handles the true timer state.
+ * @description Pomodoro Study Timer UI controller and visual renderer.
+ * Synchronizes timer countdown state with the background service worker, renders
+ * animated SVG progress rings, manages phase switching (focus -> shortBreak -> longBreak),
+ * and tracks daily study time and session counts.
+ *
+ * Architecture Role: Pomodoro Standalone Page Controller.
+ * Context: Extension Standalone Tab (`features/dashboard/pomodoro/pomodoro.html`).
+ * Key Exports:
+ * - {@link PomodoroSettings}: Configurable phase durations and cycle thresholds.
+ * - {@link PomodoroState}: Shared timer execution and session state object.
+ * - {@link PomodoroStats}: Daily aggregated study session counters.
+ * - {@link PomodoroTimer}: Controller class managing tick intervals, DOM updates, and background sync.
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { StorageData } from '../../../types/domain';
+import { DEFAULT_POMODORO_SETTINGS } from '../../common/constants';
 
+/**
+ * User-configurable duration and interval settings for the Pomodoro timer.
+ */
 export interface PomodoroSettings {
+    /** Duration of focus / work sessions in minutes. */
     focusDuration: number;
+    /** Duration of short break sessions in minutes. */
     shortBreakDuration: number;
+    /** Duration of long break sessions in minutes. */
     longBreakDuration: number;
+    /** Number of focus sessions required before triggering a long break. */
     sessionsBeforeLongBreak: number;
 }
 
+/**
+ * Live execution and synchronization state of the Pomodoro timer.
+ */
 export interface PomodoroState {
+    /** Current operating state: 'idle', 'running', or 'paused'. */
     state: 'idle' | 'running' | 'paused';
+    /** Current interval phase: 'focus', 'shortBreak', or 'longBreak'. */
     phase: 'focus' | 'shortBreak' | 'longBreak';
+    /** 1-based index of the active focus session within current cycle. */
     currentSession: number;
+    /** Seconds remaining until the active interval expires. */
     timeRemaining: number;
+    /** Total duration of the active interval in seconds. */
     totalTime: number;
+    /** Epoch timestamp in milliseconds when active interval should end, or null. */
     targetEndTime: number | null;
 }
 
+/**
+ * Aggregated daily performance metrics for completed Pomodoro sessions.
+ */
 export interface PomodoroStats {
+    /** Total focus sessions completed today. */
     sessionsToday?: number;
+    /** Total focus minutes accumulated today. */
     focusMinutesToday?: number;
+    /** Formatted date string (`toLocaleDateString`) indicating when stats were last recorded. */
     lastDate?: string;
 }
 
+/**
+ * Pomodoro timer controller managing SVG countdown visualization,
+ * UI controls (start, pause, reset, skip), and background alarm synchronization.
+ */
 export class PomodoroTimer {
+    /** Configured interval lengths and cycle thresholds. */
     settings: PomodoroSettings;
+    /** Timer running status: 'idle', 'running', or 'paused'. */
     state: 'idle' | 'running' | 'paused';
+    /** Active session phase: 'focus', 'shortBreak', or 'longBreak'. */
     phase: 'focus' | 'shortBreak' | 'longBreak';
+    /** 1-based session counter within the current cycle. */
     currentSession: number;
+    /** Remaining seconds in the current phase. */
     timeRemaining: number;
+    /** Total seconds allocated to the current phase. */
     totalTime: number;
+    /** Target completion epoch timestamp in milliseconds, or null if idle/paused. */
     targetEndTime: number | null;
+    /** Handle for the 1-second visual countdown interval. */
     intervalId: ReturnType<typeof setInterval> | null;
+    /** Number of focus sessions completed today. */
     todaySessions: number;
+    /** Total focus minutes logged today. */
     todayFocusMinutes: number;
 
+    /**
+     * Initializes default Pomodoro timer properties and settings defaults.
+     */
     constructor() {
-        this.settings = {
-            focusDuration: 25,
-            shortBreakDuration: 5,
-            longBreakDuration: 15,
-            sessionsBeforeLongBreak: 4
-        };
+        this.settings = { ...DEFAULT_POMODORO_SETTINGS };
 
         this.state = 'idle';
         this.phase = 'focus';
@@ -61,6 +107,12 @@ export class PomodoroTimer {
         this.todayFocusMinutes = 0;
     }
 
+    /**
+     * Initializes timer by loading persistent settings and state from storage,
+     * registering storage change listeners, and syncing visual indicators.
+     * @listens chrome.storage.local
+     * @listens chrome.storage.onChanged
+     */
     init(): void {
         try {
             chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result: StorageData & {
@@ -91,7 +143,7 @@ export class PomodoroTimer {
                         this.resetState();
                     }
 
-                    const stats = result.pomodoroStats || {};
+                    const stats: Partial<PomodoroStats> = result.pomodoroStats || {};
                     if (stats.lastDate === new Date().toLocaleDateString()) {
                         this.todaySessions = stats.sessionsToday || 0;
                         this.todayFocusMinutes = stats.focusMinutesToday || 0;
@@ -130,23 +182,21 @@ export class PomodoroTimer {
                                 }
                             }
                         } catch (changeErr) {
-                            const errorMessage = changeErr instanceof Error ? changeErr.message : String(changeErr);
-                            Logger.error('PomodoroTimer', `Error handling storage change event: ${errorMessage}`, { changeErr });
-                        }
+            UIUtils.catchError('PomodoroTimer', 'Error handling storage change event', changeErr);
+        }
                     });
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('PomodoroTimer', `Error during pomodoro dashboard init: ${errorMessage}`, { innerErr });
-                    // Comment: Non-fatal initialization error
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error during pomodoro dashboard init', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Failed to fetch storage in Pomodoro init: ${errorMessage}`, { err });
-            // Comment: Catch storage retrieval error gracefully
+            UIUtils.catchError('PomodoroTimer', 'Failed to fetch storage in Pomodoro init', err);
         }
     }
 
+    /**
+     * Resets internal countdown and session state back to default focus phase.
+     */
     resetState(): void {
         try {
             this.state = 'idle';
@@ -156,11 +206,14 @@ export class PomodoroTimer {
             this.timeRemaining = this.totalTime;
             this.targetEndTime = null;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error resetting pomodoro state: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error resetting pomodoro state', err);
         }
     }
 
+    /**
+     * Generates a serializable snapshot of the current timer execution state.
+     * @returns Serializable {@link PomodoroState} object.
+     */
     getStateObj(): PomodoroState {
         try {
             return {
@@ -185,6 +238,10 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Synchronizes local UI timer properties with incoming background state updates.
+     * @param newState - New PomodoroState received from storage or message event.
+     */
     syncState(newState: PomodoroState | undefined): void {
         try {
             if (!newState) return;
@@ -213,60 +270,58 @@ export class PomodoroTimer {
             this.updatePhaseIndicator();
             this.updateSessionDots();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error syncing pomodoro state: ${errorMessage}`, { newState, err });
+            UIUtils.catchError('PomodoroTimer', 'Error syncing pomodoro state', err, { newState });
         }
     }
 
+    /**
+     * Attaches click handlers to start, pause, reset, skip, and save settings buttons.
+     */
     bindEvents(): void {
         try {
             document.getElementById('start-btn')?.addEventListener('click', () => {
                 try {
                     this.start();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('PomodoroTimer', `Error in start button click handler: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in start button click handler', err);
+        }
             });
             document.getElementById('pause-btn')?.addEventListener('click', () => {
                 try {
                     this.pause();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('PomodoroTimer', `Error in pause button click handler: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in pause button click handler', err);
+        }
             });
             document.getElementById('reset-btn')?.addEventListener('click', () => {
                 try {
                     this.reset();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('PomodoroTimer', `Error in reset button click handler: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in reset button click handler', err);
+        }
             });
             document.getElementById('skip-btn')?.addEventListener('click', () => {
                 try {
                     this.skip();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('PomodoroTimer', `Error in skip button click handler: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in skip button click handler', err);
+        }
             });
             document.getElementById('save-settings-btn')?.addEventListener('click', () => {
                 try {
                     this.saveSettings();
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('PomodoroTimer', `Error in save settings button click handler: ${errorMessage}`, { err });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in save settings button click handler', err);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error binding pomodoro events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event listener binding error
+            UIUtils.catchError('PomodoroTimer', 'Error binding pomodoro events', err);
         }
     }
 
+    /**
+     * Populates settings modal input fields with values from `this.settings`.
+     */
     loadSettingsUI(): void {
         try {
             const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
@@ -279,11 +334,14 @@ export class PomodoroTimer {
             if (longInput) longInput.value = String(this.settings.longBreakDuration);
             if (sessionsInput) sessionsInput.value = String(this.settings.sessionsBeforeLongBreak);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error loading settings UI: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error loading settings UI', err);
         }
     }
 
+    /**
+     * Reads updated durations from settings modal inputs and persists them to storage.
+     * @fires chrome.storage.local.set
+     */
     saveSettings(): void {
         try {
             const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
@@ -308,16 +366,18 @@ export class PomodoroTimer {
                     }
                     this.reset();
                 } catch (cbErr) {
-                    const errorMessage = cbErr instanceof Error ? cbErr.message : String(cbErr);
-                    Logger.error('PomodoroTimer', `Error in storage set callback for saveSettings: ${errorMessage}`, { cbErr });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in storage set callback for saveSettings', cbErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error saving pomodoro settings: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error saving pomodoro settings', err);
         }
     }
 
+    /**
+     * Resolves the configured duration in minutes for the active phase.
+     * @returns Phase length in minutes.
+     */
     getPhaseDuration(): number {
         try {
             switch (this.phase) {
@@ -333,6 +393,11 @@ export class PomodoroTimer {
         }
     }
 
+    /**
+     * Starts or resumes timer countdown, saving state to storage and sending command to background worker.
+     * @fires chrome.storage.local.set
+     * @fires chrome.runtime.sendMessage
+     */
     start(): void {
         try {
             if (this.state === 'running') return;
@@ -349,11 +414,15 @@ export class PomodoroTimer {
             });
             chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'start', state: stateObj } });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error starting pomodoro timer: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error starting pomodoro timer', err);
         }
     }
 
+    /**
+     * Pauses active countdown, saving remaining time and notifying background worker.
+     * @fires chrome.storage.local.set
+     * @fires chrome.runtime.sendMessage
+     */
     pause(): void {
         try {
             if (this.state !== 'running') return;
@@ -373,11 +442,15 @@ export class PomodoroTimer {
             });
             chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'pause', state: stateObj } });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error pausing pomodoro timer: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error pausing pomodoro timer', err);
         }
     }
 
+    /**
+     * Resets timer to initial focus state, saving state and notifying background worker.
+     * @fires chrome.storage.local.set
+     * @fires chrome.runtime.sendMessage
+     */
     reset(): void {
         try {
             this.resetState();
@@ -391,11 +464,15 @@ export class PomodoroTimer {
             });
             chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'reset', state: stateObj } });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error resetting pomodoro timer: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error resetting pomodoro timer', err);
         }
     }
 
+    /**
+     * Skips current phase immediately to the subsequent cycle stage (e.g. Focus -> Break).
+     * @fires chrome.storage.local.set
+     * @fires chrome.runtime.sendMessage
+     */
     skip(): void {
         try {
             if (this.phase === 'focus') {
@@ -427,11 +504,13 @@ export class PomodoroTimer {
             });
             chrome.runtime.sendMessage({ action: 'pomodoro_action', payload: { command: 'skip', state: stateObj } });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error skipping pomodoro phase: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error skipping pomodoro phase', err);
         }
     }
 
+    /**
+     * Starts 1-second interval loop updating the clock display and SVG ring.
+     */
     startVisualInterval(): void {
         try {
             this.stopVisualInterval();
@@ -452,9 +531,8 @@ export class PomodoroTimer {
                     this.updateDisplay();
                     this.updateRing();
                 } catch (tickErr) {
-                    const errorMessage = tickErr instanceof Error ? tickErr.message : String(tickErr);
-                    Logger.error('PomodoroTimer', `Error in visual timer tick: ${errorMessage}`, { tickErr });
-                }
+            UIUtils.catchError('PomodoroTimer', 'Error in visual timer tick', tickErr);
+        }
             };
             
             tick();
@@ -462,11 +540,13 @@ export class PomodoroTimer {
             this.updatePhaseIndicator();
             this.updateSessionDots();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error starting visual interval: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error starting visual interval', err);
         }
     }
     
+    /**
+     * Stops and clears the 1-second visual timer update interval.
+     */
     stopVisualInterval(): void {
         try {
             if (this.intervalId) {
@@ -474,11 +554,13 @@ export class PomodoroTimer {
                 this.intervalId = null;
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error stopping visual interval: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error stopping visual interval', err);
         }
     }
 
+    /**
+     * Updates the main digital clock text (MM:SS) and window title.
+     */
     updateDisplay(): void {
         try {
             const minutes = Math.floor(this.timeRemaining / 60);
@@ -493,11 +575,13 @@ export class PomodoroTimer {
             const phaseLabelEl = document.getElementById('timer-phase-label');
             if (phaseLabelEl) phaseLabelEl.textContent = labels[this.phase] || 'Focus Time';
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error updating timer display: ${errorMessage}`, { timeRemaining: this.timeRemaining, err });
+            UIUtils.catchError('PomodoroTimer', 'Error updating timer display', err, { timeRemaining: this.timeRemaining });
         }
     }
 
+    /**
+     * Updates strokeDashoffset on the SVG countdown ring based on elapsed time ratio.
+     */
     updateRing(): void {
         try {
             const ring = document.getElementById('timer-ring-fill');
@@ -516,11 +600,13 @@ export class PomodoroTimer {
                 ring.classList.add('break-ring');
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error updating SVG progress ring: ${errorMessage}`, { err });
+            UIUtils.catchError('PomodoroTimer', 'Error updating SVG progress ring', err);
         }
     }
 
+    /**
+     * Highlights the active phase pill ('focus', 'shortBreak', or 'longBreak').
+     */
     updatePhaseIndicator(): void {
         try {
             const pills: Record<string, HTMLElement | null> = {
@@ -538,11 +624,13 @@ export class PomodoroTimer {
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error updating phase indicator pills: ${errorMessage}`, { phase: this.phase, err });
+            UIUtils.catchError('PomodoroTimer', 'Error updating phase indicator pills', err, { phase: this.phase });
         }
     }
 
+    /**
+     * Updates cycle progress dots indicating how many sessions have been completed.
+     */
     updateSessionDots(): void {
         try {
             const dotsContainer = document.getElementById('session-dots');
@@ -563,11 +651,13 @@ export class PomodoroTimer {
                 sessionText.textContent = `${this.currentSession} of ${total}`;
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error updating session dots: ${errorMessage}`, { currentSession: this.currentSession, err });
+            UIUtils.catchError('PomodoroTimer', 'Error updating session dots', err, { currentSession: this.currentSession });
         }
     }
 
+    /**
+     * Formats and updates the daily completed sessions and focus time stat labels.
+     */
     updateTodayStats(): void {
         try {
             const sessionsEl = document.getElementById('today-sessions');
@@ -584,21 +674,22 @@ export class PomodoroTimer {
                 }
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('PomodoroTimer', `Error updating today stats UI: ${errorMessage}`, { todaySessions: this.todaySessions, todayFocusMinutes: this.todayFocusMinutes, err });
+            UIUtils.catchError('PomodoroTimer', 'Error updating today stats UI', err, { todaySessions: this.todaySessions, todayFocusMinutes: this.todayFocusMinutes });
         }
     }
 }
 
+/**
+ * Initializes Pomodoro controller and attaches to global window scope on DOM load.
+ */
 function initPomodoro(): void {
     try {
         const win = window as unknown as { pomodoro?: PomodoroTimer };
         win.pomodoro = new PomodoroTimer();
         win.pomodoro.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('PomodoroTimer', `Initialization failed: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('PomodoroTimer', 'Initialization failed', err);
+        }
 }
 
 if (typeof document !== 'undefined') {

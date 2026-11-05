@@ -1,31 +1,19 @@
+/**
+ * @file content/notifications.ts
+ * @description In-page interactive alert and review notification overlay system.
+ * Injects custom floating toast notifications directly into host DOM, enabling users
+ * to review due cards, snooze notifications, or dismiss alerts without leaving the page.
+ * 
+ * Context: Content script isolation layer (injected into whitelisted problem solving tabs).
+ * 
+ * Key Exports:
+ * - `Notifier`: Static notification controller class managing toast rendering, animations, and actions.
+ */
+
 import { Logger } from '@common/logger';
-import { AlgoRecallState } from './state';
+import { AlgoRecallState, getAlgoRecallGlobal } from './state';
 import { MessageResponse } from '../types/domain';
 import { SNOOZE_DEFAULT_MINUTES } from '../features/common/constants';
-
-interface AlgoRecallGlobal {
-    state?: AlgoRecallState;
-    Notifier?: typeof Notifier;
-    orchestrator?: {
-        tracker?: {
-            refreshWidgetState(): void;
-            startReview(): void;
-        };
-    };
-}
-
-function getAlgoRecallGlobal(): AlgoRecallGlobal {
-    try {
-        const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
-        win.AlgoRecall = win.AlgoRecall || {};
-        return win.AlgoRecall;
-    } catch (err) {
-        // Comment: Safe recovery fallback if window global access fails
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('Notifier', `Failed to access window global in getAlgoRecallGlobal: ${errorMessage}`, { err });
-        return {};
-    }
-}
 
 /**
  * @class PageNotifier
@@ -37,10 +25,13 @@ export class Notifier {
     /**
      * Creates and appends an interactive custom floating notification popup card inside the current tab body.
      * Auto-dismisses standard alert flags after 6 seconds; review reminder flags remain sticky.
+     * 
      * @param {string} title - The header title string of the notification.
      * @param {string} message - Descriptive text message.
-     * @param {string} type - Notification type: 'review' (displays review options) or 'test'/other (simple alert).
+     * @param {string} type - Notification type: 'review' (displays review/snooze options) or 'test'/other (simple alert).
      * @param {number} [count] - Optional counter indicating total due review items.
+     * @fires chrome.runtime.sendMessage Sends `snooze_notification` message when the user clicks snooze.
+     * @returns {void}
      */
     static showPageNotification(title: string, message: string, type: string, count?: number): void {
         try {
@@ -82,15 +73,21 @@ export class Notifier {
                 `;
             }
 
+            const escapeHTML = (str: string) => {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            };
+
             notification.innerHTML = `
                 <div class="algo-notif-header">
                     <div class="algo-notif-header-left">
                         <span class="${iconClass}">${iconSymbol}</span>
-                        <span class="algo-notif-title">${title}</span>
+                        <span class="algo-notif-title">${escapeHTML(title)}</span>
                     </div>
                     <button id="algo-notif-btn-close" class="algo-notif-close" aria-label="Close" title="Close">&times;</button>
                 </div>
-                <p class="algo-notif-message">${message}</p>
+                <p class="algo-notif-message">${escapeHTML(message)}</p>
                 ${buttonsHtml}
             `;
 
@@ -114,15 +111,21 @@ export class Notifier {
                     notification.addEventListener('transitionend', () => {
                         try {
                             notification.remove();
-                        } catch {
-                            // Comment: Ignore DOM removal error if element was already removed
+                        } catch (removeErr) {
+                            const errorMessage = removeErr instanceof Error ? removeErr.message : String(removeErr);
+                            Logger.debug('Notifier', `Ignore DOM removal error if element was already removed: ${errorMessage}`, { removeErr });
                         }
                     }, { once: true });
                 } catch (dismissErr) {
                     // Comment: Direct cleanup fallback if transition fails
                     const errorMessage = dismissErr instanceof Error ? dismissErr.message : String(dismissErr);
                     Logger.error('Notifier', `Error in dismissNotification helper: ${errorMessage}`, { dismissErr });
-                    try { notification.remove(); } catch { /* Ignore */ }
+                    try {
+                        notification.remove();
+                    } catch (cleanupErr) {
+                        const cleanupMsg = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+                        Logger.debug('Notifier', `Ignore notification cleanup removal error: ${cleanupMsg}`, { cleanupErr });
+                    }
                 }
             };
 
@@ -165,17 +168,19 @@ export class Notifier {
                     try {
                         if (autoDismissTimer) clearTimeout(autoDismissTimer);
                         dismissNotification();
-                        chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: SNOOZE_DEFAULT_MINUTES }, (_response?: MessageResponse) => {
-                            try {
-                                if (chrome.runtime.lastError) {
-                                    const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                    Logger.error('Notifier', `Error sending snooze message: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+                            chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: SNOOZE_DEFAULT_MINUTES }, (_response?: MessageResponse) => {
+                                try {
+                                    if (chrome.runtime.lastError) {
+                                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                                        Logger.error('Notifier', `Error sending snooze message: ${errorMessage}`, { error: chrome.runtime.lastError });
+                                    }
+                                } catch (msgErr) {
+                                    const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
+                                    Logger.error('Notifier', `Error handling snooze response callback: ${errorMessage}`, { msgErr });
                                 }
-                            } catch (msgErr) {
-                                const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
-                                Logger.error('Notifier', `Error handling snooze response callback: ${errorMessage}`, { msgErr });
-                            }
-                        });
+                            });
+                        }
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('Notifier', `Context invalidation on snooze message: ${errorMessage}`, { err });

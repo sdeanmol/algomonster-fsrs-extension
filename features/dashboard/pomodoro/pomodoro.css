@@ -1,7 +1,9 @@
-/*
+/**
  * @file features/dashboard/pomodoro/pomodoro.css
- * @description Styling for the Pomodoro Study Timer page.
- * Upstream dependency: features/common/base.css
+ * @context Pomodoro Timer UI / Dedicated Options Tab
+ * @description Styles for focus and break countdown cycles, dynamic SVG circular stroke meter, session counters, and phase indicator buttons.
+ * @isolation Global within the Pomodoro Timer page context.
+ * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-success, --md-text-high, --md-text-low).
  */
 body {
     background-color: var(--md-bg);
@@ -10,7 +12,7 @@ body {
     transition: background-color 0.5s ease;
 }
 
-/* Phase-based background tinting */
+/* Phase-based dynamic background tinting: applied to body by pomodoro.ts */
 body.phase-focus {
     background: linear-gradient(180deg, var(--md-bg), rgba(168, 199, 250, 0.03));
 }
@@ -27,7 +29,23 @@ body.phase-break {
     align-items: center;
 }
 
-/* Phase Indicator Pills */
+/* Header */
+.pomodoro-header {
+    text-align: center;
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.pomodoro-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--md-text-high);
+}
+
+/* Phase Indicator Pills: shows active phase */
 .phase-indicator {
     display: flex;
     gap: 6px;
@@ -49,12 +67,14 @@ body.phase-break {
     letter-spacing: 0.3px;
 }
 
+/* Active focus phase pill state */
 .phase-pill.active {
     background: var(--md-primary);
     color: #fff;
     box-shadow: 0 2px 8px rgba(168, 199, 250, 0.3);
 }
 
+/* Active break phase pill state */
 .phase-pill.active.break-active {
     background: var(--md-success);
     box-shadow: 0 2px 8px rgba(129, 201, 149, 0.3);
@@ -193,6 +213,7 @@ body.phase-break {
     transition: background 0.3s ease, transform 0.2s ease;
 }
 
+/* Session Dot Dynamic States: toggled by pomodoro.ts as user finishes focus intervals */
 .session-dot.active {
     background: var(--md-primary);
     border-color: var(--md-primary);

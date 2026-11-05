@@ -1,20 +1,40 @@
 /**
  * @file features/dashboard/popup/rating.ts
- * @description Manages feedback/rating prompts shown to users in the popup options dashboard.
+ * @description Manages store review and feedback prompts shown to users in the popup options dashboard.
+ * Dynamically resolves browser-specific Web Store / Add-on links (Chrome, Firefox AMO, Safari)
+ * from build-time configuration, tracks snooze durations, and handles rating status persistence.
+ *
+ * Architecture Role: Popup Sub-View Component (Rating & Store Feedback).
+ * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
+ * Key Exports:
+ * - {@link RatingComponent}: Sub-view component class managing the store review prompt card.
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData } from '../../../types/domain';
+import { BROWSER_CONFIG } from '../../common/browserConfig';
 
+/**
+ * Sub-component for the popup dashboard that manages extension store rating prompts,
+ * snooze timers, and review links targeted to the user's specific browser runtime.
+ */
 export class RatingComponent extends DashboardComponent {
+    /**
+     * Initializes the rating component with a coordinator reference.
+     * @param coordinator - Parent dashboard coordinator.
+     */
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
     }
 
     /**
-     * Initializes CWS feedback banner elements, sets up action button hooks (snooze, rated),
+     * Initializes CWS/AMO feedback banner elements, sets up action button hooks (snooze, rated),
      * and reads rating configurations from local storage.
+     * Browser-specific store text and URLs are injected from BROWSER_CONFIG (build-time).
+     * @async
+     * @returns Promise resolving when rating state has been loaded and UI updated.
      */
     async load(): Promise<void> {
         try {
@@ -22,13 +42,47 @@ export class RatingComponent extends DashboardComponent {
             const promptState = document.getElementById('rating-prompt-state');
             const thanksState = document.getElementById('rating-thanks-state');
             const rateBtn = document.getElementById('rate-store-btn') as HTMLAnchorElement | null;
+            const rateLabel = document.getElementById('rate-store-label');
+            const ratingPromptText = document.getElementById('rating-prompt-text');
+            const staticReviewLink = document.getElementById('static-review-link') as HTMLAnchorElement | null;
 
             if (!card) return;
 
-            // Fetch unique extension ID to replace YOUR_EXTENSION_ID in review links
-            const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : undefined;
-            if (extId && rateBtn && rateBtn.href) {
-                rateBtn.href = rateBtn.href.replace('YOUR_EXTENSION_ID', extId);
+            // Inject browser-specific store text and review URL from build-time config.
+            // BROWSER_CONFIG.reviewUrl and BROWSER_CONFIG.ratingButtonLabel are set at bundle
+            // time by webpack DefinePlugin — no runtime browser detection needed.
+            const reviewUrl = BROWSER_CONFIG.reviewUrl;
+
+            if (rateBtn) {
+                // Only Chrome Web Store URLs embed the extension ID at runtime.
+                // Firefox AMO and Safari App Store URLs are static slugs.
+                if (BROWSER_CONFIG.target === 'chrome') {
+                    const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : undefined;
+                    rateBtn.href = extId
+                        ? reviewUrl.replace('YOUR_EXTENSION_ID', extId)
+                        : reviewUrl;
+                } else {
+                    rateBtn.href = reviewUrl;
+                }
+            }
+
+            if (rateLabel) {
+                rateLabel.textContent = BROWSER_CONFIG.ratingButtonLabel;
+            }
+
+            if (ratingPromptText) {
+                ratingPromptText.textContent = BROWSER_CONFIG.ratingPromptText;
+            }
+
+            if (staticReviewLink) {
+                if (BROWSER_CONFIG.target === 'chrome') {
+                    const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : undefined;
+                    staticReviewLink.href = extId
+                        ? reviewUrl.replace('YOUR_EXTENSION_ID', extId)
+                        : reviewUrl;
+                } else {
+                    staticReviewLink.href = reviewUrl;
+                }
             }
 
             const result = (await chrome.storage.local.get(['ratingPromptState', 'fsrsCards'])) as StorageData & {
@@ -60,10 +114,14 @@ export class RatingComponent extends DashboardComponent {
             } else {
                 card.classList.add('hide-panel');
             }
+
+            // UA-014: Consolidate store review CTAs — hide static review banner when prompt card is visible
+            const staticBanner = document.querySelector('.static-review-banner') as HTMLElement | null;
+            if (staticBanner) {
+                staticBanner.style.display = card.classList.contains('hide-panel') ? 'block' : 'none';
+            }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.error('RatingComponent', `Error loading rating prompt config: ${errorMessage}`, { error });
-            // Comment: Non-fatal rating prompt load catch
+            UIUtils.catchError('RatingComponent', 'Error loading rating prompt config', error);
         }
     }
 
@@ -81,6 +139,11 @@ export class RatingComponent extends DashboardComponent {
 
             if (!card) return;
 
+            const updateStaticBanner = (show: boolean) => {
+                const staticBanner = document.querySelector('.static-review-banner') as HTMLElement | null;
+                if (staticBanner) staticBanner.style.display = show ? 'block' : 'none';
+            };
+
             if (snoozeBtn) {
                 snoozeBtn.addEventListener('click', async () => {
                     const snoozedUntil = Date.now() + 7 * 24 * 60 * 60 * 1000; // Snooze for 7 days
@@ -89,11 +152,11 @@ export class RatingComponent extends DashboardComponent {
                             ratingPromptState: { status: 'snoozed', snoozedUntil }
                         });
                         card.classList.add('hide-panel');
+                        updateStaticBanner(true);
                         this.showStatus("Notification paused for 7 days!");
                     } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        Logger.error('RatingComponent', `Error saving snooze state: ${errorMessage}`, { error });
-                    }
+            UIUtils.catchError('RatingComponent', 'Error saving snooze state', error);
+        }
                 });
             }
 
@@ -105,36 +168,38 @@ export class RatingComponent extends DashboardComponent {
                         });
                         promptState?.classList.add('hide-panel');
                         thanksState?.classList.remove('hide-panel');
+                        updateStaticBanner(false);
                         this.showStatus("Thank you for your rating!");
                     } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        Logger.error('RatingComponent', `Error setting already rated status: ${errorMessage}`, { error });
-                    }
+            UIUtils.catchError('RatingComponent', 'Error setting already rated status', error);
+        }
                 });
             }
 
             if (editBtn) {
                 editBtn.addEventListener('click', async () => {
                     try {
-                        const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : 'unknown';
-                        const url = `https://chromewebstore.google.com/detail/${extId}/reviews`;
+                        // Navigate to the appropriate store review page for this browser target
+                        let url = BROWSER_CONFIG.reviewUrl;
+                        if (BROWSER_CONFIG.target === 'chrome') {
+                            // Chrome: substitute the runtime extension ID into the CWS URL
+                            const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : 'unknown';
+                            url = url.replace('YOUR_EXTENSION_ID', extId);
+                        }
+                        // Firefox AMO and Safari App Store URLs are static — no substitution needed.
                         chrome.tabs.create({ url });
-                        
                         await chrome.storage.local.set({
                             ratingPromptState: { status: 'unrated', snoozedUntil: 0 }
                         });
                         promptState?.classList.remove('hide-panel');
                         thanksState?.classList.add('hide-panel');
                     } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : String(error);
-                        Logger.error('RatingComponent', `Error resetting rating status: ${errorMessage}`, { error });
-                    }
+            UIUtils.catchError('RatingComponent', 'Error resetting rating status', error);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('RatingComponent', `Error binding rating events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event binding catch
+            UIUtils.catchError('RatingComponent', 'Error binding rating events', err);
         }
     }
 }

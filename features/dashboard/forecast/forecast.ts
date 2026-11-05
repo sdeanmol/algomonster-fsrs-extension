@@ -1,26 +1,43 @@
 /**
  * @file features/dashboard/forecast/forecast.ts
- * @description Main controller for the dedicated forecast future workloads dashboard.
+ * @description Main controller for the dedicated review forecast dashboard page.
  * Projects upcoming review volumes up to 30 days based on scheduled card due dates,
- * rendering column charts and interactive calendars.
+ * rendering interactive CSS column charts, a 30-day calendar grid, and aggregate metrics.
+ *
+ * Architecture Role: Forecast Standalone Page Controller.
+ * Context: Extension Standalone Tab (`features/dashboard/forecast/forecast.html`).
+ * Key Exports:
+ * - {@link ForecastDashboard}: Main dashboard class calculating daily review loads and rendering charts.
  */
 
 import { Logger } from '@common/logger';
-import { Card, StorageData, ChromeSettings } from '../../../types/domain';
+import { UIUtils } from '../../common/utils/uiUtils';
+import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
+import { FORECAST_DAYS_TO_SHOW, DAY_NAMES_SHORT } from '../../common/constants';
 
+/**
+ * Controller for the review workload forecast dashboard page.
+ * Aggregates card due dates across the next 30 days and renders an interactive
+ * column chart and calendar view allowing drill-down into specific forecast dates.
+ */
 export class ForecastDashboard {
-    chromeSettings: ChromeSettings;
+    /** Cached extension settings, including chart visibility toggles. */
+    extensionSettings: ExtensionSettings;
 
+    /**
+     * Creates an instance of ForecastDashboard with initial empty settings.
+     */
     constructor() {
-        this.chromeSettings = {};
+        this.extensionSettings = {};
     }
 
     /**
-     * Bootstraps forecast settings and triggers UI loads.
+     * Bootstraps forecast settings and triggers UI loads by fetching card data from local storage.
+     * @listens chrome.storage.local
      */
     init(): void {
         try {
-            chrome.storage.local.get(['fsrsCards', 'chromeSettings'], (result: StorageData) => {
+            chrome.storage.local.get(['fsrsCards', 'extensionSettings'], (result: StorageData) => {
                 try {
                     const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                     if (lastError) {
@@ -30,18 +47,14 @@ export class ForecastDashboard {
                     }
 
                     const cards: Card[] = result.fsrsCards || [];
-                    this.chromeSettings = result.chromeSettings || {};
+                    this.extensionSettings = result.extensionSettings || {};
                     this.renderForecast(cards);
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('ForecastDashboard', `Error rendering forecast: ${errorMessage}`, { innerErr });
-                    // Comment: Non-fatal chart rendering error
-                }
+            UIUtils.catchError('ForecastDashboard', 'Error rendering forecast', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ForecastDashboard', `Failed storage get in Forecast init: ${errorMessage}`, { err });
-            // Comment: Catch storage retrieval failure gracefully
+            UIUtils.catchError('ForecastDashboard', 'Failed storage get in Forecast init', err);
         }
     }
 
@@ -53,7 +66,7 @@ export class ForecastDashboard {
         try {
             const now = new Date();
             const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const daysToShow = 30;
+            const daysToShow = FORECAST_DAYS_TO_SHOW;
 
             const dueCounts: Record<number, number> = {};
             let pastDueCount = 0;
@@ -110,7 +123,7 @@ export class ForecastDashboard {
             if (!calendar) return;
             calendar.innerHTML = '';
 
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const dayNames = DAY_NAMES_SHORT;
             dayNames.forEach(name => {
                 const header = document.createElement('div');
                 header.className = 'cal-header';
@@ -160,9 +173,8 @@ export class ForecastDashboard {
                             }
                         });
                     } catch (clickErr) {
-                        const errorMessage = clickErr instanceof Error ? clickErr.message : String(clickErr);
-                        Logger.error('ForecastDashboard', `Error in calendar cell click handler: ${errorMessage}`, { cellDateStr, clickErr });
-                    }
+            UIUtils.catchError('ForecastDashboard', 'Error in calendar cell click handler', clickErr, { cellDateStr });
+        }
                 });
 
                 calendar.appendChild(cell);
@@ -181,12 +193,15 @@ export class ForecastDashboard {
             `;
             calendar.parentElement?.appendChild(legend);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ForecastDashboard', `Error orchestrating forecast rendering: ${errorMessage}`, { err });
-            // Comment: Non-fatal forecast orchestration error
+            UIUtils.catchError('ForecastDashboard', 'Error orchestrating forecast rendering', err);
         }
     }
 
+    /**
+     * Formats a date object into a short localized string (e.g., "Jan 5").
+     * @param date - Date to format.
+     * @returns Formatted short date string.
+     */
     formatDateShort(date: Date): string {
         try {
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -197,6 +212,11 @@ export class ForecastDashboard {
         }
     }
 
+    /**
+     * Formats a date object into a full localized string with weekday (e.g., "Mon, Jan 5").
+     * @param date - Date to format.
+     * @returns Formatted full date string.
+     */
     formatDateFull(date: Date): string {
         try {
             return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -207,6 +227,11 @@ export class ForecastDashboard {
         }
     }
 
+    /**
+     * Formats a date object into an ISO-style date key (`YYYY-MM-DD`) in local time.
+     * @param date - Date to convert.
+     * @returns `YYYY-MM-DD` date key string.
+     */
     formatDateKey(date: Date): string {
         try {
             return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -217,13 +242,19 @@ export class ForecastDashboard {
         }
     }
 
+    /**
+     * Renders a responsive CSS column bar chart showing daily review volume projections.
+     * @param dueCounts - Map of day offset index to projected number of due cards.
+     * @param todayStart - Midnight timestamp of the current day.
+     * @param daysToShow - Total number of forecast days to visualize.
+     */
     renderForecastChart(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {
         try {
             const chartWrapper = document.getElementById('forecast-chart-wrapper');
             if (!chartWrapper) return;
 
-            const showCharts = this.chromeSettings && this.chromeSettings.showCharts !== undefined
-                ? this.chromeSettings.showCharts
+            const showCharts = this.extensionSettings && this.extensionSettings.showCharts !== undefined
+                ? this.extensionSettings.showCharts
                 : true;
 
             if (!showCharts) {
@@ -329,9 +360,8 @@ export class ForecastDashboard {
                                 }
                             });
                         } catch (clickErr) {
-                            const errorMessage = clickErr instanceof Error ? clickErr.message : String(clickErr);
-                            Logger.error('ForecastDashboard', `Error in chart bar click handler: ${errorMessage}`, { dp, clickErr });
-                        }
+            UIUtils.catchError('ForecastDashboard', 'Error in chart bar click handler', clickErr, { dp });
+        }
                     });
                 }
 
@@ -342,20 +372,21 @@ export class ForecastDashboard {
             chartContainerInner.appendChild(viewport);
             chartWrapper.appendChild(chartContainerInner);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ForecastDashboard', `Error rendering forecast chart: ${errorMessage}`, { err });
+            UIUtils.catchError('ForecastDashboard', 'Error rendering forecast chart', err);
         }
     }
 }
 
+/**
+ * Initializes the forecast dashboard controller on DOM load.
+ */
 function initForecast(): void {
     try {
         const forecast = new ForecastDashboard();
         forecast.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('ForecastDashboard', `Initialization failed: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('ForecastDashboard', 'Initialization failed', err);
+        }
 }
 
 if (typeof document !== 'undefined') {

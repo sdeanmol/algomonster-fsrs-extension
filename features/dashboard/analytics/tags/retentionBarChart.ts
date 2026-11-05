@@ -1,15 +1,28 @@
 /**
  * @file features/dashboard/analytics/tags/retentionBarChart.ts
- * @description Renders the retention and stability bar chart for tag analytics.
+ * @description Renders a sorted horizontal bar chart comparing memory performance metrics
+ * (retention, stability, card count, or lapse rate) across the top 10 tags.
+ * Supports interactive tag filtering via Chrome tab creation.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { Logger } from '@common/logger';
 import { DataUtils } from '../utils/dataUtils';
 
+/**
+ * Visualizes comparative performance across tags using horizontal progress bars.
+ * Allows sorting by retrievability, stability, card count, or lapse count.
+ */
 export class RetentionBarChart {
+    /** Data utility instance for querying card stats grouped by tag */
     dataUtils: DataUtils;
+    /** Current metric used to sort the displayed tags ('retention' | 'stability' | 'cards' | 'lapses') */
     sortBy: string;
 
+    /**
+     * Initializes the RetentionBarChart with the data provider and default sorting.
+     * @param dataUtils - Card statistics helper instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -22,6 +35,11 @@ export class RetentionBarChart {
         }
     }
 
+    /**
+     * Updates the current sort criterion for the bar chart.
+     * @param val - Selected sorting key ('retention', 'stability', 'cards', or 'lapses').
+     * @returns void
+     */
     setSortBy(val: string): void {
         try {
             this.sortBy = val || 'retention';
@@ -31,6 +49,13 @@ export class RetentionBarChart {
         }
     }
 
+    /**
+     * Generates horizontal bars for the top 10 tags sorted by the selected metric
+     * and injects the markup into the target container. Attaches click handlers to tag pills.
+     * @param containerId - DOM ID of the container element hosting the bar chart.
+     * @returns void
+     * @fires chrome.tabs.create
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);

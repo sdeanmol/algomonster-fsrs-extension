@@ -1,17 +1,37 @@
 /**
  * @file features/dashboard/summary/summary.ts
  * @description Controller for the dynamic Weekly and Monthly Digest Summary page.
+ * Aggregates study metrics, retention trends, leech patterns, topic mastery distributions,
+ * and generates actionable study insights.
+ *
+ * Architecture Role: Summary Digest Standalone Page Controller.
+ * Context: Extension Standalone Tab (`features/dashboard/summary/summary.html`).
+ * Key Exports:
+ * - {@link SummaryDashboard}: Master controller class managing timeframe tabs and digest rendering.
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { StorageData, Card } from '../../../types/domain';
 import { generateSummaryReport, SummaryReport, TopicMastery, SummaryInsight } from './summaryGenerator';
 
-class SummaryDashboard {
+/**
+ * Controller for the Weekly & Monthly Study Digest dashboard.
+ * Manages timeframe switching (7-day weekly vs 30-day monthly), loads stored card histories,
+ * and renders KPI cards, activity charts, and topic mastery distributions.
+ */
+export class SummaryDashboard {
+    /** Active summary period: 'weekly' (last 7 days) or 'monthly' (last 30 days). */
     private currentPeriod: 'weekly' | 'monthly' = 'weekly';
+    /** Collection of all cards loaded from extension storage. */
     private allCards: Card[] = [];
+    /** Cached activity history mapping ISO date strings to review counts. */
     private fsrsActivity: { [date: string]: number } = {};
 
+    /**
+     * Initializes the summary digest by parsing URL parameters, binding tab controls,
+     * and reading card records from local storage.
+     */
     init(): void {
         try {
             // Read URL params if timeframe is passed e.g. ?period=monthly
@@ -24,11 +44,13 @@ class SummaryDashboard {
             this.bindEvents();
             this.loadData();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('SummaryDashboard', `Error during init: ${errorMessage}`, { err });
+            UIUtils.catchError('SummaryDashboard', 'Error during init', err);
         }
     }
 
+    /**
+     * Attaches click handlers to the weekly and monthly timeframe toggle buttons.
+     */
     private bindEvents(): void {
         const weeklyBtn = document.getElementById('period-weekly-btn');
         const monthlyBtn = document.getElementById('period-monthly-btn');
@@ -54,6 +76,9 @@ class SummaryDashboard {
         }
     }
 
+    /**
+     * Updates CSS active classes and ARIA selection states on period buttons.
+     */
     private updateTabUI(): void {
         const weeklyBtn = document.getElementById('period-weekly-btn');
         const monthlyBtn = document.getElementById('period-monthly-btn');
@@ -68,6 +93,10 @@ class SummaryDashboard {
         }
     }
 
+    /**
+     * Loads cards and activity history from local storage and triggers report generation.
+     * @listens chrome.storage.local
+     */
     private loadData(): void {
         try {
             chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result: StorageData) => {
@@ -84,16 +113,18 @@ class SummaryDashboard {
                     this.updateTabUI();
                     this.renderReport();
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('SummaryDashboard', `Error in storage callback: ${errorMessage}`, { innerErr });
-                }
+            UIUtils.catchError('SummaryDashboard', 'Error in storage callback', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('SummaryDashboard', `Failed storage get: ${errorMessage}`, { err });
+            UIUtils.catchError('SummaryDashboard', 'Failed storage get', err);
         }
     }
 
+    /**
+     * Generates and renders all sections of the summary report into the DOM:
+     * KPI cards, actionable insights, daily bar chart, and topic mastery lists.
+     */
     private renderReport(): void {
         try {
             const report: SummaryReport = generateSummaryReport(
@@ -228,14 +259,27 @@ class SummaryDashboard {
             renderTopicList('weak-topics-container', report.weakestTopics, true);
 
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('SummaryDashboard', `Error rendering report: ${errorMessage}`, { err });
+            UIUtils.catchError('SummaryDashboard', 'Error rendering report', err);
         }
     }
 }
 
-// Bootstrap on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-    const summaryApp = new SummaryDashboard();
-    summaryApp.init();
-});
+/**
+ * Initializes the summary dashboard controller on DOM load.
+ */
+function initSummaryDashboard(): void {
+    try {
+        const summaryApp = new SummaryDashboard();
+        summaryApp.init();
+    } catch (err) {
+            UIUtils.catchError('SummaryDashboard', 'Initialization failed', err);
+        }
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSummaryDashboard);
+    } else {
+        initSummaryDashboard();
+    }
+}

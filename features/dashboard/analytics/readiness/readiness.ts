@@ -2,16 +2,30 @@
  * @file features/dashboard/analytics/readiness/readiness.ts
  * @description Exam Readiness tab controller. Predicts expected recall per subject/tag
  * based on the FSRS exponential memory decay formula for an upcoming exam date.
+ *
+ * Architecture Role: Analytics Tab Sub-View Controller (Exam Readiness Forecast).
+ * Context: Extension Standalone Tab (`features/dashboard/analytics/analytics.html`).
+ * Key Exports:
+ * - {@link ReadinessTab}: View controller class managing target days input and subject recall projections.
  */
 
 import { Logger } from '@common/logger';
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { DataUtils } from '../utils/dataUtils';
 
+/**
+ * Controller for the Exam Readiness tab, calculating projected recall on an upcoming date.
+ */
 export class ReadinessTab {
+    /** Statistical calculation engine reference. */
     dataUtils: DataUtils;
+    /** Current forecast horizon in days ahead (default: 12 days). */
     daysAhead: number;
 
+    /**
+     * Initializes ReadinessTab with DataUtils reference and default 12-day horizon.
+     * @param dataUtils - Statistical engine instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -24,6 +38,10 @@ export class ReadinessTab {
         }
     }
 
+    /**
+     * Renders readiness overview cards, preset day chips, and subject-by-subject recall scores into container.
+     * @param containerId - ID of DOM element to render into.
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -165,6 +183,9 @@ export class ReadinessTab {
         }
     }
 
+    /**
+     * Binds input listeners to the days-until-exam number input and preset day chips.
+     */
     bindEvents(): void {
         try {
             const daysInput = document.getElementById('readiness-days-input') as HTMLInputElement | null;
@@ -206,6 +227,11 @@ export class ReadinessTab {
         }
     }
 
+    /**
+     * Sanitizes string values to prevent XSS during HTML string concatenation.
+     * @param str - Raw input string.
+     * @returns Escaped safe HTML string.
+     */
     escapeHtml(str: string): string {
         try {
             if (!str) return '';

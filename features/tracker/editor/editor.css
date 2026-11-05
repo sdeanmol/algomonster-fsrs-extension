@@ -1,7 +1,11 @@
-/*
+/**
  * @file features/tracker/editor/editor.css
- * @description Styling rules for fullscreen rich markdown notes editor view.
- * Upstream dependency: features/common/base.css
+ * @context Standalone Tab / Modal UI (features/tracker/editor/editor.html)
+ * @description Stylesheet for the fullscreen Markdown problem notes and complexity analysis editor.
+ * Controls full-viewport editor container, header metadata bar, Big-O complexity inputs,
+ * distraction-free textarea, and marked.js typography rendering in preview mode.
+ * @isolation Global (Page-scoped to editor.html)
+ * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 body {
     background-color: var(--md-bg);
@@ -49,6 +53,8 @@ body {
     user-select: none;
     display: inline-flex;
     align-items: center;
+    font-family: inherit;
+    outline: none;
 }
 .back-arrow:hover {
     background-color: #2c2e37;
@@ -189,6 +195,16 @@ body {
 .editor-preview.fsrs-markdown h1 { font-size: 24px; margin: 16px 0 8px; font-weight: 700; color: var(--md-text-high); }
 .editor-preview.fsrs-markdown h2 { font-size: 20px; margin: 14px 0 6px; font-weight: 700; color: var(--md-text-high); }
 .editor-preview.fsrs-markdown h3 { font-size: 17px; margin: 12px 0 6px; font-weight: 600; color: var(--md-text-high); }
+.editor-preview.fsrs-markdown h4 { font-size: 15px; margin: 12px 0 6px; font-weight: 600; color: var(--md-text-high); }
+.editor-preview.fsrs-markdown h5 { font-size: 14px; margin: 10px 0 4px; font-weight: 600; color: var(--md-text-high); }
+.editor-preview.fsrs-markdown h6 { font-size: 13px; margin: 10px 0 4px; font-weight: 600; color: var(--md-text-med); }
+
+.editor-preview-empty {
+    color: var(--md-text-low);
+    font-style: italic;
+    padding: 24px 0;
+    margin: 0;
+}
 
 .editor-preview.fsrs-markdown p { margin: 0 0 12px; }
 

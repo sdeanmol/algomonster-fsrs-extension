@@ -1,5 +1,21 @@
+/**
+ * @file features/highlighter/manager/highlights-helpers.ts
+ * @description Helper utility functions for the highlights manager dashboard UI.
+ * Provides clipboard replication, string sanitizer escapers, search match mark wrapper overlays,
+ * and URL display formatters.
+ * 
+ * Context: Highlights dashboard page (`highlights.html`) within the Chrome extension.
+ * 
+ * Key Exports:
+ * - `AlgoRecallGlobal`: Extension window namespace interface.
+ * - `HighlightsHelpers`: Static helper utility class exposing formatting, sanitization, and UI feedback routines.
+ */
+
 import { Logger } from '@common/logger';
 
+/**
+ * Window namespace declarations for highlights management.
+ */
 export interface AlgoRecallGlobal {
     Highlighter?: unknown;
     HighlightsHelpers?: typeof HighlightsHelpers;
@@ -34,6 +50,10 @@ try {
 export class HighlightsHelpers {
     /**
      * Copies a string directly into user's OS clipboard buffer and triggers toast confirmation feedback.
+     * 
+     * @async
+     * @param {string} text - Text snippet to copy.
+     * @returns {Promise<void>}
      */
     static async copyToClipboard(text: string): Promise<void> {
         try {
@@ -48,7 +68,10 @@ export class HighlightsHelpers {
     }
 
     /**
-     * Escapes special HTML tag symbols from strings to mitigate injections.
+     * Escapes special HTML tag symbols from strings to mitigate XSS vulnerabilities.
+     * 
+     * @param {string} text - Raw string to escape.
+     * @returns {string} Sanitized HTML string.
      */
     static escapeHtml(text: string): string {
         try {
@@ -65,7 +88,11 @@ export class HighlightsHelpers {
     }
 
     /**
-     * Wraps occurrences of the query pattern in the highlight text with HTML mark tags.
+     * Wraps occurrences of the query pattern in the highlight text with `<mark>` tags for visual search feedback.
+     * 
+     * @param {string} text - Full text string to search within.
+     * @param {string} query - Substring term to highlight.
+     * @returns {string} HTML string containing mark-wrapped search matches.
      */
     static highlightSearchMatch(text: string, query: string): string {
         try {
@@ -84,7 +111,10 @@ export class HighlightsHelpers {
     }
 
     /**
-     * Truncates raw URLs to hostname and path segments for display.
+     * Truncates raw URLs to clean hostname and path segments for card label display.
+     * 
+     * @param {string} url - Raw URL string.
+     * @returns {string} Cleaned hostname + path string.
      */
     static getCleanDisplayUrl(url: string): string {
         try {
@@ -100,6 +130,9 @@ export class HighlightsHelpers {
 
     /**
      * Renders temporary status feedback messages on manager layout panels.
+     * 
+     * @param {string} message - Feedback message string.
+     * @returns {void}
      */
     static showToast(message: string): void {
         try {

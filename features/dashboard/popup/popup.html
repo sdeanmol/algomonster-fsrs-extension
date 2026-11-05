@@ -1,5 +1,12 @@
+<!--
+  @file features/dashboard/popup/popup.html
+  @context Browser Action Popup UI
+  @description Main popup view presenting review counters, quick search, activity heatmap, gamification XP bar, study mode launchers, notification preferences, and data backup/restore triggers.
+  @linked-scripts features/common/theme-sync.js, dist/fsrsScheduler.bundle.js, features/dashboard/popup/popup.ts (compiled to popup.js)
+  @linked-styles features/common/base.css, features/dashboard/popup/popup.css
+-->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,14 +18,14 @@
 </head>
 
 <body>
-    <!-- Confetti Canvas Overlay (Fixed positioned so it doesn't break layout) -->
+    <!-- Confetti Canvas Overlay: Activated on study streak milestones and level ups -->
     <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
 
-    <!-- Header -->
+    <!-- Header: Application branding, level badge, and top navigation controls -->
     <header class="header-modern">
         <div class="header-main">
-            <h2 class="app-title">
-                <svg class="svg-icon logo-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <h1 class="app-title">
+                <svg class="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
                     <path
                         d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z">
                     </path>
@@ -27,10 +34,12 @@
                     </path>
                     <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path>
                 </svg>
-                <span>AlgoRecall</span>
-            </h2>
+                <span class="algorecall-brand-name">AlgoRecall</span>
+            </h1>
             <div class="header-controls">
+                <!-- User gamification level badge (updated dynamically by popup/stats.ts) -->
                 <div id="user-level-badge" class="level-badge">Lv. 1</div>
+                <!-- Analytics dashboard button: opens analytics/analytics.html in new tab -->
                 <button id="header-analytics-btn" class="icon-btn analytics-header-btn" title="Open Analytics Dashboard"
                     aria-label="Open Analytics Dashboard">
                     <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -39,6 +48,7 @@
                         <line x1="6" y1="20" x2="6" y2="14"></line>
                     </svg>
                 </button>
+                <!-- Theme switcher button: handled by theme-sync.js and popup.ts -->
                 <button id="theme-toggle-btn" class="icon-btn theme-toggle-btn" title="Toggle Theme"
                     aria-label="Toggle Theme">
                     <svg class="svg-icon sun-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -56,6 +66,7 @@
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                     </svg>
                 </button>
+                <!-- Documentation help modal trigger -->
                 <button id="help-btn" class="icon-btn help-btn" title="How it works" aria-label="How it works">
                     <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -65,13 +76,14 @@
                 </button>
             </div>
         </div>
-        <div class="xp-bar-container" title="XP Progress to Next Level">
+        <!-- XP Progress bar representing progress toward next gamification level -->
+        <div class="xp-bar-container" id="xp-progress-bar-container" title="XP Progress to Next Level" role="progressbar" aria-label="XP Progress to Next Level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
             <div id="xp-bar-fill" class="xp-bar-fill"></div>
         </div>
     </header>
 
     <div class="main-content">
-        <!-- Notification Permission Warning Banner -->
+        <!-- Notification Permission Warning Banner: Displayed when browser notifications are blocked -->
         <div id="permission-warning-banner" class="banner warning-banner hide-panel">
             <div class="banner-content">
                 <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -82,25 +94,27 @@
                 </svg>
                 <span>Reminders work best with notifications enabled.</span>
             </div>
+            <!-- Request notification permissions trigger (popup/notifications.ts) -->
             <button id="enable-notifications-btn" class="btn-text-accent">Enable</button>
         </div>
 
-        <!-- Rating Prompt Card -->
+        <!-- Rating Prompt Card: Encourages user store ratings after successful milestones -->
         <div id="rating-prompt-card" class="card rating-card hide-panel">
             <div id="rating-prompt-state" class="rating-state">
                 <div class="rating-text-group">
                     <h3 class="rating-title">Enjoying AlgoRecall? 🌟</h3>
-                    <p class="rating-desc">Rate us 5 stars on Chrome Web Store to help us grow!</p>
+                    <p class="rating-desc" id="rating-prompt-text">Rate us 5 stars to help us grow!</p>
                 </div>
                 <div class="rating-actions-v">
-                    <a href="https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews" target="_blank"
-                        id="rate-store-btn" class="btn btn-primary rating-btn">
+                    <a href="#" target="_blank"
+                        id="rate-store-btn" class="btn btn-primary rating-btn"
+                        data-review-url="">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <polygon
                                 points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
                             </polygon>
                         </svg>
-                        Rate on Chrome Web Store
+                        <span id="rate-store-label">Rate on Store</span>
                     </a>
                     <div class="rating-sub-actions">
                         <button id="snooze-rate-btn" class="btn-link">Snooze (7 days)</button>
@@ -114,23 +128,23 @@
             </div>
         </div>
 
-        <!-- Hero Section: Overview Stats -->
+        <!-- Hero Section: Overview Stats (Clicking boxes navigates to filtered Data view) -->
         <div class="card stats-hero">
             <div class="stats-grid">
-                <div class="stat-box" id="box-total" title="View all saved patterns">
-                    <span class="stat-value" id="total-cards">-</span>
+                <div class="stat-box" id="box-total" title="View all saved patterns" role="button" tabindex="0">
+                    <span class="stat-value" id="total-cards">...</span>
                     <span class="stat-label">Patterns</span>
                 </div>
-                <div class="stat-box" id="box-due" title="View patterns due today">
-                    <span class="stat-value" id="due-cards">-</span>
+                <div class="stat-box" id="box-due" title="View patterns due today" role="button" tabindex="0">
+                    <span class="stat-value" id="due-cards">...</span>
                     <span class="stat-label">Due Today</span>
                 </div>
-                <div class="stat-box" id="box-retention" title="View lapsed cards">
-                    <span class="stat-value" id="retention-rate">-%</span>
+                <div class="stat-box" id="box-retention" title="View lapsed cards" role="button" tabindex="0">
+                    <span class="stat-value" id="retention-rate">...</span>
                     <span class="stat-label">Retention</span>
                 </div>
             </div>
-            <!-- Quick Search -->
+            <!-- Quick Search Input & Tag Filter (popup/search.ts) -->
             <div class="search-compact">
                 <div class="search-input-wrapper">
                     <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -139,18 +153,19 @@
                     </svg>
                     <input type="text" id="popup-search-input" class="search-input" placeholder="Search patterns...">
                 </div>
-                <select id="popup-tag-filter" class="tag-filter-select">
+                <select id="popup-tag-filter" class="tag-filter-select" aria-label="Filter by tag">
                     <option value="all">All Tags</option>
                 </select>
             </div>
+            <!-- Search Results Dropdown List (populated dynamically by popup/search.ts) -->
             <div id="popup-search-results" class="search-results-container"></div>
         </div>
 
         <!-- Middle Cards Grid Container -->
         <div class="popup-cards-layout">
             <div class="popup-column">
-                <!-- Gamification & Heatmap -->
-                <div class="card group-card">
+                <!-- Gamification & Heatmap: Daily streak, motivation text, and contribution calendar -->
+                <div id="activity-charts-card" class="card group-card">
                     <div class="card-header">
                         <h3 class="card-title">
                             <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
@@ -163,10 +178,12 @@
                             Activity & Progress
                         </h3>
                     </div>
+                    <!-- Gamification container: streak count, next milestone, and motivational badges -->
                     <div id="gamification-panel" class="gamification-wrapper">
                         <!-- Progress bar and motivational texts will be injected dynamically -->
                     </div>
 
+                    <!-- Contribution Heatmap: Year-to-date activity matrix (popup/heatmap.ts) -->
                     <div class="heatmap-section">
                         <div class="heatmap-header">
                             <span class="heatmap-label">Contributions</span>
@@ -185,7 +202,7 @@
                         </div>
                     </div>
 
-                    <!-- Quick Action Grid -->
+                    <!-- Quick Action Grid: Navigation shortcuts to sub-dashboards -->
                     <div class="action-chips">
                         <button id="toggle-lifetime-btn" class="chip">Lifetime</button>
                         <button id="analytics-btn" class="chip">Analytics</button>
@@ -194,7 +211,7 @@
                     </div>
                 </div>
 
-                <!-- Study Tools -->
+                <!-- Study Tools: Exam mode and Pomodoro timer shortcuts -->
                 <div class="card group-card">
                     <div class="card-header">
                         <h3 class="card-title" style="color: var(--md-secondary);">
@@ -208,14 +225,16 @@
                         </h3>
                     </div>
                     <div class="action-chips">
+                        <!-- Opens studyplan.html for exam redistribution -->
                         <button id="studyplan-btn" class="chip">Exam Mode</button>
+                        <!-- Opens pomodoro.html for focus intervals -->
                         <button id="pomodoro-btn" class="chip">Pomodoro</button>
                     </div>
                 </div>
             </div>
 
             <div class="popup-column">
-                <!-- Highlighter Settings -->
+                <!-- Highlighter Settings: Marker menu toggle and palette manager links -->
                 <div class="card highlighter-card">
                     <div class="card-header">
                         <h3 class="card-title" style="color: var(--md-warning);">
@@ -230,7 +249,7 @@
                     </div>
                     <div class="setting-row">
                         <label for="toggle-marker-popup" class="setting-label">Floating Marker Menu</label>
-                        <label class="switch" role="switch" tabindex="0">
+                        <label class="switch">
                             <input type="checkbox" id="toggle-marker-popup" checked>
                             <span class="slider"></span>
                         </label>
@@ -261,8 +280,8 @@
                     </div>
                 </div>
 
-                <!-- Notification Settings -->
-                <div class="card notification-card">
+                <!-- Notification Settings: Alarm cadence, quiet hours, sticky alerts, and manual check -->
+                <div class="card notification-card" id="notification-settings-card">
                     <div class="card-header"
                         style="display: flex; justify-content: space-between; align-items: center;">
                         <h3 class="card-title" style="color: var(--md-danger);">
@@ -274,6 +293,7 @@
                             </svg>
                             Notification Settings
                         </h3>
+                        <!-- Navigates to summary/summary.html weekly/monthly digest -->
                         <button id="open-summary-page-btn" class="btn-icon-text"
                             title="Open Weekly & Monthly Digest Summary"
                             aria-label="Open Weekly & Monthly Digest Summary">
@@ -288,17 +308,19 @@
                             Summary
                         </button>
                     </div>
+                    <!-- Master review reminders toggle switch (popup/notifications.ts) -->
                     <div class="setting-row">
                         <label for="toggle-notifications" class="setting-label">Review Reminders</label>
-                        <label class="switch" role="switch" tabindex="0">
-                            <input type="checkbox" id="toggle-notifications" checked>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-notifications" role="switch" checked aria-checked="true">
                             <span class="slider"></span>
                         </label>
                     </div>
+                    <!-- Notification interval selector (15m, 30m, 1h, 2h, 6h, 12h, 24h, custom) -->
                     <div class="setting-row">
                         <span class="setting-label">Check Interval</span>
                         <select id="notification-interval" class="modern-select">
-                            <option value="1">1 min (Dev)</option>
+                            <option value="1" id="dev-interval-option" hidden disabled>1 min (Dev)</option>
                             <option value="15">15 mins</option>
                             <option value="30">30 mins</option>
                             <option value="60" selected>1 hour</option>
@@ -309,6 +331,7 @@
                             <option value="custom">Custom...</option>
                         </select>
                     </div>
+                    <!-- Custom interval input container (toggled when notification-interval is 'custom') -->
                     <div id="custom-interval-container" class="setting-row hide-panel">
                         <span class="setting-label subtle">Custom (mins)</span>
                         <input type="number" id="custom-interval-input" class="modern-input short-input" min="1"
@@ -316,15 +339,16 @@
                     </div>
                     <div class="setting-row">
                         <span class="setting-label">Sticky Notification</span>
-                        <label class="switch" role="switch" tabindex="0">
-                            <input type="checkbox" id="toggle-sticky-notification" checked>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-sticky-notification" role="switch" checked aria-checked="true">
                             <span class="slider"></span>
                         </label>
                     </div>
+                    <!-- Quiet hours toggle: suppresses reminders during specified bedtime window -->
                     <div class="setting-row">
                         <span class="setting-label">Quiet Hours</span>
-                        <label class="switch" role="switch" tabindex="0">
-                            <input type="checkbox" id="toggle-quiet-hours">
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-quiet-hours" role="switch" aria-checked="false">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -338,10 +362,27 @@
                     </div>
                     <div class="setting-row">
                         <span class="setting-label">Weekly Digest</span>
-                        <label class="switch" role="switch" tabindex="0">
-                            <input type="checkbox" id="toggle-weekly-digest" checked>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-weekly-digest" role="switch" checked aria-checked="true">
                             <span class="slider"></span>
                         </label>
+                    </div>
+                    <div class="setting-row">
+                        <label for="toggle-badge-due-count" class="setting-label" title="Show count of reviews due on browser pinned extension icon">Pinned Icon Due Badge</label>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-badge-due-count" role="switch" checked aria-checked="true">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="button-row" style="margin-top: 10px;">
+                        <!-- Manual check trigger: forces immediate alarm check without waiting for timer -->
+                        <button id="check-now-btn" class="btn btn-secondary flex-1" title="Check for due reviews immediately" aria-label="Check for due reviews immediately">
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;" aria-hidden="true">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                            </svg>
+                            Check Due Reviews Now
+                        </button>
                     </div>
                     <div id="test-notifications-container" class="button-row"
                         style="display: none; flex-direction: column; gap: 8px;">
@@ -369,7 +410,7 @@
             </div>
         </div>
 
-        <!-- Advanced Options (Collapsible) -->
+        <!-- Advanced Options (Collapsible): Developer settings, website whitelist, FSRS parameters, backup & restore -->
         <details class="card details-card">
             <summary class="details-summary">
                 <div class="summary-content">
@@ -387,18 +428,29 @@
             </summary>
 
             <div class="details-body">
+                <!-- Toggle problem tracker launcher overlay injection on supported domains -->
                 <div class="setting-row" style="margin-top: 8px;">
-                    <label for="toggle-show-charts" class="setting-label">Show Analytics & Charts</label>
-                    <label class="switch" role="switch" tabindex="0">
-                        <input type="checkbox" id="toggle-show-charts" checked>
+                    <label for="toggle-algo-launcher" class="setting-label">Problem Tracker Launcher</label>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-algo-launcher" role="switch" checked aria-checked="true">
                         <span class="slider"></span>
                     </label>
                 </div>
 
+                <!-- Toggle visibility of the Activity & Charts section in popup -->
+                <div class="setting-row" style="margin-top: 8px;">
+                    <label for="toggle-show-charts" class="setting-label">Show Analytics & Charts</label>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-show-charts" role="switch" checked aria-checked="true">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Developer mode toggle: exposes 1-minute alarm and debug log export -->
                 <div class="setting-row" style="margin-top: 8px;">
                     <label for="toggle-dev-mode" class="setting-label">Developer Mode</label>
-                    <label class="switch" role="switch" tabindex="0">
-                        <input type="checkbox" id="toggle-dev-mode">
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-dev-mode" role="switch" aria-checked="false">
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -407,7 +459,9 @@
                         style="font-size: 0.8rem; padding: 4px 8px;">Export Debug Logs</button>
                 </div>
 
+                <!-- Sub-page Navigation Links -->
                 <div class="nav-list mt-2">
+                    <!-- Opens websites/websites.html to manage whitelisted domains -->
                     <button id="manage-platforms-btn" class="nav-item">
                         <div class="nav-item-left">
                             <svg class="svg-icon settings-item-icon" viewBox="0 0 24 24"
@@ -423,6 +477,7 @@
                         </svg>
                     </button>
 
+                    <!-- Opens tracker/config/fsrsConfig.html for 17-weight parameters and retention target -->
                     <button id="configure-fsrs-btn" class="nav-item">
                         <div class="nav-item-left">
                             <svg class="svg-icon settings-item-icon" viewBox="0 0 24 24"
@@ -466,7 +521,7 @@
                     </div>
                 </div>
 
-                <!-- Export / Import Grid with Original Icons -->
+                <!-- Export / Import Grid: JSON backup & Anki deck synchronization -->
                 <div class="data-actions-grid mt-3">
                     <button id="export-btn" class="data-btn success">
                         <svg class="svg-icon" viewBox="0 0 24 24"
@@ -478,7 +533,7 @@
                         </svg>
                         Backup
                     </button>
-                    <label id="import-btn-label" class="data-btn danger">
+                    <label id="import-btn-label" class="data-btn danger" tabindex="0" role="button" aria-label="Restore backup from file">
                         <svg class="svg-icon" viewBox="0 0 24 24"
                             style="stroke: var(--md-danger); margin-right: 6px; width: 14px; height: 14px;"
                             aria-hidden="true">
@@ -500,7 +555,7 @@
                         </svg>
                         To Anki
                     </button>
-                    <label class="data-btn purple">
+                    <label id="anki-import-btn-label" class="data-btn purple" tabindex="0" role="button" aria-label="Import cards from Anki">
                         <svg class="svg-icon" viewBox="0 0 24 24"
                             style="stroke: #9b59b6; margin-right: 6px; width: 14px; height: 14px;" aria-hidden="true">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -514,10 +569,12 @@
             </div>
         </details>
 
-        <!-- Static Review Banner -->
+
+
+        <!-- Static Review Banner: Persistent prompt link to leave a Web Store review -->
         <div class="static-review-banner">
-            <a href="https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews" target="_blank"
-                class="static-review-link">
+            <a href="#" target="_blank"
+                id="static-review-link" class="static-review-link">
                 <svg class="svg-icon" viewBox="0 0 24 24" style="width: 16px; height: 16px;" aria-hidden="true">
                     <polygon
                         points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
@@ -529,11 +586,11 @@
 
         <footer class="footer-modern">
             <p>AlgoRecall: 100% Private, Local-First.</p>
-            <a href="../../common/help/help.html?tab=advanced" target="_blank">Privacy Policy</a>
+            <a href="../../common/help/help.html?tab=privacy" target="_blank">Help & Privacy</a>
         </footer>
     </div>
 
-    <!-- Status Toasts -->
+    <!-- Status Toasts: General feedback message and gamification milestone notification -->
     <div id="status-msg" class="toast modern-toast"></div>
     <div id="milestone-toast" class="toast milestone-toast">
         <span id="milestone-toast-text"></span>

@@ -1,7 +1,10 @@
 /**
- * @file features/common/data/backupManager.ts
- * @description Highly optimized backup and restoration manager for AlgoRecall.
- * Implements a Gzip-compressed, URL-deduplicated JSON Lines (JSONL) format with streaming parser.
+ * @file Optimized Streaming Backup and Restoration Service
+ * @module features/common/data/backupManager
+ * @context Shared across Options/Data Management Pages and Background Services
+ * @description Manages Gzip-compressed, URL-deduplicated NDJSON backup exports and imports.
+ * Streams data line-by-line via Web Streams, computes 32-bit FNV-1a integrity checksums,
+ * validates schema conformance, and supports seamless migration from legacy uncompressed JSON archives.
  */
 import { Logger } from '@common/logger';
 import { ensureCardIds } from '../utils/cardUtils';
@@ -18,32 +21,34 @@ import {
     SettingsData,
     FooterRecord
 } from '../../../types/backup';
+import { BROWSER_CONFIG } from '../browserConfig';
+import { VALID_BACKUP_RECORD_TYPES, FNV_OFFSET_BASIS_32, FNV_PRIME_32 } from '../constants';
 
+/** Data payload of a serialized page record */
 export type BackupPageData = PageRecord['data'];
+/** Serialized card entity payload */
 export type BackupCardData = CardRecordData;
+/** Serialized bookmark record payload */
 export type BackupBookmarkData = BookmarkRecordData;
+/** Serialized text highlight mark payload */
 export type BackupMarkData = MarkRecordData;
+/** Serialized page description cache payload */
 export type BackupPageContentData = PageContentRecordData;
+/** Summary record count map from the backup header */
 export type BackupCounts = BackupHeaderRecord['data']['counts'];
+/** Header record type */
 export type BackupHeader = BackupHeaderRecord;
+/** Footer record type */
 export type BackupFooter = FooterRecord;
+/** Union of all valid line record types */
 export type BackupLine = BackupRecord;
 
-const VALID_RECORD_TYPES: ReadonlySet<string> = new Set<BackupRecordType>([
-    'header',
-    'page',
-    'card',
-    'mark',
-    'bookmark',
-    'pagecontent',
-    'activity',
-    'weights',
-    'settings',
-    'footer'
-]);
+const VALID_RECORD_TYPES: ReadonlySet<string> = VALID_BACKUP_RECORD_TYPES;
 
 /**
  * Validates whether a parsed JSON object is a conforming BackupRecord line.
+ * @param parsed - Unknown object parsed from a backup line.
+ * @returns True if parsed matches the BackupRecord discriminated union.
  */
 export function isValidBackupRecord(parsed: unknown): parsed is BackupRecord {
     try {
@@ -65,20 +70,25 @@ export function isValidBackupRecord(parsed: unknown): parsed is BackupRecord {
  * Incremental 32-bit FNV-1a Hasher for integrity verification.
  */
 export class Fnv1aHasher {
+    /** Running 32-bit hash value */
     hash: number;
 
+    /**
+     * Initializes the hasher with the FNV offset basis.
+     */
     constructor() {
-        this.hash = 0x811c9dc5;
+        this.hash = FNV_OFFSET_BASIS_32;
     }
 
     /**
-     * Feed a string into the hasher.
+     * Feeds an input string into the rolling hash computation.
+     * @param str - Input string to process.
      */
     update(str: string): void {
         try {
             for (let i = 0; i < str.length; i++) {
                 this.hash ^= str.charCodeAt(i);
-                this.hash = (this.hash * 0x01000193) >>> 0;
+                this.hash = (this.hash * FNV_PRIME_32) >>> 0;
             }
         } catch (err) {
             // Comment: Catch hasher string update error
@@ -88,7 +98,8 @@ export class Fnv1aHasher {
     }
 
     /**
-     * Retrieve the final hex checksum digest.
+     * Retrieves the final 8-character hex checksum digest.
+     * @returns 8-character hex string.
      */
     digest(): string {
         try {
@@ -104,6 +115,9 @@ export class Fnv1aHasher {
 
 /**
  * Generator helper to read line-by-line from a stream of bytes.
+ * @param stream - Readable byte stream to decode and split on newlines.
+ * @returns AsyncGenerator yielding trimmed or buffered string lines.
+ * @throws Error if stream reading fails.
  */
 export async function* readLines(stream: ReadableStream<Uint8Array>): AsyncGenerator<string, void, unknown> {
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -136,16 +150,24 @@ export async function* readLines(stream: ReadableStream<Uint8Array>): AsyncGener
             if (reader) {
                 reader.releaseLock();
             }
-        } catch {
-            // Ignore releaseLock error if stream was already closed
+        } catch (releaseErr) {
+            const errorMessage = releaseErr instanceof Error ? releaseErr.message : String(releaseErr);
+            Logger.debug('Backup', `Ignore releaseLock error if stream was already closed: ${errorMessage}`, { releaseErr });
         }
     }
 }
 
+/**
+ * Core backup manager coordinating streaming backup exports and imports.
+ */
 export class BackupManager {
     /**
      * Exports all user data into a compressed, deduplicated backup file.
      * Yields output chunks using a ReadableStream and triggers a download.
+     * @async
+     * @fires chrome.storage.local.get
+     * @fires chrome.downloads.download
+     * @throws Error if storage retrieval, compression, or download generation fails.
      */
     static async exportBackup(): Promise<void> {
         Logger.time('Backup', 'exportBackup');
@@ -270,7 +292,7 @@ export class BackupManager {
 
                 // Export general user preferences and statistics
                 const settings: SettingsData = {
-                    chromeSettings: raw.chromeSettings || {},
+                    extensionSettings: raw.extensionSettings || {},
                     notificationSettings: raw.notificationSettings || {},
                     theme: raw.theme || 'dark',
                     fsrsGlobalParams: raw.fsrsGlobalParams || {},
@@ -326,12 +348,76 @@ export class BackupManager {
             const blobUrl = URL.createObjectURL(blob);
 
             const filename = `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json.gz`;
-            chrome.downloads.download({
-                url: blobUrl,
-                filename: filename,
-                saveAs: true
-            });
+
+            // Safari does not support chrome.downloads. Fall back to an anchor-click download,
+            // which works cross-browser and does not require the 'downloads' permission.
+            const isFirefoxAndroid = BROWSER_CONFIG.target === 'firefox' && /Android/i.test(navigator.userAgent || '');
+            
+            if (BROWSER_CONFIG.supportsDownloads && !isFirefoxAndroid) {
+                chrome.downloads.download({
+                    url: blobUrl,
+                    filename: filename,
+                    saveAs: true
+                }, () => {
+                    if (chrome.runtime.lastError) {
+                        Logger.error('Backup', `chrome.downloads error: ${chrome.runtime.lastError.message}`);
+                        const a = document.createElement('a');
+                        a.href = blobUrl;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }
+                    setTimeout(() => {
+                        try {
+                            URL.revokeObjectURL(blobUrl);
+                        } catch (e) {
+                            Logger.debug('Backup', 'Blob URL revocation exception', { error: e });
+                        }
+                    }, 5000); // Wait longer before revoking just in case
+                });
+            } else if (isFirefoxAndroid) {
+                // Firefox Android: OS download manager often fails to resolve extension blob URLs.
+                // We use a base64 Data URL to bypass origin resolution issues entirely.
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const dataUrl = reader.result as string;
+                    chrome.downloads.download({
+                        url: dataUrl,
+                        filename: filename,
+                        saveAs: false // saveAs is unsupported on Firefox Android
+                    }, () => {
+                        if (chrome.runtime.lastError) {
+                            Logger.error('Backup', `Firefox Android download error: ${chrome.runtime.lastError.message}`);
+                            // Absolute last resort
+                            const a = document.createElement('a');
+                            a.href = dataUrl;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        }
+                    });
+                };
+                reader.readAsDataURL(blob);
+            } else {
+                // Anchor-click fallback for Safari
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => {
+                    try {
+                        URL.revokeObjectURL(blobUrl);
+                    } catch (e) {
+                        Logger.debug('Backup', 'Blob URL revocation exception', { error: e });
+                    }
+                }, 1000);
+            }
             Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
+
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Backup', `Backup export failed: ${errorMessage}`, { err });
@@ -486,6 +572,11 @@ export class BackupManager {
     /**
      * Imports a backup file. Auto-detects Gzip/Text, performs schema version checks,
      * validates checksum, and hydrates local storage atomically.
+     * @param file - Backup file selected by the user.
+     * @param onStatus - Status reporting callback for progress updates.
+     * @async
+     * @fires chrome.storage.local.set
+     * @throws Error if file reading or checksum validation fails.
      */
     static async importBackup(file: File, onStatus: (msg: string, isError?: boolean) => void): Promise<void> {
         Logger.time('Backup', 'importBackup');
@@ -543,7 +634,9 @@ export class BackupManager {
                 let parsed: unknown;
                 try {
                     parsed = JSON.parse(line);
-                } catch {
+                } catch (jsonErr) {
+                    const jsonErrMsg = jsonErr instanceof Error ? jsonErr.message : String(jsonErr);
+                    Logger.error('Backup', `Invalid JSON line format during backup parsing: ${jsonErrMsg}`, { line, jsonErr });
                     throw new Error("Corrupted file: Invalid JSON line format");
                 }
 
@@ -631,7 +724,7 @@ export class BackupManager {
                 marks: reconstructedMarks as unknown as HighlightMark[],
                 bookmarks: reconstructedBookmarks as unknown as BookmarkItem[],
                 pagecontents: reconstructedPageContents,
-                chromeSettings: settings.chromeSettings || {},
+                extensionSettings: settings.extensionSettings || {},
                 notificationSettings: settings.notificationSettings || {},
                 theme: (settings.theme as 'dark' | 'light') || 'dark',
                 fsrsGlobalParams: settings.fsrsGlobalParams || {},
@@ -662,6 +755,11 @@ export class BackupManager {
     /**
      * Reads through the backup file stream without executing database writes,
      * ensuring formatting constraints and the checksum match.
+     * @param file - Backup file to validate.
+     * @param isGzip - Whether the file has Gzip magic bytes.
+     * @returns Validation report containing V2 status, header, and counts.
+     * @async
+     * @throws Error if stream contains corrupted JSON or checksum mismatch.
      */
     static async validateStream(file: File, isGzip: boolean): Promise<{ isV2: boolean; header?: BackupHeaderRecord; counts?: BackupCounts }> {
         try {
@@ -746,6 +844,10 @@ export class BackupManager {
 
     /**
      * Handles legacy JSON formatting structure and migrates it successfully to local storage.
+     * @param file - Legacy uncompressed JSON backup file.
+     * @param onStatus - Status reporting callback.
+     * @returns Promise resolving when legacy data is migrated into storage.
+     * @fires chrome.storage.local.set
      */
     static importLegacy(file: File, onStatus: (msg: string, isError?: boolean) => void): Promise<void> {
         return new Promise((resolve, reject) => {
@@ -768,7 +870,7 @@ export class BackupManager {
                         marks?: BackupMarkData[];
                         bookmarks?: BackupBookmarkData[];
                         pagecontents?: BackupPageContentData[];
-                        chromeSettings?: Record<string, unknown>;
+                        extensionSettings?: Record<string, unknown>;
                         notificationSettings?: Record<string, unknown>;
                         theme?: 'dark' | 'light';
                         whitelistedWebsites?: WhitelistedWebsite[];
@@ -802,7 +904,7 @@ export class BackupManager {
                         }
                         if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks as unknown as BookmarkItem[];
                         if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
-                        if (imported.chromeSettings) storageUpdate.chromeSettings = imported.chromeSettings;
+                        if (imported.extensionSettings) storageUpdate.extensionSettings = imported.extensionSettings;
                         if (imported.notificationSettings) storageUpdate.notificationSettings = imported.notificationSettings;
 
                         if (imported.theme) storageUpdate.theme = imported.theme;

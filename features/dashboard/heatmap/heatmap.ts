@@ -1,26 +1,43 @@
 /**
  * @file features/dashboard/heatmap/heatmap.ts
  * @description Main controller for the dedicated full-screen contribution heatmap page.
- * Manages calendar date cascades, filters (lifetime, yearly, monthly, weekly), SVG cell grids,
- * and handles click events to query historical reviews details for specific days.
+ * Manages calendar date cascades, filters (lifetime, yearly, monthly, weekly), SVG/CSS cell grids,
+ * streak metrics delegation, and handles click events to query historical review details in `data.html`.
+ *
+ * Architecture Role: Heatmap Standalone Page Controller.
+ * Context: Extension Standalone Tab (`features/dashboard/heatmap/heatmap.html`).
+ * Key Exports:
+ * - {@link HeatmapDashboard}: Controller class managing date range queries, filter cascades, and grid rendering.
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { HeatmapStats } from './heatmap-stats';
 import { StorageData } from '../../../types/domain';
-import { MS_PER_DAY, DAYS_PER_YEAR, HEATMAP_LEVEL_THRESHOLDS } from '../../common/constants';
+import { MS_PER_DAY, DAYS_PER_YEAR, HEATMAP_LEVEL_THRESHOLDS, MONTH_NAMES } from '../../common/constants';
 
+/**
+ * Controller for the dedicated full-screen contribution heatmap dashboard.
+ * Renders an interactive GitHub-style contribution grid based on daily review logs,
+ * supporting multiple filter scopes (Lifetime, Year, Month, Day).
+ */
 export class HeatmapDashboard {
+    /** Map of date strings (`YYYY-MM-DD`) to review counts on that day. */
     activityData: Record<string, number>;
+    /** Array of localized month names used for dropdown labels. */
     monthNames: string[];
 
+    /**
+     * Initializes the heatmap controller with empty activity records and month names.
+     */
     constructor() {
         this.activityData = {};
-        this.monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        this.monthNames = [...MONTH_NAMES];
     }
 
     /**
      * Initializes activity settings from storage and binds cascaded filter listeners.
+     * @listens chrome.storage.local
      */
     init(): void {
         try {
@@ -38,13 +55,11 @@ export class HeatmapDashboard {
                     this.setupFilters();
                     this.renderHeatmap();
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('HeatmapDashboard', `Error initializing heatmap dashboard: ${errorMessage}`, { innerErr });
-                }
+            UIUtils.catchError('HeatmapDashboard', 'Error initializing heatmap dashboard', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HeatmapDashboard', `Failed to execute storage get in Heatmap init: ${errorMessage}`, { err });
+            UIUtils.catchError('HeatmapDashboard', 'Failed to execute storage get in Heatmap init', err);
         }
     }
 
@@ -91,9 +106,8 @@ export class HeatmapDashboard {
                         monthSelect.value = monthSelect.options[0].value;
                     }
                 } catch (mErr) {
-                    const errorMessage = mErr instanceof Error ? mErr.message : String(mErr);
-                    Logger.error('HeatmapDashboard', `Error updating month dropdown options: ${errorMessage}`, { mErr });
-                }
+            UIUtils.catchError('HeatmapDashboard', 'Error updating month dropdown options', mErr);
+        }
             };
 
             const updateDayDropdown = () => {
@@ -117,9 +131,8 @@ export class HeatmapDashboard {
                         daySelect.value = daySelect.options[0].value;
                     }
                 } catch (dErr) {
-                    const errorMessage = dErr instanceof Error ? dErr.message : String(dErr);
-                    Logger.error('HeatmapDashboard', `Error updating day dropdown options: ${errorMessage}`, { dErr });
-                }
+            UIUtils.catchError('HeatmapDashboard', 'Error updating day dropdown options', dErr);
+        }
             };
 
             updateMonthDropdown();
@@ -133,9 +146,8 @@ export class HeatmapDashboard {
                     daySelect.classList.toggle('hide-select', mode !== 'day-wise');
                     this.renderHeatmap();
                 } catch (tErr) {
-                    const errorMessage = tErr instanceof Error ? tErr.message : String(tErr);
-                    Logger.error('HeatmapDashboard', `Error handling filter type change: ${errorMessage}`, { tErr });
-                }
+            UIUtils.catchError('HeatmapDashboard', 'Error handling filter type change', tErr);
+        }
             });
 
             yearSelect.addEventListener('change', () => {
@@ -144,9 +156,8 @@ export class HeatmapDashboard {
                     updateDayDropdown();
                     this.renderHeatmap();
                 } catch (yErr) {
-                    const errorMessage = yErr instanceof Error ? yErr.message : String(yErr);
-                    Logger.error('HeatmapDashboard', `Error handling year filter change: ${errorMessage}`, { yErr });
-                }
+            UIUtils.catchError('HeatmapDashboard', 'Error handling year filter change', yErr);
+        }
             });
 
             monthSelect.addEventListener('change', () => {
@@ -154,22 +165,19 @@ export class HeatmapDashboard {
                     updateDayDropdown();
                     this.renderHeatmap();
                 } catch (mErr) {
-                    const errorMessage = mErr instanceof Error ? mErr.message : String(mErr);
-                    Logger.error('HeatmapDashboard', `Error handling month filter change: ${errorMessage}`, { mErr });
-                }
+            UIUtils.catchError('HeatmapDashboard', 'Error handling month filter change', mErr);
+        }
             });
 
             daySelect.addEventListener('change', () => {
                 try {
                     this.renderHeatmap();
                 } catch (dErr) {
-                    const errorMessage = dErr instanceof Error ? dErr.message : String(dErr);
-                    Logger.error('HeatmapDashboard', `Error handling day filter change: ${errorMessage}`, { dErr });
-                }
+            UIUtils.catchError('HeatmapDashboard', 'Error handling day filter change', dErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HeatmapDashboard', `Error setting up heatmap filters: ${errorMessage}`, { err });
+            UIUtils.catchError('HeatmapDashboard', 'Error setting up heatmap filters', err);
         }
     }
 
@@ -297,9 +305,8 @@ export class HeatmapDashboard {
                                 }
                             });
                         } catch (tabErr) {
-                            const errorMessage = tabErr instanceof Error ? tabErr.message : String(tabErr);
-                            Logger.error('HeatmapDashboard', `Error executing handleCellClick: ${errorMessage}`, { dateString, tabErr });
-                        }
+            UIUtils.catchError('HeatmapDashboard', 'Error executing handleCellClick', tabErr, { dateString });
+        }
                     };
 
                     cell.addEventListener('click', handleCellClick);
@@ -310,9 +317,8 @@ export class HeatmapDashboard {
                                 e.preventDefault();
                                 handleCellClick();
                             } catch (kErr) {
-                                const errorMessage = kErr instanceof Error ? kErr.message : String(kErr);
-                                Logger.error('HeatmapDashboard', `Error executing keydown cell handler: ${errorMessage}`, { kErr });
-                            }
+            UIUtils.catchError('HeatmapDashboard', 'Error executing keydown cell handler', kErr);
+        }
                         }
                     });
                 }
@@ -331,26 +337,25 @@ export class HeatmapDashboard {
                     const wrapper = document.querySelector('.heatmap-wrapper');
                     if (wrapper && mode === 'lifetime') wrapper.scrollLeft = wrapper.scrollWidth;
                 } catch (sErr) {
-                    const errorMessage = sErr instanceof Error ? sErr.message : String(sErr);
-                    Logger.error('HeatmapDashboard', `Error scrolling heatmap wrapper: ${errorMessage}`, { sErr });
-                }
+            UIUtils.catchError('HeatmapDashboard', 'Error scrolling heatmap wrapper', sErr);
+        }
             }, 50);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HeatmapDashboard', `Error rendering heatmap grid: ${errorMessage}`, { err });
-            // Comment: Non-fatal heatmap render catch
+            UIUtils.catchError('HeatmapDashboard', 'Error rendering heatmap grid', err);
         }
     }
 }
 
+/**
+ * Initializes the heatmap dashboard controller on DOM load.
+ */
 function initHeatmap(): void {
     try {
         const dashboard = new HeatmapDashboard();
         dashboard.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('HeatmapDashboard', `Initialization failed: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('HeatmapDashboard', 'Initialization failed', err);
+        }
 }
 
 if (typeof document !== 'undefined') {

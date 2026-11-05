@@ -1,76 +1,89 @@
 /**
  * @file features/highlighter/options/highlightOptions.ts
  * @description Manages options page configuration for highlight palettes, default colors, and color picker slots.
+ * Allows users to create custom 5-color palettes, activate color sets, configure the default marker color,
+ * and manage persistence in `chrome.storage.local`.
+ * 
+ * Context: Standalone extension options page (`highlightOptions.html`).
+ * 
+ * Key Exports:
+ * - `Palette`: Interface defining a named color palette with hex color codes.
+ * - `HighlightOptionsManager`: Options controller managing palette CRUD, slot pickers, and storage sync.
  */
 
 import { Logger } from '@common/logger';
-import { StorageData, ChromeSettings } from '../../../types/domain';
+import { StorageData, ExtensionSettings } from '../../../types/domain';
+import { DEFAULT_PALETTES, DEFAULT_EXTENSION_SETTINGS, DEFAULT_HIGHLIGHT_COLOR } from '../../common/constants';
 
+/**
+ * Representation of a named highlight palette containing up to 5 hex color values.
+ */
 export interface Palette {
+    /** Display name of the palette. */
     name: string;
+    /** Array of hex color strings (e.g. ['#f1c40f', '#2ecc71']). */
     colors: string[];
 }
 
-export { ChromeSettings };
+export { ExtensionSettings };
 
-class HighlightOptionsManager {
+/**
+ * Controller for highlight palettes and annotation preferences options page.
+ */
+export class HighlightOptionsManager {
+    /** Factory default preset palettes. */
     DEFAULT_PALETTES: Palette[];
-    chromeSettings: ChromeSettings;
+    /** Active extension configuration settings. */
+    extensionSettings: ExtensionSettings;
+    /** Current working colors in the palette editor form. */
     editorColors: string[];
+    /** Index of the palette currently being edited, or null if creating a new palette. */
     editingIndex: number | null;
 
+    /**
+     * Initializes default properties and empty editor states.
+     */
     constructor() {
-        this.DEFAULT_PALETTES = [
-            { name: 'Default', colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] },
-            { name: 'Warm Pastels', colors: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff'] },
-            { name: 'Ocean Breeze', colors: ['#a8dadc', '#457b9d', '#1d3557', '#e63946', '#f1faee'] },
-            { name: 'Forest Moss', colors: ['#2d6a4f', '#40916c', '#52b788', '#74c69d', '#95d5b2'] },
-            { name: 'Sunset Glow', colors: ['#f72585', '#7209b7', '#3f0712', '#f77f00', '#fcbf49'] }
-        ];
+        this.DEFAULT_PALETTES = DEFAULT_PALETTES;
+        this.extensionSettings = JSON.parse(JSON.stringify(DEFAULT_EXTENSION_SETTINGS));
 
-        this.chromeSettings = {
-            defaultHighlightColor: '#f1c40f',
-            recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
-            showMarkerPopup: true,
-            activePaletteIndex: 0,
-            palettes: []
-        };
-
-        this.editorColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'];
+        this.editorColors = [...this.extensionSettings.recentColors!];
         this.editingIndex = null; // null if creating, index number if editing
     }
 
     /**
      * Initializes components and settings properties from Chrome storage.
+     * 
+     * @returns {void}
      */
     init(): void {
         try {
-            chrome.storage.local.get(['chromeSettings'], (result: StorageData) => {
+            chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
                 try {
                     if (chrome.runtime.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('HighlightOptions', `Storage error fetching chromeSettings: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        Logger.error('HighlightOptions', `Storage error fetching extensionSettings: ${errorMessage}`, { error: chrome.runtime.lastError });
                         return;
                     }
 
-                    if (result.chromeSettings) {
-                        this.chromeSettings = { ...this.chromeSettings, ...result.chromeSettings };
+                    if (result.extensionSettings) {
+                        this.extensionSettings = { ...this.extensionSettings, ...result.extensionSettings };
                     }
                     
                     // Ensure default palettes are set up
-                    if (!this.chromeSettings.palettes || this.chromeSettings.palettes.length === 0) {
-                        this.chromeSettings.palettes = JSON.parse(JSON.stringify(this.DEFAULT_PALETTES));
-                        this.chromeSettings.activePaletteIndex = 0;
-                        this.chromeSettings.recentColors = [...this.chromeSettings.palettes![0].colors];
+                    if (!this.extensionSettings.palettes || this.extensionSettings.palettes.length === 0) {
+                        this.extensionSettings.palettes = JSON.parse(JSON.stringify(this.DEFAULT_PALETTES));
+                        this.extensionSettings.activePaletteIndex = 0;
+                        this.extensionSettings.recentColors = [...this.extensionSettings.palettes![0].colors];
                     }
 
                     // Set up General Options UI
-                    const defaultColor = this.chromeSettings.defaultHighlightColor || '#f1c40f';
+                    const defaultColor = this.extensionSettings.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
                     const defaultColorInput = document.getElementById('default-color') as HTMLInputElement | null;
-                    const defaultHexSpan = document.getElementById('default-hex') as HTMLElement | null;
+                    const defaultHexInput = document.getElementById('default-hex') as HTMLInputElement | null;
 
                     if (defaultColorInput) defaultColorInput.value = defaultColor;
-                    if (defaultHexSpan) defaultHexSpan.textContent = defaultColor.toUpperCase();
+                    if (defaultHexInput) defaultHexInput.value = defaultColor.toUpperCase();
 
                     // Bind Event Listeners
                     this.bindEvents();
@@ -92,7 +105,9 @@ class HighlightOptionsManager {
     }
 
     /**
-     * Registers control element action listeners.
+     * Registers control element action listeners for default colors, custom slots, palette saving, and defaults reset.
+     * 
+     * @returns {void}
      */
     bindEvents(): void {
         try {
@@ -102,8 +117,8 @@ class HighlightOptionsManager {
                 defaultColorEl.addEventListener('input', (e: Event) => {
                     try {
                         const target = e.target as HTMLInputElement;
-                        const hexSpan = document.getElementById('default-hex');
-                        if (hexSpan) hexSpan.textContent = target.value.toUpperCase();
+                        const hexInput = document.getElementById('default-hex') as HTMLInputElement | null;
+                        if (hexInput) hexInput.value = target.value.toUpperCase();
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('HighlightOptions', `Error in default color input listener: ${errorMessage}`, { err });
@@ -113,11 +128,36 @@ class HighlightOptionsManager {
                 defaultColorEl.addEventListener('change', (e: Event) => {
                     try {
                         const target = e.target as HTMLInputElement;
-                        this.chromeSettings.defaultHighlightColor = target.value;
+                        this.extensionSettings.defaultHighlightColor = target.value;
                         this.saveSettings("Default highlight color updated!");
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('HighlightOptions', `Error in default color change listener: ${errorMessage}`, { err });
+                    }
+                });
+            }
+
+            const defaultHexEl = document.getElementById('default-hex') as HTMLInputElement | null;
+            if (defaultHexEl) {
+                defaultHexEl.addEventListener('change', (e: Event) => {
+                    try {
+                        const target = e.target as HTMLInputElement;
+                        let val = target.value.trim();
+                        if (!val.startsWith('#')) val = '#' + val;
+                        if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
+                            if (defaultColorEl) {
+                                defaultColorEl.value = val;
+                                this.extensionSettings.defaultHighlightColor = val;
+                                this.saveSettings("Default highlight color updated!");
+                            }
+                            target.value = val.toUpperCase();
+                        } else {
+                            this.showToast("Invalid hex code");
+                            target.value = (this.extensionSettings.defaultHighlightColor || '#f1c40f').toUpperCase();
+                        }
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('HighlightOptions', `Error in hex input listener: ${errorMessage}`, { err });
                     }
                 });
             }
@@ -142,14 +182,29 @@ class HighlightOptionsManager {
             }
 
             // Save/Update Palette Action
-            const savePaletteBtn = document.getElementById('save-palette-btn');
+            const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
+            const savePaletteBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
+
+            const updateSaveButtonState = () => {
+                if (savePaletteBtn) {
+                    const hasName = !!(nameInput && nameInput.value.trim().length > 0);
+                    savePaletteBtn.disabled = !hasName;
+                }
+            };
+
+            if (nameInput) {
+                nameInput.addEventListener('input', updateSaveButtonState);
+                nameInput.addEventListener('change', updateSaveButtonState);
+            }
+            updateSaveButtonState();
+
             if (savePaletteBtn) {
                 savePaletteBtn.addEventListener('click', () => {
                     try {
-                        const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
                         const name = nameInput?.value.trim() || '';
                         if (!name) {
                             this.showToast("Please enter a palette name.");
+                            updateSaveButtonState();
                             return;
                         }
 
@@ -158,7 +213,7 @@ class HighlightOptionsManager {
                             return;
                         }
 
-                        const palettes = this.chromeSettings.palettes || [];
+                        const palettes = this.extensionSettings.palettes || [];
 
                         if (this.editingIndex === null) {
                             // Creation validation
@@ -174,18 +229,21 @@ class HighlightOptionsManager {
                             this.showToast("Palette updated successfully!");
 
                             // Update active cached state if editing active palette
-                            if (this.editingIndex === this.chromeSettings.activePaletteIndex) {
-                                this.chromeSettings.recentColors = [...this.editorColors];
+                            if (this.editingIndex === this.extensionSettings.activePaletteIndex) {
+                                this.extensionSettings.recentColors = [...this.editorColors];
                             }
                         }
 
                         // Reset editor form states
                         if (nameInput) nameInput.value = '';
                         this.editingIndex = null;
-                        if (savePaletteBtn) savePaletteBtn.textContent = '💾 Save Palette';
-                        this.editorColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'];
+                        if (savePaletteBtn) {
+                            savePaletteBtn.textContent = '💾 Save Palette';
+                            savePaletteBtn.disabled = true;
+                        }
+                        this.editorColors = [...this.extensionSettings.recentColors!];
 
-                        this.chromeSettings.palettes = palettes;
+                        this.extensionSettings.palettes = palettes;
                         this.saveSettings();
                         this.renderEditorSlots();
                     } catch (err) {
@@ -199,25 +257,31 @@ class HighlightOptionsManager {
             const resetBtn = document.getElementById('reset-palettes-btn');
             if (resetBtn) {
                 resetBtn.addEventListener('click', () => {
+                    if (!window.confirm('Are you sure you want to reset all highlighter palettes to defaults? This cannot be undone.')) {
+                        return;
+                    }
                     try {
-                        this.chromeSettings.palettes = JSON.parse(JSON.stringify(this.DEFAULT_PALETTES));
-                        this.chromeSettings.activePaletteIndex = 0;
-                        this.chromeSettings.recentColors = [...this.chromeSettings.palettes![0].colors];
-                        this.chromeSettings.defaultHighlightColor = '#f1c40f';
+                        this.extensionSettings.palettes = JSON.parse(JSON.stringify(this.DEFAULT_PALETTES));
+                        this.extensionSettings.activePaletteIndex = 0;
+                        this.extensionSettings.recentColors = [...this.extensionSettings.palettes![0].colors];
+                        this.extensionSettings.defaultHighlightColor = '#f1c40f';
 
                         const defaultColorEl = document.getElementById('default-color') as HTMLInputElement | null;
-                        const defaultHexEl = document.getElementById('default-hex');
+                        const defaultHexEl = document.getElementById('default-hex') as HTMLInputElement | null;
                         const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
-                        const saveBtn = document.getElementById('save-palette-btn');
+                        const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
 
                         if (defaultColorEl) defaultColorEl.value = '#f1c40f';
-                        if (defaultHexEl) defaultHexEl.textContent = '#F1C40F';
+                        if (defaultHexEl) defaultHexEl.value = '#F1C40F';
                         
                         // Reset Editor UI
                         if (nameInput) nameInput.value = '';
                         this.editingIndex = null;
-                        if (saveBtn) saveBtn.textContent = '💾 Save Palette';
-                        this.editorColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'];
+                        if (saveBtn) {
+                            saveBtn.textContent = '💾 Save Palette';
+                            saveBtn.disabled = true;
+                        }
+                        this.editorColors = [...this.extensionSettings.recentColors!];
 
                         this.saveSettings("Reset to defaults successfully!");
                         this.renderEditorSlots();
@@ -235,7 +299,9 @@ class HighlightOptionsManager {
     }
 
     /**
-     * Helper: Renders input slots for color picker selection dynamically.
+     * Dynamically renders color picker input rows and hex inputs for the palette currently being created or edited.
+     * 
+     * @returns {void}
      */
     renderEditorSlots(): void {
         try {
@@ -255,20 +321,40 @@ class HighlightOptionsManager {
                     try {
                         const target = e.target as HTMLInputElement;
                         this.editorColors[idx] = target.value;
-                        const hexSpan = row.querySelector('.color-hex');
-                        if (hexSpan) hexSpan.textContent = target.value.toUpperCase();
+                        const hexInput = row.querySelector('.color-hex') as HTMLInputElement | null;
+                        if (hexInput) hexInput.value = target.value.toUpperCase();
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('HighlightOptions', `Error in color picker input handler for slot ${idx}: ${errorMessage}`, { idx, err });
                     }
                 });
 
-                const hexSpan = document.createElement('span');
-                hexSpan.className = 'color-hex';
-                hexSpan.textContent = color.toUpperCase();
+                const hexInput = document.createElement('input');
+                hexInput.type = 'text';
+                hexInput.className = 'color-hex';
+                hexInput.value = color.toUpperCase();
+                hexInput.maxLength = 7;
+                hexInput.addEventListener('change', (e: Event) => {
+                    try {
+                        const target = e.target as HTMLInputElement;
+                        let val = target.value.trim();
+                        if (!val.startsWith('#')) val = '#' + val;
+                        if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
+                            picker.value = val;
+                            this.editorColors[idx] = val;
+                            target.value = val.toUpperCase();
+                        } else {
+                            this.showToast("Invalid hex code");
+                            target.value = this.editorColors[idx].toUpperCase();
+                        }
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('HighlightOptions', `Error in hex input handler for slot ${idx}: ${errorMessage}`, { idx, err });
+                    }
+                });
 
                 row.appendChild(picker);
-                row.appendChild(hexSpan);
+                row.appendChild(hexInput);
 
                 // Delete slot action (require at least 1 color)
                 if (this.editorColors.length > 1) {
@@ -276,6 +362,7 @@ class HighlightOptionsManager {
                     delBtn.className = 'btn-danger';
                     delBtn.innerHTML = `<svg class="svg-icon" style="width:12px; height:12px; stroke:currentColor;" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
                     delBtn.title = 'Remove color';
+                    delBtn.setAttribute('aria-label', `Remove color slot ${idx + 1}`);
                     delBtn.addEventListener('click', () => {
                         try {
                             this.editorColors.splice(idx, 1);
@@ -304,7 +391,9 @@ class HighlightOptionsManager {
     }
 
     /**
-     * Helper: Renders list of available/saved custom palettes.
+     * Renders saved palette preview cards with activate, edit, and delete action buttons.
+     * 
+     * @returns {void}
      */
     renderPalettesList(): void {
         try {
@@ -312,14 +401,14 @@ class HighlightOptionsManager {
             if (!container) return;
             container.innerHTML = '';
 
-            const palettes = this.chromeSettings.palettes || [];
+            const palettes = this.extensionSettings.palettes || [];
             const countEl = document.getElementById('palette-count');
             if (countEl) {
                 countEl.textContent = `${palettes.length} / 50`;
             }
 
             palettes.forEach((palette, idx) => {
-                const isActive = idx === this.chromeSettings.activePaletteIndex;
+                const isActive = idx === this.extensionSettings.activePaletteIndex;
 
                 const card = document.createElement('div');
                 card.className = `palette-card${isActive ? ' active' : ''}`;
@@ -366,8 +455,8 @@ class HighlightOptionsManager {
                     activateBtn.textContent = 'Activate';
                     activateBtn.addEventListener('click', () => {
                         try {
-                            this.chromeSettings.activePaletteIndex = idx;
-                            this.chromeSettings.recentColors = [...palette.colors];
+                            this.extensionSettings.activePaletteIndex = idx;
+                            this.extensionSettings.recentColors = [...palette.colors];
                             this.saveSettings("Palette activated!");
                         } catch (err) {
                             const errorMessage = err instanceof Error ? err.message : String(err);
@@ -387,8 +476,11 @@ class HighlightOptionsManager {
                         if (nameInput) nameInput.value = palette.name;
                         this.editorColors = [...palette.colors];
                         this.renderEditorSlots();
-                        const saveBtn = document.getElementById('save-palette-btn');
-                        if (saveBtn) saveBtn.textContent = '💾 Update Palette';
+                        const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
+                        if (saveBtn) {
+                            saveBtn.textContent = '💾 Update Palette';
+                            saveBtn.disabled = !palette.name.trim();
+                        }
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
                         Logger.error('HighlightOptions', `Error editing palette at index ${idx}: ${errorMessage}`, { idx, err });
@@ -405,12 +497,12 @@ class HighlightOptionsManager {
                             this.showToast("Cannot delete the only remaining palette.");
                             return;
                         }
-                        this.chromeSettings.palettes!.splice(idx, 1);
+                        this.extensionSettings.palettes!.splice(idx, 1);
                         if (isActive) {
-                            this.chromeSettings.activePaletteIndex = 0;
-                            this.chromeSettings.recentColors = [...this.chromeSettings.palettes![0].colors];
-                        } else if (this.chromeSettings.activePaletteIndex !== undefined && this.chromeSettings.activePaletteIndex > idx) {
-                            this.chromeSettings.activePaletteIndex--;
+                            this.extensionSettings.activePaletteIndex = 0;
+                            this.extensionSettings.recentColors = [...this.extensionSettings.palettes![0].colors];
+                        } else if (this.extensionSettings.activePaletteIndex !== undefined && this.extensionSettings.activePaletteIndex > idx) {
+                            this.extensionSettings.activePaletteIndex--;
                         }
                         this.saveSettings("Palette deleted.");
                     } catch (err) {
@@ -431,16 +523,22 @@ class HighlightOptionsManager {
     }
 
     /**
-     * Commits current settings back to Chrome storage and re-renders lists.
-     * @param {string} [message=null] - Text message shown inside toast alerts.
+     * Persists updated settings to `chrome.storage.local` and refreshes the palette cards display.
+     * 
+     * @param {string | null} [message=null] - Optional toast message to display upon save.
+     * @returns {void}
      */
     saveSettings(message: string | null = null): void {
         try {
-            chrome.storage.local.set({ chromeSettings: this.chromeSettings }, () => {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                Logger.warn('HighlightOptions', 'Browser storage API unavailable in saveSettings.');
+                return;
+            }
+            chrome.storage.local.set({ extensionSettings: this.extensionSettings }, () => {
                 try {
-                    if (chrome.runtime.lastError) {
+                    if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('HighlightOptions', `Storage error saving chromeSettings: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        Logger.error('HighlightOptions', `Storage error saving extensionSettings: ${errorMessage}`, { error: chrome.runtime.lastError });
                         return;
                     }
                     this.renderPalettesList();
@@ -458,8 +556,10 @@ class HighlightOptionsManager {
     }
 
     /**
-     * Renders status toast feedback indicators.
-     * @param {string} message - Feedback message.
+     * Renders a temporary floating toast notification in the options UI.
+     * 
+     * @param {string} message - Toast message text.
+     * @returns {void}
      */
     showToast(message: string): void {
         try {

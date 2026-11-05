@@ -1,28 +1,46 @@
 /**
  * @file features/dashboard/popup/notifications.ts
  * @description Controls notification and reminder configuration panels inside the dashboard popup.
+ * Manages permission requests, reminder frequencies, quiet hours schedules, sticky notifications,
+ * pinned badge count toggles, and test notification triggers.
+ *
+ * Architecture Role: Popup Sub-View Component (Notifications & Scheduling).
+ * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
+ * Key Exports:
+ * - {@link NotificationsComponent}: Sub-view component class managing notification preferences and tests.
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData, NotificationSettings, MessageResponse } from '../../../types/domain';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../../common/constants';
 
+/**
+ * Sub-component for the popup dashboard managing background notification settings,
+ * permission status detection, quiet hours intervals, and test alerts.
+ */
 export class NotificationsComponent extends DashboardComponent {
+    /**
+     * Initializes notifications component with reference to parent coordinator.
+     * @param coordinator - Parent dashboard coordinator.
+     */
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
     }
 
     /**
-     * Required implementation of abstract load from DashboardComponent
+     * Required implementation of abstract load from DashboardComponent.
+     * Loads settings from storage and validates browser notification permissions.
+     * @async
+     * @returns Promise resolving when settings and permissions have loaded.
      */
     async load(): Promise<void> {
         try {
             await this.loadSettings();
             this.checkPermissions();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('NotificationsComponent', `Error during notifications load: ${errorMessage}`, { err });
-            // Comment: Catch component load failure gracefully
+            UIUtils.catchError('NotificationsComponent', 'Error during notifications load', err);
         }
     }
 
@@ -53,8 +71,7 @@ export class NotificationsComponent extends DashboardComponent {
                 }
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('NotificationsComponent', `Error checking notification permissions: ${errorMessage}`, { err });
+            UIUtils.catchError('NotificationsComponent', 'Error checking notification permissions', err);
         }
     }
 
@@ -72,20 +89,29 @@ export class NotificationsComponent extends DashboardComponent {
         const quietContainer = document.getElementById('quiet-hours-container') || document.getElementById('quiet-hours-inputs');
         const quietStart = (document.getElementById('quiet-hours-start') || document.getElementById('quiet-start')) as HTMLInputElement | null;
         const quietEnd = (document.getElementById('quiet-hours-end') || document.getElementById('quiet-end')) as HTMLInputElement | null;
+        const badgeToggle = document.getElementById('toggle-badge-due-count') as HTMLInputElement | null;
 
         const updateNotificationUI = (settings: NotificationSettings) => {
             try {
                 if (!notifToggle) return;
                 notifToggle.checked = settings.enabled !== false;
+                notifToggle.setAttribute('aria-checked', notifToggle.checked.toString());
                 if (notifStickyToggle) {
                     notifStickyToggle.checked = settings.requireInteraction !== false;
+                    notifStickyToggle.setAttribute('aria-checked', notifStickyToggle.checked.toString());
                 }
                 if (quietToggle) {
                     quietToggle.checked = settings.quietHoursEnabled === true;
+                    quietToggle.setAttribute('aria-checked', quietToggle.checked.toString());
                     if (quietContainer) quietContainer.classList.toggle('hide-panel', !settings.quietHoursEnabled);
                 }
                 if (quietStart && settings.quietHoursStart) quietStart.value = settings.quietHoursStart;
                 if (quietEnd && settings.quietHoursEnd) quietEnd.value = settings.quietHoursEnd;
+                if (badgeToggle) {
+                    const isBadgeEnabled = settings.badgeEnabled !== false && settings.showDueBadge !== false;
+                    badgeToggle.checked = isBadgeEnabled;
+                    badgeToggle.setAttribute('aria-checked', isBadgeEnabled.toString());
+                }
 
                 const freqStr = settings.frequency || '60';
                 const standardOptions = ['1', '15', '30', '60', '120', '360', '720', '1440'];
@@ -100,24 +126,16 @@ export class NotificationsComponent extends DashboardComponent {
                     }
                 }
             } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                Logger.error('NotificationsComponent', `Error updating notification UI: ${errorMessage}`, { settings, err });
-            }
+            UIUtils.catchError('NotificationsComponent', 'Error updating notification UI', err, { settings });
+        }
         };
 
         try {
             const result = (await chrome.storage.local.get(['notificationSettings'])) as StorageData & { notificationSettings?: NotificationSettings };
-            const settings = result.notificationSettings || {
-                enabled: true,
-                frequency: '60',
-                priority: '2',
-                requireInteraction: true
-            };
+            const settings = result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS };
             updateNotificationUI(settings);
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.error('NotificationsComponent', `Error loading notification settings: ${errorMessage}`, { error });
-            // Comment: Non-fatal settings load catch
+            UIUtils.catchError('NotificationsComponent', 'Error loading notification settings', error);
         }
     }
 
@@ -136,6 +154,7 @@ export class NotificationsComponent extends DashboardComponent {
             const quietContainer = document.getElementById('quiet-hours-container') || document.getElementById('quiet-hours-inputs');
             const quietStart = (document.getElementById('quiet-hours-start') || document.getElementById('quiet-start')) as HTMLInputElement | null;
             const quietEnd = (document.getElementById('quiet-hours-end') || document.getElementById('quiet-end')) as HTMLInputElement | null;
+            const badgeToggle = document.getElementById('toggle-badge-due-count') as HTMLInputElement | null;
             const testNotifBtn = document.getElementById('test-notification-btn');
 
             if (enableBtn) {
@@ -151,18 +170,16 @@ export class NotificationsComponent extends DashboardComponent {
                                         this.showStatus("Notifications were not allowed.");
                                     }
                                 } catch (permCbErr) {
-                                    const errorMessage = permCbErr instanceof Error ? permCbErr.message : String(permCbErr);
-                                    Logger.error('NotificationsComponent', `Error in Notification.requestPermission callback: ${errorMessage}`, { permCbErr });
-                                }
+            UIUtils.catchError('NotificationsComponent', 'Error in Notification.requestPermission callback', permCbErr);
+        }
                             }).catch((reqErr) => {
                                 const errorMessage = reqErr instanceof Error ? reqErr.message : String(reqErr);
                                 Logger.error('NotificationsComponent', `Error requesting Notification permission: ${errorMessage}`, { reqErr });
                             });
                         }
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error in enable notifications button click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error in enable notifications button click handler', err);
+        }
                 });
             }
 
@@ -183,14 +200,20 @@ export class NotificationsComponent extends DashboardComponent {
                         requireInteraction: notifStickyToggle ? notifStickyToggle.checked : true,
                         quietHoursEnabled: quietToggle ? quietToggle.checked : false,
                         quietHoursStart: quietStart ? quietStart.value : '23:00',
-                        quietHoursEnd: quietEnd ? quietEnd.value : '07:00'
+                        quietHoursEnd: quietEnd ? quietEnd.value : '07:00',
+                        badgeEnabled: badgeToggle ? badgeToggle.checked : (oldSettings.badgeEnabled !== false),
+                        showDueBadge: badgeToggle ? badgeToggle.checked : (oldSettings.showDueBadge !== false)
                     };
+
+                    if (notifToggle) notifToggle.setAttribute('aria-checked', notifToggle.checked.toString());
+                    if (notifStickyToggle) notifStickyToggle.setAttribute('aria-checked', notifStickyToggle.checked.toString());
+                    if (quietToggle) quietToggle.setAttribute('aria-checked', quietToggle.checked.toString());
+                    if (badgeToggle) badgeToggle.setAttribute('aria-checked', badgeToggle.checked.toString());
 
                     await chrome.storage.local.set({ notificationSettings: updatedSettings });
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    Logger.error('NotificationsComponent', `Error saving notification settings: ${errorMessage}`, { error });
-                }
+            UIUtils.catchError('NotificationsComponent', 'Error saving notification settings', error);
+        }
             };
 
             if (notifInterval) {
@@ -206,9 +229,8 @@ export class NotificationsComponent extends DashboardComponent {
                         }
                         saveNotificationSettings();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error in notification interval change listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error in notification interval change listener', err);
+        }
                 });
             }
 
@@ -217,9 +239,8 @@ export class NotificationsComponent extends DashboardComponent {
                     try {
                         saveNotificationSettings();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error in notification toggle change listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error in notification toggle change listener', err);
+        }
                 });
             }
 
@@ -228,9 +249,8 @@ export class NotificationsComponent extends DashboardComponent {
                     try {
                         saveNotificationSettings();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error in sticky toggle change listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error in sticky toggle change listener', err);
+        }
                 });
             }
 
@@ -240,8 +260,19 @@ export class NotificationsComponent extends DashboardComponent {
                         if (quietContainer) quietContainer.classList.toggle('hide-panel', !quietToggle.checked);
                         saveNotificationSettings();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error in quiet toggle change listener: ${errorMessage}`, { err });
+            UIUtils.catchError('NotificationsComponent', 'Error in quiet toggle change listener', err);
+        }
+                });
+            }
+
+            if (badgeToggle) {
+                badgeToggle.addEventListener('change', () => {
+                    try {
+                        badgeToggle.setAttribute('aria-checked', badgeToggle.checked.toString());
+                        saveNotificationSettings();
+                        this.showStatus(`Pinned icon due badge ${badgeToggle.checked ? 'enabled' : 'disabled'}!`);
+                    } catch (err) {
+                        UIUtils.catchError('NotificationsComponent', 'Error in badge toggle change listener', err);
                     }
                 });
             }
@@ -251,9 +282,8 @@ export class NotificationsComponent extends DashboardComponent {
                     try {
                         saveNotificationSettings();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error in quiet start change listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error in quiet start change listener', err);
+        }
                 };
                 quietStart.addEventListener('change', handleQuietStart);
                 quietStart.addEventListener('input', handleQuietStart);
@@ -264,9 +294,8 @@ export class NotificationsComponent extends DashboardComponent {
                     try {
                         saveNotificationSettings();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error in quiet end change listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error in quiet end change listener', err);
+        }
                 };
                 quietEnd.addEventListener('change', handleQuietEnd);
                 quietEnd.addEventListener('input', handleQuietEnd);
@@ -277,9 +306,8 @@ export class NotificationsComponent extends DashboardComponent {
                     try {
                         saveNotificationSettings();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error in custom interval input listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error in custom interval input listener', err);
+        }
                 });
             }
 
@@ -299,14 +327,12 @@ export class NotificationsComponent extends DashboardComponent {
                                     this.showStatus("Failed to send test notification.");
                                 }
                             } catch (respErr) {
-                                const errorMessage = respErr instanceof Error ? respErr.message : String(respErr);
-                                Logger.error('NotificationsComponent', `Error in test notification response callback: ${errorMessage}`, { respErr });
-                            }
+            UIUtils.catchError('NotificationsComponent', 'Error in test notification response callback', respErr);
+        }
                         });
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error in test notification button click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error in test notification button click handler', err);
+        }
                 });
             }
 
@@ -327,14 +353,12 @@ export class NotificationsComponent extends DashboardComponent {
                                     this.showStatus("Failed to send test summary notification.");
                                 }
                             } catch (respErr) {
-                                const errorMessage = respErr instanceof Error ? respErr.message : String(respErr);
-                                Logger.error('NotificationsComponent', `Error in test summary notification response callback: ${errorMessage}`, { respErr });
-                            }
+            UIUtils.catchError('NotificationsComponent', 'Error in test summary notification response callback', respErr);
+        }
                         });
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error in test summary notification button click handler: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error in test summary notification button click handler', err);
+        }
                 });
             }
 
@@ -352,9 +376,8 @@ export class NotificationsComponent extends DashboardComponent {
                         }
                         weeklyDigestToggle.checked = result.weeklySummaryEnabled !== false;
                     } catch (getErr) {
-                        const errorMessage = getErr instanceof Error ? getErr.message : String(getErr);
-                        Logger.error('NotificationsComponent', `Error rendering weekly summary toggle preference: ${errorMessage}`, { getErr });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error rendering weekly summary toggle preference', getErr);
+        }
                 });
 
                 weeklyDigestToggle.addEventListener('change', () => {
@@ -367,17 +390,16 @@ export class NotificationsComponent extends DashboardComponent {
                                 Logger.error('NotificationsComponent', `Storage error saving weeklySummaryEnabled: ${errorMessage}`, { enabled, error: lastError });
                             }
                         });
-                        chrome.runtime.sendMessage({ action: 'toggle_weekly_summary', enabled });
+                        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+                            chrome.runtime.sendMessage({ action: 'toggle_weekly_summary', enabled });
+                        }
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('NotificationsComponent', `Error toggling weekly summary: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('NotificationsComponent', 'Error toggling weekly summary', err);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('NotificationsComponent', `Error binding notification events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event binding catch
+            UIUtils.catchError('NotificationsComponent', 'Error binding notification events', err);
         }
     }
 }

@@ -1,31 +1,62 @@
-import { Logger } from '@common/logger';
+/**
+ * @file Interactive Chip-Based Tag Input Control with Autocomplete
+ * @module features/common/utils/tagInput
+ * @context Shared across Content Script Review Overlays and Dashboard Edit Modals
+ * @description Transforms standard HTML input elements into interactive chip tag lists
+ * supporting autocomplete suggestion dropdowns, keyboard navigation (Enter, Comma, Backspace, Arrow keys),
+ * and bidirectional value synchronization with the underlying input element.
+ */
 
+import { Logger } from '@common/logger';
+import { UIUtils } from './uiUtils';
+
+/**
+ * Configuration options for initializing a `TagInputControl`.
+ */
 export interface TagInputOptions {
+    /** Asynchronous or synchronous provider returning available tag suggestions for autocomplete */
     getSuggestions?: () => string[] | Promise<string[]>;
+    /** Placeholder text displayed when no tag chips are present */
     placeholder?: string;
+    /** Callback triggered whenever tags are added or removed */
     onTagsChange?: (tags: string[]) => void;
 }
 
 /**
- * @file features/common/utils/tagInput.ts
- * @description Transforms standard text inputs into interactive chip-based tag controls
- * complete with database autocomplete suggestions, keyboard navigation, and seamless property value synchronization.
+ * Interactive tag input controller wrapping an HTMLInputElement.
  */
 export class TagInputControl {
+    /** Target hidden input element being wrapped */
     private targetInput: HTMLInputElement;
+    /** Configuration options */
     private options: TagInputOptions;
+    /** Current array of tag strings */
     private tags: string[] = [];
     
+    /** Main outer wrapper element */
     private wrapperEl!: HTMLDivElement;
+    /** Container holding rendered tag chip elements */
     private chipsContainerEl!: HTMLDivElement;
+    /** Inline text input for typing new tags */
     private inlineInputEl!: HTMLInputElement;
+    /** Dropdown container rendering autocomplete suggestions */
     private dropdownEl!: HTMLDivElement;
     
+    /** Current active list of filtered autocomplete suggestions */
     private suggestions: string[] = [];
+    /** Currently selected index in the suggestion dropdown */
     private highlightedIndex: number = -1;
+    /** Whether the autocomplete dropdown is visible */
     private isOpen: boolean = false;
+    /** Original property descriptor of the input's `value` attribute */
     private originalValueDescriptor: PropertyDescriptor | undefined;
 
+    /**
+     * Initializes a new TagInputControl instance, building the DOM structure
+     * and intercepting the input element's value getter/setter.
+     * @param targetInput - Target HTML input element to enhance.
+     * @param options - Configuration options for autocomplete and callbacks.
+     */
     private constructor(targetInput: HTMLInputElement, options: TagInputOptions = {}) {
         this.targetInput = targetInput;
         this.options = options;
@@ -37,7 +68,18 @@ export class TagInputControl {
     }
 
     /**
-     * Attaches or retrieves a TagInputControl instance on the target input element.
+     * Attaches a TagInputControl instance to a target input element, or retrieves
+     * an existing instance if already attached.
+     * @param targetInput - The HTMLInputElement to convert into chip tags.
+     * @param options - Autocomplete and configuration options.
+     * @returns The active TagInputControl instance.
+     * @example
+     * ```ts
+     * const control = TagInputControl.attach(tagsInputElement, {
+     *     getSuggestions: () => ['Array', 'Dynamic Programming', 'Graph', 'Tree'],
+     *     onTagsChange: (tags) => console.log('Updated tags:', tags)
+     * });
+     * ```
      */
     public static attach(targetInput: HTMLInputElement, options: TagInputOptions = {}): TagInputControl {
         const existing = (targetInput as unknown as { __tagInputControl?: TagInputControl }).__tagInputControl;
@@ -52,6 +94,9 @@ export class TagInputControl {
         return instance;
     }
 
+    /**
+     * Builds and mounts the chip container, inline input, and dropdown elements next to the target input.
+     */
     private initDOM(): void {
         // Hide target input visually while preserving form/DOM structure
         this.targetInput.style.display = 'none';
@@ -87,6 +132,10 @@ export class TagInputControl {
         }
     }
 
+    /**
+     * Intercepts `targetInput.value` getters and setters to mirror changes between
+     * the underlying text value and chip array.
+     */
     private interceptValueProperty(): void {
         const self = this;
         this.originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
@@ -105,10 +154,13 @@ export class TagInputControl {
                 configurable: true
             });
         } catch (err) {
-            Logger.error('TagInputControl', 'Could not intercept value descriptor', { err });
+            UIUtils.catchError('TagInputControl', 'Could not intercept value descriptor', err);
         }
     }
 
+    /**
+     * Synchronizes current tags from the target input's native value string.
+     */
     public syncFromTargetInput(): void {
         const currentVal = this.originalValueDescriptor?.get
             ? this.originalValueDescriptor.get.call(this.targetInput)
@@ -116,10 +168,20 @@ export class TagInputControl {
         this.setTagsFromString(currentVal || '', false);
     }
 
+    /**
+     * Retrieves a copy of the current tag list.
+     * @returns Array of tag strings.
+     */
     public getTags(): string[] {
         return [...this.tags];
     }
 
+    /**
+     * Sets the active tags from an array of strings, normalizing whitespace,
+     * removing duplicates, updating chips, and triggering change events.
+     * @param newTags - Array of candidate tag names.
+     * @param triggerEvents - Whether to dispatch DOM input/change events.
+     */
     public setTags(newTags: string[], triggerEvents: boolean = true): void {
         // Deduplicate and clean tags
         const cleaned: string[] = [];
@@ -148,11 +210,19 @@ export class TagInputControl {
         }
     }
 
+    /**
+     * Sets tags by parsing a comma-separated string.
+     * @param val - Comma-delimited tag string (e.g. "Array, Hash Table, Math").
+     * @param triggerEvents - Whether to dispatch DOM change events.
+     */
     public setTagsFromString(val: string, triggerEvents: boolean = true): void {
         const parts = val.split(',').map(s => s.trim()).filter(s => s.length > 0);
         this.setTags(parts, triggerEvents);
     }
 
+    /**
+     * Re-renders tag chip elements in the chips container.
+     */
     private renderChips(): void {
         this.chipsContainerEl.innerHTML = '';
         this.tags.forEach((tag, index) => {
@@ -186,6 +256,11 @@ export class TagInputControl {
         }
     }
 
+    /**
+     * Adds a new tag to the collection if not already present.
+     * @param tagText - Tag string to insert.
+     * @returns True if the tag was added, false if empty or duplicate.
+     */
     private addTag(tagText: string): boolean {
         const trimmed = tagText.trim();
         if (!trimmed) return false;
@@ -203,6 +278,10 @@ export class TagInputControl {
         return true;
     }
 
+    /**
+     * Removes the tag chip at the given index.
+     * @param index - Index in the `tags` array to remove.
+     */
     private removeTagAt(index: number): void {
         if (index < 0 || index >= this.tags.length) return;
         const updated = [...this.tags];
@@ -211,6 +290,9 @@ export class TagInputControl {
         this.inlineInputEl.focus();
     }
 
+    /**
+     * Attaches keyboard navigation and click listeners to the inline input and document.
+     */
     private bindEvents(): void {
         // Wrapper click focuses inline text input
         this.wrapperEl.addEventListener('click', () => {
@@ -283,6 +365,10 @@ export class TagInputControl {
         });
     }
 
+    /**
+     * Executes autocomplete query against `options.getSuggestions()` and displays matching dropdown.
+     * @async
+     */
     private async triggerAutocomplete(): Promise<void> {
         const query = this.inlineInputEl.value.trim().toLowerCase();
         if (!query || !this.options.getSuggestions) {
@@ -308,11 +394,15 @@ export class TagInputControl {
                 this.closeDropdown();
             }
         } catch (err) {
-            Logger.error('TagInputControl', 'Error fetching autocomplete suggestions', { err });
+            UIUtils.catchError('TagInputControl', 'Error fetching autocomplete suggestions', err);
             this.closeDropdown();
         }
     }
 
+    /**
+     * Renders autocomplete suggestion items with matched text highlighting.
+     * @param query - Search substring being matched.
+     */
     private renderDropdown(query: string): void {
         this.dropdownEl.innerHTML = '';
         this.suggestions.forEach((suggestion, idx) => {
@@ -347,6 +437,9 @@ export class TagInputControl {
         this.isOpen = true;
     }
 
+    /**
+     * Updates visual `.highlighted` CSS class across dropdown items.
+     */
     private updateDropdownHighlight(): void {
         const items = this.dropdownEl.querySelectorAll('.tag-suggestion-item');
         items.forEach((el, idx) => {
@@ -358,12 +451,19 @@ export class TagInputControl {
         });
     }
 
+    /**
+     * Moves highlighted suggestion index up or down by step.
+     * @param dir - Direction step (+1 or -1).
+     */
     private navigateDropdown(dir: number): void {
         if (!this.isOpen || this.suggestions.length === 0) return;
         this.highlightedIndex = (this.highlightedIndex + dir + this.suggestions.length) % this.suggestions.length;
         this.updateDropdownHighlight();
     }
 
+    /**
+     * Closes and resets the autocomplete dropdown.
+     */
     private closeDropdown(): void {
         this.dropdownEl.style.display = 'none';
         this.dropdownEl.innerHTML = '';
@@ -372,6 +472,11 @@ export class TagInputControl {
         this.suggestions = [];
     }
 
+    /**
+     * Escapes HTML characters in text for safe string interpolation.
+     * @param str - Input string.
+     * @returns Escaped HTML string.
+     */
     private escapeHtml(str: string): string {
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }

@@ -1,6 +1,9 @@
 /**
  * @file features/dashboard/analytics/tags/tags.ts
- * @description Controller for the Tag Analytics tab component.
+ * @description Controller for the Tag Analytics tab component within the analytics dashboard.
+ * Coordinates rendering of deck coverage breakdown, retention/stability comparisons by tag,
+ * and actionable recommendation banners targeting the user's weakest knowledge areas.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { Logger } from '@common/logger';
@@ -8,12 +11,25 @@ import { CoverageTable } from './coverageTable';
 import { RetentionBarChart } from './retentionBarChart';
 import { DataUtils, TagStats } from '../utils/dataUtils';
 
+/**
+ * Controller for the Tag Analytics tab view.
+ * Integrates tabular tag coverage summaries, horizontal comparative bar charts,
+ * and automated remediation recommendations based on retrievability deficits.
+ */
 export class TagsTab {
+    /** Data utility instance for card filtering and tag aggregation */
     dataUtils: DataUtils;
+    /** Sub-component rendering the tag coverage and due card statistics table */
     coverageTable: CoverageTable;
+    /** Sub-component rendering configurable horizontal bar charts for tag metrics */
     retentionBarChart: RetentionBarChart;
+    /** Flag indicating whether the primary static DOM shell has already been mounted */
     rendered: boolean;
 
+    /**
+     * Initializes the TagsTab controller with its nested visualization sub-components.
+     * @param dataUtils - Card data and analytics helper instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -30,6 +46,12 @@ export class TagsTab {
         }
     }
 
+    /**
+     * Renders the complete Tag Analytics view into the designated container element.
+     * Builds the container layout on first call and refreshes sub-components on subsequent invocations.
+     * @param containerId - DOM ID of the container element hosting the tag tab.
+     * @returns void
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);
@@ -100,6 +122,13 @@ Tag Colors (Due Cards):
         }
     }
 
+    /**
+     * Identifies the tag with the lowest retrievability (minimum sample size of 5 cards)
+     * and displays an actionable warning banner if it falls 5%+ below the global average.
+     * Displays an encouraging maintenance banner if all tags are balanced.
+     * @param containerId - DOM element ID for the next action banner container.
+     * @returns void
+     */
     renderNextAction(containerId: string): void {
         try {
             const container = document.getElementById(containerId);

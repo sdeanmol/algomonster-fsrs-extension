@@ -1,7 +1,9 @@
-/*
+/**
  * @file features/dashboard/heatmap/heatmap.css
- * @description Styling rules for dedicated full-screen contribution heatmap grids and streak cards.
- * Upstream dependency: features/common/base.css
+ * @context Activity Heatmap UI / Dedicated Options Tab
+ * @description Styling rules for dedicated full-screen contribution heatmap grid, intensity levels, streak gamification dashboard cards, and filter controls.
+ * @isolation Global within the Heatmap page context.
+ * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
  */
 body {
     background-color: var(--md-bg);
@@ -81,6 +83,7 @@ h1 {
     font-size: 13px;
 }
 
+/* Dynamic Visibility: toggles secondary date select elements based on filter type */
 .hide-select {
     display: none;
 }
@@ -167,9 +170,9 @@ h1 {
 
 /* Intensity levels */
 .level-0 { background-color: var(--md-surface-variant); }
-.level-1 { background-color: #0c3321; }
-.level-2 { background-color: #0e5630; }
-.level-3 { background-color: #178347; }
+.level-1 { background-color: color-mix(in srgb, var(--md-success) 25%, var(--md-surface-variant)); }
+.level-2 { background-color: color-mix(in srgb, var(--md-success) 50%, var(--md-surface-variant)); }
+.level-3 { background-color: color-mix(in srgb, var(--md-success) 75%, var(--md-surface-variant)); }
 .level-4 { background-color: var(--md-success); }
 
 /* Streaks Dashboard Grid */

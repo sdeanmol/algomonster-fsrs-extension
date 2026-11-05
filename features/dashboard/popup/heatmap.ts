@@ -1,17 +1,32 @@
+/**
+ * @file features/dashboard/popup/heatmap.ts
+ * @description Mini contribution activity heatmap component rendered inside the popup dashboard.
+ * Visualizes recent daily review frequency (last 12 weeks or lifetime) as colored cells.
+ *
+ * Architecture Role: Popup Sub-View Component (Heatmap).
+ * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
+ * Key Exports:
+ * - {@link HeatmapComponent}: Sub-view component class rendering the popup mini heatmap grid.
+ */
+
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData } from '../../../types/domain';
 import { MS_PER_DAY, DAYS_PER_WEEK, HEATMAP_LEVEL_THRESHOLDS } from '../../common/constants';
 
 /**
- * @class HeatmapComponent
- * @extends DashboardComponent
- * @description Renders a contribution activity heatmap grid inside the dashboard popup.
- * Calculates review volume metrics grouped by calendar date string in user's timezone.
+ * Sub-component for the popup dashboard that renders a compact contribution heatmap.
+ * Calculates review volume metrics grouped by calendar date string in the user's local timezone.
  */
 export class HeatmapComponent extends DashboardComponent {
+    /** Indicates whether the mini heatmap is currently showing lifetime data or 12 weeks. */
     isLifetimeView: boolean;
 
+    /**
+     * Initializes the heatmap component with a coordinator reference.
+     * @param coordinator - Parent dashboard coordinator.
+     */
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
         this.isLifetimeView = false;
@@ -20,6 +35,9 @@ export class HeatmapComponent extends DashboardComponent {
     /**
      * Loads FSRS review activity counts from storage and renders heat cells inside grid containers.
      * Supports showing lifetime counts or constraints to the last 12 weeks.
+     * @param [lifetime=false] - When true, computes grid start from the earliest logged review date.
+     * @async
+     * @returns Promise resolving when grid elements have been rendered.
      */
     async load(lifetime: boolean = false): Promise<void> {
         try {
@@ -79,14 +97,11 @@ export class HeatmapComponent extends DashboardComponent {
                 try {
                     grid.scrollLeft = grid.scrollWidth;
                 } catch (scrollErr) {
-                    const errorMessage = scrollErr instanceof Error ? scrollErr.message : String(scrollErr);
-                    Logger.error('HeatmapComponent', `Error scrolling heatmap grid: ${errorMessage}`, { scrollErr });
-                }
+            UIUtils.catchError('HeatmapComponent', 'Error scrolling heatmap grid', scrollErr);
+        }
             }, 10);
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.error('HeatmapComponent', `Error rendering heatmap: ${errorMessage}`, { lifetime, error });
-            // Comment: Non-fatal heatmap UI render catch
+            UIUtils.catchError('HeatmapComponent', 'Error rendering heatmap', error, { lifetime });
         }
     }
 
@@ -103,15 +118,12 @@ export class HeatmapComponent extends DashboardComponent {
                         toggleLifetimeBtn.innerText = this.isLifetimeView ? "Show Last 12 Weeks" : "Show Lifetime";
                         this.load(this.isLifetimeView);
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HeatmapComponent', `Error handling toggle lifetime button click: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('HeatmapComponent', 'Error handling toggle lifetime button click', err);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HeatmapComponent', `Error binding heatmap events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event listener binding error
+            UIUtils.catchError('HeatmapComponent', 'Error binding heatmap events', err);
         }
     }
 }

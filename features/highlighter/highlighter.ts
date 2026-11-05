@@ -1,37 +1,93 @@
 /**
  * @file features/highlighter/highlighter.ts
- * @description In-page text selection highlighter, floating tooltip UI, and custom CSS Highlights API manager.
+ * @description In-page text selection highlighter, floating tooltip UI, and CSS Custom Highlights API manager.
+ * Detects user text selections, displays anchored color swatch tooltips, manages note annotations,
+ * links highlights to flashcard problem approaches, and restores highlight ranges across page sessions.
+ * 
+ * Context: Content script environment (injected into target web pages within the extension context).
+ * 
+ * Key Exports:
+ * - `HighlighterState`: State interface managing in-memory marks, bookmarks, and tooltip timers.
+ * - `HighlighterUtils`: Helper utilities interface for DOM range serialization and title extraction.
+ * - `ApproachDraft`: Draft notes interface for uncommitted problem approaches.
+ * - `Highlighter`: Main highlighter controller class managing DOM marks, tooltips, and storage persistence.
  */
 
 import { Logger } from '@common/logger';
-import { HighlightMark, DOMMeta, ChromeSettings, BookmarkItem, Card } from '../../types/domain';
+import { HighlightMark, DOMMeta, ExtensionSettings, BookmarkItem, Card } from '../../types/domain';
+import { DEFAULT_EXTENSION_SETTINGS, DEFAULT_PALETTES, DEFAULT_HIGHLIGHT_COLOR } from '../common/constants';
 
+/**
+ * Shared in-memory highlighter state container.
+ */
 export interface HighlighterState {
+    /** Active theme indicator ('light' | 'dark'). */
     currentTheme?: string;
+    /** Identifier of the highlight mark currently hovered by the user cursor. */
     hoveredMarkId?: string | null;
+    /** Timer reference to delay tooltip dismissal during mouse movement transitions. */
     hideTooltipTimer?: ReturnType<typeof setTimeout> | null;
-    chromeSettings: ChromeSettings;
+    /** Extension layout preferences and active palette selections. */
+    extensionSettings: ExtensionSettings;
+    /** Collection of all saved text highlight annotations. */
     marks: HighlightMark[];
+    /** Saved problem page bookmarks. */
     bookmarks: BookmarkItem[];
+    /** Injected page content excerpts and length metadata. */
     pagecontents: Array<{ url: string; description: string; length: number; [key: string]: unknown }>;
+    /** Active live DOM Range references and colors for hover detection. */
     activeMarkRanges: Array<{ markId: string; range: Range; color: string }>;
+    /** Optional cached study cards collection for approach linking. */
     cards?: Card[];
+    /** Flag indicating whether the native color picker dialog is currently open. */
+    isColorPickerOpen?: boolean;
+    /** Cached range selection preserved while the color picker dialog is focused. */
+    savedRange?: Range | null;
+    /** Active mark ID being configured during creation mode. */
+    activeCreationMarkId?: string | null;
     [key: string]: unknown;
 }
 
+/**
+ * Utility functions required by the highlighter module.
+ */
 export interface HighlighterUtils {
+    /** Serializes the DOM path coordinates of a given text boundary node. */
     getDOMMeta?: (node: Node | null, offset: number) => DOMMeta;
+    /** Reconstructs a DOM Range from serialized start and end metadata coordinates. */
     restoreRangeFromMeta?: (meta: { startMeta?: DOMMeta; endMeta?: DOMMeta } | undefined, text: string) => Range | null;
+    /** Injects custom CSS style rules for a specific color and annotation type. */
     ensureHighlightStyle?: (color: string, type: string) => string;
+    /** Parses document title and DOM structure for clean problem titles. */
     getExtractedProblemTitle?: () => string;
     [key: string]: unknown;
 }
 
+/**
+ * Interface defining approach draft notes stored for problem pages.
+ */
+export interface ApproachDraft {
+    /** Markdown explanation of the algorithmic solution. */
+    approach?: string;
+    /** Comma-separated topic tag list. */
+    tags?: string;
+    [key: string]: unknown;
+}
+
+/**
+ * Controller for in-page text selection highlights, floating action tooltips, and CSS Custom Highlights.
+ */
 export class Highlighter {
+    /** Shared state slice accessed by the highlighter. */
     state: HighlighterState;
+    /** Content script utilities. */
     utils: HighlighterUtils;
+    /** Flag tracking whether document pointer and keyboard listeners have been bound. */
     isHighlighterListenersBound: boolean = false;
 
+    /**
+     * Initializes the highlighter controller, attaching to `window.AlgoRecall.state` if available.
+     */
     constructor() {
         try {
             const win = window as unknown as {
@@ -41,31 +97,43 @@ export class Highlighter {
                 };
             };
             this.state = (win.AlgoRecall && win.AlgoRecall.state) ? win.AlgoRecall.state : {
-                chromeSettings: {},
+                extensionSettings: { ...DEFAULT_EXTENSION_SETTINGS },
                 marks: [],
                 bookmarks: [],
                 pagecontents: [],
                 activeMarkRanges: [],
                 hoveredMarkId: null,
-                hideTooltipTimer: null
+                hideTooltipTimer: null,
+                isColorPickerOpen: false,
+                savedRange: null,
+                activeCreationMarkId: null
             };
             this.utils = (win.AlgoRecall && win.AlgoRecall.Utils) ? win.AlgoRecall.Utils : {};
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error in Highlighter constructor: ${errorMessage}`, { err });
             this.state = {
-                chromeSettings: {},
+                extensionSettings: { ...DEFAULT_EXTENSION_SETTINGS },
                 marks: [],
                 bookmarks: [],
                 pagecontents: [],
                 activeMarkRanges: [],
                 hoveredMarkId: null,
-                hideTooltipTimer: null
+                hideTooltipTimer: null,
+                isColorPickerOpen: false,
+                savedRange: null,
+                activeCreationMarkId: null
             };
             this.utils = {};
         }
     }
 
+    /**
+     * Injects the floating tooltip element `#algo-highlight-tooltip` into `document.body`
+     * and binds pointerup, mousemove, and keyboard selection events.
+     * 
+     * @returns {void}
+     */
     createHighlighterUI(): void {
         try {
             if (!document.getElementById('algo-highlight-tooltip')) {
@@ -94,6 +162,11 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Removes the floating highlighter tooltip DOM element if present.
+     * 
+     * @returns {void}
+     */
     removeHighlighterUI(): void {
         try {
             const tooltip = document.getElementById('algo-highlight-tooltip');
@@ -104,19 +177,34 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Binds text selection triggers (pointerup), hover detection across active highlights (mousemove),
+     * and keyboard selection adjustments (keyup).
+     * 
+     * @returns {void}
+     */
     bindEvents(): void {
         try {
             // 1. Text Selection Logic (For NEW highlights)
             document.addEventListener('pointerup', (e: MouseEvent) => {
                 try {
-                    const showPopup = this.state.chromeSettings?.showMarkerPopup !== false;
+                    const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
                     if (!showPopup) return;
 
+                    const tooltip = document.getElementById('algo-highlight-tooltip');
+                    const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+                    if (isPickerOpen) {
+                        if (this.state.hideTooltipTimer) {
+                            clearTimeout(this.state.hideTooltipTimer);
+                            this.state.hideTooltipTimer = null;
+                        }
+                        return;
+                    }
+
                     const target = e.target as HTMLElement | null;
-                    if (target?.closest('#algo-highlight-tooltip') || target?.closest('#algo-fsrs-container')) return;
+                    if (target && typeof target.closest === 'function' && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) return;
 
                     const selection = window.getSelection();
-                    const tooltip = document.getElementById('algo-highlight-tooltip');
                     if (!tooltip) return;
 
                     if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
@@ -148,9 +236,7 @@ export class Highlighter {
                     if (!lastRect) return;
 
                     this.renderTooltipColors(null, null);
-                    tooltip.style.display = 'flex';
-                    tooltip.style.left = `${lastRect.right + window.scrollX}px`;
-                    tooltip.style.top = `${lastRect.bottom + window.scrollY}px`;
+                    this.positionTooltip(tooltip, lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Highlighter', `Error in pointerup event handler: ${errorMessage}`, { err });
@@ -160,11 +246,21 @@ export class Highlighter {
             // 2. Hover Detection Logic (For EXISTING highlights)
             document.addEventListener('mousemove', (e: MouseEvent) => {
                 try {
-                    const showPopup = this.state.chromeSettings?.showMarkerPopup !== false;
+                    const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
                     if (!showPopup) return;
 
+                    const tooltip = document.getElementById('algo-highlight-tooltip');
+                    const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+                    if (isPickerOpen) {
+                        if (this.state.hideTooltipTimer) {
+                            clearTimeout(this.state.hideTooltipTimer);
+                            this.state.hideTooltipTimer = null;
+                        }
+                        return;
+                    }
+
                     const target = e.target as HTMLElement | null;
-                    if (target?.closest('#algo-highlight-tooltip') || target?.closest('#algo-fsrs-container')) {
+                    if (target && typeof target.closest === 'function' && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) {
                         if (this.state.hideTooltipTimer) {
                             clearTimeout(this.state.hideTooltipTimer);
                             this.state.hideTooltipTimer = null;
@@ -190,7 +286,6 @@ export class Highlighter {
                         }
                     }
 
-                    const tooltip = document.getElementById('algo-highlight-tooltip');
                     if (!tooltip) return;
 
                     if (foundMark) {
@@ -202,9 +297,8 @@ export class Highlighter {
                         if (this.state.hoveredMarkId !== foundMark.markId) {
                             this.state.hoveredMarkId = foundMark.markId;
                             this.renderTooltipColors(this.state.hoveredMarkId, foundMark.color);
-                            tooltip.style.display = 'flex';
-                            tooltip.style.left = `${e.clientX + window.scrollX + 15}px`;
-                            tooltip.style.top = `${e.clientY + window.scrollY}px`;
+                            const r = foundMark.range.getBoundingClientRect();
+                            this.positionTooltip(tooltip, e.clientX + window.scrollX + 15, e.clientY + window.scrollY, r.top + window.scrollY);
                         }
                     } else {
                         if (this.state.hoveredMarkId !== null && !this.state.hideTooltipTimer) {
@@ -244,8 +338,14 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Inspects current window text selection boundaries and anchors the floating highlighter tooltip.
+     * 
+     * @returns {void}
+     */
     handleTextSelection(): void {
         try {
+            if (this.state.isColorPickerOpen) return;
             const selection = window.getSelection();
             const tooltip = document.getElementById('algo-highlight-tooltip');
             if (!tooltip) return;
@@ -257,7 +357,7 @@ export class Highlighter {
                 return;
             }
 
-            const showPopup = this.state.chromeSettings?.showMarkerPopup !== false;
+            const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
             if (!showPopup) return;
 
             const range = selection.getRangeAt(0);
@@ -270,9 +370,7 @@ export class Highlighter {
 
             if (lastRect) {
                 this.renderTooltipColors(null, null);
-                tooltip.style.display = 'flex';
-                tooltip.style.left = `${lastRect.right + window.scrollX}px`;
-                tooltip.style.top = `${lastRect.bottom + window.scrollY}px`;
+                this.positionTooltip(tooltip, lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
@@ -280,12 +378,66 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Calculates absolute screen coordinates for the floating tooltip, ensuring it stays within viewport
+     * boundaries and flipping above the text range when bottom clearance is insufficient.
+     * 
+     * @param {HTMLElement} tooltip - Floating tooltip container element.
+     * @param {number} x - Target horizontal page coordinate.
+     * @param {number} y - Target vertical page coordinate.
+     * @param {number} fallbackTop - Alternate top coordinate for upward flipping.
+     * @returns {void}
+     */
+    positionTooltip(tooltip: HTMLElement, x: number, y: number, fallbackTop: number): void {
+        tooltip.style.display = 'flex';
+        const tooltipRect = tooltip.getBoundingClientRect();
+        
+        let left = x;
+        let top = y;
+        let isFlippedAbove = false;
+
+        if (left + tooltipRect.width > window.scrollX + window.innerWidth) {
+            left = window.scrollX + window.innerWidth - tooltipRect.width - 15;
+        }
+        if (left < window.scrollX + 5) left = window.scrollX + 5;
+
+        if (top + tooltipRect.height > window.scrollY + window.innerHeight) {
+            top = fallbackTop - tooltipRect.height - 10;
+            isFlippedAbove = true;
+        }
+        if (top < window.scrollY + 5) top = window.scrollY + 5;
+
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+
+        // Compute dynamic caret horizontal position relative to anchor x
+        const relativeX = x - left;
+        const width = tooltipRect.width > 0 ? tooltipRect.width : 200;
+        const caretLeft = Math.min(Math.max(relativeX, 16), width - 16);
+        tooltip.style.setProperty('--tooltip-caret-left', `${caretLeft}px`);
+
+        if (isFlippedAbove) {
+            tooltip.classList.add('caret-bottom');
+        } else {
+            tooltip.classList.remove('caret-bottom');
+        }
+    }
+
     handleMouseMove(_e: MouseEvent): void {
         // Main mousemove handling is bound in bindEvents
     }
 
+    /**
+     * Renders palette color swatches, native color picker, type selector, and note editing forms
+     * inside the floating tooltip. Adapts layout depending on whether creating a new or modifying an existing highlight.
+     * 
+     * @param {string | null} [existingMarkId=null] - Mark ID if editing an existing highlight.
+     * @param {string | null} [currentColor=null] - Currently assigned hex color string.
+     * @returns {void}
+     */
     renderTooltipColors(existingMarkId: string | null = null, currentColor: string | null = null): void {
         try {
+            if (this.state.isColorPickerOpen) return;
             const tooltip = document.getElementById('algo-highlight-tooltip');
             if (!tooltip) return;
             tooltip.innerHTML = '';
@@ -367,10 +519,10 @@ export class Highlighter {
             actionsContainer.style.width = '100%';
             actionsContainer.style.flexWrap = 'wrap';
 
-            const activeIndex = this.state.chromeSettings?.activePaletteIndex || 0;
-            const activePalette = (this.state.chromeSettings?.palettes && this.state.chromeSettings.palettes[activeIndex])
-                ? this.state.chromeSettings.palettes[activeIndex]
-                : { colors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'] };
+            const activeIndex = this.state.extensionSettings?.activePaletteIndex || 0;
+            const activePalette = (this.state.extensionSettings?.palettes && this.state.extensionSettings.palettes.length > activeIndex)
+                ? this.state.extensionSettings.palettes[activeIndex]
+                : { colors: DEFAULT_PALETTES[0].colors };
 
             const paletteColors = activePalette.colors || [];
 
@@ -406,28 +558,168 @@ export class Highlighter {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         handleSwatchClick();
+                    } else if (e.key === 'ArrowRight') {
+                        e.preventDefault();
+                        const next = swatch.nextElementSibling as HTMLElement | null;
+                        if (next && typeof next.focus === 'function') next.focus();
+                    } else if (e.key === 'ArrowLeft') {
+                        e.preventDefault();
+                        const prev = swatch.previousElementSibling as HTMLElement | null;
+                        if (prev && typeof prev.focus === 'function') prev.focus();
                     }
                 });
                 actionsContainer.appendChild(swatch);
             });
+
+            // Default Highlight Color Swatch (towards the end of all swatches)
+            const defaultHighlightColor = this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
+            const defaultSwatch = document.createElement('div');
+            defaultSwatch.className = 'algo-color-swatch algo-default-swatch';
+            defaultSwatch.id = 'algo-default-color-swatch';
+            defaultSwatch.style.background = defaultHighlightColor;
+            defaultSwatch.title = `Default Color: ${defaultHighlightColor}`;
+            defaultSwatch.setAttribute('role', 'button');
+            defaultSwatch.setAttribute('aria-label', `Highlight with default color ${defaultHighlightColor}`);
+            defaultSwatch.setAttribute('tabindex', '0');
+            defaultSwatch.setAttribute('data-default-color', defaultHighlightColor);
+
+            if (defaultHighlightColor === currentColor) {
+                defaultSwatch.classList.add('active');
+            }
+
+            const handleDefaultSwatchClick = () => {
+                try {
+                    if (existingMarkId) this.updateHighlightColor(existingMarkId, defaultHighlightColor);
+                    else this.saveHighlight(defaultHighlightColor, activeType);
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('Highlighter', `Error handling default swatch click for ${defaultHighlightColor}: ${errorMessage}`, { defaultHighlightColor, err });
+                }
+            };
+
+            defaultSwatch.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                handleDefaultSwatchClick();
+            });
+
+            defaultSwatch.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleDefaultSwatchClick();
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    const next = defaultSwatch.nextElementSibling as HTMLElement | null;
+                    if (next && typeof next.focus === 'function') next.focus();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    const prev = defaultSwatch.previousElementSibling as HTMLElement | null;
+                    if (prev && typeof prev.focus === 'function') prev.focus();
+                }
+            });
+            actionsContainer.appendChild(defaultSwatch);
 
             // 3. Custom Color Picker
             const picker = document.createElement('input');
             picker.type = 'color';
             picker.id = 'algo-color-picker';
             picker.setAttribute('aria-label', 'Custom highlight color');
-            picker.value = currentColor || this.state.chromeSettings?.defaultHighlightColor || '#f1c40f';
+            picker.title = 'Custom Color Picker';
+            const defaultPickerValue = currentColor || this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
+            picker.value = defaultPickerValue;
+
+            const cacheSelection = () => {
+                const selection = window.getSelection();
+                if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+                    this.state.savedRange = selection.getRangeAt(0).cloneRange();
+                }
+                this.state.isColorPickerOpen = true;
+                if (tooltip) tooltip.setAttribute('data-picker-open', 'true');
+                if (this.state.hideTooltipTimer) {
+                    clearTimeout(this.state.hideTooltipTimer);
+                    this.state.hideTooltipTimer = null;
+                }
+            };
+
+            picker.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                cacheSelection();
+            });
+
+            picker.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                cacheSelection();
+            });
+
+            picker.addEventListener('click', (e) => {
+                e.stopPropagation();
+                cacheSelection();
+            });
+
+            picker.addEventListener('pointerup', (e) => {
+                e.stopPropagation();
+            });
+
+            picker.addEventListener('mouseup', (e) => {
+                e.stopPropagation();
+            });
+
             picker.addEventListener('input', (e: Event) => {
                 try {
                     const newColor = (e.target as HTMLInputElement).value;
-                    if (existingMarkId) this.updateHighlightColor(existingMarkId, newColor);
-                    else this.saveHighlight(newColor, activeType);
+
+                    if (defaultSwatch) {
+                        defaultSwatch.style.background = newColor;
+                        defaultSwatch.title = `Default Color: ${newColor}`;
+                        defaultSwatch.setAttribute('data-default-color', newColor);
+                    }
+
                     this.updateRecentColors(newColor);
+
+                    if (existingMarkId) {
+                        this.updateHighlightColor(existingMarkId, newColor);
+                    } else if (this.state.activeCreationMarkId) {
+                        this.updateHighlightColor(this.state.activeCreationMarkId, newColor);
+                    } else {
+                        this.saveHighlight(newColor, activeType);
+                    }
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Highlighter', `Error in custom color picker input: ${errorMessage}`, { err });
                 }
             });
+
+            picker.addEventListener('change', () => {
+                try {
+                    setTimeout(() => {
+                        this.state.isColorPickerOpen = false;
+                        if (tooltip) tooltip.removeAttribute('data-picker-open');
+                        this.state.savedRange = null;
+                        this.state.activeCreationMarkId = null;
+                        if (!existingMarkId) {
+                            if (tooltip) tooltip.style.display = 'none';
+                            const selection = window.getSelection();
+                            if (selection) selection.removeAllRanges();
+                        } else {
+                            this.renderTooltipColors(existingMarkId, picker.value);
+                        }
+                    }, 50);
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('Highlighter', `Error in picker change handler: ${errorMessage}`, { err });
+                }
+            });
+
+            picker.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (document.activeElement !== picker) {
+                        this.state.isColorPickerOpen = false;
+                        if (tooltip) tooltip.removeAttribute('data-picker-open');
+                        this.state.savedRange = null;
+                        this.state.activeCreationMarkId = null;
+                    }
+                }, 250);
+            });
+
             actionsContainer.appendChild(picker);
 
             // 4. Delete Button (when editing existing highlight)
@@ -547,6 +839,13 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Updates the category tag (e.g. 'Key Insight', 'Gotcha', 'Edge Case') for a saved highlight.
+     * 
+     * @param {string} markId - ID of the target highlight mark.
+     * @param {string} category - Selected category string.
+     * @returns {void}
+     */
     saveMarkCategory(markId: string, category: string): void {
         try {
             const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
@@ -560,6 +859,13 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Appends the selected highlight snippet (and any attached note) into the active FSRS problem
+     * card's approach notes or unsaved draft notes in storage.
+     * 
+     * @param {string} markId - ID of the highlight to link.
+     * @returns {void}
+     */
     linkHighlightToCard(markId: string): void {
         try {
             const mark = this.state.marks.find((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
@@ -569,7 +875,7 @@ export class Highlighter {
             const prefix = mark.category ? `**${mark.category}:** ` : '';
             const appendText = `\n\n> ${prefix}${mark.text}` + (mark.note ? `\n> *Note: ${mark.note}*` : '');
 
-            chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: { [key: string]: any }) => {
+            chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: { fsrsCards?: Card[]; approachDrafts?: Record<string, ApproachDraft | string> }) => {
                 try {
                     const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                     if (lastError) {
@@ -643,11 +949,14 @@ export class Highlighter {
                             }
                         });
                     } else {
-                        let draft = drafts[cleanUrl];
-                        if (!draft) {
+                        const rawDraft = drafts[cleanUrl];
+                        let draft: ApproachDraft;
+                        if (!rawDraft) {
                             draft = { approach: '', tags: '' };
-                        } else if (typeof draft === 'string') {
-                            draft = { approach: draft, tags: '' };
+                        } else if (typeof rawDraft === 'string') {
+                            draft = { approach: rawDraft, tags: '' };
+                        } else {
+                            draft = { ...rawDraft };
                         }
 
                         draft.approach = ((draft.approach || '') + appendText).trim();
@@ -689,27 +998,34 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Caches recently used custom color selections in `extensionSettings.recentColors`.
+     * 
+     * @param {string} newColor - Hex color code.
+     * @returns {void}
+     */
     updateRecentColors(newColor: string): void {
         try {
-            if (!this.state.chromeSettings) {
-                this.state.chromeSettings = {
-                    defaultHighlightColor: '#f1c40f',
-                    recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'],
-                    showMarkerPopup: true,
-                    activePaletteIndex: 0,
-                    palettes: []
-                };
+            if (!this.state.extensionSettings || !this.state.extensionSettings.palettes) {
+                this.state.extensionSettings = JSON.parse(JSON.stringify(DEFAULT_EXTENSION_SETTINGS));
             }
-            this.state.chromeSettings.defaultHighlightColor = newColor;
-            const recent = this.state.chromeSettings.recentColors || [];
-            this.state.chromeSettings.recentColors = [newColor, ...recent.filter((c: string) => c !== newColor)].slice(0, 4);
-            chrome.storage.local.set({ chromeSettings: this.state.chromeSettings });
+            this.state.extensionSettings.defaultHighlightColor = newColor;
+            const recent = this.state.extensionSettings.recentColors || [];
+            this.state.extensionSettings.recentColors = [newColor, ...recent.filter((c: string) => c !== newColor)].slice(0, 4);
+            chrome.storage.local.set({ extensionSettings: this.state.extensionSettings });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error updating recent colors with ${newColor}: ${errorMessage}`, { newColor, err });
         }
     }
 
+    /**
+     * Alias method triggering `saveHighlight`.
+     * 
+     * @param {string} color - Hex color code.
+     * @param {string} [type='highlight'] - Annotation style type.
+     * @returns {void}
+     */
     createHighlight(color: string, type: string = 'highlight'): void {
         try {
             this.saveHighlight(color, type);
@@ -719,13 +1035,30 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Serializes the active text selection or cached range coordinates into a new `HighlightMark` record,
+     * updates bookmarks and page content snapshots, persists to storage, and activates DOM highlights.
+     * 
+     * @param {string} color - Hex color code for the highlight.
+     * @param {string} [type='highlight'] - Visual style ('highlight' or 'underline').
+     * @returns {void}
+     */
     saveHighlight(color: string, type: string = 'highlight'): void {
         try {
             const selection = window.getSelection();
-            if (!selection || selection.isCollapsed) return;
+            let range: Range | null = null;
+            let text = '';
 
-            const range = selection.getRangeAt(0);
-            const text = selection.toString();
+            if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+                range = selection.getRangeAt(0);
+                text = selection.toString();
+            } else if (this.state.savedRange) {
+                range = this.state.savedRange;
+                text = range.toString();
+            }
+
+            if (!range || !text || text.trim() === '') return;
+
             const cleanUrl = window.location.href.split('?')[0].split('#')[0];
             const timestamp = Date.now();
 
@@ -745,6 +1078,9 @@ export class Highlighter {
 
             if (!this.state.marks) this.state.marks = [];
             this.state.marks.push(newMark);
+            if (this.state.isColorPickerOpen) {
+                this.state.activeCreationMarkId = newMark.id;
+            }
 
             if (!this.state.bookmarks) this.state.bookmarks = [];
             if (!this.state.bookmarks.find((b: BookmarkItem) => b.url === cleanUrl)) {
@@ -771,8 +1107,11 @@ export class Highlighter {
             });
 
             const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (tooltip) tooltip.style.display = 'none';
-            selection.removeAllRanges();
+            const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+            if (tooltip && !isPickerOpen) tooltip.style.display = 'none';
+            if (selection && !isPickerOpen) {
+                selection.removeAllRanges();
+            }
 
             this.applyHighlightsForCurrentPage();
             Logger.info('Highlighter', `Created new highlight with color: ${color}`);
@@ -783,6 +1122,13 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Modifies the color of an existing highlight mark and updates the CSS highlight representation.
+     * 
+     * @param {string} markId - Identifier of the target highlight mark.
+     * @param {string} newColor - New hex color code.
+     * @returns {void}
+     */
     updateHighlightColor(markId: string, newColor: string): void {
         try {
             const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
@@ -790,7 +1136,9 @@ export class Highlighter {
                 this.state.marks[markIndex].color = newColor;
                 chrome.storage.local.set({ marks: this.state.marks });
                 this.applyHighlightsForCurrentPage();
-                this.renderTooltipColors(markId, newColor);
+                if (!this.state.isColorPickerOpen) {
+                    this.renderTooltipColors(markId, newColor);
+                }
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
@@ -798,8 +1146,18 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Deletes a highlight mark from extension storage and clears its CSS highlight overlay.
+     * 
+     * @param {string} markId - ID of the mark to delete.
+     * @returns {void}
+     */
     deleteHighlight(markId: string): void {
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime || !chrome.runtime.id) {
+                Logger.warn('Highlighter', 'Extension context invalidated. Cannot delete highlight mark.');
+                return;
+            }
             Logger.debug('Highlighter', `Deleting highlight ID: ${markId}`);
             this.state.marks = this.state.marks.filter((m: HighlightMark) => (m.id || m.createdAt.toString()) !== markId);
             chrome.storage.local.set({ marks: this.state.marks });
@@ -815,8 +1173,19 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Saves user note text attached to a specific highlight mark.
+     * 
+     * @param {string} markId - ID of the mark.
+     * @param {string} noteText - Note content string.
+     * @returns {void}
+     */
     saveMarkNote(markId: string, noteText: string): void {
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime || !chrome.runtime.id) {
+                Logger.warn('Highlighter', 'Extension context invalidated. Cannot save mark note.');
+                return;
+            }
             const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
             if (markIndex > -1) {
                 this.state.marks[markIndex].note = noteText.trim();
@@ -828,6 +1197,12 @@ export class Highlighter {
         }
     }
 
+    /**
+     * Queries all saved marks for the active URL, deserializes their DOM tree ranges,
+     * registers CSS style rules, and renders annotations via the CSS Custom Highlights API.
+     * 
+     * @returns {void}
+     */
     applyHighlightsForCurrentPage(): void {
         try {
             if (typeof CSS === 'undefined' || !('highlights' in CSS)) {

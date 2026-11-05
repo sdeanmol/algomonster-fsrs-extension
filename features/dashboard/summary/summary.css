@@ -1,7 +1,9 @@
 /**
  * @file features/dashboard/summary/summary.css
- * @description Theme-consistent styling for weekly and monthly digest dashboard summary.
- * Uses standard Material Design 3 variables from base.css for complete visual harmony across pages.
+ * @context Digest Summary UI / Dedicated Options Tab
+ * @description Theme-consistent styling for weekly and monthly digest summary, KPI hero cards, smart advisor recommendation pills, and topic mastery lists.
+ * @isolation Global within the Digest Summary page context.
+ * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-secondary, --md-success, --md-warning, --md-danger, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
  */
 
 html, body {
@@ -100,6 +102,7 @@ body {
     color: var(--md-text-high);
 }
 
+/* Active period tab state: selected period range (weekly vs monthly) */
 .period-tab.active {
     background: var(--md-primary-container);
     color: var(--md-on-primary-container);

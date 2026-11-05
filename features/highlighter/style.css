@@ -1,7 +1,17 @@
-/*
+/**
  * @file features/highlighter/style.css
- * @description Styling rules for in-page widgets, tooltip overlays, and highlighting popups.
- * Upstream dependency: None
+ * @context Injected Content Script (Injected on coding problem pages: LeetCode, AlgoMonster, etc.)
+ * @description Master stylesheet for in-page content script overlays. Controls floating review
+ * launcher (FAB), FSRS study widget, text highlight selection tooltip, color swatches,
+ * and high-priority in-page toast notifications.
+ * @isolation Isolated Scoping Applied (Scoped prefix selectors #algo-fsrs-*, #algo-highlight-*,
+ * and .algo-custom-notification with extreme z-index layers up to 2147483647 to prevent host page collisions)
+ * @custom-properties
+ *   --w-bg, --w-surface, --w-bg-dark: Scoped widget surface background tokens
+ *   --w-text, --w-text-med, --w-text-low: Hierarchical widget typography tokens
+ *   --w-border, --w-border-hover: Widget border tokens
+ *   --w-primary, --w-primary-container: Brand accent tokens for rating buttons and FAB
+ *   --w-danger, --w-danger-bg: Lapse alerts and deletion buttons
  */
 #algo-fsrs-launcher,
 #algo-fsrs-container,
@@ -47,7 +57,12 @@
     --w-shadow: rgba(26, 115, 232, 0.08);
 }
 
-/* Floating Launcher (FAB) */
+/**
+ * Floating Action Button Launcher (FAB)
+ * Injected and positioned fixed by features/tracker/tracker.ts.
+ * Supports dragging and clicking to toggle the review tracking container (#algo-fsrs-container).
+ * High z-index (999999) ensures floating above complex platform sidebars and code editors.
+ */
 #algo-fsrs-launcher {
     position: fixed;
     bottom: 150px;
@@ -579,11 +594,18 @@ input.tag-inline-input::placeholder {
     position: absolute;
     bottom: auto;
     top: -6px;
-    left: 20px;
+    left: var(--tooltip-caret-left, 20px);
     right: auto;
     border-width: 0 6px 6px;
     border-style: solid;
     border-color: transparent transparent var(--w-surface) transparent !important;
+}
+
+#algo-highlight-tooltip.caret-bottom::after {
+    top: auto;
+    bottom: -6px;
+    border-width: 6px 6px 0;
+    border-color: var(--w-surface) transparent transparent transparent !important;
 }
 
 .algo-color-swatch {
@@ -604,6 +626,11 @@ input.tag-inline-input::placeholder {
 .algo-color-swatch.active {
     box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8), 0 1px 4px rgba(0, 0, 0, 0.4) !important;
     transform: scale(1.1);
+}
+
+.algo-color-swatch.algo-default-swatch {
+    border: 1.5px solid var(--w-primary, #3498db);
+    box-shadow: 0 0 0 1px rgba(52, 152, 219, 0.4);
 }
 
 #algo-color-picker {
@@ -669,7 +696,11 @@ input.tag-inline-input::placeholder {
     stroke: currentColor;
 }
 
-/* In-page Slide-in Notifications */
+/**
+ * In-Page Slide-In Notifications
+ * Injected dynamically by content/notifications.ts (showNotification).
+ * Utilizes max z-index (2147483647) to float over full-screen problem modal dialogs.
+ */
 .algo-custom-notification {
     position: fixed;
     top: 24px;
@@ -695,6 +726,10 @@ input.tag-inline-input::placeholder {
     pointer-events: auto;
 }
 
+/**
+ * Dynamic State: .algo-custom-notification.show
+ * Added by content/notifications.ts to slide the notification into view.
+ */
 .algo-custom-notification.show {
     transform: translateX(0) scale(1);
     opacity: 1;

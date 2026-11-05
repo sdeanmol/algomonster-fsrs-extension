@@ -1,0 +1,182 @@
+{
+  "manifest_version": 3,
+  "name": "AlgoRecall: Coding Interview Spaced Repetition",
+  "version": "3.1",
+  "description": "Coding Interview Spaced Repetition Tracker & Highlighter for LeetCode & Codeforces - 100% free, local-first, no signup.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "notifications",
+    "alarms",
+    "downloads",
+    "webNavigation",
+    "scripting",
+    "identity"
+  ],
+  "oauth2": {
+    "client_id": "837482928374-exampleclientid.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.appdata"
+    ]
+  },
+  "host_permissions": [
+    "*://*.algo.monster/*",
+    "*://*.systemdesignschool.io/*",
+    "*://*.codeforces.com/*",
+    "*://*.leetcode.com/*",
+    "*://*.codechef.com/*",
+    "*://*.atcoder.jp/*",
+    "*://*.hackerrank.com/*",
+    "*://*.hackerearth.com/*",
+    "*://*.codewars.com/*",
+    "*://*.codingame.com/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background/background.js",
+    "type": "module"
+  },
+  "cross_origin_embedder_policy": {
+    "value": "require-corp"
+  },
+  "cross_origin_opener_policy": {
+    "value": "same-origin"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.algo.monster/*",
+        "*://*.systemdesignschool.io/*",
+        "*://*.codeforces.com/*",
+        "*://*.leetcode.com/*",
+        "*://*.codechef.com/*",
+        "*://*.atcoder.jp/*",
+        "*://*.hackerrank.com/*",
+        "*://*.hackerearth.com/*",
+        "*://*.codewars.com/*",
+        "*://*.codingame.com/*"
+      ],
+      "js": [
+        "features/common/marked.min.js",
+        "dist/fsrsScheduler.bundle.js",
+        "content/content.js"
+      ],
+      "css": [
+        "features/highlighter/style.css"
+      ]
+    }
+  ],
+  "action": {
+    "default_title": "AlgoRecall Dashboard",
+    "default_popup": "features/dashboard/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+A",
+        "mac": "Command+Shift+A"
+      },
+      "description": "Open AlgoRecall Dashboard"
+    },
+    "check-due-reviews": {
+      "suggested_key": {
+        "default": "Alt+Shift+R",
+        "mac": "Alt+Shift+R"
+      },
+      "description": "Check for due reviews immediately"
+    },
+    "view-due-cards": {
+      "suggested_key": {
+        "default": "Alt+Shift+D",
+        "mac": "Alt+Shift+D"
+      },
+      "description": "Open patterns due for review today"
+    },
+    "open-study-plan": {
+      "suggested_key": {
+        "default": "Alt+Shift+S",
+        "mac": "Alt+Shift+S"
+      },
+      "description": "Open Exam Mode / Study Plan"
+    },
+    "toggle-theme": {
+      "description": "Toggle Dark/Light theme"
+    },
+    "open-analytics": {
+      "description": "Open Analytics Dashboard"
+    },
+    "open-pomodoro": {
+      "description": "Open Pomodoro Timer"
+    },
+    "view-all-cards": {
+      "description": "Open all saved patterns"
+    },
+    "view-retention-cards": {
+      "description": "Open lapsed and retention patterns"
+    },
+    "open-forecast": {
+      "description": "Open Review Forecast"
+    },
+    "open-history": {
+      "description": "Open Review History"
+    },
+    "open-heatmap": {
+      "description": "Open Full Screen Contribution Heatmap"
+    },
+    "toggle-floating-marker": {
+      "description": "Toggle Floating Highlighter Marker Menu"
+    },
+    "open-highlights-manager": {
+      "description": "Open Highlights Manager"
+    },
+    "open-highlights-options": {
+      "description": "Open Highlighter Color Options"
+    },
+    "toggle-notifications": {
+      "description": "Toggle Review Reminder Notifications"
+    },
+    "open-summary": {
+      "description": "Open Weekly & Monthly Digest Summary"
+    },
+    "toggle-algo-launcher": {
+      "description": "Toggle Problem Tracker Launcher"
+    },
+    "open-websites-manager": {
+      "description": "Open Active Websites Manager"
+    },
+    "open-fsrs-config": {
+      "description": "Open FSRS Algorithm Configuration"
+    },
+    "export-backup": {
+      "description": "Export data backup"
+    },
+    "export-anki": {
+      "description": "Export cards to Anki"
+    },
+    "open-help": {
+      "description": "Open AlgoRecall Help & Guide"
+    },
+    "rate-extension": {
+      "description": "Rate AlgoRecall on Web Store"
+    }
+  }
+}

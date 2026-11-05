@@ -1,33 +1,66 @@
 /**
  * @file features/tracker/editor/editor.ts
- * @description Manages the markdown notes editor panel.
- * Provides real-time rendering previews, auto-save triggers,
- * and updates review card approach files or fallback draft directories.
+ * @description Manages the markdown notes and problem approach editor panel.
+ * Provides real-time Markdown rendering previews, automatic background debounced saving,
+ * and synchronizes changes to existing card records or standalone URL draft notes.
+ * 
+ * Context: Standalone editor tab (`editor.html`) within the Chrome extension.
+ * 
+ * Key Exports:
+ * - `DraftEntry`: Interface defining the shape of unassociated problem approach drafts.
+ * - `BookmarkEntry`: Minimal interface representing a bookmarked problem entry.
+ * - `EditorManager`: Main editor controller class handling DOM events, previews, and persistence.
  */
+
 import { Markdown } from '@common/markdown';
 import { Logger } from '@common/logger';
+import { UIUtils } from '@common/utils/uiUtils';
 import { Card, StorageData } from '../../../types/domain';
 
-interface DraftEntry {
+/**
+ * Shape of an uncommitted approach draft stored for a problem URL without an existing card.
+ */
+export interface DraftEntry {
+    /** Markdown text describing the algorithmic approach or solution notes. */
     approach?: string;
+    /** Big-O time complexity notation (e.g., 'O(N log N)'). */
     timeComplexity?: string;
+    /** Big-O space complexity notation (e.g., 'O(1)'). */
     spaceComplexity?: string;
+    /** Catch-all for forward compatibility with future metadata. */
     [key: string]: unknown;
 }
 
-interface BookmarkEntry {
+/**
+ * Minimal representation of a bookmarked problem entry for title resolution.
+ */
+export interface BookmarkEntry {
+    /** Target URL of the bookmarked problem. */
     url: string;
+    /** Optional friendly title of the bookmarked page. */
     title?: string;
 }
 
-class EditorManager {
+/**
+ * Controller for the Markdown notes and approach editor page.
+ */
+export class EditorManager {
+    /** Raw problem URL passed via query parameters. */
     problemUrl: string;
+    /** Cleaned URL stripped of hash and query fragments. */
     cleanUrl: string;
+    /** Card ID if an existing card is being edited. */
     cardId: string;
+    /** Whether the edited notes belong to an existing FSRS card or a draft. */
     isCardExisting: boolean;
+    /** Debounce timer reference for auto-saving typed input. */
     autoSaveTimer: ReturnType<typeof setTimeout> | null;
+    /** Active toggle status between Markdown editing and rendered preview modes. */
     isPreviewMode: boolean;
 
+    /**
+     * Initializes default properties for the editor controller.
+     */
     constructor() {
         this.problemUrl = '';
         this.cleanUrl = '';
@@ -38,7 +71,10 @@ class EditorManager {
     }
 
     /**
-     * Initializes parameters and binds element events.
+     * Initializes editor parameters from URL query arguments, loads content from storage,
+     * and sets up UI event listeners.
+     * 
+     * @returns {void}
      */
     init(): void {
         try {
@@ -70,12 +106,24 @@ class EditorManager {
     }
 
     /**
-     * Retrieves current FSRS cards, drafts, and bookmarks to fill editor textfields.
+     * Retrieves stored cards, bookmarks, and drafts from `chrome.storage.local` to populate
+     * the markdown textarea, complexity inputs, and title displays.
+     * 
+     * @returns {void}
      */
     loadContent(): void {
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                Logger.warn('EditorManager', 'Browser extension storage unavailable in loadContent.');
+                return;
+            }
             chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: StorageData & { bookmarks?: BookmarkEntry[]; approachDrafts?: Record<string, DraftEntry | string> }) => {
                 try {
+                    if (chrome.runtime?.lastError) {
+                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                        Logger.error('EditorManager', `Storage get error in loadContent: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        return;
+                    }
                     const cards: Card[] = result.fsrsCards || [];
                     const bookmarks: BookmarkEntry[] = result.bookmarks || [];
                     const drafts: Record<string, DraftEntry | string> = result.approachDrafts || {};
@@ -107,7 +155,7 @@ class EditorManager {
                         if (statusEl) statusEl.textContent = "Loaded FSRS card";
                     } else {
                         this.isCardExisting = false;
-                        const bookmark = bookmarks.find((b: BookmarkEntry) => b.url.split('?')[0].split('#')[0] === this.cleanUrl);
+                        const bookmark = bookmarks.find((b: BookmarkEntry) => b.url && b.url.split('?')[0].split('#')[0] === this.cleanUrl);
                         if (titleEl) titleEl.textContent = (bookmark && bookmark.title) || this.getCleanDisplayUrl(this.problemUrl);
                         
                         const draftVal = drafts[this.cleanUrl];
@@ -120,7 +168,7 @@ class EditorManager {
                                 tc = draftVal.timeComplexity || "";
                                 sc = draftVal.spaceComplexity || "";
                             } else {
-                                draftText = draftVal;
+                                draftText = String(draftVal);
                             }
                         }
                         if (textarea) textarea.value = draftText;
@@ -130,17 +178,20 @@ class EditorManager {
                     }
                 } catch (innerErr) {
                     const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('Editor', `Error populating editor content: ${errorMessage}`, { innerErr });
+                    Logger.error('EditorManager', `Error populating editor content: ${errorMessage}`, { innerErr });
                 }
             });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Editor', `Failed to load storage in Editor loadContent: ${errorMessage}`, { err });
+            Logger.error('EditorManager', `Failed to load storage in Editor loadContent: ${errorMessage}`, { err });
         }
     }
 
     /**
-     * Hooks listeners to editor button controls, textareas, and window lifecycle updates.
+     * Binds input debounce triggers for auto-saving, button click handlers,
+     * live Markdown preview toggling, and unload save handlers.
+     * 
+     * @returns {void}
      */
     bindEvents(): void {
         const triggerAutoSave = () => {
@@ -172,16 +223,26 @@ class EditorManager {
         // Save & Close Button
         document.getElementById('save-close-btn')?.addEventListener('click', () => {
             this.saveContent(() => {
-                window.close();
+                UIUtils.closeCurrentTab();
             });
         });
 
         // Header Back / Close Button
-        document.getElementById('header-back-btn')?.addEventListener('click', () => {
-            this.saveContent(() => {
-                window.close();
+        const headerBackBtn = document.getElementById('header-back-btn');
+        if (headerBackBtn) {
+            const closeHandler = () => {
+                this.saveContent(() => {
+                    UIUtils.closeCurrentTab();
+                });
+            };
+            headerBackBtn.addEventListener('click', closeHandler);
+            headerBackBtn.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    closeHandler();
+                }
             });
-        });
+        }
 
         // Markdown Preview Toggle
         const previewToggleBtn = document.getElementById('preview-toggle-btn');
@@ -194,22 +255,25 @@ class EditorManager {
                 if (this.isPreviewMode) {
                     // Render preview
                     const text = (document.getElementById('editor-textarea') as HTMLTextAreaElement)?.value || '';
-                    const win = window as unknown as { AlgoRecall?: { Markdown?: typeof Markdown } };
-                    editorPreview.innerHTML = win.AlgoRecall?.Markdown
-                        ? win.AlgoRecall.Markdown.render(text)
-                        : text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+                    if (!text.trim()) {
+                        editorPreview.innerHTML = '<p class="editor-preview-empty"><em>No content to preview. Switch to Edit mode to jot down notes.</em></p>';
+                    } else {
+                        const win = typeof window !== 'undefined' ? (window as unknown as { AlgoRecall?: { Markdown?: typeof Markdown } }) : undefined;
+                        const renderFn = win?.AlgoRecall?.Markdown?.render || Markdown.render;
+                        editorPreview.innerHTML = renderFn(text);
+                    }
                     
-                    const textarea = document.getElementById('editor-textarea');
-                    if (textarea) textarea.style.display = 'none';
+                    const textareaElement = document.getElementById('editor-textarea');
+                    if (textareaElement) textareaElement.style.display = 'none';
                     editorPreview.style.display = 'block';
                     previewToggleBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit`;
                 } else {
                     // Back to edit mode
-                    const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
-                    if (textarea) textarea.style.display = '';
+                    const textareaElement = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
+                    if (textareaElement) textareaElement.style.display = '';
                     editorPreview.style.display = 'none';
                     previewToggleBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Preview`;
-                    textarea?.focus();
+                    textareaElement?.focus();
                 }
             });
         }
@@ -224,16 +288,32 @@ class EditorManager {
     }
 
     /**
-     * Saves current text field content as card approach data or fallback drafts.
+     * Persists current markdown text and complexity notes to `chrome.storage.local`.
+     * If editing an existing card, modifies the card entry in `fsrsCards`; otherwise, saves
+     * into the `approachDrafts` dictionary keyed by clean problem URL.
+     * 
+     * @param {() => void} [callback] - Optional completion callback executed after storage write.
+     * @returns {void}
      */
     saveContent(callback?: () => void): void {
         try {
+            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+                Logger.warn('EditorManager', 'Browser extension storage unavailable in saveContent.');
+                if (callback) callback();
+                return;
+            }
             const text = (document.getElementById('editor-textarea') as HTMLTextAreaElement)?.value || '';
             const tc = (document.getElementById('time-complexity-input') as HTMLInputElement)?.value.trim() || '';
             const sc = (document.getElementById('space-complexity-input') as HTMLInputElement)?.value.trim() || '';
             
             chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
                 try {
+                    if (chrome.runtime?.lastError) {
+                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                        Logger.error('EditorManager', `Storage get error in saveContent: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        if (callback) callback();
+                        return;
+                    }
                     if (this.isCardExisting) {
                         const cards: Card[] = result.fsrsCards || [];
                         let index = -1;
@@ -248,6 +328,9 @@ class EditorManager {
                             cards[index].timeComplexity = tc;
                             cards[index].spaceComplexity = sc;
                             chrome.storage.local.set({ fsrsCards: cards }, () => {
+                                if (chrome.runtime?.lastError) {
+                                    Logger.error('EditorManager', `Storage set error in saveContent fsrsCards: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                                }
                                 if (callback) callback();
                             });
                         } else {
@@ -268,6 +351,9 @@ class EditorManager {
                             };
                         }
                         chrome.storage.local.set({ approachDrafts: drafts }, () => {
+                            if (chrome.runtime?.lastError) {
+                                Logger.error('EditorManager', `Storage set error in saveContent approachDrafts: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                            }
                             if (callback) callback();
                         });
                     }
@@ -285,19 +371,27 @@ class EditorManager {
     }
 
     /**
-     * Normalizes complex raw URLs into short hostnames for labels.
+     * Normalizes a raw URL into a concise hostname + pathname string for interface display.
+     * 
+     * @param {string} url - Full URL to format.
+     * @returns {string} Cleaned display string.
      */
     getCleanDisplayUrl(url: string): string {
         try {
             const u = new URL(url);
             return u.hostname + u.pathname;
-        } catch {
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.debug('EditorManager', `Fallback clean display URL on invalid URL: ${errorMessage}`, { url, err });
             return url;
         }
     }
 
     /**
-     * Renders status feedback messages using temporary toasts.
+     * Displays a brief status feedback toast in the editor view.
+     * 
+     * @param {string} message - Toast message text.
+     * @returns {void}
      */
     showToast(message: string): void {
         try {
@@ -308,8 +402,9 @@ class EditorManager {
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 2000);
-        } catch {
-            // Comment: Ignore toast DOM display errors
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.debug('EditorManager', `Ignore toast DOM display error: ${errorMessage}`, { message, err });
         }
     }
 }

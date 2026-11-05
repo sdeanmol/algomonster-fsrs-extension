@@ -1,33 +1,42 @@
+/**
+ * @file content/utils.ts
+ * @description General helper utilities for in-page content scripts.
+ * Contains DOM serialization routines for highlights persistence across tab reloads,
+ * dynamic theme styling injections (CSS Custom Highlights API), and heuristic parsing
+ * of problem tags and titles across coding environments (LeetCode, AlgoMonster, AtCoder).
+ * 
+ * Context: Content script isolation layer (runs inside target web pages within the extension context).
+ * 
+ * Key Exports:
+ * - `DOMMeta`: Interface describing serialized DOM text node path coordinates.
+ * - `HighlightMetaSource`: Interface pairing start and end coordinates for text range reconstruction.
+ * - `Utils`: Utility class providing static DOM pathing, styling, tag inference, and title extraction helpers.
+ */
+
 import { Logger } from '@common/logger';
-import { AlgoRecallState } from './state';
+import { AlgoRecallState, getAlgoRecallGlobal } from './state';
 
-interface AlgoRecallGlobal {
-    state?: AlgoRecallState;
-    Utils?: typeof Utils;
-}
-
-function getAlgoRecallGlobal(): AlgoRecallGlobal {
-    try {
-        const win = window as unknown as { AlgoRecall: AlgoRecallGlobal };
-        win.AlgoRecall = win.AlgoRecall || {};
-        return win.AlgoRecall;
-    } catch (err) {
-        // Comment: Safe recovery fallback if window global access fails
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('ContentUtils', `Failed to access window global in getAlgoRecallGlobal: ${errorMessage}`, { err });
-        return {};
-    }
-}
-
+/**
+ * Serialized DOM coordinates representing the location of a text boundary point in the DOM tree.
+ */
 export interface DOMMeta {
+    /** Lowercase tag name of the parent element (e.g., 'p', 'div', 'span'). */
     parentTagName: string;
+    /** Zero-based index of the target node among its parent's child nodes. */
     parentIndex: number;
+    /** Character offset within the text node. */
     textOffset: number;
+    /** Array of child indices from the document root down to the parent element. */
     parentDomPath: number[];
 }
 
+/**
+ * Coordinates pairing the start and end boundary points required to rebuild a DOM `Range`.
+ */
 export interface HighlightMetaSource {
+    /** Boundary coordinates for the start of the highlighted text range. */
     startMeta: DOMMeta;
+    /** Boundary coordinates for the end of the highlighted text range. */
     endMeta: DOMMeta;
 }
 
@@ -91,6 +100,10 @@ export class Utils {
      */
     static restoreRangeFromMeta(highlightSource: HighlightMetaSource, markText?: string): Range | null {
         try {
+            if (!highlightSource || !highlightSource.startMeta || !highlightSource.endMeta) {
+                return null;
+            }
+
             let startNode: Node | null = null;
             let endNode: Node | null = null;
 
@@ -103,8 +116,9 @@ export class Utils {
                             current = current.childNodes[path[i]] || null;
                         }
                         return current ? (current.childNodes[childIndex] || null) : null;
-                    } catch {
-                        // Comment: Return null if DOM path index resolution fails
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.debug('ContentUtils', `Return null if DOM path index resolution fails: ${errorMessage}`, { err });
                         return null;
                     }
                 };
@@ -167,13 +181,13 @@ export class Utils {
      */
     static ensureHighlightStyle(color: string, type: string = 'highlight'): string {
         const state = getAlgoRecallGlobal().state;
-        const colorHash = color.replace('#', '');
+        const colorHash = (color || '#f1c40f').replace('#', '');
         let prefix = 'algo-hl';
         let cssRule = `background-color: ${color}; color: inherit;`;
 
         if (type === 'underline') {
             prefix = 'algo-ul';
-            cssRule = `background-color: transparent; text-decoration: underline; text-decoration-color: ${color}; text-decoration-thickness: 2px; text-underline-offset: 2px;`;
+            cssRule = `background-color: transparent; text-decoration: underline solid ${color} 2px; text-decoration-line: underline; text-decoration-color: ${color}; text-decoration-thickness: 2px; text-underline-offset: 2px;`;
         }
 
         const colorName = `${prefix}-${colorHash}`;
@@ -182,7 +196,9 @@ export class Utils {
             if (state && !state.activeHighlightStyles.has(colorName)) {
                 const style = document.createElement('style');
                 style.textContent = `::highlight(${colorName}) { ${cssRule} }`;
-                document.head.appendChild(style);
+                if (document.head) {
+                    document.head.appendChild(style);
+                }
                 state.activeHighlightStyles.add(colorName);
             }
         } catch (err) {
@@ -244,8 +260,9 @@ export class Utils {
                                 return text;
                             }
                         }
-                    } catch {
-                        // Comment: Ignore querySelector syntax errors for non-standard selectors
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.debug('ContentUtils', `Ignore querySelector syntax errors for non-standard selectors: ${errorMessage}`, { selector, err });
                     }
                 }
 

@@ -3,6 +3,12 @@
  * @description Concrete implementation of the Free Spaced Repetition Scheduler (FSRS) algorithm.
  * Extends the abstract Scheduler base class to provide mathematically precise card
  * stability, difficulty, retrievability, and scheduled review intervals using ts-fsrs.
+ * 
+ * Context: Shared scheduling module used across background workers, content scripts, and dashboard UI.
+ * 
+ * Key Exports:
+ * - `FsrsScheduler`: Concrete spaced repetition scheduler implementing FSRS-4.5 mathematics,
+ *   algorithmic debouncing (< 1m window), rating correction rollbacks, and memory retrievability calculations.
  */
 
 import { fsrs, createEmptyCard, Rating, State, Card as TsFsrsCard, Grade } from 'ts-fsrs';
@@ -18,8 +24,11 @@ import {
     ALGORITHMIC_DEBOUNCE_WINDOW_MS
 } from '../../common/constants';
 import AbstractScheduler from './scheduler';
-import { Logger } from '@common/logger';
+import { Logger } from '../../common/logger';
 
+/**
+ * Minimal logger interface for scheduler event debugging.
+ */
 interface AppLogger {
     debug(category: string, message: string, data?: unknown): void;
     info(category: string, message: string, data?: unknown): void;
@@ -30,14 +39,23 @@ function getLogger(): AppLogger {
     return Logger;
 }
 
+/**
+ * Concrete FSRS scheduling algorithm engine wrapping `ts-fsrs`.
+ */
 export class FsrsScheduler extends AbstractScheduler {
+    /** 17-parameter weights vector defining initial stability, difficulty, and recall dynamics. */
     public w: number[];
+    /** Power-law memory decay constant. */
     public decay: number;
+    /** Power-law retrievability scaling factor. */
     public factor: number;
+    /** Desired target recall probability (e.g. 0.90 for 90%). */
     public requestRetention: number;
 
     /**
      * Initializes the FSRS scheduler with standard FSRS-4.5 weights and constants.
+     * 
+     * @param {Partial<FSRSParameters> | null} [params=null] - Optional override parameters.
      */
     constructor(params: Partial<FSRSParameters> | null = null) {
         super();
@@ -62,6 +80,16 @@ export class FsrsScheduler extends AbstractScheduler {
         }
     }
 
+    /**
+     * Initializes a new problem flashcard conforming to standard FSRS state schema.
+     * 
+     * @param {string} [problemTitle=''] - Name of the algorithmic problem.
+     * @param {string} [problemUrl=''] - Canonical problem URL.
+     * @param {string} [textRead=''] - Extracted text or summary context.
+     * @param {string} [approach=''] - User solution notes.
+     * @param {string[]} [tags=[]] - Topic classification tags.
+     * @returns {Card} New card instance initialized with empty FSRS metrics.
+     */
     createCard(problemTitle: string = '', problemUrl: string = '', textRead: string = '', approach: string = '', tags: string[] = []): Card {
         const logger = getLogger();
         if (logger) {
@@ -98,6 +126,14 @@ export class FsrsScheduler extends AbstractScheduler {
     /**
      * Primary entry point for reviewing a card. Coordinates rapid re-review debouncing,
      * historical logging with pre-state snapshots, and ts-fsrs mathematical calculation.
+     * 
+     * @param {Card} card - Target card being reviewed.
+     * @param {Rating | number} [rating=Rating.Good] - Recall score (1: Again, 2: Hard, 3: Good, 4: Easy).
+     * @param {number[] | null} [customWeights=null] - Optional 17-parameter weights override.
+     * @param {number} [now=Date.now()] - Timestamp of the review.
+     * @param {number | null} [timeTaken=null] - Optional elapsed active review duration in milliseconds.
+     * @returns {Card} New card instance updated with recalculated FSRS metrics and scheduled due timestamp.
+     * @throws {Error} If `card` argument is missing.
      */
     reviewCard(card?: Card, rating: Rating | number = Rating.Good, customWeights: number[] | null = null, now: number = Date.now(), timeTaken: number | null = null): Card {
         if (!card) {
@@ -318,6 +354,13 @@ export class FsrsScheduler extends AbstractScheduler {
 
 
 
+    /**
+     * Calculates the card's current recall probability (0.0 to 1.0) using ts-fsrs formula.
+     * 
+     * @param {Card} [card] - Target card.
+     * @param {number} [now=Date.now()] - Current evaluation timestamp.
+     * @returns {number} Retrievability probability between 0.0 and 1.0.
+     */
     getRetrievability(card?: Card, now: number = Date.now()): number {
         if (!card) return 0;
         const logger = getLogger();
@@ -356,25 +399,55 @@ export class FsrsScheduler extends AbstractScheduler {
         }
     }
 
+    /**
+     * Estimates theoretical retrievability across a given elapsed time span using FSRS power-law forgetting formula:
+     * `R = (1 + factor * elapsedDays / stability) ^ decay`.
+     * 
+     * @param {number} [stability=0] - Current memory stability in days.
+     * @param {number} [elapsedDays=0] - Number of days since last review.
+     * @returns {number} Retrievability estimate between 0.0 and 1.0.
+     */
     getProjectedRetrievability(stability: number = 0, elapsedDays: number = 0): number {
         if (stability <= 0) return 0;
         return Math.pow(1 + (this.factor * elapsedDays) / stability, this.decay);
     }
 
+    /**
+     * Retrieves the configured request retention probability for this scheduler instance.
+     * 
+     * @returns {number} Retention rate (e.g., 0.90).
+     */
     getDefaultRequestRetention(): number {
         return this.requestRetention;
     }
 
+    /**
+     * Checks if a card's difficulty exceeds the high difficulty threshold (>= 7.0).
+     * 
+     * @param {Card} [card] - Target card.
+     * @returns {boolean} True if difficulty is high.
+     */
     isHighDifficulty(card?: Card): boolean {
         if (!card) return false;
         return card.difficulty >= HIGH_DIFFICULTY_THRESHOLD;
     }
 
+    /**
+     * Checks if a card has graduated into the standard Review state with stability exceeding the threshold (> 21 days).
+     * 
+     * @param {Card} [card] - Target card.
+     * @returns {boolean} True if card is graduated.
+     */
     isGraduated(card?: Card): boolean {
         if (!card) return false;
         return card.state === State.Review && card.stability > GRADUATED_STABILITY_THRESHOLD;
     }
 
+    /**
+     * Resets FSRS weights and parameters back to algorithmic defaults.
+     * 
+     * @returns {void}
+     */
     resetConfiguration(): void {
         this.w = [...DEFAULT_FSRS_W];
         this.decay = DEFAULT_FSRS_DECAY;
@@ -382,6 +455,11 @@ export class FsrsScheduler extends AbstractScheduler {
         this.requestRetention = DEFAULT_FSRS_REQUEST_RETENTION;
     }
 
+    /**
+     * Exports current weights, decay, factor, and retention configuration.
+     * 
+     * @returns {FSRSParameters} Exported configuration parameters.
+     */
     exportConfiguration(): FSRSParameters {
         return {
             w: [...this.w],
@@ -391,6 +469,12 @@ export class FsrsScheduler extends AbstractScheduler {
         };
     }
 
+    /**
+     * Imports and applies partial or full FSRS parameter overrides.
+     * 
+     * @param {Partial<FSRSParameters>} [config] - Parameters to apply.
+     * @returns {void}
+     */
     importConfiguration(config?: Partial<FSRSParameters>): void {
         if (!config) return;
         if (config.w && Array.isArray(config.w) && config.w.length === 17) {
@@ -405,7 +489,12 @@ export class FsrsScheduler extends AbstractScheduler {
 export default FsrsScheduler;
 
 if (typeof window !== 'undefined') {
-    (window as unknown as { FsrsScheduler?: typeof FsrsScheduler }).FsrsScheduler = FsrsScheduler;
+    try {
+        (window as unknown as { FsrsScheduler?: typeof FsrsScheduler }).FsrsScheduler = FsrsScheduler;
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.debug('FsrsScheduler', `Safe recovery fallback for window global export: ${errorMessage}`, { err });
+    }
 }
 
 if (typeof module !== 'undefined' && module.exports) {

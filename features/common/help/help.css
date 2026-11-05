@@ -1,7 +1,11 @@
-/*
+/**
  * @file features/common/help/help.css
- * @description Redesigned modern MD3 styling for AlgoRecall Help Center & Manuals.
- * Upstream dependency: features/common/base.css
+ * @context Standalone Options Page UI (features/common/help/help.html)
+ * @description Stylesheet for the interactive Help Center and manual pages.
+ * Controls sticky tab navigation, search bar input, card layouts, callout boxes,
+ * search highlight markers, and responsive multi-column guides.
+ * @isolation Global (Page-scoped to help.html)
+ * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 body {
     background-color: var(--md-bg);
@@ -31,14 +35,12 @@ body {
 
 .header-title-container {
     display: flex;
-    align-items: center;
-    gap: 16px;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 .header-emoji {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: none;
 }
 
 .main-logo-icon {
@@ -110,6 +112,8 @@ body {
     margin-bottom: 24px;
     padding-bottom: 8px;
     overflow-x: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 
 .tab-btn {
@@ -133,6 +137,11 @@ body {
     background: var(--md-surface-variant);
 }
 
+/**
+ * Dynamic State: .tab-btn.active
+ * Added to the clicked tab button by features/common/help/help.ts (switchTab).
+ * Highlights the active category pill with primary container background.
+ */
 .tab-btn.active {
     color: var(--md-primary);
     background: var(--md-primary-container);
@@ -154,6 +163,11 @@ body {
     animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/**
+ * Dynamic State: .tab-pane.active
+ * Toggled on the target tab content section by features/common/help/help.ts (switchTab).
+ * Unhides the corresponding guide section.
+ */
 .tab-pane.active {
     display: block;
 }

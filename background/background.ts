@@ -1,85 +1,89 @@
 /**
- * @file background/background.ts
- * @description Extension background service worker (Manifest V3) implemented as an OOP class.
- * Manages background alarms for checking scheduled card due times, schedules/delivers OS notifications,
- * handles custom whitelisted website routing messages, reacts to SPA client-side history state updates,
- * and sends weekly summary digest notifications (R3.6).
+ * @file Manifest V3 Background Service Worker Engine
+ * @module background/background
+ * @context Background Service Worker (Manifest V3 lifecycle)
+ * @description Central event orchestrator and persistent service worker for the extension.
+ * Manages background alarms for due card checking, desktop OS notification scheduling and dispatch,
+ * toolbar badge count updates, Pomodoro timer background ticking and state synchronization,
+ * SPA URL navigation detection via `chrome.webNavigation`, cross-context runtime messaging,
+ * and keyboard shortcut command handling (`chrome.commands`).
  */
 import { Logger } from '@common/logger';
-import { Card, StorageData, ExtensionMessage, MessageResponse } from '../types/domain';
+import {
+    Card,
+    StorageData,
+    ExtensionMessage,
+    MessageResponse,
+    NotificationSettings,
+    WhitelistedWebsite,
+    PomodoroState,
+    PomodoroSettings,
+    PomodoroStats
+} from '../types/domain';
 import { RemoteBackupService } from '../features/common/data/remote/remoteBackupService';
 import {
     MS_PER_MINUTE,
+    MS_PER_DAY,
     MS_PER_WEEK,
     ALARM_DEFAULT_CHECK_INTERVAL_MIN,
     ALARM_DAILY_PERIOD_MIN,
     ALARM_WEEKLY_PERIOD_MIN,
-    SNOOZE_DEFAULT_MINUTES
+    SNOOZE_DEFAULT_MINUTES,
+    DEFAULT_WHITELISTED_WEBSITES,
+    DEFAULT_NOTIFICATION_SETTINGS,
+    DEFAULT_POMODORO_SETTINGS,
+    DEFAULT_POMODORO_STATS
 } from '../features/common/constants';
+import { BROWSER_CONFIG } from '../features/common/browserConfig';
+import { ActionService, CommandActionId } from '../features/common/services/actionService';
 
-(self as unknown as { onerror: (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) => boolean }).onerror = function(message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) {
+(self as unknown as { onerror: (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) => boolean }).onerror = function (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) {
     try {
         Logger.error('Background', 'Unhandled runtime error', { message, source, lineno, colno, error });
-    } catch {
+    } catch (err) {
         // Comment: Suppress recursive logging failures during global onerror handler
+        console.warn('[AlgoRecall Background] Suppressed error in onerror handler:', err);
     }
     return false;
 };
 
-(self as unknown as { onunhandledrejection: (event: PromiseRejectionEvent) => void }).onunhandledrejection = function(event: PromiseRejectionEvent) {
+(self as unknown as { onunhandledrejection: (event: PromiseRejectionEvent) => void }).onunhandledrejection = function (event: PromiseRejectionEvent) {
     try {
         Logger.error('Background', 'Unhandled promise rejection', { reason: event?.reason });
-    } catch {
+    } catch (err) {
         // Comment: Suppress recursive logging failures during unhandled promise rejection handler
+        console.warn('[AlgoRecall Background] Suppressed error in onunhandledrejection handler:', err);
     }
 };
 
-export interface NotificationSettings {
-    enabled?: boolean;
-    frequency?: string;
-    priority?: string;
-    requireInteraction?: boolean;
-    quietHoursEnabled?: boolean;
-    quietHoursStart?: string;
-    quietHoursEnd?: string;
-}
+export type { NotificationSettings, WhitelistedWebsite, PomodoroState, PomodoroSettings, PomodoroStats };
 
-export interface WhitelistedWebsite {
-    domain: string;
-}
-
-export interface PomodoroState {
-    state: 'idle' | 'running' | 'paused';
-    phase: 'focus' | 'shortBreak' | 'longBreak';
-    targetEndTime: number;
-    currentSession: number;
-}
-
-export interface PomodoroSettings {
-    focusDuration: number;
-    shortBreakDuration: number;
-    longBreakDuration: number;
-    sessionsBeforeLongBreak: number;
-}
-
-export interface PomodoroStats {
-    sessionsToday: number;
-    focusMinutesToday: number;
-    lastDate: string;
-}
-
+/**
+ * Main service worker singleton coordinating background operations, alarms, and badge counters.
+ */
 export class AlgoRecallBackground {
+    /** Active setInterval timer ID for Pomodoro countdown ticking */
     private pomodoroIntervalId: ReturnType<typeof setInterval> | null = null;
+    /** Cached action title string to avoid redundant `chrome.action.setTitle` calls */
     private _lastPomodoroTitle: string | null = null;
+    /** Cached action badge text string to avoid redundant `chrome.action.setBadgeText` calls */
     private _lastPomodoroBadge: string | null = null;
+    /** Cached action badge color string to avoid redundant `chrome.action.setBadgeBackgroundColor` calls */
     private _lastPomodoroColor: string | null = null;
+    /** Re-entrancy guard preventing concurrent `checkDueCards` executions */
+    private isCheckingDueCards: boolean = false;
 
+    /**
+     * Initializes service worker lifecycle hooks, alarm schedules, and badge state.
+     */
     constructor() {
         this.init();
     }
 
     /**
      * Initializes the service worker listeners and settings.
+     * Restores active Pomodoro sessions and recalculates due review badges.
+     * @async
      */
     async init(): Promise<void> {
         Logger.info('Background', 'Initializing background service worker...');
@@ -87,6 +91,7 @@ export class AlgoRecallBackground {
         try {
             this.bindEvents();
             await this.resumePomodoroBackground();
+            await this.updateDueCardsBadge();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Failed background initialization: ${errorMessage}`, { err });
@@ -98,71 +103,112 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Binds all Chrome API event listeners.
+     * Binds all Chrome API event listeners for installation, alarms, webNavigation history updates,
+     * storage modifications, runtime messages, notification clicks, and command shortcuts.
+     * Safari-specific: chrome.alarms and chrome.notifications are guarded by build-time flags.
+     * @listens chrome.runtime.onInstalled
+     * @listens chrome.alarms.onAlarm
+     * @listens chrome.webNavigation.onHistoryStateUpdated
+     * @listens chrome.storage.onChanged
+     * @listens chrome.runtime.onMessage
+     * @listens chrome.notifications.onClicked
+     * @listens chrome.commands.onCommand
      */
     bindEvents(): void {
         try {
             chrome.runtime.onInstalled.addListener(this.handleInstalled.bind(this));
-            chrome.alarms.onAlarm.addListener(this.handleAlarm.bind(this));
+            // Safari does not support chrome.alarms — skip alarm listener registration.
+            if (BROWSER_CONFIG.supportsAlarms) {
+                chrome.alarms.onAlarm.addListener(this.handleAlarm.bind(this));
+            }
             chrome.webNavigation.onHistoryStateUpdated.addListener(this.handleHistoryStateUpdated.bind(this));
             chrome.storage.onChanged.addListener(this.handleStorageChanged.bind(this));
             chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
-            chrome.notifications.onClicked.addListener(this.handleNotificationClicked.bind(this));
+            // Safari does not support chrome.notifications — skip notification click listener.
+            if (BROWSER_CONFIG.supportsNotifications) {
+                chrome.notifications.onClicked.addListener(this.handleNotificationClicked.bind(this));
+            }
+            if (typeof chrome !== 'undefined' && chrome.commands && chrome.commands.onCommand) {
+                chrome.commands.onCommand.addListener(this.handleCommand.bind(this));
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to bind background Chrome API event listeners: ${errorMessage}`, { err });
+            Logger.error('Background', `Failed to bind background extension API event listeners: ${errorMessage}`, { err });
             // Comment: Catch listener registration error to prevent constructor failure
         }
     }
 
     /**
-     * Handles extension installation event.
-     * @param {chrome.runtime.InstalledDetails} details - Details of install event.
+     * Handles keyboard shortcuts dispatched via the `chrome.commands` API.
+     * Centralized command dispatcher decoupling actions from the popup lifecycle.
+     * @param command - Command name registered in manifest.json.
+     * @async
+     * @fires chrome.action.setBadgeText
+     */
+    async handleCommand(command: string): Promise<void> {
+        Logger.info('Background', `Received browser keyboard command: ${command}`);
+        try {
+            if (command === 'check-due-reviews') {
+                await this.checkDueCards('manual');
+                await this.updateDueCardsBadge();
+                return;
+            }
+            const result = await ActionService.executeAction(command as CommandActionId, {
+                background: {
+                    checkDueCards: this.checkDueCards.bind(this),
+                    updateDueCardsBadge: this.updateDueCardsBadge.bind(this)
+                }
+            });
+            if (!result.success && result.error) {
+                Logger.warn('Background', `Command execution result warning for ${command}: ${result.error}`);
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Background', `Failed to execute command ${command}: ${errorMessage}`, { err });
+        }
+    }
+
+    /**
+     * Handles extension installation or update lifecycle events.
+     * Seeds initial default notification preferences, sets up alarm schedules,
+     * and displays the welcome walkthrough page on first install.
+     * @param details - Details of install event.
+     * @async
+     * @fires chrome.storage.local.set
+     * @fires chrome.tabs.create
      */
     async handleInstalled(details?: chrome.runtime.InstalledDetails): Promise<void> {
         try {
             // Initialize default notification settings if they don't exist
             const result = await chrome.storage.local.get(['notificationSettings']);
-            if (!result.notificationSettings) {
-                await chrome.storage.local.set({
-                    notificationSettings: {
-                        enabled: true,
-                        frequency: '60',
-                        priority: '2',
-                        requireInteraction: true
-                    }
-                });
+            if (chrome.runtime.lastError) {
+                Logger.error('Background', `Storage get error in handleInstalled: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+            }
+            let settings = result.notificationSettings;
+            if (!settings) {
+                settings = { ...DEFAULT_NOTIFICATION_SETTINGS };
+                await chrome.storage.local.set({ notificationSettings: settings });
+                if (chrome.runtime.lastError) {
+                    Logger.error('Background', `Storage set error in handleInstalled: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                }
             }
 
             await this.setupAlarm();
             await this.setupWeeklySummaryAlarm();
             await this.setupDailyNudgeAlarm();
             Logger.debug('Background', `Extension installed/updated. Reason: ${details ? details.reason : 'unknown'}`);
-            
+
             // Redirect to Onboarding Welcome page on initial install (and update for debugging)
             if (details && (details.reason === 'install' || details.reason === 'update')) {
                 chrome.tabs.create({ url: chrome.runtime.getURL('features/common/welcome/welcome.html') });
             } else {
-                chrome.notifications.create('test-install', {
-                    type: 'basic',
-                    iconUrl: '../icons/icon.png', // Relative path from service worker
-                    title: 'AlgoRecall Active 🧠',
-                    message: 'Notifications are working! You will be alerted when reviews are due.',
-                    priority: 2
-                }, (id) => {
-                    try {
-                        if (chrome.runtime.lastError) {
-                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                            Logger.error('Background', `Notification failed to send: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        } else {
-                            Logger.debug('Background', `Test install notification sent with ID: ${id}`);
-                        }
-                    } catch (callbackErr) {
-                        // Comment: Safe recovery inside test-install notification callback
-                        const errorMessage = callbackErr instanceof Error ? callbackErr.message : String(callbackErr);
-                        Logger.error('Background', `Error in test install notification callback: ${errorMessage}`, { callbackErr });
-                    }
-                });
+                this.dispatchSystemNotification(
+                    'test-install',
+                    'AlgoRecall Active 🧠',
+                    'Notifications are working! You will be alerted when reviews are due.',
+                    2,
+                    settings.requireInteraction !== false
+                );
             }
 
             await this.checkDueCards();
@@ -174,13 +220,15 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Handles incoming background alarm trigger events.
-     * @param {chrome.alarms.Alarm} alarm - Fired alarm details.
+     * Handles incoming background alarm trigger events for review checking, weekly digest,
+     * daily nudge, and Pomodoro cycle completions.
+     * @param alarm - Fired alarm details.
      */
     handleAlarm(alarm: chrome.alarms.Alarm): void {
         try {
+            if (!alarm || !alarm.name) return;
             if (alarm.name === 'checkFsrsReviews' || alarm.name === 'snoozeFsrsReviews' || alarm.name === 'smartReviewSchedule') {
-                this.checkDueCards();
+                this.checkDueCards(alarm.name);
             } else if (alarm.name === 'weeklySummary') {
                 this.handleWeeklySummary();
             } else if (alarm.name === 'dailyNudge') {
@@ -198,15 +246,18 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Handles SPA Client-Side Routing for Highlighter updates.
-     * @param {chrome.webNavigation.WebNavigationSourceCallbackDetails} details - Navigation history update details.
+     * Handles single page application (SPA) client-side history updates via `webNavigation.onHistoryStateUpdated`.
+     * Relays `spa_url_changed` runtime messages to the active tab to restore highlight overlays and launcher widgets.
+     * @param details - Navigation history update details.
+     * @fires chrome.tabs.sendMessage
      */
     handleHistoryStateUpdated(details: chrome.webNavigation.WebNavigationSourceCallbackDetails): void {
         try {
+            if (!details || typeof details.tabId !== 'number') return;
             Logger.debug('Background', `History state updated for tab ${details.tabId}`, { url: details.url });
-            chrome.tabs.sendMessage(details.tabId, { 
-                action: "spa_url_changed", 
-                url: details.url 
+            chrome.tabs.sendMessage(details.tabId, {
+                action: "spa_url_changed",
+                url: details.url
             }).catch((err) => {
                 // Comment: Non-blocking tab message failure catch (e.g., non-whitelisted site or script not injected yet)
                 Logger.debug('Background', `Failed to send spa_url_changed to tab ${details.tabId}: script not injected or non-whitelisted site.`, { tabId: details.tabId, err });
@@ -219,17 +270,24 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Reads user configurations from storage and schedules/reschedules the review check alarms.
+     * Reads user configurations from storage and schedules or reschedules review check alarms.
+     * No-op on Safari — `chrome.alarms` is not supported in Safari Web Extensions.
+     * @async
+     * @fires chrome.alarms.create
+     * @fires chrome.alarms.clear
      */
     async setupAlarm(): Promise<void> {
+        // Safari does not support chrome.alarms.
+        if (!BROWSER_CONFIG.supportsAlarms) {
+            Logger.info('Background', 'Skipping alarm setup — chrome.alarms is not supported on this platform.');
+            return;
+        }
         try {
             const result = await chrome.storage.local.get(['notificationSettings', 'fsrsActivity']);
-            const settings: NotificationSettings = result.notificationSettings || {
-                enabled: true,
-                frequency: '60',
-                priority: '2',
-                requireInteraction: true
-            };
+            if (chrome.runtime.lastError) {
+                Logger.error('Background', `Storage get error in setupAlarm: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+            }
+            const settings: NotificationSettings = result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS };
 
             await chrome.alarms.clear('checkFsrsReviews');
             await chrome.alarms.clear('snoozeFsrsReviews');
@@ -238,24 +296,24 @@ export class AlgoRecallBackground {
             if (settings.enabled) {
                 const interval = parseInt(settings.frequency || String(ALARM_DEFAULT_CHECK_INTERVAL_MIN), 10);
                 if (!isNaN(interval) && interval > 0) {
-                    chrome.alarms.create('checkFsrsReviews', { periodInMinutes: interval });
+                    chrome.alarms.create('checkFsrsReviews', { delayInMinutes: interval, periodInMinutes: interval });
                     Logger.info('Background', `Scheduled checkFsrsReviews alarm every ${interval} minutes.`);
                 } else {
                     // If frequency is invalid, fall back to default interval
-                    chrome.alarms.create('checkFsrsReviews', { periodInMinutes: ALARM_DEFAULT_CHECK_INTERVAL_MIN });
+                    chrome.alarms.create('checkFsrsReviews', { delayInMinutes: ALARM_DEFAULT_CHECK_INTERVAL_MIN, periodInMinutes: ALARM_DEFAULT_CHECK_INTERVAL_MIN });
                     Logger.info('Background', `Scheduled checkFsrsReviews alarm every ${ALARM_DEFAULT_CHECK_INTERVAL_MIN} minutes (fallback).`);
                 }
-                
+
                 // R8.1 Smart Scheduling: Also schedule a daily check at their most active study hour
                 const now = new Date();
                 const smartTarget = new Date(now);
                 smartTarget.setHours(17, 0, 0, 0);
                 if (smartTarget <= now) smartTarget.setDate(smartTarget.getDate() + 1);
-                
+
                 const delayInMinutes = Math.max(1, Math.ceil((smartTarget.getTime() - now.getTime()) / MS_PER_MINUTE));
                 chrome.alarms.create('smartReviewSchedule', { delayInMinutes, periodInMinutes: ALARM_DAILY_PERIOD_MIN });
                 Logger.info('Background', `Scheduled smartReviewSchedule alarm daily at 17:00.`);
-                
+
             } else {
                 Logger.info('Background', `Notifications are disabled, cleared review alarms.`);
             }
@@ -267,12 +325,19 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * R3.6: Sets up the weekly summary alarm.
-     * Fires every Monday at 9:00 AM local time (approximately).
+     * Sets up the weekly study digest summary alarm.
+     * Fires recurringly every Monday at 9:00 AM local time.
+     * No-op on Safari — chrome.alarms is not supported.
+     * @async
+     * @fires chrome.alarms.create
      */
     async setupWeeklySummaryAlarm(): Promise<void> {
+        if (!BROWSER_CONFIG.supportsAlarms) return;
         try {
             const result = await chrome.storage.local.get(['weeklySummaryEnabled']);
+            if (chrome.runtime.lastError) {
+                Logger.error('Background', `Storage get error in setupWeeklySummaryAlarm: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+            }
             const enabled = result.weeklySummaryEnabled !== false; // Default true
 
             await chrome.alarms.clear('weeklySummary');
@@ -281,7 +346,7 @@ export class AlgoRecallBackground {
                 // Calculate minutes until next Monday 9:00 AM
                 const now = new Date();
                 const target = new Date(now);
-                
+
                 // Find next Monday
                 const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                 let daysUntilMonday = (1 - dayOfWeek + 7) % 7;
@@ -311,10 +376,13 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * R8.4: Sets up the daily nudge alarm.
-     * Fires every day at 8:00 PM (20:00).
+     * Sets up the daily review reminder nudge alarm firing every day at 8:00 PM (20:00).
+     * No-op on Safari — chrome.alarms is not supported.
+     * @async
+     * @fires chrome.alarms.create
      */
     async setupDailyNudgeAlarm(): Promise<void> {
+        if (!BROWSER_CONFIG.supportsAlarms) return;
         try {
             await chrome.alarms.clear('dailyNudge');
             const now = new Date();
@@ -334,17 +402,22 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Watches for changes in settings to dynamically reschedule the alarm.
-     * @param {{ [key: string]: chrome.storage.StorageChange }} changes - Object describing key storage differences.
-     * @param {string} areaName - The name of the storage area.
+     * Monitors `chrome.storage.onChanged` events to dynamically reschedule alarms and update badge counters.
+     * @param changes - Key differences map.
+     * @param areaName - Storage area name ('local' | 'sync').
+     * @async
      */
     async handleStorageChanged(changes: { [key: string]: chrome.storage.StorageChange }, areaName: string): Promise<void> {
         try {
             if (areaName === 'local' && changes.notificationSettings) {
                 await this.setupAlarm();
+                await this.updateDueCardsBadge();
             }
             if (areaName === 'local' && changes.weeklySummaryEnabled) {
                 await this.setupWeeklySummaryAlarm();
+            }
+            if (areaName === 'local' && changes.fsrsCards) {
+                await this.updateDueCardsBadge();
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
@@ -354,19 +427,40 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Coordinates background script runtime communication channels.
-     * @param {ExtensionMessage} message - Received payload object.
-     * @param {chrome.runtime.MessageSender} sender - Messaging sender metadata.
-     * @param {(response?: MessageResponse) => void} sendResponse - Callback for routing replies.
+     * Coordinates background script runtime communication channels, dispatching commands
+     * for due card checks, notification testing, fullscreen editors, snooze timers, and Pomodoro states.
+     * @param message - Received payload object.
+     * @param sender - Messaging sender metadata.
+     * @param sendResponse - Callback for routing replies asynchronously.
+     * @returns True if asynchronous response will be delivered via `sendResponse`.
      */
     handleMessage(message: ExtensionMessage, sender: chrome.runtime.MessageSender, sendResponse: (response?: MessageResponse) => void): boolean | void {
+        if (!message || typeof message !== 'object') {
+            return false;
+        }
         Logger.debug('Background', `Received message: ${message.action}`, { senderId: sender.id, tabId: sender.tab?.id });
-        
+
+        if (message.action === 'check_due_cards_now') {
+            (async () => {
+                try {
+                    await this.checkDueCards('manual');
+                    const dueCount = await this.updateDueCardsBadge();
+                    sendResponse({ success: true, dueCount });
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('Background', `Error in check_due_cards_now: ${errorMessage}`, { err });
+                    sendResponse({ success: false, error: errorMessage });
+                }
+            })();
+            return true;
+        }
+
         if (message.action === 'test_notification') {
             (async () => {
                 let success = false;
                 let errorMessage: string | undefined;
                 try {
+                    this.checkDueCards('test');
                     await this.showTestNotification();
                     success = true;
                 } catch (err) {
@@ -399,8 +493,10 @@ export class AlgoRecallBackground {
 
         if (message.action === 'snooze_notification') {
             try {
-                const minutes = message.minutes || SNOOZE_DEFAULT_MINUTES;
-                chrome.alarms.create('snoozeFsrsReviews', { delayInMinutes: minutes });
+                if (BROWSER_CONFIG.supportsAlarms) {
+                    const minutes = message.minutes || SNOOZE_DEFAULT_MINUTES;
+                    chrome.alarms.create('snoozeFsrsReviews', { delayInMinutes: minutes });
+                }
                 sendResponse({ success: true });
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : String(err);
@@ -518,25 +614,32 @@ export class AlgoRecallBackground {
             })();
             return true;
         }
+
+        return false;
     }
 
     /**
      * Triggers a test notification. Attempts to deliver an in-page DOM alert inside the active tab
      * if it matches whitelisted coding domains; otherwise, triggers a standard system tray OS notification.
+     * @async
+     * @fires chrome.tabs.query
+     * @fires chrome.tabs.sendMessage
+     * @fires chrome.notifications.create
      */
     async showTestNotification(): Promise<void> {
         const result = await chrome.storage.local.get(['notificationSettings']);
-        const settings: NotificationSettings = result.notificationSettings || {
-            enabled: true,
-            frequency: '60',
-            priority: '2',
-            requireInteraction: true
-        };
+        if (chrome.runtime.lastError) {
+            Logger.error('Background', `Storage get error in showTestNotification: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+        }
+        const settings: NotificationSettings = result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS };
 
         return new Promise<void>((resolve) => {
             try {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
                     try {
+                        if (chrome.runtime.lastError) {
+                            Logger.error('Background', `Tabs query error in showTestNotification: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                        }
                         let handledInPage = false;
                         if (tabs && tabs[0] && tabs[0].id) {
                             const tab = tabs[0];
@@ -586,79 +689,120 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Generates and triggers a standard Google Chrome system tray test notification.
-     * @param {NotificationSettings} settings - Active notification configurations.
+     * Helper to create and clear system tray notifications securely.
+     * No-op on Safari — chrome.notifications is not supported in Safari Web Extensions.
+     * @param id - Notification identifier.
+     * @param title - Notification banner title.
+     * @param message - Notification description message.
+     * @param priority - Priority level integer.
+     * @param requireInteraction - Whether user dismissal is required.
+     * @fires chrome.notifications.clear
+     * @fires chrome.notifications.create
      */
-    createSystemTestNotification(settings: NotificationSettings): void {
+    private dispatchSystemNotification(
+        id: string,
+        title: string,
+        message: string,
+        priority: number,
+        requireInteraction: boolean
+    ): void {
+        // Safari does not support chrome.notifications — skip silently.
+        if (!BROWSER_CONFIG.supportsNotifications) {
+            Logger.info('Background', `Skipping notification '${id}' — chrome.notifications is not supported on this platform.`);
+            return;
+        }
         try {
-            chrome.notifications.clear('algo-test-notification', () => {
+            chrome.notifications.clear(id, () => {
                 try {
                     if (chrome.runtime.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Background', `Error clearing test notification: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        Logger.error('Background', `Error clearing notification ${id}: ${errorMessage}`, { error: chrome.runtime.lastError });
                     }
-                    chrome.notifications.create('algo-test-notification', {
+                    chrome.notifications.create(id, {
                         type: 'basic',
                         iconUrl: '../icons/icon.png',
-                        title: '🔔 Notification Test',
-                        message: `This is a test. Reviews will check every ${settings.frequency} minutes.`,
-                        priority: parseInt(settings.priority || '2', 10) || 2,
-                        requireInteraction: settings.requireInteraction !== false
-                    }, (id) => {
+                        title,
+                        message,
+                        priority,
+                        requireInteraction
+                    }, (createdId) => {
                         try {
                             if (chrome.runtime.lastError) {
                                 const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                Logger.error('Background', `Test Notification Error: ${errorMessage}`, { error: chrome.runtime.lastError });
+                                Logger.error('Background', `Notification ${id} Error: ${errorMessage}`, { error: chrome.runtime.lastError });
                             } else {
-                                Logger.debug('Background', `System test notification sent with ID: ${id}`);
+                                Logger.debug('Background', `Notification sent with ID: ${createdId}`);
                             }
                         } catch (createErr) {
-                            // Comment: Safe recovery inside test notification creation callback
                             const errorMessage = createErr instanceof Error ? createErr.message : String(createErr);
-                            Logger.error('Background', `Error in test notification create callback: ${errorMessage}`, { createErr });
+                            Logger.error('Background', `Error in notification ${id} create callback: ${errorMessage}`, { createErr });
                         }
                     });
                 } catch (clearErr) {
-                    // Comment: Safe recovery inside test notification clear callback
                     const errorMessage = clearErr instanceof Error ? clearErr.message : String(clearErr);
-                    Logger.error('Background', `Error handling test notification clear callback: ${errorMessage}`, { clearErr });
+                    Logger.error('Background', `Error handling notification ${id} clear callback: ${errorMessage}`, { clearErr });
                 }
             });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to create system test notification: ${errorMessage}`, { err });
-            // Comment: Non-fatal error during system test notification trigger
+            Logger.error('Background', `Failed to create system notification ${id}: ${errorMessage}`, { err });
         }
+    }
+
+    /**
+     * Generates and triggers a standard Google Chrome system tray test notification.
+     * @param settings - Active notification configurations.
+     */
+    createSystemTestNotification(settings: NotificationSettings): void {
+        this.dispatchSystemNotification(
+            'algo-test-notification',
+            '🔔 Notification Test',
+            `This is a test. Reviews will check every ${settings.frequency} minutes.`,
+            parseInt(settings.priority || '2', 10) || 2,
+            settings.requireInteraction !== false
+        );
     }
 
     /**
      * Queries the list of scheduled cards in storage, filters due items, and prompts the user.
      * Delivers alerts either through an in-page notification frame or a native system notification.
+     * Respects quiet hours and throttle intervals.
+     * @param source - Optional caller trigger source name (e.g. 'manual', 'snoozeFsrsReviews').
+     * @async
+     * @fires chrome.storage.local.get
+     * @fires chrome.tabs.query
+     * @fires chrome.tabs.sendMessage
      */
-    async checkDueCards(): Promise<void> {
+    async checkDueCards(source?: string): Promise<void> {
+        if (this.isCheckingDueCards) {
+            Logger.debug('Background', 'checkDueCards is already running, skipping duplicate invocation.');
+            return;
+        }
+        this.isCheckingDueCards = true;
         try {
-            const result = (await chrome.storage.local.get(['fsrsCards', 'notificationSettings', 'whitelistedWebsites'])) as StorageData & {
+            const result = (await chrome.storage.local.get(['fsrsCards', 'notificationSettings', 'whitelistedWebsites', 'lastNotificationTime'])) as StorageData & {
                 notificationSettings?: NotificationSettings;
                 whitelistedWebsites?: WhitelistedWebsite[];
+                lastNotificationTime?: number;
             };
-            const settings: NotificationSettings = result.notificationSettings || {
-                enabled: true,
-                frequency: '60',
-                priority: '2',
-                requireInteraction: true
-            };
-            const whitelistedWebsites: WhitelistedWebsite[] = result.whitelistedWebsites || [
-                { domain: "algo.monster" },
-                { domain: "systemdesignschool.io" },
-                { domain: "codeforces.com" },
-                { domain: "leetcode.com" },
-                { domain: "codechef.com" },
-                { domain: "atcoder.jp" },
-                { domain: "hackerrank.com" },
-                { domain: "hackerearth.com" },
-                { domain: "codewars.com" },
-                { domain: "codingame.com" }
-            ];
+            if (chrome.runtime.lastError) {
+                Logger.error('Background', `Storage get error in checkDueCards: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+            }
+            const settings: NotificationSettings = result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS };
+            const whitelistedWebsites: WhitelistedWebsite[] = result.whitelistedWebsites || DEFAULT_WHITELISTED_WEBSITES;
+
+            // Enforce minimum interval to bypass MV3 alarm bugs (like frequent re-triggering upon wake-up)
+            // Allow explicit 'snoozeFsrsReviews' and 'test' source to bypass this throttle
+            if (source !== 'snoozeFsrsReviews' && source !== 'test') {
+                const interval = parseInt(settings.frequency || String(ALARM_DEFAULT_CHECK_INTERVAL_MIN), 10);
+                const lastCheck = result.lastNotificationTime || 0;
+                const now = Date.now();
+                // 1-minute buffer to account for alarm timing drift
+                if (now - lastCheck < (interval * 60000) - 60000) {
+                    Logger.info('Background', `Skipping checkDueCards; interval of ${interval} minutes has not passed yet. Source: ${source}`);
+                    return;
+                }
+            }
 
             // If notifications are disabled, do not notify
             if (settings.enabled === false) return;
@@ -712,122 +856,170 @@ export class AlgoRecallBackground {
                     .sort((a, b) => b[1] - a[1]) // highest count first
                     .slice(0, 3) // top 3 tags
                     .map(([tag, count]) => `${count} ${tag}`);
-                
-                const groupMessage = tagStrs.length > 0 
+
+                const groupMessage = tagStrs.length > 0
                     ? `You have ${tagStrs.join(', ')} patterns ready for review.`
                     : `You have ${dueCards.length} pattern(s) ready for review.`;
 
-                chrome.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
-                    try {
-                        let handledInPage = false;
-                        if (tabs && tabs[0] && tabs[0].id) {
-                            const tab = tabs[0];
-                            const url = tab.url;
-                            if (url) {
-                                const isMatching = whitelistedWebsites.some(site => url.includes(site.domain));
-                                if (isMatching && tab.id !== undefined) {
-                                    chrome.tabs.sendMessage(tab.id, {
-                                        action: 'show_custom_notification',
-                                        title: '🧠 AlgoRecall Reviews Due!',
-                                        message: groupMessage,
-                                        type: 'review',
-                                        count: dueCards.length
-                                    }, (response?: MessageResponse) => {
-                                        try {
-                                            if (chrome.runtime.lastError || !response || !response.success) {
-                                                this.createSystemReviewNotification(dueCards.length, settings, groupMessage);
-                                            }
-                                        } catch (msgErr) {
-                                            // Comment: Safe recovery in tabs message review notification callback
-                                            const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
-                                            Logger.error('Background', `Error in review notification message callback: ${errorMessage}`, { msgErr });
-                                            this.createSystemReviewNotification(dueCards.length, settings, groupMessage);
-                                        }
-                                    });
-                                    handledInPage = true;
-                                }
-                            }
-                        }
-                        if (!handledInPage) {
-                            this.createSystemReviewNotification(dueCards.length, settings, groupMessage);
-                        }
-                    } catch (queryErr) {
-                        // Comment: Safe recovery in tabs query callback for checkDueCards
-                        const errorMessage = queryErr instanceof Error ? queryErr.message : String(queryErr);
-                        Logger.error('Background', `Error in tabs query callback for checkDueCards: ${errorMessage}`, { queryErr });
-                        this.createSystemReviewNotification(dueCards.length, settings, groupMessage);
-                    }
-                });
+                // Record the time of this notification to enforce intervals across MV3 service worker restarts
+                await chrome.storage.local.set({ lastNotificationTime: Date.now() });
+
+                this.dispatchReviewNotification(dueCards.length, groupMessage, settings, whitelistedWebsites);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Error checking due cards: ${errorMessage}`, { err });
             // Comment: Non-fatal error during due card check, background worker recovers cleanly
+        } finally {
+            this.isCheckingDueCards = false;
+            await this.updateDueCardsBadge();
         }
+    }
+
+    /**
+     * Updates the extension action icon badge to reflect current due reviews.
+     * Yields to active Pomodoro sessions when running.
+     * @returns Number of cards currently due.
+     * @async
+     * @fires chrome.action.setBadgeText
+     * @fires chrome.action.setBadgeBackgroundColor
+     * @fires chrome.action.setTitle
+     */
+    async updateDueCardsBadge(): Promise<number> {
+        try {
+            if (typeof chrome === 'undefined' || !chrome.action) return 0;
+            if (this.pomodoroIntervalId !== null) {
+                return 0;
+            }
+
+            const result = (await chrome.storage.local.get(['fsrsCards', 'pomodoroState', 'notificationSettings'])) as {
+                fsrsCards?: Card[];
+                pomodoroState?: PomodoroState;
+                notificationSettings?: NotificationSettings;
+            };
+            if (result.pomodoroState && result.pomodoroState.state === 'running') {
+                return 0;
+            }
+
+            const notifSettings = result.notificationSettings || {};
+            const isBadgeEnabled = notifSettings.badgeEnabled !== false && notifSettings.showDueBadge !== false;
+
+            if (!isBadgeEnabled) {
+                chrome.action.setBadgeText({ text: '' });
+                chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
+                return 0;
+            }
+
+            const cards = result.fsrsCards || [];
+            const now = Date.now();
+            const dueCount = cards.filter((c: Card) => c.due <= now).length;
+
+            if (dueCount > 0) {
+                chrome.action.setBadgeText({ text: String(dueCount) });
+                chrome.action.setBadgeBackgroundColor({ color: '#1a73e8' });
+                chrome.action.setTitle({ title: `AlgoRecall: ${dueCount} review${dueCount === 1 ? '' : 's'} due` });
+            } else {
+                chrome.action.setBadgeText({ text: '' });
+                chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
+            }
+            return dueCount;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Background', `Error updating due cards badge: ${errorMessage}`, { err });
+            return 0;
+        }
+    }
+
+    /**
+     * Dispatches the review notification to the active tab if whitelisted, or falls back to system notification.
+     * @param dueCount - The number of cards currently due.
+     * @param groupMessage - The message string.
+     * @param settings - Active notification configurations.
+     * @param whitelistedWebsites - User configured whitelist.
+     * @fires chrome.tabs.query
+     * @fires chrome.tabs.sendMessage
+     */
+    private dispatchReviewNotification(dueCount: number, groupMessage: string, settings: NotificationSettings, whitelistedWebsites: WhitelistedWebsite[]): void {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs: chrome.tabs.Tab[]) => {
+            try {
+                if (chrome.runtime.lastError) {
+                    Logger.error('Background', `Tabs query error in dispatchReviewNotification: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                }
+                let handledInPage = false;
+                if (tabs && tabs[0] && tabs[0].id) {
+                    const tab = tabs[0];
+                    const url = tab.url;
+                    if (url) {
+                        const isMatching = whitelistedWebsites.some(site => url.includes(site.domain));
+                        if (isMatching && tab.id !== undefined) {
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: 'show_custom_notification',
+                                title: '🧠 AlgoRecall Reviews Due!',
+                                message: groupMessage,
+                                type: 'review',
+                                count: dueCount
+                            }, (response?: MessageResponse) => {
+                                try {
+                                    if (chrome.runtime.lastError || !response || !response.success) {
+                                        this.createSystemReviewNotification(dueCount, settings, groupMessage);
+                                    }
+                                } catch (msgErr) {
+                                    // Comment: Safe recovery in tabs message review notification callback
+                                    const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
+                                    Logger.error('Background', `Error in review notification message callback: ${errorMessage}`, { msgErr });
+                                    this.createSystemReviewNotification(dueCount, settings, groupMessage);
+                                }
+                            });
+                            handledInPage = true;
+                        }
+                    }
+                }
+                if (!handledInPage) {
+                    this.createSystemReviewNotification(dueCount, settings, groupMessage);
+                }
+            } catch (queryErr) {
+                // Comment: Safe recovery in tabs query callback for dispatchReviewNotification
+                const errorMessage = queryErr instanceof Error ? queryErr.message : String(queryErr);
+                Logger.error('Background', `Error in tabs query callback for dispatchReviewNotification: ${errorMessage}`, { queryErr });
+                this.createSystemReviewNotification(dueCount, settings, groupMessage);
+            }
+        });
     }
 
     /**
      * Triggers a native system alert signaling due cards are waiting for study.
-     * @param {number} dueCount - The number of cards currently due.
-     * @param {NotificationSettings} settings - Active notification configurations.
-     * @param {string} message - The message string.
+     * @param dueCount - The number of cards currently due.
+     * @param settings - Active notification configurations.
+     * @param message - The message string.
+     * @fires chrome.notifications.create
      */
     createSystemReviewNotification(dueCount: number, settings: NotificationSettings, message?: string): void {
-        try {
-            chrome.notifications.clear('algo-review-notification', () => {
-                try {
-                    if (chrome.runtime.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Background', `Error clearing review notification: ${errorMessage}`, { error: chrome.runtime.lastError });
-                    }
-                    chrome.notifications.create('algo-review-notification', {
-                        type: 'basic',
-                        iconUrl: '../icons/icon.png',
-                        title: '🧠 AlgoRecall Reviews Due!',
-                        message: message || `You have ${dueCount} pattern(s) ready for review.`,
-                        priority: parseInt(settings.priority || '2', 10) || 2,
-                        requireInteraction: settings.requireInteraction !== false
-                    }, (id) => {
-                        try {
-                            if (chrome.runtime.lastError) {
-                                const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                Logger.error('Background', `Review Notification Error: ${errorMessage}`, { error: chrome.runtime.lastError });
-                            } else {
-                                Logger.debug('Background', `System review notification sent with ID: ${id}`);
-                            }
-                        } catch (createErr) {
-                            // Comment: Safe recovery in review notification creation callback
-                            const errorMessage = createErr instanceof Error ? createErr.message : String(createErr);
-                            Logger.error('Background', `Error in review notification create callback: ${errorMessage}`, { createErr });
-                        }
-                    });
-                } catch (clearErr) {
-                    // Comment: Safe recovery in review notification clear callback
-                    const errorMessage = clearErr instanceof Error ? clearErr.message : String(clearErr);
-                    Logger.error('Background', `Error handling review notification clear callback: ${errorMessage}`, { clearErr });
-                }
-            });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to create system review notification: ${errorMessage}`, { err });
-            // Comment: Non-fatal error creating system review notification
-        }
+        this.dispatchSystemNotification(
+            'algo-review-notification',
+            '🧠 AlgoRecall Reviews Due!',
+            message || `You have ${dueCount} pattern(s) ready for review.`,
+            parseInt(settings.priority || '2', 10) || 2,
+            settings.requireInteraction !== false
+        );
     }
-
-    // ========================================================================
-    // R3.6: Weekly Summary Notification
-    // ========================================================================
 
     /**
      * Computes weekly review statistics and fires a digest notification.
      * Summarizes: reviews this week, active days, current streak, upcoming load.
+     * @param ignoreEnabledCheck - If true, bypasses the user's weekly summary enabled toggle (used for test triggers).
+     * @async
+     * @fires chrome.notifications.create
      */
     async handleWeeklySummary(ignoreEnabledCheck: boolean = false): Promise<void> {
         try {
-            const result = (await chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'weeklySummaryEnabled'])) as StorageData & {
+            const result = (await chrome.storage.local.get(['fsrsActivity', 'fsrsCards', 'weeklySummaryEnabled', 'notificationSettings'])) as StorageData & {
                 weeklySummaryEnabled?: boolean;
+                notificationSettings?: NotificationSettings;
             };
-            
+            if (chrome.runtime.lastError) {
+                Logger.error('Background', `Storage get error in handleWeeklySummary: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+            }
+
             // Check if still enabled
             if (!ignoreEnabledCheck && result.weeklySummaryEnabled === false) return;
 
@@ -844,7 +1036,7 @@ export class AlgoRecallBackground {
                 const checkDate = new Date(today);
                 checkDate.setDate(checkDate.getDate() - i);
                 const dateKey = new Date(checkDate.getTime() - (checkDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-                
+
                 if (activity[dateKey] && activity[dateKey] > 0) {
                     weekReviews += activity[dateKey];
                     activeDays++;
@@ -857,7 +1049,7 @@ export class AlgoRecallBackground {
                 const checkDate = new Date(today);
                 checkDate.setDate(checkDate.getDate() - i);
                 const dateKey = new Date(checkDate.getTime() - (checkDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-                
+
                 if (activity[dateKey] && activity[dateKey] > 0) {
                     prevWeekReviews += activity[dateKey];
                 }
@@ -876,29 +1068,15 @@ export class AlgoRecallBackground {
 
             const message = `This week: ${weekReviews} reviews across ${activeDays} day(s).${trendText} Upcoming: ${upcomingDue} cards due next week${currentlyDue > 0 ? `, ${currentlyDue} overdue now` : ''}.`;
 
-            chrome.notifications.clear('algo-weekly-summary', () => {
-                chrome.notifications.create('algo-weekly-summary', {
-                    type: 'basic',
-                    iconUrl: '../icons/icon.png',
-                    title: '📊 AlgoRecall Weekly Summary',
-                    message: message,
-                    priority: 2,
-                    requireInteraction: true
-                }, (id) => {
-                    try {
-                        if (chrome.runtime.lastError) {
-                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                            Logger.error('Background', `Weekly Summary Notification Error: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        } else {
-                            Logger.debug('Background', `Weekly summary notification sent with ID: ${id}`);
-                        }
-                    } catch (createErr) {
-                        // Comment: Safe recovery inside weekly summary creation callback
-                        const errorMessage = createErr instanceof Error ? createErr.message : String(createErr);
-                        Logger.error('Background', `Error in weekly summary notification callback: ${errorMessage}`, { createErr });
-                    }
-                });
-            });
+            const settings: NotificationSettings = result.notificationSettings || {};
+
+            this.dispatchSystemNotification(
+                'algo-weekly-summary',
+                '📊 AlgoRecall Weekly Summary',
+                message,
+                2,
+                settings.requireInteraction !== false
+            );
 
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -908,14 +1086,19 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * R8.4: Motivational nudges. Check if the user has done any reviews today.
-     * If not, send an encouraging push notification to keep the streak alive.
+     * Checks if the user has completed any reviews today.
+     * If not, dispatches an encouraging motivational push notification to keep their daily study streak active.
+     * @async
+     * @fires chrome.notifications.create
      */
     async handleDailyNudge(): Promise<void> {
         try {
             const result = (await chrome.storage.local.get(['fsrsActivity', 'notificationSettings'])) as StorageData & {
                 notificationSettings?: NotificationSettings;
             };
+            if (chrome.runtime.lastError) {
+                Logger.error('Background', `Storage get error in handleDailyNudge: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+            }
             const settings: NotificationSettings = result.notificationSettings || {};
             if (settings.enabled === false) return;
 
@@ -924,27 +1107,25 @@ export class AlgoRecallBackground {
             const dateKey = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
             if (!activity[dateKey] || activity[dateKey] === 0) {
-                chrome.notifications.create('algo-daily-nudge', {
-                    type: 'basic',
-                    iconUrl: '../icons/icon.png',
-                    title: '🔥 Keep Your Streak Alive!',
-                    message: "You haven't reviewed any patterns today. Just 5 minutes can keep your memory sharp!",
-                    priority: 2,
-                    requireInteraction: false
-                }, (id) => {
-                    try {
-                        if (chrome.runtime.lastError) {
-                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                            Logger.error('Background', `Daily Nudge Notification Error: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        } else {
-                            Logger.debug('Background', `Daily nudge notification sent with ID: ${id}`);
-                        }
-                    } catch (createErr) {
-                        // Comment: Safe recovery inside daily nudge notification callback
-                        const errorMessage = createErr instanceof Error ? createErr.message : String(createErr);
-                        Logger.error('Background', `Error in daily nudge notification callback: ${errorMessage}`, { createErr });
-                    }
-                });
+                // Determine if user has an active streak (activity yesterday)
+                const yesterdayMs = today.getTime() - MS_PER_DAY;
+                const yesterdayKey = new Date(yesterdayMs - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                const hasActiveStreak = !!(activity[yesterdayKey] && activity[yesterdayKey] > 0);
+
+                const title = hasActiveStreak
+                    ? '🔥 Keep Your Streak Alive!'
+                    : '🚀 Start a New Streak Today!';
+                const message = hasActiveStreak
+                    ? "You haven't reviewed any patterns today. Just 5 minutes can keep your memory sharp!"
+                    : "Every expert was once a beginner. Start fresh with just 5 minutes of review!";
+
+                this.dispatchSystemNotification(
+                    'algo-daily-nudge',
+                    title,
+                    message,
+                    2,
+                    settings.requireInteraction !== false
+                );
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -954,8 +1135,11 @@ export class AlgoRecallBackground {
     }
 
     /**
-     * Routes redirection actions when users click a native desktop tray notification.
-     * @param {string} notificationId - The clicked notification ID.
+     * Routes navigation actions when users click a desktop notification banner,
+     * opening the corresponding extension page (Pomodoro, Weekly Summary, or Dashboard).
+     * @param notificationId - Unique identifier of the clicked notification.
+     * @fires chrome.tabs.create
+     * @fires chrome.notifications.clear
      */
     handleNotificationClicked(notificationId: string): void {
         try {
@@ -966,7 +1150,11 @@ export class AlgoRecallBackground {
             } else {
                 chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/popup/popup.html') });
             }
-            chrome.notifications.clear(notificationId);
+            chrome.notifications.clear(notificationId, () => {
+                if (chrome.runtime.lastError) {
+                    Logger.error('Background', `Notification clear error in handleNotificationClicked: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+                }
+            });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Error in handleNotificationClicked: ${errorMessage}`, { notificationId, err });
@@ -978,11 +1166,25 @@ export class AlgoRecallBackground {
     // Persistent Pomodoro Timer Logic
     // ========================================================================
 
+    /**
+     * Resumes active Pomodoro timer countdowns when the background service worker wakes up from sleep.
+     * @async
+     * @fires chrome.storage.local.get
+     */
     async resumePomodoroBackground(): Promise<void> {
         try {
             const result = (await chrome.storage.local.get(['pomodoroState'])) as { pomodoroState?: PomodoroState };
+            if (chrome.runtime.lastError) {
+                Logger.error('Background', `Storage get error in resumePomodoroBackground: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+            }
             if (result.pomodoroState && result.pomodoroState.state === 'running') {
-                this.startPomodoroTick(result.pomodoroState);
+                const now = Date.now();
+                if (result.pomodoroState.targetEndTime <= now) {
+                    // Service worker was sleeping when pomodoro ended
+                    await this.handlePomodoroEnd();
+                } else {
+                    this.startPomodoroTick(result.pomodoroState);
+                }
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
@@ -991,27 +1193,40 @@ export class AlgoRecallBackground {
         }
     }
 
+    /**
+     * Handles timer commands ('start', 'resume', 'pause', 'reset', 'skip') dispatched from Pomodoro UI components.
+     * Manages background intervals and backup `chrome.alarms` triggers.
+     * @param payload - Action command string and current timer state.
+     * @async
+     * @fires chrome.alarms.create
+     * @fires chrome.alarms.clear
+     */
     async handlePomodoroAction(payload: { command: string; state: PomodoroState }): Promise<void> {
         try {
             const { command, state } = payload;
-            
+
             if (command === 'start' || command === 'resume') {
                 this.startPomodoroTick(state);
-                
-                // Set alarm for exact end time to ensure we never miss it if SW sleeps
-                const delayInMinutes = Math.max(0.1, (state.targetEndTime - Date.now()) / 60000);
-                chrome.alarms.create('pomodoroEnd', { delayInMinutes });
-                
+
+                // Set alarm for exact end time to ensure we never miss it if SW sleeps.
+                // Safari does not support chrome.alarms, so this backup mechanism is skipped;
+                // the setInterval tick above still provides real-time countdown.
+                if (BROWSER_CONFIG.supportsAlarms) {
+                    const delayInMinutes = Math.max(0.1, (state.targetEndTime - Date.now()) / 60000);
+                    chrome.alarms.create('pomodoroEnd', { delayInMinutes });
+                }
+
             } else if (command === 'pause' || command === 'reset' || command === 'skip') {
                 this.stopPomodoroTick();
-                chrome.alarms.clear('pomodoroEnd');
+                if (BROWSER_CONFIG.supportsAlarms) {
+                    chrome.alarms.clear('pomodoroEnd');
+                }
                 this._lastPomodoroTitle = null; // Clear title cache so it resets properly when starting again
                 this._lastPomodoroBadge = null;
                 this._lastPomodoroColor = null;
-                
+
                 if (command === 'reset' || command === 'skip') {
-                    chrome.action.setBadgeText({ text: '' });
-                    chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
+                    await this.updateDueCardsBadge();
                 } else if (command === 'pause') {
                     chrome.action.setBadgeBackgroundColor({ color: '#95a5a6' });
                     chrome.action.setTitle({ title: 'AlgoRecall (Paused)' });
@@ -1025,35 +1240,43 @@ export class AlgoRecallBackground {
         }
     }
 
+    /**
+     * Starts an active 1-second interval ticking countdown, continuously updating
+     * the toolbar icon badge text with remaining time and setting badge colors.
+     * @param state - Current Pomodoro timer state.
+     * @fires chrome.action.setBadgeText
+     * @fires chrome.action.setBadgeBackgroundColor
+     * @fires chrome.action.setTitle
+     */
     startPomodoroTick(state: PomodoroState): void {
         this.stopPomodoroTick();
-        
+
         const tick = () => {
             try {
                 const timeRemaining = Math.max(0, Math.ceil((state.targetEndTime - Date.now()) / 1000));
                 const minutes = Math.floor(timeRemaining / 60);
                 const seconds = timeRemaining % 60;
-                
+
                 const badgeText = minutes > 0 ? `${minutes}m` : `${seconds}s`;
                 const phaseTitle = state.phase === 'focus' ? 'Focus' : state.phase === 'shortBreak' ? 'Short Break' : 'Long Break';
-                
+
                 if (this._lastPomodoroBadge !== badgeText) {
                     chrome.action.setBadgeText({ text: badgeText });
                     this._lastPomodoroBadge = badgeText;
                 }
-                
+
                 const badgeColor = state.phase === 'focus' ? '#e74c3c' : '#2ecc71';
                 if (this._lastPomodoroColor !== badgeColor) {
                     chrome.action.setBadgeBackgroundColor({ color: badgeColor });
                     this._lastPomodoroColor = badgeColor;
                 }
-                
+
                 const newTitle = `AlgoRecall: ${phaseTitle}`;
                 if (this._lastPomodoroTitle !== newTitle) {
                     chrome.action.setTitle({ title: newTitle });
                     this._lastPomodoroTitle = newTitle;
                 }
-                
+
                 if (timeRemaining <= 0) {
                     this.stopPomodoroTick();
                 }
@@ -1064,11 +1287,14 @@ export class AlgoRecallBackground {
                 this.stopPomodoroTick();
             }
         };
-        
+
         tick(); // Immediate tick
         this.pomodoroIntervalId = setInterval(tick, 1000);
     }
 
+    /**
+     * Halts the active ticking interval and resets the interval ID.
+     */
     stopPomodoroTick(): void {
         try {
             if (this.pomodoroIntervalId) {
@@ -1082,34 +1308,46 @@ export class AlgoRecallBackground {
         }
     }
 
+    /**
+     * Handles completion of a Pomodoro work session or rest break.
+     * Transitions phases (focus -> break / break -> focus), increments daily stats,
+     * updates storage, and triggers completion notifications.
+     * @async
+     * @fires chrome.storage.local.set
+     * @fires chrome.notifications.create
+     */
     async handlePomodoroEnd(): Promise<void> {
         try {
-            const result = (await chrome.storage.local.get(['pomodoroState', 'pomodoroSettings', 'pomodoroStats'])) as {
+            const result = (await chrome.storage.local.get(['pomodoroState', 'pomodoroSettings', 'pomodoroStats', 'notificationSettings'])) as {
                 pomodoroState?: PomodoroState;
                 pomodoroSettings?: PomodoroSettings;
                 pomodoroStats?: PomodoroStats;
+                notificationSettings?: NotificationSettings;
             };
+            if (chrome.runtime.lastError) {
+                Logger.error('Background', `Storage get error in handlePomodoroEnd: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+            }
             const state: PomodoroState | undefined = result.pomodoroState;
             if (!state || state.state !== 'running') return;
-            
+
             this.stopPomodoroTick();
-            
+
             // Track stats
-            const stats: PomodoroStats = result.pomodoroStats || { sessionsToday: 0, focusMinutesToday: 0, lastDate: new Date().toLocaleDateString() };
+            const stats: PomodoroStats = result.pomodoroStats || { ...DEFAULT_POMODORO_STATS, lastDate: new Date().toLocaleDateString() };
             if (stats.lastDate !== new Date().toLocaleDateString()) {
                 stats.sessionsToday = 0;
                 stats.focusMinutesToday = 0;
                 stats.lastDate = new Date().toLocaleDateString();
             }
-            
+
             if (state.phase === 'focus') {
                 stats.sessionsToday++;
-                const settings: PomodoroSettings = result.pomodoroSettings || { focusDuration: 25, sessionsBeforeLongBreak: 4, shortBreakDuration: 5, longBreakDuration: 15 };
+                const settings: PomodoroSettings = result.pomodoroSettings || { ...DEFAULT_POMODORO_SETTINGS };
                 stats.focusMinutesToday += settings.focusDuration;
             }
 
             // Advance Phase
-            const settings: PomodoroSettings = result.pomodoroSettings || { sessionsBeforeLongBreak: 4, focusDuration: 25, shortBreakDuration: 5, longBreakDuration: 15 };
+            const settings: PomodoroSettings = result.pomodoroSettings || { ...DEFAULT_POMODORO_SETTINGS };
             if (state.phase === 'focus') {
                 if (state.currentSession >= settings.sessionsBeforeLongBreak) {
                     state.phase = 'longBreak';
@@ -1124,37 +1362,27 @@ export class AlgoRecallBackground {
                 }
                 state.phase = 'focus';
             }
-            
+
             state.state = 'idle';
-            
+
             // Save to storage (UI will pick it up)
             await chrome.storage.local.set({ pomodoroState: state, pomodoroStats: stats });
-            
+            if (chrome.runtime.lastError) {
+                Logger.error('Background', `Storage set error in handlePomodoroEnd: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
+            }
+
+            const settingsNotif: NotificationSettings = result.notificationSettings || {};
+
             // Notify user
-            chrome.notifications.create('pomodoro-complete', {
-                type: 'basic',
-                iconUrl: '../icons/icon.png',
-                title: '⏱️ Pomodoro Complete!',
-                message: `Time is up! Ready for ${state.phase === 'focus' ? 'Focus Time' : 'a Break'}?`,
-                priority: 2,
-                requireInteraction: true
-            }, (id) => {
-                try {
-                    if (chrome.runtime.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('Background', `Pomodoro completion notification error: ${errorMessage}`, { error: chrome.runtime.lastError });
-                    } else {
-                        Logger.debug('Background', `Pomodoro complete notification sent with ID: ${id}`);
-                    }
-                } catch (notifyErr) {
-                    // Comment: Safe recovery inside pomodoro complete notification callback
-                    const errorMessage = notifyErr instanceof Error ? notifyErr.message : String(notifyErr);
-                    Logger.error('Background', `Error in pomodoro complete notification callback: ${errorMessage}`, { notifyErr });
-                }
-            });
-            
-            chrome.action.setBadgeText({ text: '' });
-            chrome.action.setTitle({ title: 'AlgoRecall Dashboard' });
+            this.dispatchSystemNotification(
+                'pomodoro-complete',
+                '⏱️ Pomodoro Complete!',
+                `Time is up! Ready for ${state.phase === 'focus' ? 'Focus Time' : 'a Break'}?`,
+                2,
+                settingsNotif.requireInteraction !== false
+            );
+
+            await this.updateDueCardsBadge();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Error handling pomodoro end: ${errorMessage}`, { err });

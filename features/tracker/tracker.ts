@@ -1,16 +1,35 @@
+/**
+ * @file features/tracker/tracker.ts
+ * @description Main Spaced Repetition floating widget interface injected inside target coding domains.
+ * Provides controls for recording approaches, entering study card notes, assigning initial difficulty,
+ * tagging, drag positioning toggles, and executing interactive revision card sessions with hotkeys.
+ * 
+ * Context: Content script environment (injected into whitelisted problem pages).
+ * 
+ * Key Exports:
+ * - `Tracker`: In-page floating widget controller for flashcard review sessions, approaches, and ratings.
+ */
+
 import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
 import { TagInputControl } from '../common/utils/tagInput';
-import { Card, StorageData } from '../../types/domain';
+import { Card, StorageData, ExtensionSettings } from '../../types/domain';
 import { RATING_UI_DEBOUNCE_MS } from '../common/constants';
 import FsrsScheduler from './scheduler/fsrsScheduler';
 import { Logger } from '@common/logger';
 
+/**
+ * Shared in-memory state slice accessed by the tracker.
+ */
 interface AlgoRecallState {
     cards: Card[];
     topicWeights: Record<string, number[]>;
     scheduler: FsrsScheduler;
+    extensionSettings?: ExtensionSettings;
 }
 
+/**
+ * Shape of an approach draft record in storage.
+ */
 interface DraftEntry {
     approach?: string;
     tags?: string;
@@ -80,15 +99,26 @@ function getRenderMarkdown(): ((text: string) => string) | undefined {
  * tagging, drag positioning toggles, and executing interactive revision card sessions with hotkeys.
  */
 class Tracker {
+    /** Optional topic tag filter restricting due cards in the active review queue. */
     activeReviewFilter: string | null;
+    /** Current zero-based index of the card being reviewed. */
     reviewIndex: number;
+    /** Total cards queued for review in the active session. */
     totalToReview: number;
+    /** Document keydown event handler for review hotkeys (1-4, Space, Enter). */
     _reviewKeyHandler: ((e: KeyboardEvent) => void) | null;
+    /** Flag tracking whether event listeners are registered. */
     isListenersBound: boolean;
+    /** Timestamp when the current card was displayed to compute review duration. */
     cardStartTime?: number;
+    /** ID of the active card displayed in the widget tab navigation, or '__new__' for creation mode. */
     activeCardId: string | null;
+    /** Short debounce flag preventing duplicate button clicks during rating animations. */
     isRatingDebounced: boolean;
 
+    /**
+     * Initializes default widget state and binds callback handlers.
+     */
     constructor() {
         this.activeReviewFilter = null;
         this.reviewIndex = 0;
@@ -103,7 +133,8 @@ class Tracker {
     }
 
     /**
-     * Helper to retrieve state.
+     * Safely retrieves the shared content script state from `window.AlgoRecall.state`.
+     * @returns {AlgoRecallState}
      */
     get state(): AlgoRecallState {
         try {
@@ -117,7 +148,8 @@ class Tracker {
     }
 
     /**
-     * Helper to retrieve utils.
+     * Safely retrieves content script DOM and title utilities.
+     * @returns {AppUtils}
      */
     get utils(): AppUtils {
         try {
@@ -131,7 +163,8 @@ class Tracker {
     }
 
     /**
-     * Helper to retrieve notifier.
+     * Safely retrieves the in-page notifier controller.
+     * @returns {unknown}
      */
     get notifier(): unknown {
         try {
@@ -145,7 +178,9 @@ class Tracker {
     }
 
     /**
-     * Commits the current cards array to Chrome local storage sync.
+     * Commits the current flashcard collection array to `chrome.storage.local`.
+     * 
+     * @returns {void}
      */
     saveCards(): void {
         const logger = getLogger();
@@ -171,8 +206,10 @@ class Tracker {
     }
 
     /**
-     * Registers a revision event in review activity logs in storage.
-     * Records counts grouped by calendar date string in user's timezone.
+     * Increments the user's daily review count in `fsrsActivity` storage dictionary,
+     * indexed by the current local calendar date string (YYYY-MM-DD).
+     * 
+     * @returns {void}
      */
     logReviewActivity(): void {
         const logger = getLogger();
@@ -213,8 +250,11 @@ class Tracker {
     }
 
     /**
-     * Synchronizes the floating widget UI status to align with page states.
-     * Re-reads active problem card status to toggle note-saving button modes or display rating metrics.
+     * Synchronizes the floating widget UI status to align with the current problem page.
+     * Identifies existing cards matching the canonical URL, updates active navigation tabs,
+     * fills previous approach notes and tags, or loads uncommitted drafts if no card exists.
+     * 
+     * @returns {void}
      */
     refreshWidgetState(): void {
         try {
@@ -246,6 +286,11 @@ class Tracker {
 
             const targetCleanUrl = cleanUrl(window.location.href);
             const urlCards = getCardsForUrl(this.state.cards, targetCleanUrl);
+
+            const emptyHint = document.getElementById('fsrs-empty-url-hint');
+            if (emptyHint) {
+                emptyHint.style.display = urlCards.length === 0 ? 'block' : 'none';
+            }
 
             // Determine active card
             if (this.activeCardId === '__new__') {
@@ -388,8 +433,11 @@ class Tracker {
     }
 
     /**
-     * Creates and injects the floating launcher icon and FSRS details container widget
-     * inside the document body. Binds drag handlers, action events, and navigation click list hooks.
+     * Injects the floating launcher icon button and main tracker dialog container into `document.body`.
+     * Configures pointer drag interactions, minimize/close controls, fullscreen editor triggers,
+     * card approach text inputs, and rating submission buttons.
+     * 
+     * @returns {void}
      */
     createUI(): void {
         try {
@@ -399,17 +447,23 @@ class Tracker {
             const launcher = document.createElement('div');
             launcher.id = 'algo-fsrs-launcher';
             launcher.setAttribute('role', 'button');
-            launcher.setAttribute('aria-label', 'Open FSRS Tracker');
+            launcher.setAttribute('aria-label', 'Open AlgoRecall Tracker');
+            launcher.setAttribute('aria-expanded', 'false');
+            launcher.setAttribute('aria-controls', 'algo-fsrs-container');
             launcher.setAttribute('tabindex', '0');
             launcher.innerHTML = `<svg class="launcher-svg" viewBox="0 0 24 24" style="width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2;"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>`;
-            launcher.title = "FSRS Tracker (Drag to move, Right-click to reset position)";
+            launcher.title = "AlgoRecall Tracker (Drag to move, Right-click to reset position)";
+            if (this.state && this.state.extensionSettings?.showLauncher === false) {
+                launcher.style.display = 'none';
+            }
             document.body.appendChild(launcher);
 
             // 2. CREATE WIDGET CONTAINER
             const container = document.createElement('div');
             container.id = 'algo-fsrs-container';
             container.setAttribute('role', 'dialog');
-            container.setAttribute('aria-label', 'FSRS Tracker');
+            container.setAttribute('aria-modal', 'true');
+            container.setAttribute('aria-label', 'AlgoRecall Tracker');
             container.style.display = 'none';
 
             const autoTagsStr = (this.utils && typeof this.utils.getAutoTags === 'function') ? this.utils.getAutoTags().join(', ') : '';
@@ -418,10 +472,10 @@ class Tracker {
                 <div id="fsrs-header">
                     <div class="fsrs-title">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-                        <span>FSRS Tracker</span>
+                        <span>AlgoRecall Tracker</span>
                     </div>
                     <div class="fsrs-controls">
-                        <button id="fsrs-min-btn" class="fsrs-icon-btn" aria-label="Minimize" title="Minimize">
+                        <button id="fsrs-min-btn" class="fsrs-icon-btn" aria-label="Minimize" aria-expanded="true" aria-controls="algo-fsrs-container" title="Minimize">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         </button>
                         <button id="fsrs-close-btn" class="fsrs-icon-btn" aria-label="Close" title="Close">
@@ -430,11 +484,14 @@ class Tracker {
                     </div>
                 </div>
                 <div id="fsrs-nav-bar" style="display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: rgba(0,0,0,0.25); border-bottom: 1px solid rgba(255,255,255,0.08); overflow-x: auto;"></div>
+                <div id="fsrs-empty-url-hint" style="display: none; padding: 6px 12px; font-size: 11px; color: var(--md-text-low, #888); background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.06);">
+                    No cards tracked for this problem yet. Add your initial approach notes below to start!
+                </div>
 
                 <div id="fsrs-body">
                     <div class="fsrs-tags-container">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                        <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" placeholder="Add tags (comma separated)..." value="${autoTagsStr}">
+                        <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" aria-label="Add tags" placeholder="Add tags (comma separated)..." value="${autoTagsStr}">
                     </div>
                     
                     <div class="fsrs-approach-header">
@@ -476,7 +533,7 @@ class Tracker {
             const dragStart = { x: 0, y: 0 };
             const initialPos = { x: 0, y: 0 };
 
-            const onMouseMove = (e: MouseEvent) => {
+            const onMouseMove = (e: PointerEvent) => {
                 try {
                     const dx = e.clientX - dragStart.x;
                     const dy = e.clientY - dragStart.y;
@@ -499,10 +556,14 @@ class Tracker {
                 }
             };
 
-            const onMouseUp = () => {
+            const onMouseUp = (e: PointerEvent) => {
                 try {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
+                    document.removeEventListener('pointermove', onMouseMove);
+                    document.removeEventListener('pointerup', onMouseUp);
+                    document.removeEventListener('pointercancel', onMouseUp);
+                    if (launcher.hasPointerCapture && launcher.hasPointerCapture(e.pointerId)) {
+                        launcher.releasePointerCapture(e.pointerId);
+                    }
                     setTimeout(() => {
                         try {
                             launcher.style.cursor = 'pointer';
@@ -519,8 +580,9 @@ class Tracker {
                 }
             };
 
-            launcher.addEventListener('mousedown', (e: MouseEvent) => {
+            launcher.addEventListener('pointerdown', (e: PointerEvent) => {
                 try {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
                     isDragging = false;
                     dragStart.x = e.clientX;
                     dragStart.y = e.clientY;
@@ -529,14 +591,21 @@ class Tracker {
                     initialPos.x = rect.left;
                     initialPos.y = rect.top;
 
-                    document.addEventListener('mousemove', onMouseMove);
-                    document.addEventListener('mouseup', onMouseUp);
+                    if (launcher.setPointerCapture) {
+                        launcher.setPointerCapture(e.pointerId);
+                    }
+
+                    document.addEventListener('pointermove', onMouseMove);
+                    document.addEventListener('pointerup', onMouseUp);
+                    document.addEventListener('pointercancel', onMouseUp);
                 } catch (err) {
-                    // Comment: Safe recovery on launcher mousedown
+                    // Comment: Safe recovery on launcher pointerdown
                     const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Tracker', `Error on launcher mousedown: ${errorMessage}`, { err });
+                    Logger.error('Tracker', `Error on launcher pointerdown: ${errorMessage}`, { err });
                 }
             });
+
+            let previouslyFocused: HTMLElement | null = null;
 
             launcher.addEventListener('click', (e: MouseEvent) => {
                 try {
@@ -546,7 +615,11 @@ class Tracker {
                         return;
                     }
                     launcher.style.display = 'none';
+                    launcher.setAttribute('aria-expanded', 'true');
                     container.style.display = 'block';
+                    previouslyFocused = document.activeElement as HTMLElement;
+                    const firstFocusable = container.querySelector('input, textarea, button') as HTMLElement;
+                    if (firstFocusable) firstFocusable.focus();
                     this.refreshWidgetState();
                 } catch (err) {
                     // Comment: Safe recovery on launcher click
@@ -560,6 +633,7 @@ class Tracker {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         launcher.style.display = 'none';
+                        launcher.setAttribute('aria-expanded', 'true');
                         container.style.display = 'block';
                         this.refreshWidgetState();
                     }
@@ -584,10 +658,44 @@ class Tracker {
                 }
             });
 
+            
+            container.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    container.style.display = 'none';
+                    const showLauncher = this.state?.extensionSettings?.showLauncher !== false;
+                    if (showLauncher) {
+                        launcher.style.display = 'flex';
+                        launcher.setAttribute('aria-expanded', 'false');
+                        launcher.focus();
+                    }
+                    return;
+                }
+                if (e.key !== 'Tab') return;
+                const focusable = Array.from(
+                    container.querySelectorAll<HTMLElement>('button, input, textarea, [tabindex]:not([tabindex="-1"])')
+                ).filter(el => !el.hasAttribute('disabled') && el.style.display !== 'none');
+                if (focusable.length === 0) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            });
+
             document.getElementById('fsrs-min-btn')?.addEventListener('click', () => {
                 try {
                     container.style.display = 'none';
-                    launcher.style.display = 'flex';
+                    const showLauncher = this.state?.extensionSettings?.showLauncher !== false;
+                    if (showLauncher) {
+                        launcher.style.display = 'flex';
+                        launcher.setAttribute('aria-expanded', 'false');
+                    }
+                    if (previouslyFocused) previouslyFocused.focus();
                 } catch (err) {
                     // Comment: Safe recovery on minimize button click
                     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -598,7 +706,12 @@ class Tracker {
             document.getElementById('fsrs-close-btn')?.addEventListener('click', () => {
                 try {
                     container.style.display = 'none';
-                    launcher.style.display = 'none';
+                    const showLauncher = this.state?.extensionSettings?.showLauncher !== false;
+                    if (showLauncher) {
+                        launcher.style.display = 'flex';
+                        launcher.setAttribute('aria-expanded', 'false');
+                    }
+                    if (previouslyFocused) previouslyFocused.focus();
                 } catch (err) {
                     // Comment: Safe recovery on close button click
                     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -842,8 +955,10 @@ class Tracker {
     }
 
     /**
-     * Saves a draft copy of the active editor contents (approach notes + tags)
-     * to local storage, ensuring content is retained during inadvertent navigation.
+     * Debounced auto-save handler persisting in-progress approach notes and tags
+     * to `chrome.storage.local`, ensuring work is never lost during accidental page reloads.
+     * 
+     * @returns {void}
      */
     saveDraft(): void {
         try {
@@ -895,7 +1010,11 @@ class Tracker {
     }
 
     /**
-     * Returns a sorted list of due study cards based on the scheduled FSRS timestamp.
+     * Filters and returns flashcards currently due for spaced repetition review (`due <= now`),
+     * optionally filtered by a specific topic tag, sorted chronologically by due date.
+     * 
+     * @param {string | null} [filterTag] - Optional topic tag filter.
+     * @returns {Card[]} Array of due study cards.
      */
     getDueCards(filterTag?: string | null): Card[] {
         try {
@@ -914,8 +1033,10 @@ class Tracker {
     }
 
     /**
-     * Initiates the revision session sequence. Collects unique tags from due cards
-     * and prompts users with a tag-based topics picker menu if multiple topics are due.
+     * Initiates the review queue workflow. If due cards span multiple topics, displays
+     * a topic filter picker dialog; otherwise, immediately enters the review sequence.
+     * 
+     * @returns {void}
      */
     startReview(): void {
         try {
@@ -954,7 +1075,7 @@ class Tracker {
                 <div class="fsrs-tag-picker">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <h4 style="margin:0; font-size: 13px;">Select Topics to Review</h4>
-                        <button id="fsrs-picker-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px;" aria-label="Go Back">
+                        <button id="fsrs-picker-back-btn" title="Go Back" style="background: none; border: none; color: var(--md-text-low); cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px;" aria-label="Go Back">
                             <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                             Back
                         </button>
@@ -1053,7 +1174,11 @@ class Tracker {
     }
 
     /**
-     * Renders the next due card details, binding ratings listeners and key navigation hooks.
+     * Renders the current review card interface: problem title, external link, tags,
+     * "Show Approach" trigger, rating buttons (Again, Hard, Good, Easy), progress bar,
+     * and binds keyboard hotkeys (Space to reveal, 1-4 to rate).
+     * 
+     * @returns {void}
      */
     showCard(): void {
         try {
@@ -1105,7 +1230,7 @@ class Tracker {
                         <h4 style="margin:0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${currentCard.problemTitle}</h4>
                         ${filterBadge}
                     </div>
-                    <button id="fsrs-back-btn" title="Go Back" style="background: none; border: none; color: #aaa; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; flex-shrink: 0;" aria-label="Go Back">
+                    <button id="fsrs-back-btn" title="Go Back" style="background: none; border: none; color: var(--md-text-low); cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; flex-shrink: 0;" aria-label="Go Back">
                         <svg class="svg-icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                         Back
                     </button>
@@ -1247,8 +1372,13 @@ class Tracker {
     }
 
     /**
-     * Applies the review rating to a target card, calculates new FSRS scheduler values,
-     * updates storage databases, and logs activity increments.
+     * Applies the selected rating score to a card, invokes the FSRS scheduler algorithm
+     * with custom topic weights if matched, updates storage, and logs user activity.
+     * 
+     * @param {Card} card - Card being reviewed.
+     * @param {number} rating - User recall rating (1: Again, 2: Hard, 3: Good, 4: Easy).
+     * @param {number} [timeTaken=0] - Active time spent on card in milliseconds.
+     * @returns {void}
      */
     handleRating(card: Card, rating: number, timeTaken: number = 0): void {
         try {
@@ -1279,7 +1409,10 @@ class Tracker {
     }
 
     /**
-     * Removes global document event listeners for hotkeys bound during card reviews.
+     * Unbinds active document keydown listeners attached during card review sessions.
+     * 
+     * @private
+     * @returns {void}
      */
     private _cleanupReviewKeyboard(): void {
         try {

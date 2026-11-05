@@ -10,7 +10,7 @@ module.exports = defineConfig({
   fullyParallel: false,
   retries: process.env.CI ? 2 : 0,
   workers: 1, // Extensions cannot easily run in parallel in Playwright due to shared contexts
-  reporter: 'html',
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     trace: 'on-first-retry',
   },

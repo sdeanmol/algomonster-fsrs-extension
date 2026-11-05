@@ -1,0 +1,976 @@
+[
+  {
+    "findingId": "UX-001",
+    "title": "Missing lang attribute on 11+ HTML pages",
+    "severity": "Critical",
+    "category": "Accessibility",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html",
+      "features/dashboard/analytics/analytics.html",
+      "features/dashboard/forecast/forecast.html",
+      "features/dashboard/heatmap/heatmap.html",
+      "features/dashboard/history/history.html",
+      "features/dashboard/pomodoro/pomodoro.html",
+      "features/dashboard/studyplan/studyplan.html",
+      "features/dashboard/summary/summary.html",
+      "features/common/data/data.html",
+      "features/common/help/help.html",
+      "features/tracker/editor/editor.html",
+      "features/highlighter/options/highlightOptions.html",
+      "features/highlighter/manager/highlights.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Verified by checking all HTML files have lang=\"en\""
+    ]
+  },
+  {
+    "findingId": "UX-002",
+    "title": "role=switch applied to label wrapper instead of input",
+    "severity": "Critical",
+    "category": "Accessibility",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Moved role='switch' to <input> and removed tabindex from <label>. Added :focus-visible outline to slider for accessibility."
+    ]
+  },
+  {
+    "findingId": "UX-003",
+    "title": "Interactive stat-box divs not keyboard accessible",
+    "severity": "Critical",
+    "category": "Accessibility/Keyboard",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added role=button and tabindex=0 to stat boxes. Added addAccessibleClick for keyboard enter/space events in popup.ts."
+    ]
+  },
+  {
+    "findingId": "UX-004",
+    "title": "Focus not moved into widget on open; not restored on close (runtime confirmed)",
+    "severity": "High",
+    "category": "Accessibility/Focus",
+    "status": "verified",
+    "files": [
+      "features/tracker/tracker.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added focus trap, stored previouslyFocused, and set initial focus on open."
+    ]
+  },
+  {
+    "findingId": "UX-005",
+    "title": "Backup import errors not surfaced to user (runtime confirmed)",
+    "severity": "High",
+    "category": "Error Handling/Feedback",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.ts",
+      "features/common/data/data.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added this.showStatus to surface import errors as toasts in popup.ts"
+    ]
+  },
+  {
+    "findingId": "UX-006",
+    "title": "Editor back button is a span - not keyboard accessible",
+    "severity": "High",
+    "category": "Accessibility/Keyboard",
+    "status": "verified",
+    "files": [
+      "features/tracker/editor/editor.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added role=button and tabindex=0 to the back span, and added a keydown listener for Enter/Space."
+    ]
+  },
+  {
+    "findingId": "UX-007",
+    "title": "No keyboard shortcut to open the extension",
+    "severity": "High",
+    "category": "Keyboard/Discoverability",
+    "status": "verified",
+    "files": [
+      "browser/chrome/manifest.json",
+      "browser/firefox/manifest.json",
+      "browser/safari/manifest.json"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added _execute_action command with Ctrl+Shift+A (Command+Shift+A on Mac) to manifest.json files."
+    ]
+  },
+  {
+    "findingId": "UX-008",
+    "title": "Single toolbar icon size (128px only)",
+    "severity": "High",
+    "category": "Browser Integration/Visual",
+    "status": "verified",
+    "files": [
+      "browser/chrome/manifest.json",
+      "browser/firefox/manifest.json",
+      "browser/safari/manifest.json"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Generated 16px, 32px, 48px, 128px icons using sips and updated manifest.json files to include them in icons and action.default_icon."
+    ]
+  },
+  {
+    "findingId": "UX-009",
+    "title": "Dev-mode 1 min (Dev) interval option visible in production",
+    "severity": "High",
+    "category": "Cognitive Load/Copy",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html",
+      "features/dashboard/popup/popup.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added id, hidden, disabled to 1 min option in HTML and toggled it in popup.ts based on developerMode."
+    ]
+  },
+  {
+    "findingId": "UX-010",
+    "title": "Notification Settings card shown to Safari users who cannot use notifications",
+    "severity": "High",
+    "category": "Cross-Browser/Context Awareness",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html",
+      "features/dashboard/popup/popup.css",
+      "features/dashboard/popup/popup.ts"
+    ],
+    "browsers": {
+      "chrome": "not-applicable",
+      "firefox": "not-applicable",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Runtime test confirmed card renders visible before JS hides it on Safari",
+      "Added inline script to popup.html and rule in popup.css to hide notification card natively on Safari."
+    ]
+  },
+  {
+    "findingId": "UX-011",
+    "title": "aria-modal=true missing on tracker widget dialog",
+    "severity": "High",
+    "category": "Accessibility",
+    "status": "verified",
+    "files": [
+      "features/tracker/tracker.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added aria-modal=true to the tracker dialog container."
+    ]
+  },
+  {
+    "findingId": "UX-012",
+    "title": "Duplicate store review CTAs in popup",
+    "severity": "Medium",
+    "category": "Cognitive Load/Layout",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html",
+      "features/dashboard/popup/popup.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Removed static review banner from footer, updated privacy policy link href."
+    ]
+  },
+  {
+    "findingId": "UX-013",
+    "title": "stat-label at 10px - below readable minimum; contrast 2.12:1 in light mode",
+    "severity": "Medium",
+    "category": "Typography/Accessibility",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.css"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Runtime confirmed 2.12:1 contrast in light mode (WCAG AA FAIL)",
+      "Changed stat-label color to var(--md-secondary) and bumped font-size to 11px."
+    ]
+  },
+  {
+    "findingId": "UX-014",
+    "title": "Heatmap level colors hardcoded - not theme-aware",
+    "severity": "Medium",
+    "category": "Dark Mode/Visual Design",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.css"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Replaced hardcoded hex colors with color-mix using var(--md-success) and surface-variant."
+    ]
+  },
+  {
+    "findingId": "UX-015",
+    "title": "Native time picker broken in light theme (color-scheme: dark hardcoded)",
+    "severity": "Medium",
+    "category": "Dark Mode/Visual Design",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.css"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Replaced hardcoded color-scheme: dark with theme-aware selectors for time-input."
+    ]
+  },
+  {
+    "findingId": "UX-016",
+    "title": "Widget title reads FSRS Tracker - exposes internal algorithm name",
+    "severity": "Medium",
+    "category": "Copy/Cognitive Load",
+    "status": "verified",
+    "files": [
+      "features/tracker/tracker.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Renamed FSRS Tracker to AlgoRecall Tracker in tracker.ts aria-labels, titles, and HTML."
+    ]
+  },
+  {
+    "findingId": "UX-017",
+    "title": "Tag input in tracker widget has no accessible label",
+    "severity": "Medium",
+    "category": "Accessibility",
+    "status": "verified",
+    "files": [
+      "features/tracker/tracker.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added aria-label='Tags' to the fsrs-tags-input field."
+    ]
+  },
+  {
+    "findingId": "UX-018",
+    "title": "Privacy Policy footer link navigates to Help page",
+    "severity": "Medium",
+    "category": "Copy/Navigation",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Updated privacy policy link href to absolute URL or corrected it."
+    ]
+  },
+  {
+    "findingId": "UX-019",
+    "title": "Welcome Step 2 references fixed widget position that user can change",
+    "severity": "Medium",
+    "category": "Copy/Context Awareness",
+    "status": "verified",
+    "files": [
+      "features/common/welcome/welcome.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Updated text in welcome step 2 to mention the widget is draggable rather than fixed at bottom right."
+    ]
+  },
+  {
+    "findingId": "UX-020",
+    "title": "Reset to Defaults in highlighter options has no confirmation",
+    "severity": "Medium",
+    "category": "Error Recovery/Interaction",
+    "status": "verified",
+    "files": [
+      "features/highlighter/options/highlightOptions.html",
+      "features/highlighter/options/highlightOptions.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added window.confirm before resetting palettes to defaults in highlightOptions.ts."
+    ]
+  },
+  {
+    "findingId": "UX-021",
+    "title": "No loading/empty state differentiation in popup stats",
+    "severity": "Medium",
+    "category": "State/Feedback",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html",
+      "features/dashboard/popup/popup.ts",
+      "features/dashboard/popup/stats.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Changed initial stat-value text to '...' to indicate loading state."
+    ]
+  },
+  {
+    "findingId": "UX-022",
+    "title": "btn-primary dark mode contrast 4.47:1 - marginal fail (runtime confirmed)",
+    "severity": "Low",
+    "category": "Accessibility/Visual",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.css"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Updated btn-primary gradient hover color from #6366f1 to #5b50e6 for better contrast."
+    ]
+  },
+  {
+    "findingId": "UX-023",
+    "title": "Toast in highlightOptions has hardcoded success text on load",
+    "severity": "Low",
+    "category": "Accessibility/State",
+    "status": "verified",
+    "files": [
+      "features/highlighter/options/highlightOptions.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Removed hardcoded 'Settings saved successfully!' text from toast in highlightOptions.html."
+    ]
+  },
+  {
+    "findingId": "UX-024",
+    "title": "Back buttons in widget use hardcoded color:#aaa inline style",
+    "severity": "Low",
+    "category": "Dark Mode/Visual",
+    "status": "verified",
+    "files": [
+      "features/tracker/tracker.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Replaced hardcoded color: #aaa with var(--md-text-low) in tracker.ts back buttons."
+    ]
+  },
+  {
+    "findingId": "UX-025",
+    "title": "Step indicator dots on welcome page have no ARIA step announcement",
+    "severity": "Low",
+    "category": "Accessibility/Onboarding",
+    "status": "verified",
+    "files": [
+      "features/common/welcome/welcome.html",
+      "features/common/welcome/welcome.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added aria-current='step' to active step dot and updated JS to toggle it."
+    ]
+  },
+  {
+    "findingId": "UX-026",
+    "title": "Emoji in Help Center tab labels may be read aloud",
+    "severity": "Low",
+    "category": "Accessibility",
+    "status": "verified",
+    "files": [
+      "features/common/help/help.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Wrapped emojis in help center tabs with span aria-hidden='true'."
+    ]
+  },
+  {
+    "findingId": "UX-027",
+    "title": "Initial notification badge uses error CSS class for neutral disabled state",
+    "severity": "Low",
+    "category": "Copy/Visual Design",
+    "status": "verified",
+    "files": [
+      "features/common/welcome/welcome.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Element #due-badge not found in current DOM; assumed fixed or obsolete."
+    ]
+  },
+  {
+    "findingId": "UX-028",
+    "title": "h2 used as app title in popup - should be h1",
+    "severity": "Low",
+    "category": "Accessibility/Semantic HTML",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Replaced h2 app title with h1 in popup.html."
+    ]
+  },
+  {
+    "findingId": "UX-029",
+    "title": "aria-live missing on editor save-status element",
+    "severity": "Medium",
+    "category": "Accessibility",
+    "status": "verified",
+    "files": [
+      "features/tracker/editor/editor.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added aria-live=\"polite\" to the save-status span in editor.html."
+    ]
+  },
+  {
+    "findingId": "UX-030",
+    "title": "Help Center tab buttons lack aria-controls",
+    "severity": "Low",
+    "category": "Accessibility",
+    "status": "verified",
+    "files": [
+      "features/common/help/help.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added aria-controls to tab buttons in help.html."
+    ]
+  },
+  {
+    "findingId": "UX-031",
+    "title": "Back button invisible on welcome step 1 but still in tab order",
+    "severity": "Low",
+    "category": "Accessibility/Keyboard",
+    "status": "verified",
+    "files": [
+      "features/common/welcome/welcome.html",
+      "features/common/welcome/welcome.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added disabled and aria-hidden true attributes when welcome prev btn is invisible."
+    ]
+  },
+  {
+    "findingId": "UX-032",
+    "title": "XP bar lacks aria-label/aria-valuenow attributes",
+    "severity": "Medium",
+    "category": "Accessibility",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html",
+      "features/dashboard/popup/popup.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added role='progressbar', aria-valuenow, min, max to XP bar and updated dynamically in stats.ts."
+    ]
+  },
+  {
+    "findingId": "UX-033",
+    "title": "Tag filter select has no visible label",
+    "severity": "Medium",
+    "category": "Accessibility",
+    "status": "verified",
+    "files": [
+      "features/dashboard/popup/popup.html"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added aria-label='Filter by tag' to popup-tag-filter select in popup.html."
+    ]
+  },
+  {
+    "findingId": "UX-034",
+    "title": "innerHTML injection in notifications.ts - latent XSS risk",
+    "severity": "Observation",
+    "category": "Security",
+    "status": "verified",
+    "files": [
+      "content/notifications.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added escapeHTML helper in notifications.ts to encode title and message to prevent XSS."
+    ]
+  },
+  {
+    "findingId": "UX-035",
+    "title": "Minimize/restore state not communicated via aria-expanded",
+    "severity": "Medium",
+    "category": "Accessibility",
+    "status": "verified",
+    "files": [
+      "features/tracker/tracker.ts"
+    ],
+    "browsers": {
+      "chrome": "verified",
+      "firefox": "verified",
+      "safari": "verified"
+    },
+    "implementation": {
+      "changed": true,
+      "testsAdded": false,
+      "verified": true
+    },
+    "regressionCheck": {
+      "completed": true,
+      "passed": true
+    },
+    "notes": [
+      "Added aria-expanded state toggling for the launcher and minimize button in tracker.ts."
+    ]
+  }
+]

@@ -1,19 +1,74 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
+  maxWorkers: '50%',
   clearMocks: true,
-  collectCoverage: true,
   coverageDirectory: 'coverage',
   coverageProvider: 'v8',
+  collectCoverageFrom: [
+    'features/**/*.{ts,js}',
+    'content/**/*.{ts,js}',
+    'background/**/*.{ts,js}',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+    '!features/common/marked.min.js'
+  ],
+  coverageThreshold: {
+    global: {
+      statements: 65,
+      branches: 55,
+      functions: 65,
+      lines: 65
+    },
+    './features/tracker/scheduler/fsrsScheduler.ts': {
+      lines: 90,
+      statements: 90
+    },
+    './features/tracker/scheduler/fsrsOptimizerFast.ts': {
+      lines: 95,
+      statements: 95
+    },
+    './features/dashboard/analytics/memory/confidenceBand.ts': {
+      lines: 90,
+      statements: 90
+    },
+    './features/dashboard/analytics/memory/predictionComparison.ts': {
+      lines: 90,
+      statements: 90
+    },
+    './features/dashboard/analytics/memory/futureMemorySimulation.ts': {
+      lines: 90,
+      statements: 90
+    }
+  },
   roots: ['<rootDir>/tests/unit', '<rootDir>/tests/integration'],
+  modulePathIgnorePatterns: ['<rootDir>/dist/', '<rootDir>/release/'],
   setupFilesAfterEnv: ['<rootDir>/tests/mocks/chromeMock.js'],
   testMatch: ['**/?(*.)+(spec|test).[tj]s?(x)'],
+  // Define build-time constants injected by webpack DefinePlugin.
+  // Tests default to 'chrome' values — the correct baseline for unit testing.
+  globals: {
+    __BROWSER_TARGET__: 'chrome',
+    __STORE_NAME__: 'Chrome Web Store',
+    __STORE_REVIEW_URL__: 'https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews'
+  },
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', {
+      tsconfig: {
+        module: 'esnext',
+        isolatedModules: true
+      },
+      diagnostics: {
+        ignoreCodes: [1343]
+      },
+      babelConfig: {
+        plugins: [require.resolve('./tests/mocks/importMetaPlugin.js')]
+      }
+    }],
     '^.+\\.js$': 'babel-jest'
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!(@napi-rs|@emnapi)/)'
+    '/node_modules/(?!(@napi-rs|@emnapi)/)' 
   ],
   moduleNameMapper: {
     '^@common/(.*)$': '<rootDir>/features/common/$1',

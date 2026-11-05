@@ -1,7 +1,9 @@
-/*
+/**
  * @file features/dashboard/studyplan/studyplan.css
- * @description Styling for the Exam Countdown Mode page.
- * Upstream dependency: features/common/base.css
+ * @context Exam Mode UI / Dedicated Options Tab
+ * @description Styling rules for Exam Countdown Mode, setup input forms, workload projection cards, SVG countdown timer ring, and daily review schedule tables.
+ * @isolation Global within the Exam Mode page context.
+ * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-danger, --md-success, --shadow-1, --shadow-2).
  */
 body {
     background-color: var(--md-bg);
@@ -308,6 +310,7 @@ tr.past-row td {
     letter-spacing: 0.3px;
 }
 
+/* Daily Schedule Status Badges: rendered inside #schedule-body by studyplan.ts */
 .badge-complete {
     background: rgba(129, 201, 149, 0.12);
     color: var(--md-success);
@@ -337,7 +340,7 @@ tr.past-row td {
     margin-top: 8px;
 }
 
-/* Urgency Colors */
+/* Urgency Colors: applied to the countdown ring based on days remaining */
 .countdown-ring-fill.urgent {
     stroke: var(--md-danger);
 }

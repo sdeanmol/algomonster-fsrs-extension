@@ -37,7 +37,8 @@
   ],
   "exclude": [
     "node_modules",
-    "build",
+    "dist",
+    "release",
     "tests",
     "coverage",
     "backup",

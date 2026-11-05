@@ -1,47 +1,96 @@
 /**
  * @file features/dashboard/popup/stats.ts
  * @description Manages progress tracking, daily goals, gamification elements, and streaking metrics inside the options popup.
+ * Computes live FSRS retrievability retention rates, manages XP leveling, renders SVG daily goal progress rings,
+ * tracks consecutive study day streaks, and triggers canvas confetti celebration effects on reaching milestones.
+ *
+ * Architecture Role: Popup Sub-View Component (Gamification & Retention Statistics).
+ * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
+ * Key Exports:
+ * - {@link StreakResult}: Current and longest streak calculation result.
+ * - {@link StatsComponent}: Sub-view component class managing popup stats, badges, and progress rings.
  */
 
 import { Logger } from '@common/logger';
-import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING, DUE_CARDS_THRESHOLD_WARNING } from '@common/constants';
+import { UIUtils } from '../../common/utils/uiUtils';
+import {
+    RECALL_THRESHOLD_GOOD,
+    RECALL_THRESHOLD_WARNING,
+    DUE_CARDS_THRESHOLD_WARNING,
+    DEFAULT_DAILY_GOAL,
+    STREAK_MILESTONES,
+    REVIEW_MILESTONES,
+    CONFETTI_COLORS,
+    CONFETTI_PARTICLE_COUNT
+} from '@common/constants';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
 import { Card, StorageData } from '../../../types/domain';
 import AbstractScheduler from '../../tracker/scheduler/scheduler';
 
+/**
+ * Result structure representing consecutive study day streaks.
+ */
 export interface StreakResult {
+    /** Number of consecutive daily reviews active up to today/yesterday. */
     current: number;
+    /** All-time highest consecutive daily streak achieved. */
     longest: number;
 }
 
+/**
+ * Individual particle physics state for HTML5 Canvas milestone celebration animations.
+ */
 interface ConfettiParticle {
+    /** Current X canvas coordinate. */
     x: number;
+    /** Current Y canvas coordinate. */
     y: number;
+    /** Particle width in pixels. */
     w: number;
+    /** Particle height in pixels. */
     h: number;
+    /** Horizontal velocity. */
     vx: number;
+    /** Vertical velocity. */
     vy: number;
+    /** Hex color string. */
     color: string;
+    /** Current rotation angle in degrees. */
     rotation: number;
+    /** Angular velocity in degrees per frame. */
     rotationSpeed: number;
+    /** Current opacity value between 0.0 and 1.0. */
     opacity: number;
+    /** Geometric render shape. */
     shape: 'rect' | 'circle';
 }
 
+/**
+ * Sub-component for the popup dashboard that calculates overall retention,
+ * drives XP progression, and renders interactive daily goal SVG rings and milestone celebrations.
+ */
 export class StatsComponent extends DashboardComponent {
+    /** Target number of cards configured to review per day. */
     dailyGoalTarget: number;
+    /** Best all-time daily review streak recorded. */
     longestStreak: number;
 
+    /**
+     * Initializes the stats component with a coordinator reference.
+     * @param coordinator - Parent dashboard coordinator.
+     */
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
-        this.dailyGoalTarget = 10;
+        this.dailyGoalTarget = DEFAULT_DAILY_GOAL;
         this.longestStreak = 0;
     }
 
     /**
      * Loads FSRS card data and activity logs, computes overall stats,
      * and renders both the level progression badge and the daily goal progress ring.
+     * @async
+     * @returns Promise resolving when statistics calculations and DOM updates complete.
      */
     async load(): Promise<void> {
         try {
@@ -51,7 +100,7 @@ export class StatsComponent extends DashboardComponent {
             };
             const cards: Card[] = result.fsrsCards || [];
             const activity: Record<string, number> = result.fsrsActivity || {};
-            this.dailyGoalTarget = typeof result.dailyGoalTarget === 'number' ? result.dailyGoalTarget : 10;
+            this.dailyGoalTarget = typeof result.dailyGoalTarget === 'number' ? result.dailyGoalTarget : DEFAULT_DAILY_GOAL;
             const storedLongestStreak = typeof result.longestStreak === 'number' ? result.longestStreak : 0;
             const lastCelebratedMilestone = typeof result.lastCelebratedMilestone === 'number' ? result.lastCelebratedMilestone : 0;
             const studyPlanSettings = result.studyPlanSettings || null;
@@ -148,6 +197,7 @@ export class StatsComponent extends DashboardComponent {
             
             const levelBadge = document.getElementById('user-level-badge');
             const xpBarFill = document.getElementById('xp-bar-fill');
+            const xpBarContainer = document.getElementById('xp-progress-bar-container');
             
             if (levelBadge) {
                 levelBadge.innerText = `Lv. ${level}`;
@@ -162,6 +212,9 @@ export class StatsComponent extends DashboardComponent {
             }
             if (xpBarFill) {
                 xpBarFill.style.width = `${currentLevelProgress}%`;
+            }
+            if (xpBarContainer) {
+                xpBarContainer.setAttribute('aria-valuenow', Math.round(currentLevelProgress).toString());
             }
 
             // 2. Daily Streak Calculation
@@ -225,8 +278,8 @@ export class StatsComponent extends DashboardComponent {
             }
 
             // Milestone Detection & Celebration
-            const streakMilestones = [7, 14, 30, 50, 100, 365];
-            const reviewMilestones = [50, 100, 250, 500, 1000, 5000];
+            const streakMilestones = STREAK_MILESTONES;
+            const reviewMilestones = REVIEW_MILESTONES;
 
             let newMilestone: { type: string; value: number } | null = null;
             for (const milestone of streakMilestones) {
@@ -255,16 +308,13 @@ export class StatsComponent extends DashboardComponent {
                         this.showMilestoneToast(label);
                         this.showConfetti();
                     } catch (mErr) {
-                        const errorMessage = mErr instanceof Error ? mErr.message : String(mErr);
-                        Logger.error('StatsComponent', `Error in milestone celebration callback: ${errorMessage}`, { mErr });
-                    }
+            UIUtils.catchError('StatsComponent', 'Error in milestone celebration callback', mErr);
+        }
                 }, 300);
             }
 
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.error('StatsComponent', `Error loading stats: ${errorMessage}`, { error });
-            // Comment: Non-fatal stats load catch
+            UIUtils.catchError('StatsComponent', 'Error loading stats', error);
         }
     }
 
@@ -284,9 +334,8 @@ export class StatsComponent extends DashboardComponent {
                         goalEditor.style.display = goalEditor.style.display === 'none' ? 'flex' : 'none';
                         if (goalEditor.style.display === 'flex') goalInput.focus();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('StatsComponent', `Error toggling goal editor visibility: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('StatsComponent', 'Error toggling goal editor visibility', err);
+        }
                 });
 
                 const saveGoal = async () => {
@@ -297,9 +346,8 @@ export class StatsComponent extends DashboardComponent {
                             goalEditor.style.display = 'none';
                             await this.load();
                         } catch (error) {
-                            const errorMessage = error instanceof Error ? error.message : String(error);
-                            Logger.error('StatsComponent', `Error saving daily goal target: ${errorMessage}`, { val, error });
-                        }
+            UIUtils.catchError('StatsComponent', 'Error saving daily goal target', error, { val });
+        }
                     }
                 };
 
@@ -321,9 +369,7 @@ export class StatsComponent extends DashboardComponent {
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error binding goal editor events: ${errorMessage}`, { err });
-            // Comment: Non-fatal goal editor event binding catch
+            UIUtils.catchError('StatsComponent', 'Error binding goal editor events', err);
         }
     }
 
@@ -334,8 +380,7 @@ export class StatsComponent extends DashboardComponent {
         try {
             // Events are bound during load or UI interactions
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error binding stats events: ${errorMessage}`, { err });
+            UIUtils.catchError('StatsComponent', 'Error binding stats events', err);
         }
     }
 
@@ -560,13 +605,11 @@ export class StatsComponent extends DashboardComponent {
                 try {
                     toast.classList.remove('show');
                 } catch (timerErr) {
-                    const errorMessage = timerErr instanceof Error ? timerErr.message : String(timerErr);
-                    Logger.error('StatsComponent', `Error hiding milestone toast: ${errorMessage}`, { timerErr });
-                }
+            UIUtils.catchError('StatsComponent', 'Error hiding milestone toast', timerErr);
+        }
             }, 3500);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error showing milestone toast: ${errorMessage}`, { message, err });
+            UIUtils.catchError('StatsComponent', 'Error showing milestone toast', err, { message });
         }
     }
 
@@ -584,19 +627,9 @@ export class StatsComponent extends DashboardComponent {
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
 
-            const colors = [
-                '#a8c7fa',
-                '#f9ab00',
-                '#81c995',
-                '#f28b82',
-                '#c58af9',
-                '#4ecdc4',
-                '#ff6b6b',
-                '#ffe66d',
-            ];
-
+            const colors = CONFETTI_COLORS;
             const particles: ConfettiParticle[] = [];
-            const particleCount = 60;
+            const particleCount = CONFETTI_PARTICLE_COUNT;
 
             for (let i = 0; i < particleCount; i++) {
                 particles.push({
@@ -658,15 +691,13 @@ export class StatsComponent extends DashboardComponent {
 
                     requestAnimationFrame(animate);
                 } catch (animErr) {
-                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
-                    Logger.error('StatsComponent', `Error in confetti animation loop: ${errorMessage}`, { animErr });
-                }
+            UIUtils.catchError('StatsComponent', 'Error in confetti animation loop', animErr);
+        }
             };
 
             requestAnimationFrame(animate);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error initializing confetti animation: ${errorMessage}`, { err });
+            UIUtils.catchError('StatsComponent', 'Error initializing confetti animation', err);
         }
     }
 }

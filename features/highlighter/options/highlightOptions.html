@@ -1,21 +1,32 @@
 <!--
-  * @file features/highlighter/options/highlightOptions.html
-  * @description Layout layout page presenting custom color slot configuration inputs.
-  * Downstream script: features/highlighter/options/highlightOptions.js
-  -->
+  @file features/highlighter/options/highlightOptions.html
+  @context Options Page / Highlighter Settings Tab
+  @description Settings UI for customizing the default marker color and managing custom multi-color highlighter palettes.
+  @linked-scripts features/common/theme-sync.js, features/highlighter/options/highlightOptions.ts (compiled to highlightOptions.js)
+  @linked-styles features/common/base.css, features/highlighter/options/highlightOptions.css
+-->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
-    <title>Highlighter Settings & Palettes</title>
+    <title>AlgoRecall — Highlighter Appearance & Palettes</title>
     <script src="../../common/theme-sync.js"></script>
     <link rel="stylesheet" href="../../common/base.css">
     <link rel="stylesheet" href="highlightOptions.css">
 </head>
 <body>
     <div class="container">
+        <!-- Page Header -->
         <div class="header">
+            <div class="algorecall-brand-badge">
+                <svg class="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path>
+                    <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path>
+                    <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path>
+                </svg>
+                <span class="algorecall-brand-name">AlgoRecall</span>
+            </div>
             <h2>
                 <svg class="svg-icon header-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                 Highlighter Appearance
@@ -26,35 +37,42 @@
         <div class="settings-layout">
             <!-- Left Side / General Settings & Editor -->
             <div class="settings-column">
+                <!-- General Options Panel: Default marker color configuration -->
                 <div class="panel">
                     <h3 class="panel-subtitle">General Options</h3>
                     <div class="settings-group">
                         <label>Default Highlight Color</label>
+                        <!-- Two-way bound color picker and hex text input (highlightOptions.ts) -->
                         <div class="color-row">
                             <input type="color" id="default-color" class="color-picker">
-                            <span class="color-hex" id="default-hex"></span>
+                            <input type="text" class="color-hex" id="default-hex" maxlength="7">
                         </div>
                     </div>
                 </div>
 
+                <!-- Palette Creator / Editor Panel -->
                 <div class="panel">
                     <div class="panel-header-row">
                         <h3 class="panel-subtitle">
                             <svg class="svg-icon section-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2zm1 4a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0zm4.5 4a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0zm-9 0a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0zm4.5 5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0z"></path></svg>
                             Palette Creator / Editor
                         </h3>
+                        <!-- Live count of saved palettes (e.g. '3 / 50') updated by highlightOptions.ts -->
                         <span id="palette-count" class="badge">0 / 50</span>
                     </div>
                     <div class="input-group">
                         <label for="palette-name-input">Palette Name</label>
+                        <!-- Palette name field; triggers validation and enables/disables save button -->
                         <input type="text" id="palette-name-input" class="input-field" placeholder="My Custom Palette...">
                     </div>
                     
                     <div class="settings-group" style="margin-top: 16px;">
                         <label>Palette Colors (1 - 5 Slots)</label>
+                        <!-- Dynamic slot list container populated with .slot-row elements by highlightOptions.ts -->
                         <div id="palette-slots-container" class="slots-list">
                             <!-- Slots will be added dynamically here -->
                         </div>
+                        <!-- Add color slot button: Appends a new color picker row (capped at 5 slots) -->
                         <button id="add-slot-btn" class="btn btn-secondary btn-sm" style="margin-top: 8px;">
                             <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                             Add Color Slot
@@ -62,7 +80,8 @@
                     </div>
 
                     <div class="action-buttons" style="margin-top: 20px;">
-                        <button id="save-palette-btn" class="btn btn-primary">
+                        <!-- Save palette button: validates slots & persists to chrome.storage.sync -->
+                        <button id="save-palette-btn" class="btn btn-primary" disabled>
                             <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
                             Save Palette
                         </button>
@@ -72,12 +91,15 @@
 
             <!-- Right Side / Palettes List -->
             <div class="settings-column">
+                <!-- Saved Palettes Panel -->
                 <div class="panel">
                     <h3 class="panel-subtitle">Saved Palettes</h3>
+                    <!-- Dynamic container where saved palette cards are rendered with activate/edit/delete buttons -->
                     <div id="palettes-list-container" class="palettes-list">
                         <!-- Custom palettes will render here -->
                     </div>
                     <hr class="divider">
+                    <!-- Reset button: Reverts palette list to original extension defaults -->
                     <button id="reset-palettes-btn" class="btn btn-secondary w-full">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
                         Reset to Defaults
@@ -86,9 +108,11 @@
             </div>
         </div>
 
-        <div id="status-toast" class="toast">Settings saved successfully!</div>
+        <!-- Ephemeral status toast for save, activate, delete, and validation feedback -->
+        <div id="status-toast" class="toast"></div>
     </div>
 
+    <!-- Controller script for highlighter configuration and palette CRUD -->
     <script src="highlightOptions.js"></script>
 </body>
 </html>

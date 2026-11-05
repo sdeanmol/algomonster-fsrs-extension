@@ -1,33 +1,63 @@
 /**
  * @file features/dashboard/studyplan/studyplan.ts
- * @description Exam Countdown Mode controller.
- * Redistributes all FSRS cards evenly across remaining days until exam,
- * prioritizing overdue and low-stability cards. Backs up original due dates
- * for restoration on deactivation.
+ * @description Exam Countdown Mode and study planner controller.
+ * Redistributes all FSRS cards evenly across remaining calendar days until the target exam date,
+ * prioritizing overdue and low-stability cards. Preserves original computed due dates as a backup
+ * so spaced repetition schedules can be restored when exam mode is deactivated.
+ *
+ * Architecture Role: Exam Study Plan Standalone Page Controller.
+ * Context: Extension Standalone Tab (`features/dashboard/studyplan/studyplan.html`).
+ * Key Exports:
+ * - {@link StudyPlanSettings}: Configuration schema for active exam countdown deadlines.
+ * - {@link StudyPlanController}: Controller class managing redistribution logic, previews, and countdown display.
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
 import { Card, StorageData } from '../../../types/domain';
 
+/**
+ * Persistent configuration settings for active Exam Countdown Mode.
+ */
 export interface StudyPlanSettings {
+    /** Whether exam countdown redistribution is currently active. */
     isActive: boolean;
+    /** Target exam date string in ISO format (`YYYY-MM-DD`). */
     examDate: string;
+    /** Calculated or user-constrained daily review quota. */
     dailyTarget: number;
+    /** Epoch timestamp in milliseconds when exam mode was activated. */
     activatedAt: number;
 }
 
+/**
+ * Controller for Exam Countdown Mode, enabling students to compress
+ * and evenly redistribute their entire card inventory ahead of an interview or exam.
+ */
 export class StudyPlanController {
+    /** Complete in-memory card collection loaded from extension storage. */
     allCards: Card[];
+    /** Active exam plan settings, or null if exam mode is inactive. */
     settings: StudyPlanSettings | null;
 
+    /**
+     * Initializes the controller with empty cards array and null settings.
+     */
     constructor() {
         this.allCards = [];
         this.settings = null;
     }
 
+    /**
+     * Bootstraps study plan UI by registering event listeners and loading cards
+     * and plan settings from local storage.
+     * @listens chrome.storage.local
+     */
     init(): void {
         try {
+            this.bindEvents();
+
             chrome.storage.local.get(['fsrsCards', 'studyPlanSettings'], (result: StorageData & { studyPlanSettings?: StudyPlanSettings }) => {
                 try {
                     const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
@@ -45,20 +75,18 @@ export class StudyPlanController {
                     } else {
                         this.renderSetupPanel();
                     }
-
-                    this.bindEvents();
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('StudyPlan', `Error initializing study plan UI from storage: ${errorMessage}`, { innerErr });
-                    // Comment: Non-fatal study plan initialization catch
-                }
+            UIUtils.catchError('StudyPlan', 'Error initializing study plan UI from storage', innerErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error initiating storage get for StudyPlanController: ${errorMessage}`, { err });
+            UIUtils.catchError('StudyPlan', 'Error initiating storage get for StudyPlanController', err);
         }
     }
 
+    /**
+     * Binds input change and click listeners for the exam configuration form and activation buttons.
+     */
     bindEvents(): void {
         try {
             const examDateInput = document.getElementById('exam-date-input') as HTMLInputElement | null;
@@ -71,14 +99,16 @@ export class StudyPlanController {
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 examDateInput.min = this.formatDate(tomorrow);
 
-                examDateInput.addEventListener('change', () => {
+                const handleDateUpdate = () => {
                     try {
                         this.updatePreview();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('StudyPlan', `Error in exam date input listener: ${errorMessage}`, { err });
-                    }
-                });
+            UIUtils.catchError('StudyPlan', 'Error in exam date input listener', err);
+        }
+                };
+
+                examDateInput.addEventListener('change', handleDateUpdate);
+                examDateInput.addEventListener('input', handleDateUpdate);
             }
 
             if (dailyLimitInput) {
@@ -86,9 +116,8 @@ export class StudyPlanController {
                     try {
                         this.updatePreview();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('StudyPlan', `Error in daily limit input listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('StudyPlan', 'Error in daily limit input listener', err);
+        }
                 });
             }
 
@@ -97,9 +126,8 @@ export class StudyPlanController {
                     try {
                         this.activateExamMode();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('StudyPlan', `Error in activate button listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('StudyPlan', 'Error in activate button listener', err);
+        }
                 });
             }
 
@@ -108,18 +136,20 @@ export class StudyPlanController {
                     try {
                         this.deactivateExamMode();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('StudyPlan', `Error in deactivate button listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('StudyPlan', 'Error in deactivate button listener', err);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error binding study plan events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event binding catch
+            UIUtils.catchError('StudyPlan', 'Error binding study plan events', err);
         }
     }
 
+    /**
+     * Formats a Date object into an ISO date string (`YYYY-MM-DD`) in local time.
+     * @param date - Date to convert.
+     * @returns Formatted ISO date string.
+     */
     formatDate(date: Date): string {
         try {
             return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -174,9 +204,7 @@ export class StudyPlanController {
             preview.style.display = 'block';
             if (activateBtn) activateBtn.disabled = false;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error updating setup preview: ${errorMessage}`, { err });
-            // Comment: Non-fatal preview rendering catch
+            UIUtils.catchError('StudyPlan', 'Error updating setup preview', err);
         }
     }
 
@@ -257,14 +285,11 @@ export class StudyPlanController {
                     this.settings = settings;
                     this.renderActivePanel();
                 } catch (cbErr) {
-                    const errorMessage = cbErr instanceof Error ? cbErr.message : String(cbErr);
-                    Logger.error('StudyPlan', `Error in storage set callback for activateExamMode: ${errorMessage}`, { cbErr });
-                }
+            UIUtils.catchError('StudyPlan', 'Error in storage set callback for activateExamMode', cbErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error activating exam mode: ${errorMessage}`, { err });
-            // Comment: Non-fatal exam mode activation error
+            UIUtils.catchError('StudyPlan', 'Error activating exam mode', err);
         }
     }
 
@@ -275,9 +300,14 @@ export class StudyPlanController {
         try {
             if (!confirm('Deactivate Exam Mode? This will restore all cards to their original FSRS-computed due dates.')) return;
 
-            this.allCards.forEach((card: Card & { originalDue?: number }) => {
+            const activatedAt = this.settings?.activatedAt || 0;
+            this.allCards.forEach((card: Card & { originalDue?: number; lastReview?: number }) => {
                 if (card.originalDue) {
-                    card.due = card.originalDue;
+                    const lastReviewTime = typeof card.lastReview === 'number' ? card.lastReview : (typeof card.last_review === 'number' ? card.last_review : 0);
+                    const wasReviewedDuringExam = !!(lastReviewTime && activatedAt > 0 && lastReviewTime >= activatedAt);
+                    if (!wasReviewedDuringExam) {
+                        card.due = card.originalDue;
+                    }
                     delete card.originalDue;
                 }
             });
@@ -296,14 +326,11 @@ export class StudyPlanController {
                     this.settings = null;
                     this.renderSetupPanel();
                 } catch (cbErr) {
-                    const errorMessage = cbErr instanceof Error ? cbErr.message : String(cbErr);
-                    Logger.error('StudyPlan', `Error in storage set callback for deactivateExamMode: ${errorMessage}`, { cbErr });
-                }
+            UIUtils.catchError('StudyPlan', 'Error in storage set callback for deactivateExamMode', cbErr);
+        }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error deactivating exam mode: ${errorMessage}`, { err });
-            // Comment: Non-fatal exam mode deactivation error
+            UIUtils.catchError('StudyPlan', 'Error deactivating exam mode', err);
         }
     }
 
@@ -316,9 +343,10 @@ export class StudyPlanController {
             const activePanel = document.getElementById('active-panel');
             if (setupPanel) setupPanel.style.display = 'block';
             if (activePanel) activePanel.style.display = 'none';
+
+            this.updatePreview();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error rendering setup panel: ${errorMessage}`, { err });
+            UIUtils.catchError('StudyPlan', 'Error rendering setup panel', err);
         }
     }
 
@@ -378,9 +406,7 @@ export class StudyPlanController {
 
             this.renderScheduleTable(totalDays, daysLeft);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error rendering active panel: ${errorMessage}`, { err });
-            // Comment: Non-fatal active panel rendering error
+            UIUtils.catchError('StudyPlan', 'Error rendering active panel', err);
         }
     }
 
@@ -438,21 +464,21 @@ export class StudyPlanController {
                 tbody.appendChild(tr);
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StudyPlan', `Error rendering schedule table: ${errorMessage}`, { totalDays, daysLeft, err });
-            // Comment: Non-fatal schedule table rendering error
+            UIUtils.catchError('StudyPlan', 'Error rendering schedule table', err, { totalDays, daysLeft });
         }
     }
 }
 
+/**
+ * Initializes the study plan controller on DOM load.
+ */
 function initStudyPlan(): void {
     try {
         const controller = new StudyPlanController();
         controller.init();
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('StudyPlan', `Initialization failed: ${errorMessage}`, { err });
-    }
+            UIUtils.catchError('StudyPlan', 'Initialization failed', err);
+        }
 }
 
 if (typeof document !== 'undefined') {

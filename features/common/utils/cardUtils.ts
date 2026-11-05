@@ -1,31 +1,57 @@
 /**
- * @file features/common/utils/cardUtils.ts
- * @description Shared utilities for processing card objects safely across different module schemas.
+ * @file Card Processing and Schema Normalization Utilities
+ * @module features/common/utils/cardUtils
+ * @context Shared across Content Scripts, Background, Popup, and Dashboard
+ * @description Provides helper functions for card ID generation, URL normalization,
+ * card filtering by URL, ID deduplication, and multi-format review date extraction.
  */
 
 import { Logger } from '@common/logger';
 import { Card } from '../../../types/domain';
+import { UIUtils } from './uiUtils';
 
+/**
+ * Historical review log entry within a card, accommodating legacy string dates or numeric timestamps.
+ */
 export interface CardHistoryLogEntry {
+    /** Timestamp of the review event (milliseconds number or ISO string) */
     date: number | string;
+    /** User assessment rating (1-4) */
     rating?: number;
+    /** Review study duration in milliseconds */
     duration?: number;
-    [key: string]: unknown;
-}
-
-export interface CardLike {
-    lastReview?: number | string | Date | null;
-    last_review?: number | string | Date | null;
-    historyLog?: (CardHistoryLogEntry | number | string)[];
+    /** Additional metadata */
     [key: string]: unknown;
 }
 
 /**
- * Robustly extracts the most recent review date from a card, normalizing across 
- * different historical data schemas (ts-fsrs snake_case, legacy camelCase, and raw historyLog).
+ * Flexible structural interface matching both modern and legacy card formats.
+ */
+export interface CardLike {
+    /** Legacy camelCase review timestamp */
+    lastReview?: number | string | Date | null;
+    /** ts-fsrs standard snake_case review timestamp */
+    last_review?: number | string | Date | null;
+    /** Chronological review history logs */
+    historyLog?: (CardHistoryLogEntry | number | string)[];
+    /** Extensible card properties */
+    [key: string]: unknown;
+}
+
+/**
+ * Extracts and normalizes the most recent review timestamp from a card object,
+ * handling legacy camelCase (`lastReview`), FSRS snake_case (`last_review`),
+ * and the latest entry in `historyLog`.
  * 
- * @param {CardLike | null | undefined} card - The card object from the database.
- * @returns {number | null} - The timestamp of the last review, or null if never reviewed.
+ * @param card - The card candidate object from storage.
+ * @returns Unix epoch timestamp in milliseconds, or null if the card has never been reviewed.
+ * @example
+ * ```ts
+ * const lastReviewMs = getLastReviewDate(card);
+ * if (lastReviewMs) {
+ *     console.log(`Reviewed ${new Date(lastReviewMs).toLocaleDateString()}`);
+ * }
+ * ```
  */
 export function getLastReviewDate(card?: CardLike | null): number | null {
     if (!card) return null;
@@ -48,44 +74,51 @@ export function getLastReviewDate(card?: CardLike | null): number | null {
 
         return null;
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('CardUtils', `Error in getLastReviewDate: ${errorMessage}`, { card, err });
-        // Comment: Return null if card object parsing or date conversion throws
+        UIUtils.catchError('CardUtils', 'Error in getLastReviewDate', err, { card });
         return null;
     }
 }
 
 /**
- * Generates a unique string ID for a card.
+ * Generates an alphanumeric pseudo-unique identifier for a card.
+ * Combines base-36 timestamp encoding with random noise.
+ * @returns A unique card identifier string.
  */
 export function generateCardId(): string {
     try {
         return Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('CardUtils', `Error generating card ID: ${errorMessage}`, { err });
-        // Comment: Fallback random string generator on error
+        UIUtils.catchError('CardUtils', 'Error generating card ID', err);
         return `id_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
     }
 }
 
 /**
- * Normalizes a URL by removing query strings and hash anchors.
+ * Normalizes a URL by stripping query parameters (`?query=...`) and hash anchors (`#anchor`).
+ * Ensures consistent lookups across variations of problem URLs.
+ * @param url - Raw page URL to normalize.
+ * @returns Clean canonical URL string without query parameters or hash fragments.
+ * @example
+ * ```ts
+ * cleanUrl('https://leetcode.com/problems/two-sum/?envType=study-plan#solution');
+ * // => 'https://leetcode.com/problems/two-sum/'
+ * ```
  */
 export function cleanUrl(url?: string | null): string {
     if (!url) return '';
     try {
         return url.split('?')[0].split('#')[0];
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('CardUtils', `Error cleaning URL '${url}': ${errorMessage}`, { url, err });
-        // Comment: Fallback return raw URL on string splitting error
+        UIUtils.catchError('CardUtils', `Error cleaning URL '${url}'`, err, { url });
         return String(url);
     }
 }
 
 /**
- * Filters all cards matching the specified URL.
+ * Filters an array of cards to find those matching a target URL, comparing cleaned URLs.
+ * @param cards - Collection of cards to search.
+ * @param url - Destination problem URL to match against.
+ * @returns Array of cards mapped to the cleaned URL.
  */
 export function getCardsForUrl(cards: Card[], url: string): Card[] {
     if (!Array.isArray(cards) || !url) return [];
@@ -93,16 +126,16 @@ export function getCardsForUrl(cards: Card[], url: string): Card[] {
         const targetClean = cleanUrl(url);
         return cards.filter(c => c && c.problemUrl && cleanUrl(c.problemUrl) === targetClean);
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('CardUtils', `Error filtering cards for URL '${url}': ${errorMessage}`, { url, err });
-        // Comment: Return empty array on card array filtering error
+        UIUtils.catchError('CardUtils', `Error filtering cards for URL '${url}'`, err, { url });
         return [];
     }
 }
 
 /**
- * Ensures that every card in the array has a valid unique `id` property.
- * Modifies missing IDs in-place and returns the array.
+ * Iterates through an array of cards, generating and assigning unique IDs to any card missing an ID.
+ * Mutates cards in place and returns the array.
+ * @param cards - Array of cards to validate.
+ * @returns The validated array of cards where every entity is guaranteed to have a unique ID.
  */
 export function ensureCardIds(cards: Card[]): Card[] {
     if (!Array.isArray(cards)) return [];
@@ -127,9 +160,7 @@ export function ensureCardIds(cards: Card[]): Card[] {
 
         return cards;
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('CardUtils', `Error in ensureCardIds: ${errorMessage}`, { err });
-        // Comment: Return cards array safely even if ID generation encounters invalid objects
+        UIUtils.catchError('CardUtils', 'Error in ensureCardIds', err);
         return cards;
     }
 }

@@ -1,14 +1,27 @@
 /**
  * @file features/dashboard/analytics/tags/coverageTable.ts
  * @description Renders the tag coverage and stability table for tag analytics.
+ * Displays card counts, deck proportion percentages, FSRS retrievability, average memory
+ * stability, and due card indicators for each distinct tag in the user's collection.
+ * Supports clicking a tag badge to open filtered deck views via chrome.tabs.create.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { Logger } from '@common/logger';
 import { DataUtils } from '../utils/dataUtils';
 
+/**
+ * Renders an interactive tabular breakdown of card coverage, retrievability,
+ * and review urgency across all tags in the card collection.
+ */
 export class CoverageTable {
+    /** Data utility instance for querying card stats grouped by tag */
     dataUtils: DataUtils;
 
+    /**
+     * Creates an instance of CoverageTable.
+     * @param dataUtils - Card statistics helper instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -19,6 +32,13 @@ export class CoverageTable {
         }
     }
 
+    /**
+     * Generates and injects the coverage table HTML into the target container.
+     * Attaches click handlers to tag badges to open the data view tab filtered by tag.
+     * @param containerId - DOM ID of the container element hosting the table.
+     * @returns void
+     * @fires chrome.tabs.create
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);

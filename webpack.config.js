@@ -1,11 +1,34 @@
 const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
+const webpack = require('webpack');
 
 // Standard ignore patterns for static asset copying
 const ignorePatterns = ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'];
 
-module.exports = {
-  target: "web",
+// Browser-specific store configuration injected at build time
+const BROWSER_STORE_CONFIG = {
+  chrome: {
+    storeName: 'Chrome Web Store',
+    reviewUrl: 'https://chromewebstore.google.com/detail/YOUR_EXTENSION_ID/reviews',
+  },
+  firefox: {
+    storeName: 'Firefox Add-ons',
+    reviewUrl: 'https://addons.mozilla.org/firefox/addon/algorecall/reviews/',
+  },
+  safari: {
+    storeName: 'App Store',
+    // Replace with the real Mac App Store URL once the containing app is published.
+    reviewUrl: 'https://apps.apple.com/app/algorecall/idYOUR_APP_ID',
+  },
+};
+
+module.exports = (env) => {
+  const targetBrowser = (env && env.target) ? env.target : 'chrome';
+  const buildPath = path.resolve(__dirname, 'dist', targetBrowser);
+  const storeConfig = BROWSER_STORE_CONFIG[targetBrowser] || BROWSER_STORE_CONFIG.chrome;
+
+  return {
+    target: "web",
   mode: 'production',
   entry: {
     // Bundles
@@ -39,7 +62,7 @@ module.exports = {
     'features/dashboard/summary/summary': './features/dashboard/summary/summary.ts'
   },
   output: {
-    path: path.resolve(__dirname, 'build'),
+    path: buildPath,
     filename: (pathData) =>
       ['config', 'fsrsScheduler'].includes(pathData.chunk.name)
         ? 'dist/[name].bundle.js'
@@ -101,9 +124,17 @@ module.exports = {
     conditionNames: ["browser", "import", "module", "default"]
   },
   plugins: [
+    // Inject build-time browser-specific constants into all bundled modules.
+    // These replace __BROWSER_TARGET__, __STORE_NAME__, __STORE_REVIEW_URL__ at compile time
+    // so no runtime browser detection is needed for store-specific strings/URLs.
+    new webpack.DefinePlugin({
+      '__BROWSER_TARGET__': JSON.stringify(targetBrowser),
+      '__STORE_NAME__': JSON.stringify(storeConfig.storeName),
+      '__STORE_REVIEW_URL__': JSON.stringify(storeConfig.reviewUrl),
+    }),
     new CopyPlugin({
       patterns: [
-        { from: 'manifest.json', to: '.' },
+        { from: `browser/${targetBrowser}/manifest.json`, to: 'manifest.json' },
         { from: 'icons', to: 'icons', noErrorOnMissing: true },
         { from: 'background', to: 'background', noErrorOnMissing: true, globOptions: { ignore: ignorePatterns } },
         { from: 'content', to: 'content', noErrorOnMissing: true, globOptions: { ignore: ignorePatterns } },
@@ -111,4 +142,5 @@ module.exports = {
       ]
     })
   ]
+  };
 };

@@ -1,16 +1,35 @@
 /**
  * @file features/dashboard/popup/search.ts
- * @description Renders filtered card quick search items matching text query and topic tag fields.
+ * @description Quick card search component within the popup dashboard.
+ * Provides a debounced text search input and tag filter dropdown to quickly locate
+ * tracked algorithms, view status badges (Due vs Safe), and launch problem URLs.
+ *
+ * Architecture Role: Popup Sub-View Component (Quick Problem Search).
+ * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
+ * Key Exports:
+ * - {@link QuickSearchComponent}: Sub-view component class managing the quick search input and result list.
  */
 
 import { Logger } from '@common/logger';
+import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { Card, StorageData } from '../../../types/domain';
+import { SEARCH_DEBOUNCE_MS, SEARCH_MAX_RESULTS } from '../../common/constants';
 
+/**
+ * Sub-component for the popup dashboard providing debounced problem search
+ * with tag filtering and direct external link navigation.
+ */
 export class QuickSearchComponent extends DashboardComponent {
+    /** In-memory cache of all tracked FSRS cards for instant query filtering. */
     quickSearchCards: Card[];
+    /** Timeout handle for debouncing user input keystrokes. */
     quickSearchDebounce: ReturnType<typeof setTimeout> | null;
 
+    /**
+     * Initializes the quick search component with a coordinator reference.
+     * @param coordinator - Parent dashboard coordinator.
+     */
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
         this.quickSearchCards = [];
@@ -19,6 +38,9 @@ export class QuickSearchComponent extends DashboardComponent {
 
     /**
      * Initializes quick search input and tag selectors from the dashboard.
+     * Loads cards from storage and populates unique tags into dropdown options.
+     * @async
+     * @returns Promise resolving when cards and tag dropdown options have loaded.
      */
     async load(): Promise<void> {
         try {
@@ -50,9 +72,7 @@ export class QuickSearchComponent extends DashboardComponent {
                 tagFilter.appendChild(option);
             });
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            Logger.error('QuickSearchComponent', `Error loading quick search cards: ${errorMessage}`, { error });
-            // Comment: Non-fatal search initialization catch
+            UIUtils.catchError('QuickSearchComponent', 'Error loading quick search cards', error);
         }
     }
 
@@ -72,14 +92,12 @@ export class QuickSearchComponent extends DashboardComponent {
                             try {
                                 this.renderQuickSearch();
                             } catch (renderErr) {
-                                const errorMessage = renderErr instanceof Error ? renderErr.message : String(renderErr);
-                                Logger.error('QuickSearchComponent', `Error in debounced quick search render: ${errorMessage}`, { renderErr });
-                            }
-                        }, 150);
+            UIUtils.catchError('QuickSearchComponent', 'Error in debounced quick search render', renderErr);
+        }
+                        }, SEARCH_DEBOUNCE_MS);
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('QuickSearchComponent', `Error in quick search input listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('QuickSearchComponent', 'Error in quick search input listener', err);
+        }
                 });
             }
 
@@ -88,15 +106,12 @@ export class QuickSearchComponent extends DashboardComponent {
                     try {
                         this.renderQuickSearch();
                     } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('QuickSearchComponent', `Error in tag filter change listener: ${errorMessage}`, { err });
-                    }
+            UIUtils.catchError('QuickSearchComponent', 'Error in tag filter change listener', err);
+        }
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('QuickSearchComponent', `Error binding quick search events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event listener binding error
+            UIUtils.catchError('QuickSearchComponent', 'Error binding quick search events', err);
         }
     }
 
@@ -139,7 +154,7 @@ export class QuickSearchComponent extends DashboardComponent {
             });
 
             const totalMatches = filtered.length;
-            const maxDisplay = 5;
+            const maxDisplay = SEARCH_MAX_RESULTS;
             const displayCards = filtered.slice(0, maxDisplay);
 
             if (displayCards.length === 0) {
@@ -177,9 +192,7 @@ export class QuickSearchComponent extends DashboardComponent {
             resultsContainer.style.display = 'block';
             resultsContainer.innerHTML = html;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('QuickSearchComponent', `Error rendering quick search results: ${errorMessage}`, { err });
-            // Comment: Non-fatal quick search rendering error
+            UIUtils.catchError('QuickSearchComponent', 'Error rendering quick search results', err);
         }
     }
 }

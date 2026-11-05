@@ -1,6 +1,14 @@
 /**
  * @file features/dashboard/analytics/analytics.ts
- * @description Controller for the Analytics Dashboard Single Page Application (SPA).
+ * @description Master single-page application (SPA) controller for the Analytics Dashboard.
+ * Coordinates tabbed sub-views (Overview, Readiness, Memory, Simulation, Tags, Performance, Insights),
+ * manages asynchronous scheduler data bootstrapping, and updates top-level global KPI cards.
+ *
+ * Architecture Role: Analytics SPA Master Controller and View Router.
+ * Context: Extension Standalone Tab (`features/dashboard/analytics/analytics.html`).
+ * Key Exports:
+ * - {@link TabKey}: Valid navigation tab identifiers.
+ * - {@link AnalyticsTabComponent}: Common render contract for child tab view controllers.
  */
 
 import { Logger } from '@common/logger';
@@ -16,18 +24,38 @@ import { FutureMemorySimulation } from './memory/futureMemorySimulation';
 import { Card, StorageData } from '../../../types/domain';
 import AbstractScheduler from '../../tracker/scheduler/scheduler';
 
+/**
+ * Valid tab navigation identifiers in the Analytics SPA dashboard.
+ */
 export type TabKey = 'overview' | 'readiness' | 'memory' | 'simulation' | 'tags' | 'performance' | 'insights';
 
+/**
+ * Common lifecycle render contract implemented by individual analytics sub-tab views.
+ */
 export interface AnalyticsTabComponent {
+    /**
+     * Renders or mounts the sub-view into the specified container element.
+     * @param containerId - ID of the container element in the DOM.
+     */
     render(containerId: string): void;
 }
 
+/**
+ * Central coordinator and tab router for the Analytics Dashboard SPA.
+ */
 class AnalyticsDashboardSPA {
+    /** Shared statistical calculation engine instance, or null before initialization. */
     dataUtils: DataUtils | null;
+    /** Currently active tab identifier. */
     currentTab: TabKey;
+    /** Map of tab identifiers to instantiated tab view controllers. */
     tabs: Record<TabKey, AnalyticsTabComponent | null>;
+    /** Human-readable display titles for each tab. */
     tabTitles: Record<TabKey, string>;
 
+    /**
+     * Initializes default SPA state, configuring tabs and title mapping.
+     */
     constructor() {
         this.dataUtils = null;
         this.currentTab = 'overview';
@@ -54,6 +82,11 @@ class AnalyticsDashboardSPA {
         };
     }
 
+    /**
+     * Initializes the Analytics Dashboard SPA by reading cards and activity logs from storage,
+     * instantiating {@link DataUtils} and sub-tab controllers, and binding UI navigation.
+     * @listens chrome.storage.local
+     */
     init(): void {
         try {
             chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result: StorageData) => {
@@ -132,6 +165,9 @@ class AnalyticsDashboardSPA {
         }
     }
 
+    /**
+     * Binds click events to the sidebar tab navigation buttons.
+     */
     bindNavigation(): void {
         try {
             const navBtns = document.querySelectorAll('.nav-btn');
@@ -160,6 +196,10 @@ class AnalyticsDashboardSPA {
         }
     }
 
+    /**
+     * Updates top-level global KPI cards (Total Cards, Retention Rate, Due Today, Exam Recall).
+     * @param stats - Computed summary statistics object.
+     */
     updateGlobalKPIs(stats: SummaryStats): void {
         try {
             if (!stats || !this.dataUtils) return;
@@ -227,6 +267,10 @@ class AnalyticsDashboardSPA {
         }
     }
 
+    /**
+     * Switches the active tab view, updating the header title and lazy-rendering the sub-tab view.
+     * @param tabId - Identifier of the tab to activate.
+     */
     switchTab(tabId: TabKey): void {
         try {
             this.currentTab = tabId;
@@ -274,6 +318,9 @@ class AnalyticsDashboardSPA {
     }
 }
 
+/**
+ * Bootstraps the Analytics Dashboard SPA on document load.
+ */
 function initSPA(): void {
     try {
         const spa = new AnalyticsDashboardSPA();

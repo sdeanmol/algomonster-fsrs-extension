@@ -1,15 +1,27 @@
 /**
  * @file features/dashboard/analytics/performance/reviewStats.ts
- * @description Renders review statistics over daily, weekly, or monthly periods.
+ * @description Renders study review volume histograms and activity statistics over daily (14 days),
+ * weekly (12 weeks), or monthly (12 months) periods.
+ * @context Popup / Analytics SPA Dashboard
  */
 
 import { Logger } from '@common/logger';
 import { DataUtils } from '../utils/dataUtils';
 
+/**
+ * Visualizes historical review volume as vertical bars and summarizes key review metrics
+ * (total reviews, average per period, and active period count).
+ */
 export class ReviewStats {
+    /** Data utility instance for review activity queries and date key formatting */
     dataUtils: DataUtils;
+    /** Current time aggregation bucket period ('daily' | 'weekly' | 'monthly') */
     period: string;
 
+    /**
+     * Creates an instance of ReviewStats.
+     * @param dataUtils - Card statistics and study history utility instance.
+     */
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
@@ -22,6 +34,11 @@ export class ReviewStats {
         }
     }
 
+    /**
+     * Updates the time aggregation bucket period.
+     * @param period - Time frame bucket ('daily', 'weekly', or 'monthly').
+     * @returns void
+     */
     setPeriod(period: string): void {
         try {
             this.period = period || 'daily';
@@ -31,6 +48,12 @@ export class ReviewStats {
         }
     }
 
+    /**
+     * Generates the summary KPI tiles and vertical bar chart for review activity across the selected period,
+     * injecting the HTML into the target container element.
+     * @param containerId - DOM ID of the container element hosting the review stats.
+     * @returns void
+     */
     render(containerId: string): void {
         try {
             const container = document.getElementById(containerId);

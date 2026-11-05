@@ -4,13 +4,29 @@
   "description": "FSRS Extension for AlgoMonster",
   "main": "test.js",
   "scripts": {
+    "build": "npm run build:chrome",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "test:e2e": "playwright test",
-    "build": "npx tsc && rm -rf build && webpack --mode production && cd build && rm -f ../release.zip && zip -r ../release.zip .",
-    "dev": "rm -rf build && webpack --mode development --watch"
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
+    "test:chrome": "npm run build:chrome && TARGET_BROWSER=chrome playwright test",
+    "test:firefox": "npm run build:firefox && TARGET_BROWSER=firefox playwright test",
+    "test:safari": "npm run build:safari && TARGET_BROWSER=safari playwright test",
+    "test:e2e": "npm run test:chrome && npm run test:firefox && npm run test:safari",
+    "build:chrome": "npx tsc && rm -rf dist/chrome && webpack --env target=chrome --mode production && cd dist/chrome && mkdir -p ../../release/chrome && rm -f ../../release/chrome/extension-chrome.zip && zip -r ../../release/chrome/extension-chrome.zip .",
+    "build:firefox": "npx tsc && rm -rf dist/firefox && webpack --env target=firefox --mode production && cd dist/firefox && mkdir -p ../../release/firefox && rm -f ../../release/firefox/extension-firefox.zip && zip -r ../../release/firefox/extension-firefox.zip .",
+    "build:safari": "npx tsc && rm -rf dist/safari && webpack --env target=safari --mode production",
+    "release:chrome": "npm run build:chrome",
+    "release:firefox": "npm run build:firefox",
+    "release:safari": "npm run build:safari && mkdir -p release/safari && xcrun safari-web-extension-packager dist/safari --project-location release/safari/AlgoRecallSafari --force",
+    "dev:chrome": "rm -rf dist/chrome && webpack --env target=chrome --mode development --watch",
+    "dev:firefox": "rm -rf dist/firefox && webpack --env target=firefox --mode development --watch",
+    "dev:safari": "rm -rf dist/safari && webpack --env target=safari --mode development --watch",
+    "check:isolation": "node scripts/check-artifact-isolation.js",
+    "check:isolation:all": "npm run build:chrome && npm run build:firefox && npm run build:safari && node scripts/check-artifact-isolation.js"
   },
   "dependencies": {
+    "dompurify": "^3.4.17",
     "firebase": "^10.12.0"
   },
   "devDependencies": {
@@ -20,6 +36,7 @@
     "@open-spaced-repetition/binding-wasm32-wasi": "^0.5.0",
     "@playwright/test": "^1.40.0",
     "@types/chrome": "^0.0.260",
+    "@types/dompurify": "^3.0.5",
     "@types/node": "^20.0.0",
     "babel-jest": "^29.7.0",
     "copy-webpack-plugin": "^14.0.0",
