@@ -17,7 +17,8 @@
     "alarms",
     "downloads",
     "webNavigation",
-    "scripting"
+    "scripting",
+    "identity"
   ],
   "host_permissions": [
     "*://*.algo.monster/*",

@@ -37,6 +37,12 @@ describe('Remote Cloud Auto-Backup Deep Coverage Suite', () => {
                         Object.assign(storageMock, data);
                         if (callback) callback();
                         return Promise.resolve();
+                    }),
+                    remove: jest.fn((keys, callback) => {
+                        const arr = Array.isArray(keys) ? keys : [keys];
+                        arr.forEach(k => delete storageMock[k]);
+                        if (callback) callback();
+                        return Promise.resolve();
                     })
                 }
             },
@@ -225,6 +231,71 @@ describe('Remote Cloud Auto-Backup Deep Coverage Suite', () => {
             // Single file deletion fails
             global.fetch.mockRejectedValueOnce(new Error('Delete permission error'));
             await expect(provider.rotateBackups(5)).resolves.not.toThrow();
+        });
+
+        describe('launchWebAuthFlow fallback (Firefox/Safari)', () => {
+            beforeEach(() => {
+                delete global.chrome.identity.getAuthToken;
+                delete global.chrome.identity.removeCachedAuthToken;
+                global.chrome.identity.getRedirectURL = jest.fn((path) => `https://mock-extension-id.chromiumapp.org/${path}`);
+                global.chrome.identity.launchWebAuthFlow = jest.fn();
+                global.chrome.runtime.getManifest = jest.fn(() => ({
+                    oauth2: { client_id: 'test-cross-browser-client-id' }
+                }));
+            });
+
+            test('authenticates successfully via launchWebAuthFlow and caches token', async () => {
+                global.chrome.identity.launchWebAuthFlow.mockImplementation((opts, callback) => {
+                    callback('https://mock-extension-id.chromiumapp.org/oauth2#access_token=flow_token_xyz&token_type=Bearer&expires_in=3600');
+                });
+
+                const result = await provider.authenticate(true);
+                expect(result).toBe(true);
+                expect(global.chrome.identity.launchWebAuthFlow).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        interactive: true,
+                        url: expect.stringContaining('client_id=test-cross-browser-client-id')
+                    }),
+                    expect.any(Function)
+                );
+
+                // Subsequent check should retrieve cached token without re-launching flow
+                global.chrome.identity.launchWebAuthFlow.mockClear();
+                const connected = await provider.isConnected();
+                expect(connected).toBe(true);
+                expect(global.chrome.identity.launchWebAuthFlow).not.toHaveBeenCalled();
+            });
+
+            test('returns false when launchWebAuthFlow encounters an error or user cancels', async () => {
+                global.chrome.runtime.lastError = { message: 'The user cancelled the authorization flow.' };
+                global.chrome.identity.launchWebAuthFlow.mockImplementation((opts, callback) => {
+                    callback(undefined);
+                });
+
+                const result = await provider.authenticate(true);
+                expect(result).toBe(false);
+                delete global.chrome.runtime.lastError;
+            });
+
+            test('returns false when response URL has no access token hash', async () => {
+                global.chrome.identity.launchWebAuthFlow.mockImplementation((opts, callback) => {
+                    callback('https://mock-extension-id.chromiumapp.org/oauth2?error=access_denied');
+                });
+
+                const result = await provider.authenticate(true);
+                expect(result).toBe(false);
+            });
+
+            test('disconnect clears stored token in launchWebAuthFlow mode', async () => {
+                global.chrome.identity.launchWebAuthFlow.mockImplementation((opts, callback) => {
+                    callback('https://mock-extension-id.chromiumapp.org/oauth2#access_token=to_be_cleared&expires_in=3600');
+                });
+                await provider.authenticate(true);
+                expect(await provider.isConnected()).toBe(true);
+
+                await provider.disconnect();
+                expect(await provider.isConnected()).toBe(false);
+            });
         });
     });
 
