@@ -127,63 +127,63 @@ export class GoogleDriveBackupProvider implements RemoteBackupProvider {
      */
     async disconnect(): Promise<void> {
         try {
-            const token = await this.getAuthToken(false);
-            if (token && typeof chrome !== 'undefined' && chrome.identity?.removeCachedAuthToken) {
-                await new Promise<void>((resolve) => {
-                    chrome.identity.removeCachedAuthToken({ token }, () => {
-                        Logger.info('GoogleDriveProvider', 'Google Drive auth token removed from cache.');
-                        resolve();
+                const token = await this.getAuthToken(false);
+                if (token && typeof chrome !== 'undefined' && chrome.identity?.removeCachedAuthToken) {
+                    await new Promise<void>((resolve) => {
+                        chrome.identity.removeCachedAuthToken({ token }, () => {
+                            Logger.info('GoogleDriveProvider', 'Google Drive auth token removed from cache.');
+                            resolve();
+                        });
                     });
-                });
+                }
+                await this.clearStoredToken();
+                Logger.info('GoogleDriveProvider', 'Google Drive user disconnected.');
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                Logger.error('GoogleDriveProvider', `Disconnect error: ${errorMessage}`, { err });
             }
-            await this.clearStoredToken();
-            Logger.info('GoogleDriveProvider', 'Google Drive user disconnected.');
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('GoogleDriveProvider', `Disconnect error: ${errorMessage}`, { err });
         }
-    }
 
     /**
      * Rotates automated backups in appDataFolder, deleting oldest files exceeding maxBackupsToKeep.
      */
-    async rotateBackups(maxBackupsToKeep: number = 5): Promise<void> {
-        try {
-            const token = await this.getAuthToken(false);
-            if (!token) return;
+    async rotateBackups(maxBackupsToKeep: number = 5): Promise < void> {
+            try {
+                const token = await this.getAuthToken(false);
+                if(!token) return;
 
-            const queryUrl = 'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,createdTime)&orderBy=createdTime%20desc';
-            const res = await fetch(queryUrl, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+                const queryUrl = 'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,createdTime)&orderBy=createdTime%20desc';
+                const res = await fetch(queryUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
 
-            if (!res.ok) return;
+                if(!res.ok) return;
 
-            const data = await res.json();
-            const files: Array<{ id: string; name: string; createdTime: string }> = data.files || [];
+                const data = await res.json();
+                const files: Array<{ id: string; name: string; createdTime: string }> = data.files || [];
 
             // Filter AlgoRecall backups
             const algoBackups = files.filter(f => f.name.startsWith('algorecall_backup_'));
 
-            if (algoBackups.length > maxBackupsToKeep) {
-                const toDelete = algoBackups.slice(maxBackupsToKeep);
-                for (const file of toDelete) {
-                    try {
-                        await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        Logger.info('GoogleDriveProvider', `Rotated old backup file: ${file.name} (${file.id})`);
-                    } catch (delErr) {
-                        // Non-fatal error deleting single old backup file
-                    }
+            if(algoBackups.length > maxBackupsToKeep) {
+            const toDelete = algoBackups.slice(maxBackupsToKeep);
+            for (const file of toDelete) {
+                try {
+                    await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    Logger.info('GoogleDriveProvider', `Rotated old backup file: ${file.name} (${file.id})`);
+                } catch (delErr) {
+                    // Non-fatal error deleting single old backup file
                 }
             }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.warn('GoogleDriveProvider', `Error rotating backups: ${errorMessage}`, { err });
         }
+    } catch(err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        Logger.warn('GoogleDriveProvider', `Error rotating backups: ${errorMessage}`, { err });
     }
+}
 
     /**
      * Retrieves an OAuth access token using Chrome getAuthToken or Universal launchWebAuthFlow.
@@ -234,61 +234,61 @@ export class GoogleDriveBackupProvider implements RemoteBackupProvider {
      */
     private runWebAuthFlow(interactive: boolean): Promise<string | undefined> {
         return new Promise((resolve) => {
-            try {
-                const redirectUrl = typeof chrome.identity.getRedirectURL === 'function'
-                    ? chrome.identity.getRedirectURL('oauth2')
-                    : '';
+                try {
+                    const redirectUrl = typeof chrome.identity.getRedirectURL === 'function'
+                        ? chrome.identity.getRedirectURL('oauth2')
+                        : '';
 
-                const manifest = typeof chrome.runtime?.getManifest === 'function'
-                    ? chrome.runtime.getManifest()
-                    : undefined;
-                const clientId = (manifest as unknown as { oauth2?: { client_id?: string } })?.oauth2?.client_id ||
-                    '837482928374-exampleclientid.apps.googleusercontent.com';
+                    const manifest = typeof chrome.runtime?.getManifest === 'function'
+                        ? chrome.runtime.getManifest()
+                        : undefined;
+                    const clientId = (manifest as unknown as { oauth2?: { client_id?: string } })?.oauth2?.client_id ||
+                        '837482928374-exampleclientid.apps.googleusercontent.com';
 
-                const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-                authUrl.searchParams.set('client_id', clientId);
-                authUrl.searchParams.set('response_type', 'token');
-                authUrl.searchParams.set('redirect_uri', redirectUrl);
-                authUrl.searchParams.set('scope', 'https://www.googleapis.com/auth/drive.appdata');
-                authUrl.searchParams.set('prompt', 'select_account');
+                    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+                    authUrl.searchParams.set('client_id', clientId);
+                    authUrl.searchParams.set('response_type', 'token');
+                    authUrl.searchParams.set('redirect_uri', redirectUrl);
+                    authUrl.searchParams.set('scope', 'https://www.googleapis.com/auth/drive.appdata');
+                    authUrl.searchParams.set('prompt', 'select_account');
 
-                chrome.identity.launchWebAuthFlow({
-                    url: authUrl.toString(),
-                    interactive
-                }, (responseUrl?: string) => {
-                    const lastError = chrome.runtime?.lastError;
-                    if (lastError || !responseUrl) {
-                        const msg = lastError ? (lastError.message || String(lastError)) : 'No response URL';
-                        Logger.warn('GoogleDriveProvider', `launchWebAuthFlow failed: ${msg}`);
-                        resolve(undefined);
-                        return;
-                    }
+                    chrome.identity.launchWebAuthFlow({
+                        url: authUrl.toString(),
+                        interactive
+                    }, (responseUrl?: string) => {
+                        const lastError = chrome.runtime?.lastError;
+                        if (lastError || !responseUrl) {
+                            const msg = lastError ? (lastError.message || String(lastError)) : 'No response URL';
+                            Logger.warn('GoogleDriveProvider', `launchWebAuthFlow failed: ${msg}`);
+                            resolve(undefined);
+                            return;
+                        }
 
-                    // Parse access token from redirect URL hash: #access_token=...&expires_in=...
-                    const hashIndex = responseUrl.indexOf('#');
-                    if (hashIndex === -1) {
-                        resolve(undefined);
-                        return;
-                    }
+                        // Parse access token from redirect URL hash: #access_token=...&expires_in=...
+                        const hashIndex = responseUrl.indexOf('#');
+                        if (hashIndex === -1) {
+                            resolve(undefined);
+                            return;
+                        }
 
-                    const params = new URLSearchParams(responseUrl.substring(hashIndex + 1));
-                    const accessToken = params.get('access_token');
-                    const expiresIn = parseInt(params.get('expires_in') || '3600', 10);
+                        const params = new URLSearchParams(responseUrl.substring(hashIndex + 1));
+                        const accessToken = params.get('access_token');
+                        const expiresIn = parseInt(params.get('expires_in') || '3600', 10);
 
-                    if (accessToken) {
-                        const expiresAt = Date.now() + expiresIn * 1000;
-                        this.saveStoredToken(accessToken, expiresAt);
-                        resolve(accessToken);
-                    } else {
-                        resolve(undefined);
-                    }
-                });
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                Logger.error('GoogleDriveProvider', `Exception in launchWebAuthFlow: ${errorMessage}`, { err });
-                resolve(undefined);
-            }
-        });
+                        if (accessToken) {
+                            const expiresAt = Date.now() + expiresIn * 1000;
+                            this.saveStoredToken(accessToken, expiresAt);
+                            resolve(accessToken);
+                        } else {
+                            resolve(undefined);
+                        }
+                    });
+                } catch (err) {
+                    const errorMessage = err instanceof Error ? err.message : String(err);
+                    Logger.error('GoogleDriveProvider', `Exception in launchWebAuthFlow: ${errorMessage}`, { err });
+                    resolve(undefined);
+                }
+            });
     }
 
     /**
