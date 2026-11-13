@@ -384,6 +384,12 @@ export class HighlightsManager {
                 const markId = mark.id || mark.createdAt.toString();
                 const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
                 const pageTitle = bookmark && bookmark.title ? bookmark.title : mark.url;
+                const favIconUrl = (bookmark && bookmark.meta && (bookmark.meta as { favIconUrl?: string }).favIconUrl)
+                    ? (bookmark.meta as { favIconUrl?: string }).favIconUrl
+                    : '';
+                const pageIconHtml = favIconUrl
+                    ? `<img src="${this.helpers.escapeHtml(favIconUrl)}" class="highlight-favicon" style="width:14px; height:14px; border-radius:2px; vertical-align:middle; display:inline-block;" alt="" /><svg class="svg-icon" viewBox="0 0 24 24" style="width:13px; height:13px; display:none;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`
+                    : `<svg class="svg-icon" viewBox="0 0 24 24" style="width:13px; height:13px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
 
                 const card = document.createElement('div');
                 card.className = 'highlight-card';
@@ -411,8 +417,8 @@ export class HighlightsManager {
                         <div class="highlight-text" style="${markType === 'underline' ? `text-decoration: underline; text-decoration-color: ${mark.color};` : ''}">"${formattedSnippet}"</div>
                         ${mark.note ? `<div class="highlight-note-preview"><svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px; stroke: var(--md-text-low);"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> ${this.helpers.escapeHtml(mark.note)}</div>` : ''}
                         <div class="highlight-meta">
-                            <a href="${mark.url}" target="_blank" class="highlight-url">
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="width:13px; height:13px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                            <a href="${mark.url}" target="_blank" class="highlight-url" title="${this.helpers.escapeHtml(pageTitle)}">
+                                ${pageIconHtml}
                                 <span>${pageTitle}</span>
                             </a>
                             <span class="highlight-date">
@@ -430,6 +436,17 @@ export class HighlightsManager {
                         </button>
                     </div>
                 `;
+
+                const faviconImg = card.querySelector<HTMLImageElement>('.highlight-favicon');
+                if (faviconImg && favIconUrl) {
+                    faviconImg.addEventListener('error', () => {
+                        faviconImg.style.display = 'none';
+                        const fallbackSvg = faviconImg.nextElementSibling as HTMLElement | null;
+                        if (fallbackSvg) {
+                            fallbackSvg.style.display = 'inline-block';
+                        }
+                    });
+                }
 
                 container.appendChild(card);
             });
