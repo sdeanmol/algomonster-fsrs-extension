@@ -304,6 +304,25 @@ export class Utils {
             return document.title ? document.title.trim() : 'Untitled Problem';
         }
     }
+
+    /**
+     * Resolves the favicon URL for the active page.
+     * Searches for link[rel~="icon"] in the DOM and falls back to window.location.origin/favicon.ico.
+     * @returns {string} Absolute URL to the page favicon or empty string if origin is unavailable.
+     */
+    static getFaviconUrl(): string {
+        try {
+            const iconLink = document.querySelector('link[rel~="icon"], link[rel="shortcut icon"]') as HTMLLinkElement | null;
+            if (iconLink && iconLink.href) {
+                return iconLink.href;
+            }
+            return window.location.origin ? `${window.location.origin}/favicon.ico` : '';
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.debug('ContentUtils', `Error detecting page favicon: ${errorMessage}`, { err });
+            return window.location.origin ? `${window.location.origin}/favicon.ico` : '';
+        }
+    }
 }
 
 try {

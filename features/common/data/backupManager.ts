@@ -221,10 +221,19 @@ export class BackupManager {
             }
 
             // Generate deduplicated structures
-            const dupBookmarks: BackupBookmarkData[] = (raw.bookmarks || []).map((b) => ({
-                u: b.url ? (urlToPageId.get(b.url) ?? undefined) : undefined,
-                meta: (b.meta as { favIconUrl?: string;[key: string]: unknown }) || undefined
-            }));
+            const dupBookmarks: BackupBookmarkData[] = (raw.bookmarks || []).map((b) => {
+                const copy: BackupBookmarkData = {
+                    u: b.url ? (urlToPageId.get(b.url) ?? undefined) : undefined
+                };
+                if (b.meta) {
+                    const metaCopy = { ...(b.meta as Record<string, unknown>) };
+                    delete metaCopy.favIconUrl;
+                    if (Object.keys(metaCopy).length > 0) {
+                        copy.meta = metaCopy;
+                    }
+                }
+                return copy;
+            });
 
             const dupCards: BackupCardData[] = (raw.fsrsCards || []).map((c) => {
                 const copy: BackupCardData = { ...(c as unknown as BackupCardData) };
@@ -464,10 +473,19 @@ export class BackupManager {
         for (const m of raw.marks || []) getOrCreatePageId(m.url);
         for (const pc of raw.pagecontents || []) getOrCreatePageId(pc.url);
 
-        const dupBookmarks: BackupBookmarkData[] = (raw.bookmarks || []).map((b) => ({
-            u: b.url ? (urlToPageId.get(b.url) ?? undefined) : undefined,
-            meta: (b.meta as { favIconUrl?: string; [key: string]: unknown }) || undefined
-        }));
+        const dupBookmarks: BackupBookmarkData[] = (raw.bookmarks || []).map((b) => {
+            const copy: BackupBookmarkData = {
+                u: b.url ? (urlToPageId.get(b.url) ?? undefined) : undefined
+            };
+            if (b.meta) {
+                const metaCopy = { ...(b.meta as Record<string, unknown>) };
+                delete metaCopy.favIconUrl;
+                if (Object.keys(metaCopy).length > 0) {
+                    copy.meta = metaCopy;
+                }
+            }
+            return copy;
+        });
 
         const dupCards: BackupCardData[] = (raw.fsrsCards || []).map((c) => {
             const copy: BackupCardData = { ...(c as unknown as BackupCardData) };
@@ -690,10 +708,14 @@ export class BackupManager {
             const reconstructedBookmarks = bookmarks.map(b => {
                 const page = b.u !== undefined ? pages[b.u] : undefined;
                 if (!page) return b;
+                const meta: Record<string, unknown> = b.meta ? { ...(b.meta as Record<string, unknown>) } : {};
+                if (page.icon && !meta.favIconUrl) {
+                    meta.favIconUrl = page.icon;
+                }
                 return {
                     url: page.url,
                     title: page.title,
-                    meta: b.meta || { favIconUrl: page.icon }
+                    meta: Object.keys(meta).length > 0 ? meta : undefined
                 };
             });
 
