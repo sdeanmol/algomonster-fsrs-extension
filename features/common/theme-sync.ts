@@ -8,6 +8,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { CatchAndLog, withErrorHandling } from '../../decorators';
 import { DEFAULT_THEME } from './constants';
 
 /**
@@ -32,15 +33,14 @@ interface AlgoRecallThemeGlobal {
  * @returns The global AlgoRecall container.
  */
 function getAlgoRecallGlobal(): AlgoRecallThemeGlobal {
-    try {
+    return withErrorHandling(() => {
         const win = window as unknown as { AlgoRecall: AlgoRecallThemeGlobal };
         win.AlgoRecall = win.AlgoRecall || {};
         return win.AlgoRecall;
-    } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('ThemeSync', `Error accessing global AlgoRecall object: ${errorMessage}`, { err });
-        return {};
-    }
+    }, 'ThemeSync', {
+        contextMessage: 'Error accessing global AlgoRecall object',
+        fallback: {}
+    })() || {};
 }
 
 /**
@@ -51,16 +51,12 @@ export class ThemeSync {
      * Applies the selected visual theme to the document element classlist.
      * @param theme - The target theme identifier ('light' or 'dark').
      */
+    @CatchAndLog('ThemeSync', 'Error applying theme')
     static applyTheme(theme: string): void {
-        try {
-            if (theme === 'light') {
-                document.documentElement.classList.add('light-theme');
-            } else {
-                document.documentElement.classList.remove('light-theme');
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ThemeSync', `Error applying theme '${theme}': ${errorMessage}`, { err });
+        if (theme === 'light') {
+            document.documentElement.classList.add('light-theme');
+        } else {
+            document.documentElement.classList.remove('light-theme');
         }
     }
 
@@ -71,50 +67,36 @@ export class ThemeSync {
      * @fires chrome.storage.local.set
      * @listens chrome.storage.onChanged
      */
+    @CatchAndLog('ThemeSync', 'Error initializing ThemeSync')
     static init(): void {
-        try {
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.get(['theme'], (result: { theme?: string }) => {
-                    try {
-                        if (chrome.runtime?.lastError) {
-                            const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                            Logger.error('ThemeSync', `Error fetching theme from storage: ${errorMessage}`, { error: chrome.runtime.lastError });
-                            return;
-                        }
-                        if (!result.theme) {
-                            const prefersLight = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-                            const initialTheme = prefersLight ? 'light' : DEFAULT_THEME;
-                            this.applyTheme(initialTheme);
-                            chrome.storage.local.set({ theme: initialTheme });
-                        } else {
-                            this.applyTheme(result.theme);
-                        }
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('ThemeSync', `Error in theme storage get callback: ${errorMessage}`, { err });
-                    }
-                });
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.get(['theme'], withErrorHandling((result: { theme?: string }) => {
+                if (chrome.runtime?.lastError) {
+                    const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                    Logger.error('ThemeSync', `Error fetching theme from storage: ${errorMessage}`, { error: chrome.runtime.lastError });
+                    return;
+                }
+                if (!result.theme) {
+                    const prefersLight = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+                    const initialTheme = prefersLight ? 'light' : DEFAULT_THEME;
+                    ThemeSync.applyTheme(initialTheme);
+                    chrome.storage.local.set({ theme: initialTheme });
+                } else {
+                    ThemeSync.applyTheme(result.theme);
+                }
+            }, 'ThemeSync', { contextMessage: 'Error in theme storage get callback' }));
 
-                // Listen for changes
-                chrome.storage.onChanged.addListener((changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
-                    try {
-                        if (areaName === 'local' && changes.theme) {
-                            this.applyTheme((changes.theme.newValue as string) || 'dark');
-                        }
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('ThemeSync', `Error handling theme storage change: ${errorMessage}`, { err });
-                    }
-                });
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ThemeSync', `Error initializing ThemeSync: ${errorMessage}`, { err });
+            // Listen for changes
+            chrome.storage.onChanged.addListener(withErrorHandling((changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+                if (areaName === 'local' && changes.theme) {
+                    ThemeSync.applyTheme((changes.theme.newValue as string) || 'dark');
+                }
+            }, 'ThemeSync', { contextMessage: 'Error handling theme storage change' }));
         }
     }
 }
 
-try {
+withErrorHandling(() => {
     getAlgoRecallGlobal().ThemeSync = ThemeSync;
 
     // Auto-run theme sync on document head parsing
@@ -124,7 +106,4 @@ try {
     if (/Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)) {
         document.documentElement.classList.add('safari-build');
     }
-} catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('ThemeSync', `Error initializing ThemeSync global bindings: ${errorMessage}`, { err });
-}
+}, 'ThemeSync', { contextMessage: 'Error initializing ThemeSync global bindings' })();

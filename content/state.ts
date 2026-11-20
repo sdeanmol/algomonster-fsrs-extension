@@ -18,6 +18,7 @@ import { Card, HighlightMark, BookmarkItem, ExtensionSettings } from '../types/d
 import AbstractScheduler from '../features/tracker/scheduler/scheduler';
 import { Logger } from '@common/logger';
 import { DEFAULT_PALETTES, DEFAULT_EXTENSION_SETTINGS, DEFAULT_THEME } from '../features/common/constants';
+import { withErrorHandling } from '../decorators';
 
 /**
  * In-memory state store containing shared application data across content script components
@@ -120,16 +121,13 @@ export function getAlgoRecallGlobal(): AlgoRecallGlobal {
 const algoGlobal = getAlgoRecallGlobal();
 
 // Instantiated state container
-let schedulerInstance: AbstractScheduler;
-try {
+const schedulerInstance: AbstractScheduler = (withErrorHandling((): AbstractScheduler => {
     const SchedulerCtor = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
-    schedulerInstance = typeof SchedulerCtor === 'function' ? new SchedulerCtor() : ({} as AbstractScheduler);
-} catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('State', `Failed to instantiate FsrsScheduler in content/state.ts: ${errorMessage}`, { err });
-    // Comment: Fallback to dummy scheduler instance if constructor fails
-    schedulerInstance = {} as AbstractScheduler;
-}
+    return typeof SchedulerCtor === 'function' ? new SchedulerCtor() : ({} as AbstractScheduler);
+}, 'State', {
+    contextMessage: 'Failed to instantiate FsrsScheduler in content/state.ts',
+    fallback: () => ({} as AbstractScheduler)
+})() || {}) as AbstractScheduler;
 
 algoGlobal.state = {
     // Instantiated scheduling algorithm controller (FSRS as default)

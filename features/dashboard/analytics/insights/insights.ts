@@ -13,6 +13,7 @@
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { ReviewTimeAnalytics } from './reviewTimeAnalytics';
 import { DataUtils } from '../utils/dataUtils';
+import { CatchAndLog } from '../../../../decorators';
 
 /**
  * Controller for the Insights tab, rendering behavioral study metrics and next actions.
@@ -46,67 +47,61 @@ export class InsightsTab {
      * Renders container structure and initiates child component rendering.
      * @param containerId - ID of parent DOM element.
      */
+    @CatchAndLog('InsightsTab', 'Error rendering InsightsTab')
     render(containerId: string): void {
-        try {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            
-            if (!this.rendered) {
-                container.innerHTML = `
-                    <div class="insights-grid">
-                        <div id="insights-next-action-container"></div>
-                        <div class="insights-panel ana-panel-wide">
-                            <div class="ana-panel-header">
-                                <span class="ana-panel-title">
-                                    Review Time Analytics
-                                    <span class="help-icon" data-tooltip="Analyzes your retention rates based on the time of day you do your reviews to find your most effective study time.">?</span>
-                                </span>
-                                <span class="ana-panel-hint">When do you study best?</span>
-                            </div>
-                            <div id="review-time-analytics-container"></div>
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        if (!this.rendered) {
+            container.innerHTML = `
+                <div class="insights-grid">
+                    <div id="insights-next-action-container"></div>
+                    <div class="insights-panel ana-panel-wide">
+                        <div class="ana-panel-header">
+                            <span class="ana-panel-title">
+                                Review Time Analytics
+                                <span class="help-icon" data-tooltip="Analyzes your retention rates based on the time of day you do your reviews to find your most effective study time.">?</span>
+                            </span>
+                            <span class="ana-panel-hint">When do you study best?</span>
                         </div>
+                        <div id="review-time-analytics-container"></div>
                     </div>
-                `;
-                this.rendered = true;
-            }
-
-            this.reviewTimeAnalytics.render('review-time-analytics-container');
-            this.renderNextAction('insights-next-action-container');
-        } catch (err) {
-            UIUtils.catchError('InsightsTab', 'Error rendering InsightsTab', err, { containerId });
+                </div>
+            `;
+            this.rendered = true;
         }
+
+        this.reviewTimeAnalytics.render('review-time-analytics-container');
+        this.renderNextAction('insights-next-action-container');
     }
 
     /**
      * Evaluates study time buckets and renders an actionable recommendation banner.
      * @param containerId - ID of the container element for the banner.
      */
+    @CatchAndLog('InsightsTab', 'Error rendering insights next action')
     renderNextAction(containerId: string): void {
-        try {
-            const container = document.getElementById(containerId);
-            if (!container) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-            const timeInsights = this.dataUtils ? this.dataUtils.getReviewTimeInsights() : { hasTimeData: false, data: [] };
-            const { hasTimeData, data } = timeInsights;
+        const timeInsights = this.dataUtils ? this.dataUtils.getReviewTimeInsights() : { hasTimeData: false, data: [] };
+        const { hasTimeData, data } = timeInsights;
 
-            if (!hasTimeData || !data || data.every(d => d.reviews === 0)) {
-                container.innerHTML = this.buildEmptyStateBanner();
-                return;
-            }
+        if (!hasTimeData || !data || data.every(d => d.reviews === 0)) {
+            container.innerHTML = this.buildEmptyStateBanner();
+            return;
+        }
 
-            // Find the time bucket with the highest retention (minimum 5 reviews)
-            const validData = data.filter(d => d.reviews > 5);
-            const best = validData.length > 0 
-                ? validData.reduce((prev, current) => (prev.retention > current.retention) ? prev : current)
-                : null;
+        // Find the time bucket with the highest retention (minimum 5 reviews)
+        const validData = data.filter(d => d.reviews > 5);
+        const best = validData.length > 0 
+            ? validData.reduce((prev, current) => (prev.retention > current.retention) ? prev : current)
+            : null;
 
-            if (best) {
-                container.innerHTML = this.buildOptimizationBanner(best.bucket);
-            } else {
-                container.innerHTML = this.buildCollectMoreDataBanner();
-            }
-        } catch (err) {
-            UIUtils.catchError('InsightsTab', 'Error rendering insights next action', err, { containerId });
+        if (best) {
+            container.innerHTML = this.buildOptimizationBanner(best.bucket);
+        } else {
+            container.innerHTML = this.buildCollectMoreDataBanner();
         }
     }
 

@@ -14,6 +14,7 @@ import { Logger } from '@common/logger';
 import { AlgoRecallState, getAlgoRecallGlobal } from './state';
 import { MessageResponse } from '../types/domain';
 import { SNOOZE_DEFAULT_MINUTES } from '../features/common/constants';
+import { CatchAndLog, withErrorHandling } from '../decorators';
 
 /**
  * @class PageNotifier
@@ -33,199 +34,170 @@ export class Notifier {
      * @fires chrome.runtime.sendMessage Sends `snooze_notification` message when the user clicks snooze.
      * @returns {void}
      */
+    @CatchAndLog('Notifier', 'Failed to render page notification')
     static showPageNotification(title: string, message: string, type: string, count?: number): void {
-        try {
-            // Prevent double notifications by removing the old one first
-            const existing = document.getElementById('algo-custom-notification-el');
-            if (existing) {
-                existing.remove();
-            }
+        // Prevent double notifications by removing the old one first
+        const existing = document.getElementById('algo-custom-notification-el');
+        if (existing) {
+            existing.remove();
+        }
 
-            const notification = document.createElement('div');
-            notification.id = 'algo-custom-notification-el';
-            notification.className = 'algo-custom-notification';
-            notification.setAttribute('role', 'alert');
-            notification.setAttribute('aria-live', 'assertive');
-            
-            const state = getAlgoRecallGlobal().state;
-            if (state && state.currentTheme === 'light') {
-                notification.classList.add('light-theme');
-            }
-            
-            const iconSymbol = type === 'review' 
-                ? `<svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary); width:18px; height:18px;"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>`
-                : `<svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary); width:18px; height:18px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>`;
-            const iconClass = type === 'review' ? 'algo-notif-icon review' : 'algo-notif-icon';
-            
-            let buttonsHtml = '';
-            if (type === 'review') {
-                buttonsHtml = `
-                    <div class="algo-notif-buttons">
-                        <button id="algo-notif-btn-review" class="algo-notif-btn algo-notif-btn-primary">Review Now</button>
-                        <button id="algo-notif-btn-snooze" class="algo-notif-btn algo-notif-btn-secondary">Snooze (15m)</button>
-                    </div>
-                `;
-            } else {
-                buttonsHtml = `
-                    <div class="algo-notif-buttons">
-                        <button id="algo-notif-btn-dismiss" class="algo-notif-btn algo-notif-btn-secondary" style="width: 100%;">Dismiss</button>
-                    </div>
-                `;
-            }
-
-            const escapeHTML = (str: string) => {
-                const div = document.createElement('div');
-                div.textContent = str;
-                return div.innerHTML;
-            };
-
-            notification.innerHTML = `
-                <div class="algo-notif-header">
-                    <div class="algo-notif-header-left">
-                        <span class="${iconClass}">${iconSymbol}</span>
-                        <span class="algo-notif-title">${escapeHTML(title)}</span>
-                    </div>
-                    <button id="algo-notif-btn-close" class="algo-notif-close" aria-label="Close" title="Close">&times;</button>
+        const notification = document.createElement('div');
+        notification.id = 'algo-custom-notification-el';
+        notification.className = 'algo-custom-notification';
+        notification.setAttribute('role', 'alert');
+        notification.setAttribute('aria-live', 'assertive');
+        
+        const state = getAlgoRecallGlobal().state;
+        if (state && state.currentTheme === 'light') {
+            notification.classList.add('light-theme');
+        }
+        
+        const iconSymbol = type === 'review' 
+            ? `<svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary); width:18px; height:18px;"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path><path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path></svg>`
+            : `<svg class="svg-icon" viewBox="0 0 24 24" style="stroke: var(--md-primary); width:18px; height:18px;"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>`;
+        const iconClass = type === 'review' ? 'algo-notif-icon review' : 'algo-notif-icon';
+        
+        let buttonsHtml = '';
+        if (type === 'review') {
+            buttonsHtml = `
+                <div class="algo-notif-buttons">
+                    <button id="algo-notif-btn-review" class="algo-notif-btn algo-notif-btn-primary">Review Now</button>
+                    <button id="algo-notif-btn-snooze" class="algo-notif-btn algo-notif-btn-secondary">Snooze (15m)</button>
                 </div>
-                <p class="algo-notif-message">${escapeHTML(message)}</p>
-                ${buttonsHtml}
             `;
+        } else {
+            buttonsHtml = `
+                <div class="algo-notif-buttons">
+                    <button id="algo-notif-btn-dismiss" class="algo-notif-btn algo-notif-btn-secondary" style="width: 100%;">Dismiss</button>
+                </div>
+            `;
+        }
 
-            document.body.appendChild(notification);
+        const escapeHTML = (str: string) => {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        };
 
-            // Force style recalculation for smooth transition
-            requestAnimationFrame(() => {
-                try {
-                    notification.classList.add('show');
-                } catch (animErr) {
-                    // Comment: Safe recovery in animation frame style update
-                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
-                    Logger.error('Notifier', `Error toggling notification show class: ${errorMessage}`, { animErr });
-                }
-            });
+        notification.innerHTML = `
+            <div class="algo-notif-header">
+                <div class="algo-notif-header-left">
+                    <span class="${iconClass}">${iconSymbol}</span>
+                    <span class="algo-notif-title">${escapeHTML(title)}</span>
+                </div>
+                <button id="algo-notif-btn-close" class="algo-notif-close" aria-label="Close" title="Close">&times;</button>
+            </div>
+            <p class="algo-notif-message">${escapeHTML(message)}</p>
+            ${buttonsHtml}
+        `;
 
-            // Helper to dismiss
-            const dismissNotification = () => {
-                try {
-                    notification.classList.remove('show');
-                    notification.addEventListener('transitionend', () => {
-                        try {
-                            notification.remove();
-                        } catch (removeErr) {
-                            const errorMessage = removeErr instanceof Error ? removeErr.message : String(removeErr);
-                            Logger.debug('Notifier', `Ignore DOM removal error if element was already removed: ${errorMessage}`, { removeErr });
-                        }
-                    }, { once: true });
-                } catch (dismissErr) {
-                    // Comment: Direct cleanup fallback if transition fails
-                    const errorMessage = dismissErr instanceof Error ? dismissErr.message : String(dismissErr);
-                    Logger.error('Notifier', `Error in dismissNotification helper: ${errorMessage}`, { dismissErr });
+        document.body.appendChild(notification);
+
+        // Force style recalculation for smooth transition
+        requestAnimationFrame(() => {
+            try {
+                notification.classList.add('show');
+            } catch (animErr) {
+                // Comment: Safe recovery in animation frame style update
+                const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
+                Logger.error('Notifier', `Error toggling notification show class: ${errorMessage}`, { animErr });
+            }
+        });
+
+        // Helper to dismiss
+        const dismissNotification = () => {
+            try {
+                notification.classList.remove('show');
+                notification.addEventListener('transitionend', () => {
                     try {
                         notification.remove();
-                    } catch (cleanupErr) {
-                        const cleanupMsg = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
-                        Logger.debug('Notifier', `Ignore notification cleanup removal error: ${cleanupMsg}`, { cleanupErr });
+                    } catch (removeErr) {
+                        const errorMessage = removeErr instanceof Error ? removeErr.message : String(removeErr);
+                        Logger.debug('Notifier', `Ignore DOM removal error if element was already removed: ${errorMessage}`, { removeErr });
+                    }
+                }, { once: true });
+            } catch (dismissErr) {
+                // Comment: Direct cleanup fallback if transition fails
+                const errorMessage = dismissErr instanceof Error ? dismissErr.message : String(dismissErr);
+                Logger.error('Notifier', `Error in dismissNotification helper: ${errorMessage}`, { dismissErr });
+                try {
+                    notification.remove();
+                } catch (cleanupErr) {
+                    const cleanupMsg = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+                    Logger.debug('Notifier', `Ignore notification cleanup removal error: ${cleanupMsg}`, { cleanupErr });
+                }
+            }
+        };
+
+        // Auto-dismiss after 6 seconds for test notifications, or keep review sticky if required
+        let autoDismissTimer: ReturnType<typeof setTimeout> | null = null;
+        if (type !== 'review') {
+            autoDismissTimer = setTimeout(dismissNotification, 6000);
+        }
+
+        // Event Listeners
+        const closeBtn = notification.querySelector('#algo-notif-btn-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', withErrorHandling(() => {
+                if (autoDismissTimer) clearTimeout(autoDismissTimer);
+                dismissNotification();
+            }, 'Notifier', { contextMessage: 'Error closing notification' }));
+        }
+
+        const dismissBtn = notification.querySelector('#algo-notif-btn-dismiss');
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', withErrorHandling(() => {
+                if (autoDismissTimer) clearTimeout(autoDismissTimer);
+                dismissNotification();
+            }, 'Notifier', { contextMessage: 'Error dismissing notification' }));
+        }
+
+        const snoozeBtn = notification.querySelector('#algo-notif-btn-snooze');
+        if (snoozeBtn) {
+            snoozeBtn.addEventListener('click', withErrorHandling(() => {
+                if (autoDismissTimer) clearTimeout(autoDismissTimer);
+                dismissNotification();
+                if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
+                    chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: SNOOZE_DEFAULT_MINUTES }, (_response?: MessageResponse) => {
+                        try {
+                            if (chrome.runtime.lastError) {
+                                const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
+                                Logger.error('Notifier', `Error sending snooze message: ${errorMessage}`, { error: chrome.runtime.lastError });
+                            }
+                        } catch (msgErr) {
+                            const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
+                            Logger.error('Notifier', `Error handling snooze response callback: ${errorMessage}`, { msgErr });
+                        }
+                    });
+                }
+            }, 'Notifier', { contextMessage: 'Context invalidation on snooze message' }));
+        }
+
+        const reviewBtn = notification.querySelector('#algo-notif-btn-review');
+        if (reviewBtn) {
+            reviewBtn.addEventListener('click', withErrorHandling(() => {
+                if (autoDismissTimer) clearTimeout(autoDismissTimer);
+                dismissNotification();
+                
+                // Open/Show the scheduler container and start the review flow!
+                const launcher = document.getElementById('algo-fsrs-launcher');
+                const container = document.getElementById('algo-fsrs-container');
+                
+                if (launcher) launcher.style.display = 'none';
+                if (container) {
+                    container.style.display = 'block';
+                    const orchestrator = getAlgoRecallGlobal().orchestrator;
+                    if (orchestrator && orchestrator.tracker) {
+                        orchestrator.tracker.refreshWidgetState();
+                        orchestrator.tracker.startReview();
                     }
                 }
-            };
-
-            // Auto-dismiss after 6 seconds for test notifications, or keep review sticky if required
-            let autoDismissTimer: ReturnType<typeof setTimeout> | null = null;
-            if (type !== 'review') {
-                autoDismissTimer = setTimeout(dismissNotification, 6000);
-            }
-
-            // Event Listeners
-            const closeBtn = notification.querySelector('#algo-notif-btn-close');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => {
-                    try {
-                        if (autoDismissTimer) clearTimeout(autoDismissTimer);
-                        dismissNotification();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Notifier', `Error closing notification: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            const dismissBtn = notification.querySelector('#algo-notif-btn-dismiss');
-            if (dismissBtn) {
-                dismissBtn.addEventListener('click', () => {
-                    try {
-                        if (autoDismissTimer) clearTimeout(autoDismissTimer);
-                        dismissNotification();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Notifier', `Error dismissing notification: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            const snoozeBtn = notification.querySelector('#algo-notif-btn-snooze');
-            if (snoozeBtn) {
-                snoozeBtn.addEventListener('click', () => {
-                    try {
-                        if (autoDismissTimer) clearTimeout(autoDismissTimer);
-                        dismissNotification();
-                        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function') {
-                            chrome.runtime.sendMessage({ action: 'snooze_notification', minutes: SNOOZE_DEFAULT_MINUTES }, (_response?: MessageResponse) => {
-                                try {
-                                    if (chrome.runtime.lastError) {
-                                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                                        Logger.error('Notifier', `Error sending snooze message: ${errorMessage}`, { error: chrome.runtime.lastError });
-                                    }
-                                } catch (msgErr) {
-                                    const errorMessage = msgErr instanceof Error ? msgErr.message : String(msgErr);
-                                    Logger.error('Notifier', `Error handling snooze response callback: ${errorMessage}`, { msgErr });
-                                }
-                            });
-                        }
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Notifier', `Context invalidation on snooze message: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            const reviewBtn = notification.querySelector('#algo-notif-btn-review');
-            if (reviewBtn) {
-                reviewBtn.addEventListener('click', () => {
-                    try {
-                        if (autoDismissTimer) clearTimeout(autoDismissTimer);
-                        dismissNotification();
-                        
-                        // Open/Show the scheduler container and start the review flow!
-                        const launcher = document.getElementById('algo-fsrs-launcher');
-                        const container = document.getElementById('algo-fsrs-container');
-                        
-                        if (launcher) launcher.style.display = 'none';
-                        if (container) {
-                            container.style.display = 'block';
-                            const orchestrator = getAlgoRecallGlobal().orchestrator;
-                            if (orchestrator && orchestrator.tracker) {
-                                orchestrator.tracker.refreshWidgetState();
-                                orchestrator.tracker.startReview();
-                            }
-                        }
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Notifier', `Error initiating review session from notification: ${errorMessage}`, { err });
-                    }
-                });
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Notifier', `Failed to render page notification: ${errorMessage}`, { title, type, count, err });
-            // Comment: Non-fatal page notification error, host page layout remains unaffected
+            }, 'Notifier', { contextMessage: 'Error initiating review session from notification' }));
         }
     }
 }
 
-try {
+withErrorHandling(() => {
     getAlgoRecallGlobal().Notifier = Notifier;
-} catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('Notifier', `Failed to assign Notifier on window global scope: ${errorMessage}`, { err });
-    // Comment: Non-fatal global scope registration error
-}
+}, 'Notifier', { contextMessage: 'Failed to assign Notifier on window global scope' })();

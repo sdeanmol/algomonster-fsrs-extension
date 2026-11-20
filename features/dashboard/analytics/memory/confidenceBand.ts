@@ -6,6 +6,7 @@
  */
 
 import { UIUtils } from '../../../common/utils/uiUtils';
+import { CatchAndReturn } from '../../../../decorators';
 
 /**
  * Geometric coordinates and memory parameters for a single point along a retention decay curve.
@@ -34,37 +35,32 @@ export class ConfidenceBand {
      * @param n - Number of cards represented in this curve group (determines interval width).
      * @returns Rendered SVG polygon element string, or empty string if invalid input.
      */
+    @CatchAndReturn('', 'ConfidenceBand', 'Error rendering confidence band polygon')
     static renderBand(points: PointR[], color: string, n: number): string {
-        try {
-            if (!points || points.length < 2 || n < 1) return '';
+        if (!points || points.length < 2 || n < 1) return '';
 
-            const marginBase = Math.max(0.02, Math.min(0.1, 5 / Math.sqrt(n))); 
+        const marginBase = Math.max(0.02, Math.min(0.1, 5 / Math.sqrt(n))); 
+        
+        const topPoints: string[] = [];
+        const bottomPoints: string[] = [];
+
+        points.forEach(p => {
+            const margin = marginBase * (1 + (p.t / 30));
             
-            const topPoints: string[] = [];
-            const bottomPoints: string[] = [];
+            const rTop = Math.min(1.0, p.R + margin);
+            const rBot = Math.max(0.0, p.R - margin);
 
-            points.forEach(p => {
-                const margin = marginBase * (1 + (p.t / 30));
-                
-                const rTop = Math.min(1.0, p.R + margin);
-                const rBot = Math.max(0.0, p.R - margin);
-
-                const chartH = 190;
-                
-                const dyTop = (rTop - p.R) * -chartH;
-                const dyBot = (rBot - p.R) * -chartH;
-
-                topPoints.push(`${p.x},${p.y + dyTop}`);
-                bottomPoints.unshift(`${p.x},${p.y + dyBot}`);
-            });
-
-            const polygonPoints = [...topPoints, ...bottomPoints].join(' ');
+            const chartH = 190;
             
-            return `<polygon points="${polygonPoints}" fill="${color}" opacity="0.15" class="confidence-band" />`;
-        } catch (err) {
-            UIUtils.catchError('ConfidenceBand', 'Error rendering confidence band polygon', err, { color, n });
-            // Return empty string fallback on non-fatal SVG rendering failure
-            return '';
-        }
+            const dyTop = (rTop - p.R) * -chartH;
+            const dyBot = (rBot - p.R) * -chartH;
+
+            topPoints.push(`${p.x},${p.y + dyTop}`);
+            bottomPoints.unshift(`${p.x},${p.y + dyBot}`);
+        });
+
+        const polygonPoints = [...topPoints, ...bottomPoints].join(' ');
+        
+        return `<polygon points="${polygonPoints}" fill="${color}" opacity="0.15" class="confidence-band" />`;
     }
 }

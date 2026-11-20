@@ -14,6 +14,7 @@
 
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
+import { CatchAndLog, MeasureTime, withErrorHandling } from '../../../decorators';
 import { StatsComponent } from './stats';
 import { HeatmapComponent } from './heatmap';
 import { NotificationsComponent } from './notifications';
@@ -158,483 +159,364 @@ export class AlgoRecallDashboard {
     /**
      * Initializes the dashboard, binds page event listeners, and boots sub-components.
      */
+    @MeasureTime('Popup', 'init')
+    @CatchAndLog('Popup', 'Failed popup initialization')
     async init(): Promise<void> {
         Logger.info('Popup', 'Popup initialized.');
-        Logger.time('Popup', 'init');
-        try {
-            this.bindEvents();
+        this.bindEvents();
 
-            // Boot component lifecycle steps
-            this.stats.bindEvents();
-            this.heatmap.bindEvents();
-            this.notifications.bindEvents();
-            this.rating.bindEvents();
-            this.search.bindEvents();
+        // Boot component lifecycle steps
+        this.stats.bindEvents();
+        this.heatmap.bindEvents();
+        this.notifications.bindEvents();
+        this.rating.bindEvents();
+        this.search.bindEvents();
 
-            // Perform initial loading from storage databases
-            await this.loadAll();
-        } catch (err) {
-            UIUtils.catchError('Popup', 'Failed popup initialization', err);
-        } finally {
-            Logger.timeEnd('Popup', 'init');
-        }
+        // Perform initial loading from storage databases
+        await this.loadAll();
     }
 
     /**
      * Triggers asynchronous state loads across all child panel classes.
      */
+    @CatchAndLog('Popup', 'Error loading child components in loadAll')
     async loadAll(): Promise<void> {
-        try {
-            await Promise.all([
-                this.stats.load(),
-                this.heatmap.load(),
-                this.notifications.checkPermissions(),
-                this.notifications.loadSettings(),
-                this.rating.load(),
-                this.search.load()
-            ]);
-        } catch (err) {
-            UIUtils.catchError('Popup', 'Error loading child components in loadAll', err);
-        }
+        await Promise.all([
+            this.stats.load(),
+            this.heatmap.load(),
+            this.notifications.checkPermissions(),
+            this.notifications.loadSettings(),
+            this.rating.load(),
+            this.search.load()
+        ]);
     }
 
     /**
      * Binds click and state change event listeners for settings panels, exports, and page routers.
      */
+    @CatchAndLog('Popup', 'Error binding popup dashboard events')
     bindEvents(): void {
-        try {
-            // Theme Switcher Initialization
-            if (this.dom.themeToggleBtn) {
-                this.dom.themeToggleBtn.addEventListener('click', async () => {
-                    try {
-                        const newTheme = await ActionService.toggleTheme();
-                        this.showStatus(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode!`);
-                    } catch (error) {
-                        UIUtils.catchError('Popup', 'Error toggling theme settings', error);
-                    }
-                });
-            }
+        // Theme Switcher Initialization
+        if (this.dom.themeToggleBtn) {
+            this.dom.themeToggleBtn.addEventListener('click', withErrorHandling(async () => {
+                const newTheme = await ActionService.toggleTheme();
+                this.showStatus(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode!`);
+            }, { context: 'Popup', message: 'Error toggling theme settings' }));
+        }
 
-            // Floating Highlighter switch setup
-            if (this.dom.markerToggle) {
-                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
-                    try {
+        // Floating Highlighter switch setup
+        if (this.dom.markerToggle) {
+            chrome.storage.local.get(['extensionSettings'], withErrorHandling((result: StorageData) => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('Popup', `Storage error fetching marker toggle settings: ${errorMessage}`, { error: lastError });
+                    return;
+                }
+                if (result.extensionSettings && result.extensionSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
+                    this.dom.markerToggle.checked = result.extensionSettings.showMarkerPopup;
+                }
+            }, { context: 'Popup', message: 'Error rendering marker toggle setting' }));
+
+            this.dom.markerToggle.addEventListener('change', withErrorHandling(async (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                settings.showMarkerPopup = target.checked;
+                await chrome.storage.local.set({ extensionSettings: settings });
+            }, { context: 'Popup', message: 'Error setting showMarkerPopup config' }));
+        }
+
+        // Visual charts display switch setup
+        if (this.dom.chartsToggle) {
+            chrome.storage.local.get(['extensionSettings'], withErrorHandling((result: StorageData) => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('Popup', `Storage error fetching charts toggle settings: ${errorMessage}`, { error: lastError });
+                    return;
+                }
+                const showCharts = result.extensionSettings && result.extensionSettings.showCharts !== undefined
+                    ? result.extensionSettings.showCharts
+                    : true;
+                if (this.dom.chartsToggle) {
+                    this.dom.chartsToggle.checked = showCharts;
+                    this.dom.chartsToggle.setAttribute('aria-checked', showCharts.toString());
+                }
+                this.updateChartsVisibility(showCharts);
+            }, { context: 'Popup', message: 'Error rendering charts toggle setting' }));
+
+            this.dom.chartsToggle.addEventListener('change', withErrorHandling(async (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                target.setAttribute('aria-checked', target.checked.toString());
+                this.updateChartsVisibility(target.checked);
+                const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                settings.showCharts = target.checked;
+                await chrome.storage.local.set({ extensionSettings: settings });
+                this.showStatus(`Visual charts ${target.checked ? 'enabled' : 'disabled'}!`);
+            }, { context: 'Popup', message: 'Error setting showCharts config' }));
+        }
+
+        // Daily Focus & Momentum display switch setup
+        if (this.dom.dailyFocusToggle) {
+            chrome.storage.local.get(['extensionSettings'], withErrorHandling((result: StorageData) => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('Popup', `Storage error fetching daily focus toggle settings: ${errorMessage}`, { error: lastError });
+                    return;
+                }
+                const showDailyFocus = result.extensionSettings && result.extensionSettings.showDailyFocus !== undefined
+                    ? result.extensionSettings.showDailyFocus
+                    : true;
+                if (this.dom.dailyFocusToggle) {
+                    this.dom.dailyFocusToggle.checked = showDailyFocus;
+                    this.dom.dailyFocusToggle.setAttribute('aria-checked', showDailyFocus.toString());
+                }
+                this.updateDailyFocusVisibility(showDailyFocus);
+            }, { context: 'Popup', message: 'Error rendering daily focus toggle setting' }));
+
+            this.dom.dailyFocusToggle.addEventListener('change', withErrorHandling(async (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                target.setAttribute('aria-checked', target.checked.toString());
+                this.updateDailyFocusVisibility(target.checked);
+                const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                settings.showDailyFocus = target.checked;
+                await chrome.storage.local.set({ extensionSettings: settings });
+                this.showStatus(`Daily Focus & Momentum ${target.checked ? 'enabled' : 'hidden'}!`);
+            }, { context: 'Popup', message: 'Error setting showDailyFocus config' }));
+        }
+
+        // Problem tracker launcher toggle setup
+        if (this.dom.launcherToggle) {
+            chrome.storage.local.get(['extensionSettings'], withErrorHandling((result: StorageData) => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('Popup', `Storage error fetching launcher toggle settings: ${errorMessage}`, { error: lastError });
+                    return;
+                }
+                const showLauncher = result.extensionSettings && result.extensionSettings.showLauncher !== undefined
+                    ? result.extensionSettings.showLauncher
+                    : true;
+                if (this.dom.launcherToggle) {
+                    this.dom.launcherToggle.checked = showLauncher;
+                    this.dom.launcherToggle.setAttribute('aria-checked', showLauncher.toString());
+                }
+            }, { context: 'Popup', message: 'Error rendering launcher toggle setting' }));
+
+            this.dom.launcherToggle.addEventListener('change', withErrorHandling(async (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                target.setAttribute('aria-checked', target.checked.toString());
+                const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                settings.showLauncher = target.checked;
+                await chrome.storage.local.set({ extensionSettings: settings });
+                this.showStatus(`Problem tracker launcher ${target.checked ? 'enabled' : 'disabled'}!`);
+            }, { context: 'Popup', message: 'Error setting showLauncher config' }));
+        }
+
+        // Developer mode display switch setup
+        if (this.dom.devModeToggle) {
+            chrome.storage.local.get(['extensionSettings'], withErrorHandling((result: StorageData) => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('Popup', `Storage error fetching dev mode toggle settings: ${errorMessage}`, { error: lastError });
+                    return;
+                }
+                const devMode = result.extensionSettings && result.extensionSettings.developerMode !== undefined
+                    ? result.extensionSettings.developerMode
+                    : false;
+                if (this.dom.devModeToggle) {
+                    this.dom.devModeToggle.checked = devMode;
+                    this.dom.devModeToggle.setAttribute('aria-checked', devMode.toString());
+                }
+                if (this.dom.devModeActions) {
+                    this.dom.devModeActions.style.display = devMode ? 'block' : 'none';
+                }
+                if (this.dom.testNotificationsContainer) {
+                    this.dom.testNotificationsContainer.style.display = devMode ? 'flex' : 'none';
+                }
+            }, { context: 'Popup', message: 'Error rendering dev mode toggle setting' }));
+
+            this.dom.devModeToggle.addEventListener('change', withErrorHandling(async (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                target.setAttribute('aria-checked', target.checked.toString());
+                const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                settings.developerMode = target.checked;
+                await chrome.storage.local.set({ extensionSettings: settings });
+                if (this.dom.devModeActions) {
+                    this.dom.devModeActions.style.display = target.checked ? 'block' : 'none';
+                }
+                if (this.dom.testNotificationsContainer) {
+                    this.dom.testNotificationsContainer.style.display = target.checked ? 'flex' : 'none';
+                }
+                this.showStatus(`Developer mode ${target.checked ? 'enabled' : 'disabled'}!`);
+            }, { context: 'Popup', message: 'Error setting developerMode config' }));
+
+            if (this.dom.exportDebugLogsBtn) {
+                this.dom.exportDebugLogsBtn.addEventListener('click', withErrorHandling(() => {
+                    chrome.storage.local.get(['debugLogs'], withErrorHandling((result: { debugLogs?: unknown[] }) => {
                         const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
                         if (lastError) {
                             const errorMessage = lastError.message || String(lastError);
-                            Logger.error('Popup', `Storage error fetching marker toggle settings: ${errorMessage}`, { error: lastError });
+                            Logger.error('Popup', `Storage error fetching debug logs: ${errorMessage}`, { error: lastError });
                             return;
                         }
-                        if (result.extensionSettings && result.extensionSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
-                            this.dom.markerToggle.checked = result.extensionSettings.showMarkerPopup;
-                        }
-                    } catch (err) {
-                        UIUtils.catchError('Popup', 'Error rendering marker toggle setting', err);
-                    }
-                });
-                this.dom.markerToggle.addEventListener('change', async (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
-                        settings.showMarkerPopup = target.checked;
-                        await chrome.storage.local.set({ extensionSettings: settings });
-                    } catch (error) {
-                        UIUtils.catchError('Popup', 'Error setting showMarkerPopup config', error);
-                    }
-                });
-            }
-
-            // Visual charts display switch setup
-            if (this.dom.chartsToggle) {
-                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
-                    try {
-                        const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                        if (lastError) {
-                            const errorMessage = lastError.message || String(lastError);
-                            Logger.error('Popup', `Storage error fetching charts toggle settings: ${errorMessage}`, { error: lastError });
+                        const logs = result.debugLogs || [];
+                        if (logs.length === 0) {
+                            this.showStatus('No debug logs found.', true);
                             return;
                         }
-                        const showCharts = result.extensionSettings && result.extensionSettings.showCharts !== undefined
-                            ? result.extensionSettings.showCharts
-                            : true;
-                        if (this.dom.chartsToggle) {
-                            this.dom.chartsToggle.checked = showCharts;
-                            this.dom.chartsToggle.setAttribute('aria-checked', showCharts.toString());
-                        }
-                        this.updateChartsVisibility(showCharts);
-                    } catch (err) {
-                        UIUtils.catchError('Popup', 'Error rendering charts toggle setting', err);
-                    }
-                });
-                this.dom.chartsToggle.addEventListener('change', async (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        target.setAttribute('aria-checked', target.checked.toString());
-                        this.updateChartsVisibility(target.checked);
-                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
-                        settings.showCharts = target.checked;
-                        await chrome.storage.local.set({ extensionSettings: settings });
-                        this.showStatus(`Visual charts ${target.checked ? 'enabled' : 'disabled'}!`);
-                    } catch (error) {
-                        UIUtils.catchError('Popup', 'Error setting showCharts config', error);
-                    }
-                });
-            }
 
-            // Daily Focus & Momentum display switch setup
-            if (this.dom.dailyFocusToggle) {
-                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
-                    try {
-                        const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                        if (lastError) {
-                            const errorMessage = lastError.message || String(lastError);
-                            Logger.error('Popup', `Storage error fetching daily focus toggle settings: ${errorMessage}`, { error: lastError });
-                            return;
-                        }
-                        const showDailyFocus = result.extensionSettings && result.extensionSettings.showDailyFocus !== undefined
-                            ? result.extensionSettings.showDailyFocus
-                            : true;
-                        if (this.dom.dailyFocusToggle) {
-                            this.dom.dailyFocusToggle.checked = showDailyFocus;
-                            this.dom.dailyFocusToggle.setAttribute('aria-checked', showDailyFocus.toString());
-                        }
-                        this.updateDailyFocusVisibility(showDailyFocus);
-                    } catch (err) {
-                        UIUtils.catchError('Popup', 'Error rendering daily focus toggle setting', err);
-                    }
-                });
-                this.dom.dailyFocusToggle.addEventListener('change', async (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        target.setAttribute('aria-checked', target.checked.toString());
-                        this.updateDailyFocusVisibility(target.checked);
-                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
-                        settings.showDailyFocus = target.checked;
-                        await chrome.storage.local.set({ extensionSettings: settings });
-                        this.showStatus(`Daily Focus & Momentum ${target.checked ? 'enabled' : 'hidden'}!`);
-                    } catch (error) {
-                        UIUtils.catchError('Popup', 'Error setting showDailyFocus config', error);
-                    }
-                });
-            }
+                        const logLines = logs.map((l: unknown) => JSON.stringify(l)).join('\n');
+                        const blob = new Blob([logLines], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const filename = `algorecall_debug_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
 
-            // Problem tracker launcher toggle setup
-            if (this.dom.launcherToggle) {
-                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
-                    try {
-                        const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                        if (lastError) {
-                            const errorMessage = lastError.message || String(lastError);
-                            Logger.error('Popup', `Storage error fetching launcher toggle settings: ${errorMessage}`, { error: lastError });
-                            return;
-                        }
-                        const showLauncher = result.extensionSettings && result.extensionSettings.showLauncher !== undefined
-                            ? result.extensionSettings.showLauncher
-                            : true;
-                        if (this.dom.launcherToggle) {
-                            this.dom.launcherToggle.checked = showLauncher;
-                            this.dom.launcherToggle.setAttribute('aria-checked', showLauncher.toString());
-                        }
-                    } catch (err) {
-                        UIUtils.catchError('Popup', 'Error rendering launcher toggle setting', err);
-                    }
-                });
-                this.dom.launcherToggle.addEventListener('change', async (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        target.setAttribute('aria-checked', target.checked.toString());
-                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
-                        settings.showLauncher = target.checked;
-                        await chrome.storage.local.set({ extensionSettings: settings });
-                        this.showStatus(`Problem tracker launcher ${target.checked ? 'enabled' : 'disabled'}!`);
-                    } catch (error) {
-                        UIUtils.catchError('Popup', 'Error setting showLauncher config', error);
-                    }
-                });
-            }
-
-            // Developer mode display switch setup
-            if (this.dom.devModeToggle) {
-                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
-                    try {
-                        const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                        if (lastError) {
-                            const errorMessage = lastError.message || String(lastError);
-                            Logger.error('Popup', `Storage error fetching dev mode toggle settings: ${errorMessage}`, { error: lastError });
-                            return;
-                        }
-                        const devMode = result.extensionSettings && result.extensionSettings.developerMode !== undefined
-                            ? result.extensionSettings.developerMode
-                            : false;
-                        if (this.dom.devModeToggle) {
-                            this.dom.devModeToggle.checked = devMode;
-                            this.dom.devModeToggle.setAttribute('aria-checked', devMode.toString());
-                        }
-                        if (this.dom.devModeActions) {
-                            this.dom.devModeActions.style.display = devMode ? 'block' : 'none';
-                        }
-                        if (this.dom.testNotificationsContainer) {
-                            this.dom.testNotificationsContainer.style.display = devMode ? 'flex' : 'none';
-                        }
-                    } catch (err) {
-                        UIUtils.catchError('Popup', 'Error rendering dev mode toggle setting', err);
-                    }
-                });
-                this.dom.devModeToggle.addEventListener('change', async (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        target.setAttribute('aria-checked', target.checked.toString());
-                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
-                        settings.developerMode = target.checked;
-                        await chrome.storage.local.set({ extensionSettings: settings });
-                        if (this.dom.devModeActions) {
-                            this.dom.devModeActions.style.display = target.checked ? 'block' : 'none';
-                        }
-                        if (this.dom.testNotificationsContainer) {
-                            this.dom.testNotificationsContainer.style.display = target.checked ? 'flex' : 'none';
-                        }
-                        this.showStatus(`Developer mode ${target.checked ? 'enabled' : 'disabled'}!`);
-                    } catch (error) {
-                        UIUtils.catchError('Popup', 'Error setting developerMode config', error);
-                    }
-                });
-
-                if (this.dom.exportDebugLogsBtn) {
-                    this.dom.exportDebugLogsBtn.addEventListener('click', () => {
-                        try {
-                            chrome.storage.local.get(['debugLogs'], (result: { debugLogs?: unknown[] }) => {
+                        // Safari does not support chrome.downloads — use anchor-click fallback.
+                        if (BROWSER_CONFIG.supportsDownloads) {
+                            chrome.downloads.download({
+                                url: url,
+                                filename,
+                                saveAs: true
+                            }, () => {
                                 try {
-                                    const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                                    if (lastError) {
-                                        const errorMessage = lastError.message || String(lastError);
-                                        Logger.error('Popup', `Storage error fetching debug logs: ${errorMessage}`, { error: lastError });
-                                        return;
-                                    }
-                                    const logs = result.debugLogs || [];
-                                    if (logs.length === 0) {
-                                        this.showStatus('No debug logs found.', true);
-                                        return;
-                                    }
-
-                                    const logLines = logs.map((l: unknown) => JSON.stringify(l)).join('\n');
-                                    const blob = new Blob([logLines], { type: 'application/json' });
-                                    const url = URL.createObjectURL(blob);
-                                    const filename = `algorecall_debug_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-
-                                    // Safari does not support chrome.downloads — use anchor-click fallback.
-                                    if (BROWSER_CONFIG.supportsDownloads) {
-                                        chrome.downloads.download({
-                                            url: url,
-                                            filename,
-                                            saveAs: true
-                                        }, () => {
-                                            try {
-                                                URL.revokeObjectURL(url);
-                                            } catch (revokeErr) {
-                                                const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
-                                                Logger.debug('Popup', `Ignore revokeObjectURL error: ${errorMessage}`, { revokeErr });
-                                            }
-                                        });
-                                    } else {
-                                        const a = document.createElement('a');
-                                        a.href = url;
-                                        a.download = filename;
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        document.body.removeChild(a);
-                                        setTimeout(() => URL.revokeObjectURL(url), 1000);
-                                    }
-                                    this.showStatus(`Exported ${logs.length} debug logs!`);
-                                } catch (innerErr) {
-                                    UIUtils.catchError('Popup', 'Error exporting debug logs from callback', innerErr);
+                                    URL.revokeObjectURL(url);
+                                } catch (revokeErr) {
+                                    const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
+                                    Logger.debug('Popup', `Ignore revokeObjectURL error: ${errorMessage}`, { revokeErr });
                                 }
                             });
-                        } catch (err) {
-                            UIUtils.catchError('Popup', 'Error handling export debug logs click', err);
+                        } else {
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
                         }
-                    });
-                }
+                        this.showStatus(`Exported ${logs.length} debug logs!`);
+                    }, { context: 'Popup', message: 'Error exporting debug logs from callback' }));
+                }, { context: 'Popup', message: 'Error handling export debug logs click' }));
             }
+        }
 
-            // Navigation and Tool Actions
-            this.dom.helpBtn?.addEventListener('click', () => {
-                try {
-                    ActionService.executeAction('open-help');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to help.html', err);
+        // Navigation and Tool Actions
+        this.dom.helpBtn?.addEventListener('click', withErrorHandling(() => {
+            ActionService.executeAction('open-help');
+        }, { context: 'Popup', message: 'Error navigating to help.html' }));
+
+        this.dom.historyBtn?.addEventListener('click', withErrorHandling(() => {
+            ActionService.executeAction('open-history');
+        }, { context: 'Popup', message: 'Error navigating to history.html' }));
+
+        this.dom.openHeatmapTabBtn?.addEventListener('click', withErrorHandling(() => {
+            ActionService.executeAction('open-heatmap');
+        }, { context: 'Popup', message: 'Error navigating to heatmap.html' }));
+
+        const addAccessibleClick = (el: HTMLElement | null, handler: () => void) => {
+            if (!el) return;
+            el.addEventListener('click', handler);
+            el.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handler();
                 }
             });
+        };
 
-            this.dom.historyBtn?.addEventListener('click', () => {
-                try {
-                    ActionService.executeAction('open-history');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to history.html', err);
-                }
-            });
+        addAccessibleClick(this.dom.boxTotal, withErrorHandling(() => {
+            ActionService.executeAction('view-all-cards');
+        }, { context: 'Popup', message: 'Error navigating to total data view' }));
 
-            this.dom.openHeatmapTabBtn?.addEventListener('click', () => {
-                try {
-                    ActionService.executeAction('open-heatmap');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to heatmap.html', err);
-                }
-            });
+        addAccessibleClick(this.dom.boxDue, withErrorHandling(() => {
+            ActionService.executeAction('view-due-cards');
+        }, { context: 'Popup', message: 'Error navigating to due data view' }));
 
-            const addAccessibleClick = (el: HTMLElement | null, handler: () => void) => {
-                if (!el) return;
-                el.addEventListener('click', handler);
-                el.addEventListener('keydown', (e: KeyboardEvent) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handler();
-                    }
-                });
-            };
+        addAccessibleClick(this.dom.boxRetention, withErrorHandling(() => {
+            ActionService.executeAction('view-retention-cards');
+        }, { context: 'Popup', message: 'Error navigating to retention data view' }));
 
-            addAccessibleClick(this.dom.boxTotal, () => {
-                try {
-                    ActionService.executeAction('view-all-cards');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to total data view', err);
-                }
-            });
+        this.dom.manageHighlightsBtn?.addEventListener('click', withErrorHandling(() => {
+            ActionService.executeAction('open-highlights-manager');
+        }, { context: 'Popup', message: 'Error navigating to highlights.html' }));
 
-            addAccessibleClick(this.dom.boxDue, () => {
-                try {
-                    ActionService.executeAction('view-due-cards');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to due data view', err);
-                }
-            });
+        this.dom.openOptionsBtn?.addEventListener('click', withErrorHandling(() => {
+            ActionService.executeAction('open-highlights-options');
+        }, { context: 'Popup', message: 'Error navigating to highlightOptions.html' }));
 
-            addAccessibleClick(this.dom.boxRetention, () => {
-                try {
-                    ActionService.executeAction('view-retention-cards');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to retention data view', err);
-                }
-            });
+        const openAnalyticsTab = withErrorHandling(() => {
+            ActionService.executeAction('open-analytics');
+        }, { context: 'Popup', message: 'Error navigating to analytics.html' });
+        this.dom.analyticsBtn?.addEventListener('click', openAnalyticsTab);
+        this.dom.headerAnalyticsBtn?.addEventListener('click', openAnalyticsTab);
 
-            this.dom.manageHighlightsBtn?.addEventListener('click', () => {
-                try {
-                    ActionService.executeAction('open-highlights-manager');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to highlights.html', err);
-                }
-            });
+        this.dom.settingsHubBtn?.addEventListener('click', withErrorHandling(() => {
+            ActionService.executeAction('open-settings');
+        }, { context: 'Popup', message: 'Error navigating to settings.html' }));
 
-            this.dom.openOptionsBtn?.addEventListener('click', () => {
-                try {
-                    ActionService.executeAction('open-highlights-options');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to highlightOptions.html', err);
-                }
-            });
+        this.dom.forecastBtn?.addEventListener('click', withErrorHandling(() => {
+            ActionService.executeAction('open-forecast');
+        }, { context: 'Popup', message: 'Error navigating to forecast.html' }));
 
-            const openAnalyticsTab = () => {
-                try {
-                    ActionService.executeAction('open-analytics');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to analytics.html', err);
-                }
-            };
-            this.dom.analyticsBtn?.addEventListener('click', openAnalyticsTab);
-            this.dom.headerAnalyticsBtn?.addEventListener('click', openAnalyticsTab);
+        this.dom.achievementsBtn?.addEventListener('click', withErrorHandling(() => {
+            this.stats.bindAchievementsModal();
+            const openBtn = document.getElementById('achievements-open-btn');
+            if (openBtn) {
+                openBtn.click();
+            } else {
+                const modal = document.getElementById('achievements-modal');
+                modal?.classList.remove('hide-panel');
+            }
+        }, { context: 'Popup', message: 'Error opening achievements dialog' }));
 
-            this.dom.settingsHubBtn?.addEventListener('click', () => {
-                try {
-                    ActionService.executeAction('open-settings');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to settings.html', err);
-                }
-            });
+        this.dom.studyplanBtn?.addEventListener('click', withErrorHandling(() => {
+            ActionService.executeAction('open-study-plan');
+        }, { context: 'Popup', message: 'Error navigating to studyplan.html' }));
 
-            this.dom.forecastBtn?.addEventListener('click', () => {
-                try {
-                    ActionService.executeAction('open-forecast');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to forecast.html', err);
-                }
-            });
+        this.dom.pomodoroBtn?.addEventListener('click', withErrorHandling(() => {
+            ActionService.executeAction('open-pomodoro');
+        }, { context: 'Popup', message: 'Error navigating to pomodoro.html' }));
 
-            this.dom.achievementsBtn?.addEventListener('click', () => {
-                try {
-                    this.stats.bindAchievementsModal();
-                    const openBtn = document.getElementById('achievements-open-btn');
-                    if (openBtn) {
-                        openBtn.click();
+        this.dom.openSummaryPageBtn?.addEventListener('click', (e: MouseEvent) => {
+            e.stopPropagation();
+            try {
+                ActionService.executeAction('open-summary');
+            } catch (err) {
+                UIUtils.catchError('Popup', 'Error navigating to summary.html', err);
+            }
+        });
+
+        // UA-029: Manual Check Reviews Now trigger
+        const checkNowBtn = document.getElementById('check-now-btn');
+        if (checkNowBtn) {
+            checkNowBtn.addEventListener('click', withErrorHandling(async () => {
+                checkNowBtn.setAttribute('disabled', 'true');
+                chrome.runtime.sendMessage({ action: 'check_due_cards_now' }, (response) => {
+                    checkNowBtn.removeAttribute('disabled');
+                    if (response && response.success) {
+                        const count = typeof response.dueCount === 'number' ? response.dueCount : 0;
+                        this.showStatus(`Checked! ${count} review${count === 1 ? '' : 's'} due.`);
                     } else {
-                        const modal = document.getElementById('achievements-modal');
-                        modal?.classList.remove('hide-panel');
+                        this.showStatus('Checked for due reviews.');
                     }
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error opening achievements dialog', err);
-                }
-            });
-
-            this.dom.studyplanBtn?.addEventListener('click', () => {
-                try {
-                    ActionService.executeAction('open-study-plan');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to studyplan.html', err);
-                }
-            });
-
-            this.dom.pomodoroBtn?.addEventListener('click', () => {
-                try {
-                    ActionService.executeAction('open-pomodoro');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to pomodoro.html', err);
-                }
-            });
-
-            this.dom.openSummaryPageBtn?.addEventListener('click', (e: MouseEvent) => {
-                e.stopPropagation();
-                try {
-                    ActionService.executeAction('open-summary');
-                } catch (err) {
-                    UIUtils.catchError('Popup', 'Error navigating to summary.html', err);
-                }
-            });
-
-            // UA-029: Manual Check Reviews Now trigger
-            const checkNowBtn = document.getElementById('check-now-btn');
-            if (checkNowBtn) {
-                checkNowBtn.addEventListener('click', async () => {
-                    try {
-                        checkNowBtn.setAttribute('disabled', 'true');
-                        chrome.runtime.sendMessage({ action: 'check_due_cards_now' }, (response) => {
-                            checkNowBtn.removeAttribute('disabled');
-                            if (response && response.success) {
-                                const count = typeof response.dueCount === 'number' ? response.dueCount : 0;
-                                this.showStatus(`Checked! ${count} review${count === 1 ? '' : 's'} due.`);
-                            } else {
-                                this.showStatus('Checked for due reviews.');
-                            }
-                            this.loadAll();
-                        });
-                    } catch (err) {
-                        checkNowBtn.removeAttribute('disabled');
-                        UIUtils.catchError('Popup', 'Error checking due cards manually', err);
-                    }
+                    this.loadAll();
                 });
-            }
+            }, { context: 'Popup', message: 'Error checking due cards manually' }));
+        }
 
-            // UA-010: Safari notification capability guard
-            if (!BROWSER_CONFIG.supportsNotifications) {
-                const notifCard = document.getElementById('notification-settings-card');
-                if (notifCard) {
-                    notifCard.style.display = 'none';
-                }
+        // UA-010: Safari notification capability guard
+        if (!BROWSER_CONFIG.supportsNotifications) {
+            const notifCard = document.getElementById('notification-settings-card');
+            if (notifCard) {
+                notifCard.style.display = 'none';
             }
-        } catch (err) {
-            UIUtils.catchError('Popup', 'Error binding popup dashboard events', err);
         }
     }
 
@@ -643,32 +525,25 @@ export class AlgoRecallDashboard {
      * @param {string} msg - Descriptive message string.
      * @param {boolean} [isError=false] - Signals if the status indicates an error.
      */
+    @CatchAndLog('Popup', 'Error rendering status toast')
     showStatus(msg: string, isError: boolean = false): void {
-        try {
-            const el = this.dom.statusMsg;
-            if (!el) return;
+        const el = this.dom.statusMsg;
+        if (!el) return;
 
-            if (this.statusTimeout) {
-                clearTimeout(this.statusTimeout);
-            }
-
-            const iconHtml = isError
-                ? `<svg class="svg-icon" style="stroke: var(--md-danger); width: 14px; height: 14px;" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`
-                : `<svg class="svg-icon" style="stroke: var(--md-success); width: 14px; height: 14px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-
-            el.innerHTML = iconHtml + `<span>${msg}</span>`;
-            el.className = 'toast show ' + (isError ? 'error' : 'success');
-
-            this.statusTimeout = setTimeout(() => {
-                try {
-                    el.classList.remove('show');
-                } catch (timerErr) {
-                    UIUtils.catchError('Popup', 'Error hiding status toast', timerErr);
-                }
-            }, 2500);
-        } catch (err) {
-            UIUtils.catchError('Popup', 'Error rendering status toast', err, { msg, isError });
+        if (this.statusTimeout) {
+            clearTimeout(this.statusTimeout);
         }
+
+        const iconHtml = isError
+            ? `<svg class="svg-icon" style="stroke: var(--md-danger); width: 14px; height: 14px;" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`
+            : `<svg class="svg-icon" style="stroke: var(--md-success); width: 14px; height: 14px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+        el.innerHTML = iconHtml + `<span>${msg}</span>`;
+        el.className = 'toast show ' + (isError ? 'error' : 'success');
+
+        this.statusTimeout = setTimeout(withErrorHandling(() => {
+            el.classList.remove('show');
+        }, { context: 'Popup', message: 'Error hiding status toast' }), 2500);
     }
 
     /**
@@ -695,14 +570,10 @@ export class AlgoRecallDashboard {
 /**
  * Initializes the popup dashboard controller when the DOM is ready.
  */
-function initPopupDashboard(): void {
-    try {
-        const dashboard = new AlgoRecallDashboard();
-        dashboard.init();
-    } catch (err) {
-        UIUtils.catchError('Popup', 'Initialization failed', err);
-    }
-}
+const initPopupDashboard = withErrorHandling((): void => {
+    const dashboard = new AlgoRecallDashboard();
+    dashboard.init();
+}, { context: 'Popup', message: 'Initialization failed' });
 
 if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') {

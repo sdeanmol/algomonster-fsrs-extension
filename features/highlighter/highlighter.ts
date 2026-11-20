@@ -16,6 +16,7 @@
 import { Logger } from '@common/logger';
 import { HighlightMark, DOMMeta, ExtensionSettings, BookmarkItem, Card } from '../../types/domain';
 import { DEFAULT_EXTENSION_SETTINGS, DEFAULT_PALETTES, DEFAULT_HIGHLIGHT_COLOR } from '../common/constants';
+import { CatchAndLog, withErrorHandling } from '../../decorators';
 
 /**
  * Shared in-memory highlighter state container.
@@ -136,32 +137,27 @@ export class Highlighter {
      * 
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error creating highlighter UI')
     createHighlighterUI(): void {
-        try {
-            if (!document.getElementById('algo-highlight-tooltip')) {
-                const tooltip = document.createElement('div');
-                tooltip.id = 'algo-highlight-tooltip';
-                tooltip.setAttribute('role', 'dialog');
-                tooltip.setAttribute('aria-label', 'Highlighter Options');
-                tooltip.style.display = 'none';
+        if (!document.getElementById('algo-highlight-tooltip')) {
+            const tooltip = document.createElement('div');
+            tooltip.id = 'algo-highlight-tooltip';
+            tooltip.setAttribute('role', 'dialog');
+            tooltip.setAttribute('aria-label', 'Highlighter Options');
+            tooltip.style.display = 'none';
 
-                if (this.state && this.state.currentTheme === 'light') {
-                    tooltip.classList.add('light-theme');
-                }
-
-                document.body.appendChild(tooltip);
+            if (this.state && this.state.currentTheme === 'light') {
+                tooltip.classList.add('light-theme');
             }
 
-            if (this.isHighlighterListenersBound) return;
-
-            this.bindEvents();
-            this.isHighlighterListenersBound = true;
-            Logger.debug('Highlighter', 'Highlighter UI created.');
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error creating highlighter UI: ${errorMessage}`, { err });
-            // Comment: Catch UI creation error gracefully
+            document.body.appendChild(tooltip);
         }
+
+        if (this.isHighlighterListenersBound) return;
+
+        this.bindEvents();
+        this.isHighlighterListenersBound = true;
+        Logger.debug('Highlighter', 'Highlighter UI created.');
     }
 
     /**
@@ -169,14 +165,10 @@ export class Highlighter {
      * 
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error removing highlighter UI')
     removeHighlighterUI(): void {
-        try {
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (tooltip) tooltip.remove();
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error removing highlighter UI: ${errorMessage}`, { err });
-        }
+        const tooltip = document.getElementById('algo-highlight-tooltip');
+        if (tooltip) tooltip.remove();
     }
 
     /**
@@ -185,159 +177,134 @@ export class Highlighter {
      * 
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error binding events')
     bindEvents(): void {
-        try {
-            // 1. Text Selection Logic (For NEW highlights)
-            document.addEventListener('pointerup', (e: MouseEvent) => {
-                try {
-                    const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
-                    if (!showPopup) return;
+        // 1. Text Selection Logic (For NEW highlights)
+        document.addEventListener('pointerup', withErrorHandling((e: MouseEvent) => {
+            const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
+            if (!showPopup) return;
 
-                    const tooltip = document.getElementById('algo-highlight-tooltip');
-                    const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
-                    if (isPickerOpen) {
-                        if (this.state.hideTooltipTimer) {
-                            clearTimeout(this.state.hideTooltipTimer);
-                            this.state.hideTooltipTimer = null;
+            const tooltip = document.getElementById('algo-highlight-tooltip');
+            const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+            if (isPickerOpen) {
+                if (this.state.hideTooltipTimer) {
+                    clearTimeout(this.state.hideTooltipTimer);
+                    this.state.hideTooltipTimer = null;
+                }
+                return;
+            }
+
+            const target = e.target as HTMLElement | null;
+            if (target && typeof target.closest === 'function' && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) return;
+
+            const selection = window.getSelection();
+            if (!tooltip) return;
+
+            if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
+                if (this.state.hoveredMarkId === null) {
+                    tooltip.style.display = 'none';
+                }
+                return;
+            }
+
+            this.state.hoveredMarkId = null;
+            if (this.state.hideTooltipTimer) {
+                clearTimeout(this.state.hideTooltipTimer);
+                this.state.hideTooltipTimer = null;
+            }
+
+            const range = selection.getRangeAt(0);
+
+            // Position tooltip anchored to end of text selection
+            const rects = range.getClientRects();
+            let lastRect = rects.length > 0 ? rects[rects.length - 1] : null;
+
+            if (!lastRect) {
+                const bounding = range.getBoundingClientRect();
+                if (bounding && (bounding.width > 0 || bounding.height > 0)) {
+                    lastRect = bounding;
+                }
+            }
+
+            if (!lastRect) return;
+
+            this.renderTooltipColors(null, null);
+            this.positionTooltip(tooltip, lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
+        }, 'Highlighter', 'Error in pointerup event handler'), true);
+
+        // 2. Hover Detection Logic (For EXISTING highlights)
+        document.addEventListener('mousemove', withErrorHandling((e: MouseEvent) => {
+            const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
+            if (!showPopup) return;
+
+            const tooltip = document.getElementById('algo-highlight-tooltip');
+            const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+            if (isPickerOpen) {
+                if (this.state.hideTooltipTimer) {
+                    clearTimeout(this.state.hideTooltipTimer);
+                    this.state.hideTooltipTimer = null;
+                }
+                return;
+            }
+
+            const target = e.target as HTMLElement | null;
+            if (target && typeof target.closest === 'function' && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) {
+                if (this.state.hideTooltipTimer) {
+                    clearTimeout(this.state.hideTooltipTimer);
+                    this.state.hideTooltipTimer = null;
+                }
+                return;
+            }
+
+            const selection = window.getSelection();
+            if (selection && !selection.isCollapsed && selection.toString().trim() !== '') return;
+
+            let foundMark: { markId: string; range: Range; color: string } | null = null;
+            if (this.state.activeMarkRanges) {
+                for (const item of this.state.activeMarkRanges) {
+                    const rects = item.range.getClientRects();
+                    for (let i = 0; i < rects.length; i++) {
+                        const r = rects[i];
+                        if (e.clientX >= r.left - 5 && e.clientX <= r.right + 5 && e.clientY >= r.top - 5 && e.clientY <= r.bottom + 5) {
+                            foundMark = item;
+                            break;
                         }
-                        return;
                     }
+                    if (foundMark) break;
+                }
+            }
 
-                    const target = e.target as HTMLElement | null;
-                    if (target && typeof target.closest === 'function' && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) return;
+            if (!tooltip) return;
 
-                    const selection = window.getSelection();
-                    if (!tooltip) return;
+            if (foundMark) {
+                if (this.state.hideTooltipTimer) {
+                    clearTimeout(this.state.hideTooltipTimer);
+                    this.state.hideTooltipTimer = null;
+                }
 
-                    if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
-                        if (this.state.hoveredMarkId === null) {
-                            tooltip.style.display = 'none';
-                        }
-                        return;
-                    }
-
-                    this.state.hoveredMarkId = null;
-                    if (this.state.hideTooltipTimer) {
-                        clearTimeout(this.state.hideTooltipTimer);
+                if (this.state.hoveredMarkId !== foundMark.markId) {
+                    this.state.hoveredMarkId = foundMark.markId;
+                    this.renderTooltipColors(this.state.hoveredMarkId, foundMark.color);
+                    const r = foundMark.range.getBoundingClientRect();
+                    this.positionTooltip(tooltip, e.clientX + window.scrollX + 15, e.clientY + window.scrollY, r.top + window.scrollY);
+                }
+            } else {
+                if (this.state.hoveredMarkId !== null && !this.state.hideTooltipTimer) {
+                    this.state.hideTooltipTimer = setTimeout(withErrorHandling(() => {
+                        this.state.hoveredMarkId = null;
+                        if (tooltip) tooltip.style.display = 'none';
                         this.state.hideTooltipTimer = null;
-                    }
-
-                    const range = selection.getRangeAt(0);
-
-                    // Position tooltip anchored to end of text selection
-                    const rects = range.getClientRects();
-                    let lastRect = rects.length > 0 ? rects[rects.length - 1] : null;
-
-                    if (!lastRect) {
-                        const bounding = range.getBoundingClientRect();
-                        if (bounding && (bounding.width > 0 || bounding.height > 0)) {
-                            lastRect = bounding;
-                        }
-                    }
-
-                    if (!lastRect) return;
-
-                    this.renderTooltipColors(null, null);
-                    this.positionTooltip(tooltip, lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
-                } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Highlighter', `Error in pointerup event handler: ${errorMessage}`, { err });
+                    }, 'Highlighter', 'Error in hide tooltip timer'), 400);
                 }
-            }, true);
+            }
+        }, 'Highlighter', 'Error in mousemove event handler'));
 
-            // 2. Hover Detection Logic (For EXISTING highlights)
-            document.addEventListener('mousemove', (e: MouseEvent) => {
-                try {
-                    const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
-                    if (!showPopup) return;
-
-                    const tooltip = document.getElementById('algo-highlight-tooltip');
-                    const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
-                    if (isPickerOpen) {
-                        if (this.state.hideTooltipTimer) {
-                            clearTimeout(this.state.hideTooltipTimer);
-                            this.state.hideTooltipTimer = null;
-                        }
-                        return;
-                    }
-
-                    const target = e.target as HTMLElement | null;
-                    if (target && typeof target.closest === 'function' && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) {
-                        if (this.state.hideTooltipTimer) {
-                            clearTimeout(this.state.hideTooltipTimer);
-                            this.state.hideTooltipTimer = null;
-                        }
-                        return;
-                    }
-
-                    const selection = window.getSelection();
-                    if (selection && !selection.isCollapsed && selection.toString().trim() !== '') return;
-
-                    let foundMark: { markId: string; range: Range; color: string } | null = null;
-                    if (this.state.activeMarkRanges) {
-                        for (const item of this.state.activeMarkRanges) {
-                            const rects = item.range.getClientRects();
-                            for (let i = 0; i < rects.length; i++) {
-                                const r = rects[i];
-                                if (e.clientX >= r.left - 5 && e.clientX <= r.right + 5 && e.clientY >= r.top - 5 && e.clientY <= r.bottom + 5) {
-                                    foundMark = item;
-                                    break;
-                                }
-                            }
-                            if (foundMark) break;
-                        }
-                    }
-
-                    if (!tooltip) return;
-
-                    if (foundMark) {
-                        if (this.state.hideTooltipTimer) {
-                            clearTimeout(this.state.hideTooltipTimer);
-                            this.state.hideTooltipTimer = null;
-                        }
-
-                        if (this.state.hoveredMarkId !== foundMark.markId) {
-                            this.state.hoveredMarkId = foundMark.markId;
-                            this.renderTooltipColors(this.state.hoveredMarkId, foundMark.color);
-                            const r = foundMark.range.getBoundingClientRect();
-                            this.positionTooltip(tooltip, e.clientX + window.scrollX + 15, e.clientY + window.scrollY, r.top + window.scrollY);
-                        }
-                    } else {
-                        if (this.state.hoveredMarkId !== null && !this.state.hideTooltipTimer) {
-                            this.state.hideTooltipTimer = setTimeout(() => {
-                                try {
-                                    this.state.hoveredMarkId = null;
-                                    if (tooltip) tooltip.style.display = 'none';
-                                    this.state.hideTooltipTimer = null;
-                                } catch (timerErr) {
-                                    const errorMessage = timerErr instanceof Error ? timerErr.message : String(timerErr);
-                                    Logger.error('Highlighter', `Error in hide tooltip timer: ${errorMessage}`, { timerErr });
-                                }
-                            }, 400);
-                        }
-                    }
-                } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Highlighter', `Error in mousemove event handler: ${errorMessage}`, { err });
-                }
-            });
-
-            // Fallback for keyboard selection shifts
-            document.addEventListener('keyup', (e: KeyboardEvent) => {
-                try {
-                    if (e.key === 'Shift' || e.key.startsWith('Arrow')) {
-                        this.handleTextSelection();
-                    }
-                } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Highlighter', `Error in keyup event handler: ${errorMessage}`, { err });
-                }
-            });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error binding events: ${errorMessage}`, { err });
-            // Comment: Non-fatal event listener binding error
-        }
+        // Fallback for keyboard selection shifts
+        document.addEventListener('keyup', withErrorHandling((e: KeyboardEvent) => {
+            if (e.key === 'Shift' || e.key.startsWith('Arrow')) {
+                this.handleTextSelection();
+            }
+        }, 'Highlighter', 'Error in keyup event handler'));
     }
 
     /**
@@ -345,38 +312,34 @@ export class Highlighter {
      * 
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error in handleTextSelection')
     handleTextSelection(): void {
-        try {
-            if (this.state.isColorPickerOpen) return;
-            const selection = window.getSelection();
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (!tooltip) return;
+        if (this.state.isColorPickerOpen) return;
+        const selection = window.getSelection();
+        const tooltip = document.getElementById('algo-highlight-tooltip');
+        if (!tooltip) return;
 
-            if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
-                if (!this.state.hoveredMarkId) {
-                    tooltip.style.display = 'none';
-                }
-                return;
+        if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
+            if (!this.state.hoveredMarkId) {
+                tooltip.style.display = 'none';
             }
+            return;
+        }
 
-            const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
-            if (!showPopup) return;
+        const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
+        if (!showPopup) return;
 
-            const range = selection.getRangeAt(0);
-            const rects = range.getClientRects();
-            let lastRect = rects.length > 0 ? rects[rects.length - 1] : null;
-            if (!lastRect) {
-                const bounding = range.getBoundingClientRect();
-                if (bounding && (bounding.width > 0 || bounding.height > 0)) lastRect = bounding;
-            }
+        const range = selection.getRangeAt(0);
+        const rects = range.getClientRects();
+        let lastRect = rects.length > 0 ? rects[rects.length - 1] : null;
+        if (!lastRect) {
+            const bounding = range.getBoundingClientRect();
+            if (bounding && (bounding.width > 0 || bounding.height > 0)) lastRect = bounding;
+        }
 
-            if (lastRect) {
-                this.renderTooltipColors(null, null);
-                this.positionTooltip(tooltip, lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error in handleTextSelection: ${errorMessage}`, { err });
+        if (lastRect) {
+            this.renderTooltipColors(null, null);
+            this.positionTooltip(tooltip, lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
         }
     }
 
@@ -437,407 +400,357 @@ export class Highlighter {
      * @param {string | null} [currentColor=null] - Currently assigned hex color string.
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error rendering tooltip colors')
     renderTooltipColors(existingMarkId: string | null = null, currentColor: string | null = null): void {
-        try {
-            if (this.state.isColorPickerOpen) return;
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (!tooltip) return;
-            tooltip.innerHTML = '';
+        if (this.state.isColorPickerOpen) return;
+        const tooltip = document.getElementById('algo-highlight-tooltip');
+        if (!tooltip) return;
+        tooltip.innerHTML = '';
 
-            let activeType = 'highlight';
+        let activeType = 'highlight';
 
-            // 1. Add Type Selector for New Annotations
-            if (!existingMarkId) {
-                const typeContainer = document.createElement('div');
-                typeContainer.className = 'algo-type-selector';
-                typeContainer.style.display = 'flex';
-                typeContainer.style.width = '100%';
-                typeContainer.style.marginBottom = '12px';
-                typeContainer.style.borderRadius = '8px';
-                typeContainer.style.overflow = 'hidden';
-                typeContainer.style.border = '1px solid var(--w-border, #444)';
-                typeContainer.setAttribute('role', 'radiogroup');
-                typeContainer.setAttribute('aria-label', 'Highlight Type');
+        // 1. Add Type Selector for New Annotations
+        if (!existingMarkId) {
+            const typeContainer = document.createElement('div');
+            typeContainer.className = 'algo-type-selector';
+            typeContainer.style.display = 'flex';
+            typeContainer.style.width = '100%';
+            typeContainer.style.marginBottom = '12px';
+            typeContainer.style.borderRadius = '8px';
+            typeContainer.style.overflow = 'hidden';
+            typeContainer.style.border = '1px solid var(--w-border, #444)';
+            typeContainer.setAttribute('role', 'radiogroup');
+            typeContainer.setAttribute('aria-label', 'Highlight Type');
 
-                const types = ['highlight', 'underline'];
-                const typeBtns: Record<string, HTMLButtonElement> = {};
+            const types = ['highlight', 'underline'];
+            const typeBtns: Record<string, HTMLButtonElement> = {};
 
-                types.forEach((t) => {
-                    const btn = document.createElement('button');
-                    btn.textContent = t.charAt(0).toUpperCase() + t.slice(1);
-                    btn.className = 'algo-type-btn';
-                    btn.style.flex = '1';
-                    btn.style.padding = '8px 0';
-                    btn.style.fontSize = '12px';
-                    btn.style.fontWeight = '500';
-                    btn.style.cursor = 'pointer';
-                    btn.style.border = 'none';
-                    btn.style.outline = 'none';
+            types.forEach((t) => {
+                const btn = document.createElement('button');
+                btn.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+                btn.className = 'algo-type-btn';
+                btn.style.flex = '1';
+                btn.style.padding = '8px 0';
+                btn.style.fontSize = '12px';
+                btn.style.fontWeight = '500';
+                btn.style.cursor = 'pointer';
+                btn.style.border = 'none';
+                btn.style.outline = 'none';
 
-                    const isActive = t === 'highlight';
-                    btn.style.background = isActive ? 'var(--w-primary-container, #3498db)' : 'var(--w-bg-dark, #333)';
-                    btn.style.color = isActive ? 'var(--w-on-primary-container, #fff)' : 'var(--w-text-med, #ccc)';
+                const isActive = t === 'highlight';
+                btn.style.background = isActive ? 'var(--w-primary-container, #3498db)' : 'var(--w-bg-dark, #333)';
+                btn.style.color = isActive ? 'var(--w-on-primary-container, #fff)' : 'var(--w-text-med, #ccc)';
 
-                    btn.setAttribute('role', 'radio');
-                    btn.setAttribute('aria-checked', isActive.toString());
-                    btn.setAttribute('tabindex', isActive ? '0' : '-1');
+                btn.setAttribute('role', 'radio');
+                btn.setAttribute('aria-checked', isActive.toString());
+                btn.setAttribute('tabindex', isActive ? '0' : '-1');
 
-                    const setActiveType = (typeVal: string) => {
-                        activeType = typeVal;
-                        types.forEach((type) => {
-                            const isBtnActive = type === typeVal;
-                            if (typeBtns[type]) {
-                                typeBtns[type].style.background = isBtnActive ? 'var(--w-primary-container, #3498db)' : 'var(--w-bg-dark, #333)';
-                                typeBtns[type].style.color = isBtnActive ? 'var(--w-on-primary-container, #fff)' : 'var(--w-text-med, #ccc)';
-                                typeBtns[type].setAttribute('aria-checked', isBtnActive.toString());
-                                typeBtns[type].setAttribute('tabindex', isBtnActive ? '0' : '-1');
-                            }
-                        });
-                    };
-
-                    btn.addEventListener('mousedown', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setActiveType(t);
-                    });
-
-                    btn.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setActiveType(t);
+                const setActiveType = (typeVal: string) => {
+                    activeType = typeVal;
+                    types.forEach((type) => {
+                        const isBtnActive = type === typeVal;
+                        if (typeBtns[type]) {
+                            typeBtns[type].style.background = isBtnActive ? 'var(--w-primary-container, #3498db)' : 'var(--w-bg-dark, #333)';
+                            typeBtns[type].style.color = isBtnActive ? 'var(--w-on-primary-container, #fff)' : 'var(--w-text-med, #ccc)';
+                            typeBtns[type].setAttribute('aria-checked', isBtnActive.toString());
+                            typeBtns[type].setAttribute('tabindex', isBtnActive ? '0' : '-1');
                         }
                     });
-                    typeBtns[t] = btn;
-                    typeContainer.appendChild(btn);
-                });
-                tooltip.appendChild(typeContainer);
-            }
-
-            // 2. Swatches and Input Controls Container
-            const actionsContainer = document.createElement('div');
-            actionsContainer.style.display = 'flex';
-            actionsContainer.style.alignItems = 'center';
-            actionsContainer.style.gap = '8px';
-            actionsContainer.style.width = '100%';
-            actionsContainer.style.flexWrap = 'wrap';
-
-            const activeIndex = this.state.extensionSettings?.activePaletteIndex || 0;
-            const activePalette = (this.state.extensionSettings?.palettes && this.state.extensionSettings.palettes.length > activeIndex)
-                ? this.state.extensionSettings.palettes[activeIndex]
-                : { colors: DEFAULT_PALETTES[0].colors };
-
-            const paletteColors = activePalette.colors || [];
-
-            paletteColors.forEach((color: string) => {
-                const swatch = document.createElement('div');
-                swatch.className = 'algo-color-swatch';
-                swatch.style.background = color;
-                swatch.title = `Color: ${color}`;
-                swatch.setAttribute('role', 'button');
-                swatch.setAttribute('aria-label', `Highlight with color ${color}`);
-                swatch.setAttribute('tabindex', '0');
-
-                if (color === currentColor) {
-                    swatch.classList.add('active');
-                }
-
-                const handleSwatchClick = () => {
-                    try {
-                        if (existingMarkId) this.updateHighlightColor(existingMarkId, color);
-                        else this.saveHighlight(color, activeType);
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Highlighter', `Error handling swatch click for ${color}: ${errorMessage}`, { color, err });
-                    }
                 };
 
-                swatch.addEventListener('mousedown', (e) => {
+                btn.addEventListener('mousedown', (e) => {
                     e.preventDefault();
-                    handleSwatchClick();
+                    e.stopPropagation();
+                    setActiveType(t);
                 });
 
-                swatch.addEventListener('keydown', (e) => {
+                btn.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        handleSwatchClick();
-                    } else if (e.key === 'ArrowRight') {
-                        e.preventDefault();
-                        const next = swatch.nextElementSibling as HTMLElement | null;
-                        if (next && typeof next.focus === 'function') next.focus();
-                    } else if (e.key === 'ArrowLeft') {
-                        e.preventDefault();
-                        const prev = swatch.previousElementSibling as HTMLElement | null;
-                        if (prev && typeof prev.focus === 'function') prev.focus();
+                        setActiveType(t);
                     }
                 });
-                actionsContainer.appendChild(swatch);
+                typeBtns[t] = btn;
+                typeContainer.appendChild(btn);
             });
+            tooltip.appendChild(typeContainer);
+        }
 
-            // Default Highlight Color Swatch (towards the end of all swatches)
-            const defaultHighlightColor = this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
-            const defaultSwatch = document.createElement('div');
-            defaultSwatch.className = 'algo-color-swatch algo-default-swatch';
-            defaultSwatch.id = 'algo-default-color-swatch';
-            defaultSwatch.style.background = defaultHighlightColor;
-            defaultSwatch.title = `Default Color: ${defaultHighlightColor}`;
-            defaultSwatch.setAttribute('role', 'button');
-            defaultSwatch.setAttribute('aria-label', `Highlight with default color ${defaultHighlightColor}`);
-            defaultSwatch.setAttribute('tabindex', '0');
-            defaultSwatch.setAttribute('data-default-color', defaultHighlightColor);
+        // 2. Swatches and Input Controls Container
+        const actionsContainer = document.createElement('div');
+        actionsContainer.style.display = 'flex';
+        actionsContainer.style.alignItems = 'center';
+        actionsContainer.style.gap = '8px';
+        actionsContainer.style.width = '100%';
+        actionsContainer.style.flexWrap = 'wrap';
 
-            if (defaultHighlightColor === currentColor) {
-                defaultSwatch.classList.add('active');
+        const activeIndex = this.state.extensionSettings?.activePaletteIndex || 0;
+        const activePalette = (this.state.extensionSettings?.palettes && this.state.extensionSettings.palettes.length > activeIndex)
+            ? this.state.extensionSettings.palettes[activeIndex]
+            : { colors: DEFAULT_PALETTES[0].colors };
+
+        const paletteColors = activePalette.colors || [];
+
+        paletteColors.forEach((color: string) => {
+            const swatch = document.createElement('div');
+            swatch.className = 'algo-color-swatch';
+            swatch.style.background = color;
+            swatch.title = `Color: ${color}`;
+            swatch.setAttribute('role', 'button');
+            swatch.setAttribute('aria-label', `Highlight with color ${color}`);
+            swatch.setAttribute('tabindex', '0');
+
+            if (color === currentColor) {
+                swatch.classList.add('active');
             }
 
-            const handleDefaultSwatchClick = () => {
-                try {
-                    if (existingMarkId) this.updateHighlightColor(existingMarkId, defaultHighlightColor);
-                    else this.saveHighlight(defaultHighlightColor, activeType);
-                } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Highlighter', `Error handling default swatch click for ${defaultHighlightColor}: ${errorMessage}`, { defaultHighlightColor, err });
-                }
-            };
+            const handleSwatchClick = withErrorHandling(() => {
+                if (existingMarkId) this.updateHighlightColor(existingMarkId, color);
+                else this.saveHighlight(color, activeType);
+            }, 'Highlighter', `Error handling swatch click for ${color}`);
 
-            defaultSwatch.addEventListener('mousedown', (e) => {
+            swatch.addEventListener('mousedown', (e) => {
                 e.preventDefault();
-                handleDefaultSwatchClick();
+                handleSwatchClick();
             });
 
-            defaultSwatch.addEventListener('keydown', (e) => {
+            swatch.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    handleDefaultSwatchClick();
+                    handleSwatchClick();
                 } else if (e.key === 'ArrowRight') {
                     e.preventDefault();
-                    const next = defaultSwatch.nextElementSibling as HTMLElement | null;
+                    const next = swatch.nextElementSibling as HTMLElement | null;
                     if (next && typeof next.focus === 'function') next.focus();
                 } else if (e.key === 'ArrowLeft') {
                     e.preventDefault();
-                    const prev = defaultSwatch.previousElementSibling as HTMLElement | null;
+                    const prev = swatch.previousElementSibling as HTMLElement | null;
                     if (prev && typeof prev.focus === 'function') prev.focus();
                 }
             });
-            actionsContainer.appendChild(defaultSwatch);
+            actionsContainer.appendChild(swatch);
+        });
 
-            // 3. Custom Color Picker
-            const picker = document.createElement('input');
-            picker.type = 'color';
-            picker.id = 'algo-color-picker';
-            picker.setAttribute('aria-label', 'Custom highlight color');
-            picker.title = 'Custom Color Picker';
-            const defaultPickerValue = currentColor || this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
-            picker.value = defaultPickerValue;
+        // Default Highlight Color Swatch (towards the end of all swatches)
+        const defaultHighlightColor = this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
+        const defaultSwatch = document.createElement('div');
+        defaultSwatch.className = 'algo-color-swatch algo-default-swatch';
+        defaultSwatch.id = 'algo-default-color-swatch';
+        defaultSwatch.style.background = defaultHighlightColor;
+        defaultSwatch.title = `Default Color: ${defaultHighlightColor}`;
+        defaultSwatch.setAttribute('role', 'button');
+        defaultSwatch.setAttribute('aria-label', `Highlight with default color ${defaultHighlightColor}`);
+        defaultSwatch.setAttribute('tabindex', '0');
+        defaultSwatch.setAttribute('data-default-color', defaultHighlightColor);
 
-            const cacheSelection = () => {
-                const selection = window.getSelection();
-                if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
-                    this.state.savedRange = selection.getRangeAt(0).cloneRange();
-                }
-                this.state.isColorPickerOpen = true;
-                if (tooltip) tooltip.setAttribute('data-picker-open', 'true');
-                if (this.state.hideTooltipTimer) {
-                    clearTimeout(this.state.hideTooltipTimer);
-                    this.state.hideTooltipTimer = null;
-                }
-            };
+        if (defaultHighlightColor === currentColor) {
+            defaultSwatch.classList.add('active');
+        }
 
-            picker.addEventListener('pointerdown', (e) => {
-                e.stopPropagation();
-                cacheSelection();
-            });
+        const handleDefaultSwatchClick = withErrorHandling(() => {
+            if (existingMarkId) this.updateHighlightColor(existingMarkId, defaultHighlightColor);
+            else this.saveHighlight(defaultHighlightColor, activeType);
+        }, 'Highlighter', `Error handling default swatch click for ${defaultHighlightColor}`);
 
-            picker.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                cacheSelection();
-            });
+        defaultSwatch.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            handleDefaultSwatchClick();
+        });
 
-            picker.addEventListener('click', (e) => {
-                e.stopPropagation();
-                cacheSelection();
-            });
+        defaultSwatch.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleDefaultSwatchClick();
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                const next = defaultSwatch.nextElementSibling as HTMLElement | null;
+                if (next && typeof next.focus === 'function') next.focus();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const prev = defaultSwatch.previousElementSibling as HTMLElement | null;
+                if (prev && typeof prev.focus === 'function') prev.focus();
+            }
+        });
+        actionsContainer.appendChild(defaultSwatch);
 
-            picker.addEventListener('pointerup', (e) => {
-                e.stopPropagation();
-            });
+        // 3. Custom Color Picker
+        const picker = document.createElement('input');
+        picker.type = 'color';
+        picker.id = 'algo-color-picker';
+        picker.setAttribute('aria-label', 'Custom highlight color');
+        picker.title = 'Custom Color Picker';
+        const defaultPickerValue = currentColor || this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
+        picker.value = defaultPickerValue;
 
-            picker.addEventListener('mouseup', (e) => {
-                e.stopPropagation();
-            });
+        const cacheSelection = () => {
+            const selection = window.getSelection();
+            if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+                this.state.savedRange = selection.getRangeAt(0).cloneRange();
+            }
+            this.state.isColorPickerOpen = true;
+            if (tooltip) tooltip.setAttribute('data-picker-open', 'true');
+            if (this.state.hideTooltipTimer) {
+                clearTimeout(this.state.hideTooltipTimer);
+                this.state.hideTooltipTimer = null;
+            }
+        };
 
-            picker.addEventListener('input', (e: Event) => {
-                try {
-                    const newColor = (e.target as HTMLInputElement).value;
+        picker.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            cacheSelection();
+        });
 
-                    if (defaultSwatch) {
-                        defaultSwatch.style.background = newColor;
-                        defaultSwatch.title = `Default Color: ${newColor}`;
-                        defaultSwatch.setAttribute('data-default-color', newColor);
-                    }
+        picker.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            cacheSelection();
+        });
 
-                    this.updateRecentColors(newColor);
+        picker.addEventListener('click', (e) => {
+            e.stopPropagation();
+            cacheSelection();
+        });
 
-                    if (existingMarkId) {
-                        this.updateHighlightColor(existingMarkId, newColor);
-                    } else if (this.state.activeCreationMarkId) {
-                        this.updateHighlightColor(this.state.activeCreationMarkId, newColor);
-                    } else {
-                        this.saveHighlight(newColor, activeType);
-                    }
-                } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Highlighter', `Error in custom color picker input: ${errorMessage}`, { err });
-                }
-            });
+        picker.addEventListener('pointerup', (e) => {
+            e.stopPropagation();
+        });
 
-            picker.addEventListener('change', () => {
-                try {
-                    setTimeout(() => {
-                        this.state.isColorPickerOpen = false;
-                        if (tooltip) tooltip.removeAttribute('data-picker-open');
-                        this.state.savedRange = null;
-                        this.state.activeCreationMarkId = null;
-                        if (!existingMarkId) {
-                            if (tooltip) tooltip.style.display = 'none';
-                            const selection = window.getSelection();
-                            if (selection) selection.removeAllRanges();
-                        } else {
-                            this.renderTooltipColors(existingMarkId, picker.value);
-                        }
-                    }, 50);
-                } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Highlighter', `Error in picker change handler: ${errorMessage}`, { err });
-                }
-            });
+        picker.addEventListener('mouseup', (e) => {
+            e.stopPropagation();
+        });
 
-            picker.addEventListener('blur', () => {
-                setTimeout(() => {
-                    if (document.activeElement !== picker) {
-                        this.state.isColorPickerOpen = false;
-                        if (tooltip) tooltip.removeAttribute('data-picker-open');
-                        this.state.savedRange = null;
-                        this.state.activeCreationMarkId = null;
-                    }
-                }, 250);
-            });
+        picker.addEventListener('input', withErrorHandling((e: Event) => {
+            const newColor = (e.target as HTMLInputElement).value;
 
-            actionsContainer.appendChild(picker);
+            if (defaultSwatch) {
+                defaultSwatch.style.background = newColor;
+                defaultSwatch.title = `Default Color: ${newColor}`;
+                defaultSwatch.setAttribute('data-default-color', newColor);
+            }
 
-            // 4. Delete Button (when editing existing highlight)
+            this.updateRecentColors(newColor);
+
             if (existingMarkId) {
-                const divider = document.createElement('div');
-                divider.className = 'algo-tooltip-divider';
-                actionsContainer.appendChild(divider);
+                this.updateHighlightColor(existingMarkId, newColor);
+            } else if (this.state.activeCreationMarkId) {
+                this.updateHighlightColor(this.state.activeCreationMarkId, newColor);
+            } else {
+                this.saveHighlight(newColor, activeType);
+            }
+        }, 'Highlighter', 'Error in custom color picker input'));
 
-                const deleteBtn = document.createElement('div');
-                deleteBtn.className = 'algo-delete-btn';
-                deleteBtn.setAttribute('role', 'button');
-                deleteBtn.setAttribute('aria-label', 'Delete Highlight');
-                deleteBtn.setAttribute('tabindex', '0');
-                deleteBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path></svg>`;
+        picker.addEventListener('change', withErrorHandling(() => {
+            setTimeout(() => {
+                this.state.isColorPickerOpen = false;
+                if (tooltip) tooltip.removeAttribute('data-picker-open');
+                this.state.savedRange = null;
+                this.state.activeCreationMarkId = null;
+                if (!existingMarkId) {
+                    if (tooltip) tooltip.style.display = 'none';
+                    const selection = window.getSelection();
+                    if (selection) selection.removeAllRanges();
+                } else {
+                    this.renderTooltipColors(existingMarkId, picker.value);
+                }
+            }, 50);
+        }, 'Highlighter', 'Error in picker change handler'));
 
-                const handleDelete = () => {
-                    try {
-                        this.deleteHighlight(existingMarkId);
-                        this.renderTooltipColors();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Highlighter', `Error handling delete button click: ${errorMessage}`, { existingMarkId, err });
-                    }
-                };
+        picker.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (document.activeElement !== picker) {
+                    this.state.isColorPickerOpen = false;
+                    if (tooltip) tooltip.removeAttribute('data-picker-open');
+                    this.state.savedRange = null;
+                    this.state.activeCreationMarkId = null;
+                }
+            }, 250);
+        });
 
-                deleteBtn.addEventListener('mousedown', (e) => {
+        actionsContainer.appendChild(picker);
+
+        // 4. Delete Button (when editing existing highlight)
+        if (existingMarkId) {
+            const divider = document.createElement('div');
+            divider.className = 'algo-tooltip-divider';
+            actionsContainer.appendChild(divider);
+
+            const deleteBtn = document.createElement('div');
+            deleteBtn.className = 'algo-delete-btn';
+            deleteBtn.setAttribute('role', 'button');
+            deleteBtn.setAttribute('aria-label', 'Delete Highlight');
+            deleteBtn.setAttribute('tabindex', '0');
+            deleteBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path></svg>`;
+
+            const handleDelete = withErrorHandling(() => {
+                this.deleteHighlight(existingMarkId);
+                this.renderTooltipColors();
+            }, 'Highlighter', 'Error handling delete button click');
+
+            deleteBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                handleDelete();
+            });
+
+            deleteBtn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     handleDelete();
-                });
+                }
+            });
+            actionsContainer.appendChild(deleteBtn);
+        }
 
-                deleteBtn.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleDelete();
-                    }
-                });
-                actionsContainer.appendChild(deleteBtn);
-            }
+        tooltip.appendChild(actionsContainer);
 
-            tooltip.appendChild(actionsContainer);
+        // 5. Notes & Category Section (when editing existing mark)
+        if (existingMarkId) {
+            const existingMark = this.state.marks.find((m: HighlightMark) => (m.id || m.createdAt.toString()) === existingMarkId);
+            const noteSection = document.createElement('div');
+            noteSection.className = 'algo-note-section';
 
-            // 5. Notes & Category Section (when editing existing mark)
-            if (existingMarkId) {
-                const existingMark = this.state.marks.find((m: HighlightMark) => (m.id || m.createdAt.toString()) === existingMarkId);
-                const noteSection = document.createElement('div');
-                noteSection.className = 'algo-note-section';
+            const categorySelect = document.createElement('select');
+            categorySelect.className = 'algo-category-select';
+            const categories = ['', 'Key Insight', 'Gotcha', 'Edge Case', 'Pattern'];
+            categories.forEach((cat) => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat || 'No Category';
+                categorySelect.appendChild(opt);
+            });
+            categorySelect.value = existingMark?.category || '';
+            categorySelect.addEventListener('change', withErrorHandling((e: Event) => {
+                this.saveMarkCategory(existingMarkId, (e.target as HTMLSelectElement).value);
+            }, 'Highlighter', 'Error in category select change listener'));
+            noteSection.appendChild(categorySelect);
 
-                const categorySelect = document.createElement('select');
-                categorySelect.className = 'algo-category-select';
-                const categories = ['', 'Key Insight', 'Gotcha', 'Edge Case', 'Pattern'];
-                categories.forEach((cat) => {
-                    const opt = document.createElement('option');
-                    opt.value = cat;
-                    opt.textContent = cat || 'No Category';
-                    categorySelect.appendChild(opt);
-                });
-                categorySelect.value = existingMark?.category || '';
-                categorySelect.addEventListener('change', (e: Event) => {
-                    try {
-                        this.saveMarkCategory(existingMarkId, (e.target as HTMLSelectElement).value);
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Highlighter', `Error in category select change listener: ${errorMessage}`, { err });
-                    }
-                });
-                noteSection.appendChild(categorySelect);
+            const noteInput = document.createElement('input');
+            noteInput.type = 'text';
+            noteInput.className = 'algo-note-input';
+            noteInput.placeholder = 'Add note...';
+            noteInput.value = existingMark?.note || '';
+            noteInput.maxLength = 200;
+            noteInput.addEventListener('input', withErrorHandling((e: Event) => {
+                this.saveMarkNote(existingMarkId, (e.target as HTMLInputElement).value);
+            }, 'Highlighter', 'Error in note input listener'));
+            noteSection.appendChild(noteInput);
 
-                const noteInput = document.createElement('input');
-                noteInput.type = 'text';
-                noteInput.className = 'algo-note-input';
-                noteInput.placeholder = 'Add note...';
-                noteInput.value = existingMark?.note || '';
-                noteInput.maxLength = 200;
-                noteInput.addEventListener('input', (e: Event) => {
-                    try {
-                        this.saveMarkNote(existingMarkId, (e.target as HTMLInputElement).value);
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Highlighter', `Error in note input listener: ${errorMessage}`, { err });
-                    }
-                });
-                noteSection.appendChild(noteInput);
+            const linkBtn = document.createElement('button');
+            linkBtn.className = 'algo-link-btn';
+            linkBtn.title = 'Link Highlight to Card';
+            linkBtn.setAttribute('aria-label', 'Link Highlight to Card');
+            linkBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
+            linkBtn.addEventListener('click', withErrorHandling(() => {
+                this.linkHighlightToCard(existingMarkId);
+                const originalHtml = linkBtn.innerHTML;
+                linkBtn.innerHTML = '✓';
+                linkBtn.style.color = '#2ecc71';
+                setTimeout(withErrorHandling(() => {
+                    linkBtn.innerHTML = originalHtml;
+                    linkBtn.style.color = '';
+                }, 'Highlighter', 'Error resetting link button HTML'), 1500);
+            }, 'Highlighter', 'Error in link button click listener'));
+            noteSection.appendChild(linkBtn);
 
-                const linkBtn = document.createElement('button');
-                linkBtn.className = 'algo-link-btn';
-                linkBtn.title = 'Link Highlight to Card';
-                linkBtn.setAttribute('aria-label', 'Link Highlight to Card');
-                linkBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width:14px; height:14px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
-                linkBtn.addEventListener('click', () => {
-                    try {
-                        this.linkHighlightToCard(existingMarkId);
-                        const originalHtml = linkBtn.innerHTML;
-                        linkBtn.innerHTML = '✓';
-                        linkBtn.style.color = '#2ecc71';
-                        setTimeout(() => {
-                            try {
-                                linkBtn.innerHTML = originalHtml;
-                                linkBtn.style.color = '';
-                            } catch (resetErr) {
-                                const errorMessage = resetErr instanceof Error ? resetErr.message : String(resetErr);
-                                Logger.error('Highlighter', `Error resetting link button HTML: ${errorMessage}`, { resetErr });
-                            }
-                        }, 1500);
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Highlighter', `Error in link button click listener: ${errorMessage}`, { err });
-                    }
-                });
-                noteSection.appendChild(linkBtn);
-
-                tooltip.appendChild(noteSection);
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error rendering tooltip colors: ${errorMessage}`, { existingMarkId, currentColor, err });
-            // Comment: Non-fatal tooltip render catch
+            tooltip.appendChild(noteSection);
         }
     }
 
@@ -848,16 +761,12 @@ export class Highlighter {
      * @param {string} category - Selected category string.
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error saving mark category')
     saveMarkCategory(markId: string, category: string): void {
-        try {
-            const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
-            if (markIndex > -1) {
-                this.state.marks[markIndex].category = category;
-                chrome.storage.local.set({ marks: this.state.marks });
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error saving mark category for ${markId}: ${errorMessage}`, { markId, category, err });
+        const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
+        if (markIndex > -1) {
+            this.state.marks[markIndex].category = category;
+            chrome.storage.local.set({ marks: this.state.marks });
         }
     }
 
@@ -868,136 +777,117 @@ export class Highlighter {
      * @param {string} markId - ID of the highlight to link.
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error linking highlight to card')
     linkHighlightToCard(markId: string): void {
-        try {
-            const mark = this.state.marks.find((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
-            if (!mark) return;
+        const mark = this.state.marks.find((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
+        if (!mark) return;
 
-            const cleanUrl = window.location.href.split('?')[0].split('#')[0];
-            const prefix = mark.category ? `**${mark.category}:** ` : '';
-            const appendText = `\n\n> ${prefix}${mark.text}` + (mark.note ? `\n> *Note: ${mark.note}*` : '');
+        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
+        const prefix = mark.category ? `**${mark.category}:** ` : '';
+        const appendText = `\n\n> ${prefix}${mark.text}` + (mark.note ? `\n> *Note: ${mark.note}*` : '');
 
-            chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: { fsrsCards?: Card[]; approachDrafts?: Record<string, ApproachDraft | string> }) => {
-                try {
-                    const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                    if (lastError) {
-                        const errorMessage = lastError.message || String(lastError);
-                        Logger.error('Highlighter', `Storage error fetching cards for linking: ${errorMessage}`, { error: lastError });
+        chrome.storage.local.get(['fsrsCards', 'approachDrafts'], withErrorHandling((result: { fsrsCards?: Card[]; approachDrafts?: Record<string, ApproachDraft | string> }) => {
+            const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+            if (lastError) {
+                const errorMessage = lastError.message || String(lastError);
+                Logger.error('Highlighter', `Storage error fetching cards for linking: ${errorMessage}`, { error: lastError });
+                return;
+            }
+
+            const cards: Card[] = result.fsrsCards || [];
+            const drafts = result.approachDrafts || {};
+            const win = window as unknown as {
+                AlgoRecall?: {
+                    orchestrator?: { tracker?: { activeCardId?: string | null; refreshWidgetState?: () => void } };
+                    trackerInstance?: { activeCardId?: string | null; refreshWidgetState?: () => void };
+                    Notifier?: { showPageNotification: (title: string, message: string, type?: string) => void };
+                };
+            };
+
+            const tracker = win.AlgoRecall?.orchestrator?.tracker || win.AlgoRecall?.trackerInstance;
+            const trackerActiveId = tracker?.activeCardId;
+            const domActiveId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
+            const activeId = trackerActiveId || domActiveId;
+
+            const pageCards = cards.filter((c: Card) => c.problemUrl === cleanUrl);
+            let targetCard: Card | null = null;
+            let isNewDraft = false;
+
+            if (activeId === '__new__') {
+                isNewDraft = true;
+            } else if (activeId) {
+                targetCard = cards.find((c: Card) => c.id === activeId) || null;
+            }
+
+            if (!isNewDraft && !targetCard && pageCards.length > 0) {
+                targetCard = pageCards[0];
+            }
+
+            const approachArea = document.getElementById('fsrs-approach') as HTMLTextAreaElement | null;
+
+            if (targetCard) {
+                const approach = targetCard.approach || '';
+                targetCard.approach = (approach + appendText).trim();
+
+                if (this.state.cards) {
+                    const stateCard = (this.state.cards as Card[]).find((c: Card) => c.id === targetCard!.id);
+                    if (stateCard) stateCard.approach = targetCard.approach;
+                }
+
+                chrome.storage.local.set({ fsrsCards: cards }, withErrorHandling(() => {
+                    const setLastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                    if (setLastError) {
+                        const errorMessage = setLastError.message || String(setLastError);
+                        Logger.error('Highlighter', `Storage set error saving targetCard approach: ${errorMessage}`, { error: setLastError });
                         return;
                     }
 
-                    const cards: Card[] = result.fsrsCards || [];
-                    const drafts = result.approachDrafts || {};
-                    const win = window as unknown as {
-                        AlgoRecall?: {
-                            orchestrator?: { tracker?: { activeCardId?: string | null; refreshWidgetState?: () => void } };
-                            trackerInstance?: { activeCardId?: string | null; refreshWidgetState?: () => void };
-                            Notifier?: { showPageNotification: (title: string, message: string, type?: string) => void };
-                        };
-                    };
-
-                    const tracker = win.AlgoRecall?.orchestrator?.tracker || win.AlgoRecall?.trackerInstance;
-                    const trackerActiveId = tracker?.activeCardId;
-                    const domActiveId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
-                    const activeId = trackerActiveId || domActiveId;
-
-                    const pageCards = cards.filter((c: Card) => c.problemUrl === cleanUrl);
-                    let targetCard: Card | null = null;
-                    let isNewDraft = false;
-
-                    if (activeId === '__new__') {
-                        isNewDraft = true;
-                    } else if (activeId) {
-                        targetCard = cards.find((c: Card) => c.id === activeId) || null;
-                    }
-
-                    if (!isNewDraft && !targetCard && pageCards.length > 0) {
-                        targetCard = pageCards[0];
-                    }
-
-                    const approachArea = document.getElementById('fsrs-approach') as HTMLTextAreaElement | null;
-
-                    if (targetCard) {
-                        const approach = targetCard.approach || '';
-                        targetCard.approach = (approach + appendText).trim();
-
-                        if (this.state.cards) {
-                            const stateCard = (this.state.cards as Card[]).find((c: Card) => c.id === targetCard!.id);
-                            if (stateCard) stateCard.approach = targetCard.approach;
+                    if (approachArea) {
+                        const currentCardIdInUi = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
+                        if (!currentCardIdInUi || currentCardIdInUi === targetCard!.id) {
+                            approachArea.value = targetCard!.approach || '';
                         }
-
-                        chrome.storage.local.set({ fsrsCards: cards }, () => {
-                            try {
-                                const setLastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                                if (setLastError) {
-                                    const errorMessage = setLastError.message || String(setLastError);
-                                    Logger.error('Highlighter', `Storage set error saving targetCard approach: ${errorMessage}`, { error: setLastError });
-                                    return;
-                                }
-
-                                if (approachArea) {
-                                    const currentCardIdInUi = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
-                                    if (!currentCardIdInUi || currentCardIdInUi === targetCard!.id) {
-                                        approachArea.value = targetCard!.approach || '';
-                                    }
-                                }
-
-                                if (win.AlgoRecall?.Notifier) {
-                                    win.AlgoRecall.Notifier.showPageNotification('Highlight Linked', 'Highlight appended to active problem card approach.', 'test');
-                                }
-                            } catch (setCbErr) {
-                                const errorMessage = setCbErr instanceof Error ? setCbErr.message : String(setCbErr);
-                                Logger.error('Highlighter', `Error in storage set callback for card link: ${errorMessage}`, { setCbErr });
-                            }
-                        });
-                    } else {
-                        const rawDraft = drafts[cleanUrl];
-                        let draft: ApproachDraft;
-                        if (!rawDraft) {
-                            draft = { approach: '', tags: '' };
-                        } else if (typeof rawDraft === 'string') {
-                            draft = { approach: rawDraft, tags: '' };
-                        } else {
-                            draft = { ...rawDraft };
-                        }
-
-                        draft.approach = ((draft.approach || '') + appendText).trim();
-                        drafts[cleanUrl] = draft;
-
-                        chrome.storage.local.set({ approachDrafts: drafts }, () => {
-                            try {
-                                const setLastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                                if (setLastError) {
-                                    const errorMessage = setLastError.message || String(setLastError);
-                                    Logger.error('Highlighter', `Storage set error saving approach draft: ${errorMessage}`, { error: setLastError });
-                                    return;
-                                }
-
-                                if (approachArea) {
-                                    const currentCardIdInUi = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
-                                    if (!currentCardIdInUi || currentCardIdInUi === '__new__') {
-                                        approachArea.value = draft.approach || '';
-                                    }
-                                }
-
-                                if (win.AlgoRecall?.Notifier) {
-                                    win.AlgoRecall.Notifier.showPageNotification('Highlight Linked', 'Highlight appended to active unsaved card draft.', 'test');
-                                }
-                            } catch (draftCbErr) {
-                                const errorMessage = draftCbErr instanceof Error ? draftCbErr.message : String(draftCbErr);
-                                Logger.error('Highlighter', `Error in storage set callback for draft link: ${errorMessage}`, { draftCbErr });
-                            }
-                        });
                     }
-                } catch (getInnerErr) {
-                    const errorMessage = getInnerErr instanceof Error ? getInnerErr.message : String(getInnerErr);
-                    Logger.error('Highlighter', `Error inside storage get callback for linkHighlightToCard: ${errorMessage}`, { getInnerErr });
+
+                    if (win.AlgoRecall?.Notifier) {
+                        win.AlgoRecall.Notifier.showPageNotification('Highlight Linked', 'Highlight appended to active problem card approach.', 'test');
+                    }
+                }, 'Highlighter', 'Error in storage set callback for card link'));
+            } else {
+                const rawDraft = drafts[cleanUrl];
+                let draft: ApproachDraft;
+                if (!rawDraft) {
+                    draft = { approach: '', tags: '' };
+                } else if (typeof rawDraft === 'string') {
+                    draft = { approach: rawDraft, tags: '' };
+                } else {
+                    draft = { ...rawDraft };
                 }
-            });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error linking highlight ${markId} to card: ${errorMessage}`, { markId, err });
-        }
+
+                draft.approach = ((draft.approach || '') + appendText).trim();
+                drafts[cleanUrl] = draft;
+
+                chrome.storage.local.set({ approachDrafts: drafts }, withErrorHandling(() => {
+                    const setLastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                    if (setLastError) {
+                        const errorMessage = setLastError.message || String(setLastError);
+                        Logger.error('Highlighter', `Storage set error saving approach draft: ${errorMessage}`, { error: setLastError });
+                        return;
+                    }
+
+                    if (approachArea) {
+                        const currentCardIdInUi = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
+                        if (!currentCardIdInUi || currentCardIdInUi === '__new__') {
+                            approachArea.value = draft.approach || '';
+                        }
+                    }
+
+                    if (win.AlgoRecall?.Notifier) {
+                        win.AlgoRecall.Notifier.showPageNotification('Highlight Linked', 'Highlight appended to active unsaved card draft.', 'test');
+                    }
+                }, 'Highlighter', 'Error in storage set callback for draft link'));
+            }
+        }, 'Highlighter', 'Error inside storage get callback for linkHighlightToCard'));
     }
 
     /**
@@ -1006,19 +896,15 @@ export class Highlighter {
      * @param {string} newColor - Hex color code.
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error updating recent colors')
     updateRecentColors(newColor: string): void {
-        try {
-            if (!this.state.extensionSettings || !this.state.extensionSettings.palettes) {
-                this.state.extensionSettings = JSON.parse(JSON.stringify(DEFAULT_EXTENSION_SETTINGS));
-            }
-            this.state.extensionSettings.defaultHighlightColor = newColor;
-            const recent = this.state.extensionSettings.recentColors || [];
-            this.state.extensionSettings.recentColors = [newColor, ...recent.filter((c: string) => c !== newColor)].slice(0, 4);
-            chrome.storage.local.set({ extensionSettings: this.state.extensionSettings });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error updating recent colors with ${newColor}: ${errorMessage}`, { newColor, err });
+        if (!this.state.extensionSettings || !this.state.extensionSettings.palettes) {
+            this.state.extensionSettings = JSON.parse(JSON.stringify(DEFAULT_EXTENSION_SETTINGS));
         }
+        this.state.extensionSettings.defaultHighlightColor = newColor;
+        const recent = this.state.extensionSettings.recentColors || [];
+        this.state.extensionSettings.recentColors = [newColor, ...recent.filter((c: string) => c !== newColor)].slice(0, 4);
+        chrome.storage.local.set({ extensionSettings: this.state.extensionSettings });
     }
 
     /**
@@ -1028,13 +914,9 @@ export class Highlighter {
      * @param {string} [type='highlight'] - Annotation style type.
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error creating highlight')
     createHighlight(color: string, type: string = 'highlight'): void {
-        try {
-            this.saveHighlight(color, type);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error creating highlight: ${errorMessage}`, { color, type, err });
-        }
+        this.saveHighlight(color, type);
     }
 
     /**
@@ -1045,86 +927,81 @@ export class Highlighter {
      * @param {string} [type='highlight'] - Visual style ('highlight' or 'underline').
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Failed saving highlight')
     saveHighlight(color: string, type: string = 'highlight'): void {
-        try {
-            const selection = window.getSelection();
-            let range: Range | null = null;
-            let text = '';
+        const selection = window.getSelection();
+        let range: Range | null = null;
+        let text = '';
 
-            if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
-                range = selection.getRangeAt(0);
-                text = selection.toString();
-            } else if (this.state.savedRange) {
-                range = this.state.savedRange;
-                text = range.toString();
-            }
-
-            if (!range || !text || text.trim() === '') return;
-
-            const cleanUrl = window.location.href.split('?')[0].split('#')[0];
-            const timestamp = Date.now();
-
-            const startMeta = this.utils.getDOMMeta ? this.utils.getDOMMeta(range.startContainer, range.startOffset) : undefined;
-            const endMeta = this.utils.getDOMMeta ? this.utils.getDOMMeta(range.endContainer, range.endOffset) : undefined;
-
-            const newMark: HighlightMark = {
-                id: `mark_${timestamp}_${Math.random().toString(36).substr(2, 5)}`,
-                createdAt: timestamp,
-                url: cleanUrl,
-                text: text,
-                color: color,
-                type: type,
-                note: '',
-                highlightSource: { startMeta, endMeta }
-            };
-
-            if (!this.state.marks) this.state.marks = [];
-            this.state.marks.push(newMark);
-            if (this.state.isColorPickerOpen) {
-                this.state.activeCreationMarkId = newMark.id;
-            }
-
-            if (!this.state.bookmarks) this.state.bookmarks = [];
-            if (!this.state.bookmarks.find((b: BookmarkItem) => b.url === cleanUrl)) {
-                const problemTitle = this.utils.getExtractedProblemTitle ? this.utils.getExtractedProblemTitle() : document.title;
-                const favIconUrl = (this.utils && typeof this.utils.getFaviconUrl === 'function')
-                    ? this.utils.getFaviconUrl()
-                    : (document.querySelector('link[rel~="icon"], link[rel="shortcut icon"]') as HTMLLinkElement | null)?.href || (window.location.origin ? `${window.location.origin}/favicon.ico` : '');
-                this.state.bookmarks.push({
-                    url: cleanUrl,
-                    title: problemTitle,
-                    meta: favIconUrl ? { favIconUrl } : undefined
-                });
-            }
-
-            if (!this.state.pagecontents) this.state.pagecontents = [];
-            this.state.pagecontents = this.state.pagecontents.filter((p: { url: string }) => p.url !== cleanUrl);
-            this.state.pagecontents.push({
-                url: cleanUrl,
-                description: document.body.innerText ? document.body.innerText.substring(0, 100) : '',
-                length: document.body.innerText ? document.body.innerText.length : 0
-            });
-
-            chrome.storage.local.set({
-                marks: this.state.marks,
-                bookmarks: this.state.bookmarks,
-                pagecontents: this.state.pagecontents
-            });
-
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
-            if (tooltip && !isPickerOpen) tooltip.style.display = 'none';
-            if (selection && !isPickerOpen) {
-                selection.removeAllRanges();
-            }
-
-            this.applyHighlightsForCurrentPage();
-            Logger.info('Highlighter', `Created new highlight with color: ${color}`);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Failed saving highlight: ${errorMessage}`, { color, type, err });
-            // Comment: Non-fatal highlight saving catch, host page interaction continues
+        if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+            range = selection.getRangeAt(0);
+            text = selection.toString();
+        } else if (this.state.savedRange) {
+            range = this.state.savedRange;
+            text = range.toString();
         }
+
+        if (!range || !text || text.trim() === '') return;
+
+        const cleanUrl = window.location.href.split('?')[0].split('#')[0];
+        const timestamp = Date.now();
+
+        const startMeta = this.utils.getDOMMeta ? this.utils.getDOMMeta(range.startContainer, range.startOffset) : undefined;
+        const endMeta = this.utils.getDOMMeta ? this.utils.getDOMMeta(range.endContainer, range.endOffset) : undefined;
+
+        const newMark: HighlightMark = {
+            id: `mark_${timestamp}_${Math.random().toString(36).substr(2, 5)}`,
+            createdAt: timestamp,
+            url: cleanUrl,
+            text: text,
+            color: color,
+            type: type,
+            note: '',
+            highlightSource: { startMeta, endMeta }
+        };
+
+        if (!this.state.marks) this.state.marks = [];
+        this.state.marks.push(newMark);
+        if (this.state.isColorPickerOpen) {
+            this.state.activeCreationMarkId = newMark.id;
+        }
+
+        if (!this.state.bookmarks) this.state.bookmarks = [];
+        if (!this.state.bookmarks.find((b: BookmarkItem) => b.url === cleanUrl)) {
+            const problemTitle = this.utils.getExtractedProblemTitle ? this.utils.getExtractedProblemTitle() : document.title;
+            const favIconUrl = (this.utils && typeof this.utils.getFaviconUrl === 'function')
+                ? this.utils.getFaviconUrl()
+                : (document.querySelector('link[rel~="icon"], link[rel="shortcut icon"]') as HTMLLinkElement | null)?.href || (window.location.origin ? `${window.location.origin}/favicon.ico` : '');
+            this.state.bookmarks.push({
+                url: cleanUrl,
+                title: problemTitle,
+                meta: favIconUrl ? { favIconUrl } : undefined
+            });
+        }
+
+        if (!this.state.pagecontents) this.state.pagecontents = [];
+        this.state.pagecontents = this.state.pagecontents.filter((p: { url: string }) => p.url !== cleanUrl);
+        this.state.pagecontents.push({
+            url: cleanUrl,
+            description: document.body.innerText ? document.body.innerText.substring(0, 100) : '',
+            length: document.body.innerText ? document.body.innerText.length : 0
+        });
+
+        chrome.storage.local.set({
+            marks: this.state.marks,
+            bookmarks: this.state.bookmarks,
+            pagecontents: this.state.pagecontents
+        });
+
+        const tooltip = document.getElementById('algo-highlight-tooltip');
+        const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+        if (tooltip && !isPickerOpen) tooltip.style.display = 'none';
+        if (selection && !isPickerOpen) {
+            selection.removeAllRanges();
+        }
+
+        this.applyHighlightsForCurrentPage();
+        Logger.info('Highlighter', `Created new highlight with color: ${color}`);
     }
 
     /**
@@ -1134,20 +1011,16 @@ export class Highlighter {
      * @param {string} newColor - New hex color code.
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error updating highlight color')
     updateHighlightColor(markId: string, newColor: string): void {
-        try {
-            const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
-            if (markIndex > -1) {
-                this.state.marks[markIndex].color = newColor;
-                chrome.storage.local.set({ marks: this.state.marks });
-                this.applyHighlightsForCurrentPage();
-                if (!this.state.isColorPickerOpen) {
-                    this.renderTooltipColors(markId, newColor);
-                }
+        const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
+        if (markIndex > -1) {
+            this.state.marks[markIndex].color = newColor;
+            chrome.storage.local.set({ marks: this.state.marks });
+            this.applyHighlightsForCurrentPage();
+            if (!this.state.isColorPickerOpen) {
+                this.renderTooltipColors(markId, newColor);
             }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error updating highlight color for ${markId}: ${errorMessage}`, { markId, newColor, err });
         }
     }
 
@@ -1157,25 +1030,20 @@ export class Highlighter {
      * @param {string} markId - ID of the mark to delete.
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error deleting highlight')
     deleteHighlight(markId: string): void {
-        try {
-            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime || !chrome.runtime.id) {
-                Logger.warn('Highlighter', 'Extension context invalidated. Cannot delete highlight mark.');
-                return;
-            }
-            Logger.debug('Highlighter', `Deleting highlight ID: ${markId}`);
-            this.state.marks = this.state.marks.filter((m: HighlightMark) => (m.id || m.createdAt.toString()) !== markId);
-            chrome.storage.local.set({ marks: this.state.marks });
-
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (tooltip) tooltip.style.display = 'none';
-            this.state.hoveredMarkId = null;
-            this.applyHighlightsForCurrentPage();
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error deleting highlight ${markId}: ${errorMessage}`, { markId, err });
-            // Comment: Catch highlight deletion error gracefully
+        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime || !chrome.runtime.id) {
+            Logger.warn('Highlighter', 'Extension context invalidated. Cannot delete highlight mark.');
+            return;
         }
+        Logger.debug('Highlighter', `Deleting highlight ID: ${markId}`);
+        this.state.marks = this.state.marks.filter((m: HighlightMark) => (m.id || m.createdAt.toString()) !== markId);
+        chrome.storage.local.set({ marks: this.state.marks });
+
+        const tooltip = document.getElementById('algo-highlight-tooltip');
+        if (tooltip) tooltip.style.display = 'none';
+        this.state.hoveredMarkId = null;
+        this.applyHighlightsForCurrentPage();
     }
 
     /**
@@ -1185,20 +1053,16 @@ export class Highlighter {
      * @param {string} noteText - Note content string.
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error saving note for mark')
     saveMarkNote(markId: string, noteText: string): void {
-        try {
-            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime || !chrome.runtime.id) {
-                Logger.warn('Highlighter', 'Extension context invalidated. Cannot save mark note.');
-                return;
-            }
-            const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
-            if (markIndex > -1) {
-                this.state.marks[markIndex].note = noteText.trim();
-                chrome.storage.local.set({ marks: this.state.marks });
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error saving note for mark ${markId}: ${errorMessage}`, { markId, err });
+        if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local || !chrome.runtime || !chrome.runtime.id) {
+            Logger.warn('Highlighter', 'Extension context invalidated. Cannot save mark note.');
+            return;
+        }
+        const markIndex = this.state.marks.findIndex((m: HighlightMark) => (m.id || m.createdAt.toString()) === markId);
+        if (markIndex > -1) {
+            this.state.marks[markIndex].note = noteText.trim();
+            chrome.storage.local.set({ marks: this.state.marks });
         }
     }
 
@@ -1208,6 +1072,7 @@ export class Highlighter {
      * 
      * @returns {void}
      */
+    @CatchAndLog('Highlighter', 'Error applying highlights for current page')
     applyHighlightsForCurrentPage(): void {
         try {
             if (typeof CSS === 'undefined' || !('highlights' in CSS)) {
@@ -1227,37 +1092,26 @@ export class Highlighter {
             const highlightsByColor: Record<string, Range[]> = {};
             this.state.activeMarkRanges = [];
 
-            pageMarks.forEach((mark: HighlightMark) => {
-                try {
-                    const range = this.utils.restoreRangeFromMeta ? this.utils.restoreRangeFromMeta(mark.highlightSource, mark.text) : null;
-                    if (range) {
-                        const targetId = mark.id || mark.createdAt.toString();
-                        this.state.activeMarkRanges.push({ markId: targetId, range: range, color: mark.color });
+            pageMarks.forEach(withErrorHandling((mark: HighlightMark) => {
+                const range = this.utils.restoreRangeFromMeta ? this.utils.restoreRangeFromMeta(mark.highlightSource, mark.text) : null;
+                if (range) {
+                    const targetId = mark.id || mark.createdAt.toString();
+                    this.state.activeMarkRanges.push({ markId: targetId, range: range, color: mark.color });
 
-                        const type = mark.type || 'highlight';
-                        const colorName = this.utils.ensureHighlightStyle ? this.utils.ensureHighlightStyle(mark.color, type) : mark.color;
+                    const type = mark.type || 'highlight';
+                    const colorName = this.utils.ensureHighlightStyle ? this.utils.ensureHighlightStyle(mark.color, type) : mark.color;
 
-                        if (!highlightsByColor[colorName]) highlightsByColor[colorName] = [];
-                        highlightsByColor[colorName].push(range);
-                    }
-                } catch (markErr) {
-                    const errorMessage = markErr instanceof Error ? markErr.message : String(markErr);
-                    Logger.error('Highlighter', `Error restoring range for mark: ${errorMessage}`, { mark, markErr });
+                    if (!highlightsByColor[colorName]) highlightsByColor[colorName] = [];
+                    highlightsByColor[colorName].push(range);
                 }
-            });
+            }, 'Highlighter', 'Error restoring range for mark'));
 
             for (const [colorName, ranges] of Object.entries(highlightsByColor)) {
-                try {
+                withErrorHandling(() => {
                     const WindowHighlight = (window as unknown as { Highlight: new (...ranges: Range[]) => unknown }).Highlight;
                     (CSS as unknown as { highlights: { set(name: string, highlight: unknown): void } }).highlights.set(colorName, new WindowHighlight(...ranges));
-                } catch (cssErr) {
-                    const errorMessage = cssErr instanceof Error ? cssErr.message : String(cssErr);
-                    Logger.error('Highlighter', `Error setting CSS highlight for ${colorName}: ${errorMessage}`, { colorName, cssErr });
-                }
+                }, 'Highlighter', `Error setting CSS highlight for ${colorName}`)();
             }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error applying highlights for current page: ${errorMessage}`, { err });
         } finally {
             try {
                 Logger.timeEnd('Highlighter', 'applyHighlightsForCurrentPage');
@@ -1268,11 +1122,8 @@ export class Highlighter {
     }
 }
 
-try {
+withErrorHandling(() => {
     const win = window as unknown as { AlgoRecall: { Highlighter?: typeof Highlighter } };
     win.AlgoRecall = win.AlgoRecall || {};
     win.AlgoRecall.Highlighter = Highlighter;
-} catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('Highlighter', `Error attaching Highlighter to window.AlgoRecall: ${errorMessage}`, { err });
-}
+}, 'Highlighter', 'Error attaching Highlighter to window.AlgoRecall')();

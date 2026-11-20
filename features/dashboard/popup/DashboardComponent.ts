@@ -13,6 +13,7 @@
 
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
+import { CatchAndLog } from '../../../decorators';
 
 /**
  * Contract for popup dashboard navigation and panel lifecycle management.
@@ -58,13 +59,10 @@ export abstract class DashboardComponent {
      * Delegates toast feedback notifications to parent coordinator.
      * @param message - User-facing notification message string.
      */
+    @CatchAndLog('DashboardComponent', 'Error executing showStatus')
     showStatus(message: string): void {
-        try {
-            if (this.coordinator && typeof this.coordinator.showStatus === 'function') {
-                this.coordinator.showStatus(message);
-            }
-        } catch (err) {
-            UIUtils.catchError('DashboardComponent', 'Error executing showStatus', err, { message });
+        if (this.coordinator && typeof this.coordinator.showStatus === 'function') {
+            this.coordinator.showStatus(message);
         }
     }
 }

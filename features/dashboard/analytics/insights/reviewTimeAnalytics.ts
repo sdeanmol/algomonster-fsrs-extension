@@ -13,6 +13,7 @@
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, ReviewTimeInsights } from '../utils/dataUtils';
 import { TIME_OF_DAY_BUCKET_NAMES } from '../../../common/constants';
+import { CatchAndLog, withErrorHandling } from '../../../../decorators';
 
 /**
  * Data item representing review volume and accuracy within a specific time-of-day bucket.
@@ -46,39 +47,36 @@ export class ReviewTimeAnalytics {
      * Renders the time-of-day performance line chart and best study time highlight banner into container.
      * @param containerId - ID of DOM element to render into.
      */
+    @CatchAndLog('ReviewTimeAnalytics', 'Error rendering ReviewTimeAnalytics')
     render(containerId: string): void {
-        try {
-            const container = document.getElementById(containerId);
-            if (!container) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-            const timeInsights = this.dataUtils ? this.dataUtils.getReviewTimeInsights() : { hasTimeData: false, data: [] };
-            const { hasTimeData, data } = timeInsights;
+        const timeInsights = this.dataUtils ? this.dataUtils.getReviewTimeInsights() : { hasTimeData: false, data: [] };
+        const { hasTimeData, data } = timeInsights;
 
-            if (!hasTimeData || !data || data.every(d => d.reviews === 0)) {
-                container.innerHTML = `
-                    <div class="retention-empty">
-                        Not enough timestamp data available. 
-                        Review more cards to see insights on your best study times!
-                    </div>
-                `;
-                return;
-            }
-
-            const { bestBuckets, bestRetention } = this.findBestBuckets(data);
-            const highlightText = this.buildHighlightText(bestBuckets, bestRetention);
-            
-            let html = `
-                <div class="insights-highlight">
-                    <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2v10l4.5 4.5"></path><circle cx="12" cy="12" r="10"></circle></svg>
-                    <span>${highlightText}</span>
+        if (!hasTimeData || !data || data.every(d => d.reviews === 0)) {
+            container.innerHTML = `
+                <div class="retention-empty">
+                    Not enough timestamp data available. 
+                    Review more cards to see insights on your best study times!
                 </div>
             `;
-            html += this.buildChartSVG(data);
-
-            container.innerHTML = html;
-        } catch (err) {
-            UIUtils.catchError('ReviewTimeAnalytics', 'Error rendering ReviewTimeAnalytics', err, { containerId });
+            return;
         }
+
+        const { bestBuckets, bestRetention } = this.findBestBuckets(data);
+        const highlightText = this.buildHighlightText(bestBuckets, bestRetention);
+        
+        let html = `
+            <div class="insights-highlight">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2v10l4.5 4.5"></path><circle cx="12" cy="12" r="10"></circle></svg>
+                <span>${highlightText}</span>
+            </div>
+        `;
+        html += this.buildChartSVG(data);
+
+        container.innerHTML = html;
     }
 
     /**
@@ -88,20 +86,16 @@ export class ReviewTimeAnalytics {
         let bestRetention = -1;
         let bestBuckets: ReviewTimeBucketItem[] = [];
         
-        data.forEach(d => {
-            try {
-                if (d.reviews > 5) {
-                    if (d.retention > bestRetention) {
-                        bestRetention = d.retention;
-                        bestBuckets = [d];
-                    } else if (d.retention === bestRetention) {
-                        bestBuckets.push(d);
-                    }
+        data.forEach(withErrorHandling((d) => {
+            if (d.reviews > 5) {
+                if (d.retention > bestRetention) {
+                    bestRetention = d.retention;
+                    bestBuckets = [d];
+                } else if (d.retention === bestRetention) {
+                    bestBuckets.push(d);
                 }
-            } catch (bErr) {
-                UIUtils.catchError('ReviewTimeAnalytics', 'Error processing bucket data', bErr, { d });
             }
-        });
+        }, 'ReviewTimeAnalytics', 'Error processing bucket data'));
 
         return { bestBuckets, bestRetention };
     }

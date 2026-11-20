@@ -12,6 +12,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { CatchAndLog, CatchAndReturn, withErrorHandling } from '../../../decorators';
 
 /**
  * Window namespace declarations for highlights management.
@@ -35,12 +36,9 @@ declare global {
     }
 }
 
-try {
+withErrorHandling(() => {
     window.AlgoRecall = window.AlgoRecall || {};
-} catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('HighlightsHelpers', `Error initializing window.AlgoRecall global object: ${errorMessage}`, { err });
-}
+}, 'HighlightsHelpers', 'Error initializing window.AlgoRecall global object')();
 
 /**
  * @class HighlightsHelpers
@@ -55,16 +53,13 @@ export class HighlightsHelpers {
      * @param {string} text - Text snippet to copy.
      * @returns {Promise<void>}
      */
+    @CatchAndLog('HighlightsHelpers', {
+        contextMessage: 'Clipboard Copy Error',
+        fallback: () => { HighlightsHelpers.showToast("Failed to copy text."); }
+    })
     static async copyToClipboard(text: string): Promise<void> {
-        try {
-            await navigator.clipboard.writeText(text);
-            this.showToast("Snippet copied to clipboard!");
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HighlightsHelpers', `Clipboard Copy Error: ${errorMessage}`, { text, err });
-            // Comment: Non-fatal clipboard copy failure toast feedback
-            this.showToast("Failed to copy text.");
-        }
+        await navigator.clipboard.writeText(text);
+        this.showToast("Snippet copied to clipboard!");
     }
 
     /**
@@ -73,18 +68,16 @@ export class HighlightsHelpers {
      * @param {string} text - Raw string to escape.
      * @returns {string} Sanitized HTML string.
      */
+    @CatchAndReturn(
+        (err: unknown, text: string) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+        'HighlightsHelpers',
+        'Error escaping HTML'
+    )
     static escapeHtml(text: string): string {
-        try {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HighlightsHelpers', `Error escaping HTML: ${errorMessage}`, { text, err });
-            // Comment: Basic string replacement fallback on DOM element creation failure
-            return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        }
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     /**
@@ -94,20 +87,18 @@ export class HighlightsHelpers {
      * @param {string} query - Substring term to highlight.
      * @returns {string} HTML string containing mark-wrapped search matches.
      */
+    @CatchAndReturn(
+        (err: unknown, text: string) => HighlightsHelpers.escapeHtml(text),
+        'HighlightsHelpers',
+        'Error highlighting search match'
+    )
     static highlightSearchMatch(text: string, query: string): string {
-        try {
-            const escapedText = this.escapeHtml(text);
-            if (!query) return escapedText;
-            
-            const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-            const regex = new RegExp(`(${escapedQuery})`, 'gi');
-            return escapedText.replace(regex, '<mark>$1</mark>');
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HighlightsHelpers', `Error highlighting search match: ${errorMessage}`, { query, err });
-            // Comment: Safe fallback returning escaped text on regex match error
-            return this.escapeHtml(text);
-        }
+        const escapedText = this.escapeHtml(text);
+        if (!query) return escapedText;
+        
+        const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regex = new RegExp(`(${escapedQuery})`, 'gi');
+        return escapedText.replace(regex, '<mark>$1</mark>');
     }
 
     /**
@@ -116,16 +107,14 @@ export class HighlightsHelpers {
      * @param {string} url - Raw URL string.
      * @returns {string} Cleaned hostname + path string.
      */
+    @CatchAndReturn(
+        (err: unknown, url: string) => url,
+        'HighlightsHelpers',
+        'Invalid URL for getCleanDisplayUrl'
+    )
     static getCleanDisplayUrl(url: string): string {
-        try {
-            const u = new URL(url);
-            return u.hostname + u.pathname;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HighlightsHelpers', `Invalid URL for getCleanDisplayUrl '${url}': ${errorMessage}`, { url, err });
-            // Comment: Return raw URL string fallback when URL parsing fails
-            return url;
-        }
+        const u = new URL(url);
+        return u.hostname + u.pathname;
     }
 
     /**
@@ -134,28 +123,19 @@ export class HighlightsHelpers {
      * @param {string} message - Feedback message string.
      * @returns {void}
      */
+    @CatchAndLog('HighlightsHelpers', 'Error showing toast message')
     static showToast(message: string): void {
-        try {
-            const toast = document.getElementById('status-toast');
-            if (!toast) return;
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => {
-                try {
-                    toast.classList.remove('show');
-                } catch (animErr) {
-                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
-                    Logger.error('HighlightsHelpers', `Error removing toast show class: ${errorMessage}`, { animErr });
-                }
-            }, 2000);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HighlightsHelpers', `Error showing toast message '${message}': ${errorMessage}`, { message, err });
-        }
+        const toast = document.getElementById('status-toast');
+        if (!toast) return;
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(withErrorHandling(() => {
+            toast.classList.remove('show');
+        }, 'HighlightsHelpers', 'Error removing toast show class'), 2000);
     }
 }
 
-try {
+withErrorHandling(() => {
     if (typeof window !== 'undefined' && window.AlgoRecall) {
         window.AlgoRecall.HighlightsHelpers = HighlightsHelpers;
         window.copyToClipboard = (text: string) => HighlightsHelpers.copyToClipboard(text);
@@ -164,7 +144,4 @@ try {
         window.getCleanDisplayUrl = (url: string) => HighlightsHelpers.getCleanDisplayUrl(url);
         window.showToast = (message: string) => HighlightsHelpers.showToast(message);
     }
-} catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('HighlightsHelpers', `Error attaching global window helper functions: ${errorMessage}`, { err });
-}
+}, 'HighlightsHelpers', 'Error attaching global window helper functions')();

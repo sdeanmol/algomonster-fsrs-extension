@@ -8,6 +8,7 @@
 
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
+import { CatchAndLog, withErrorHandling } from '../../../decorators';
 import { StorageData, NotificationSettings, ExtensionSettings, Card } from '../../../types/domain';
 import { DEFAULT_NOTIFICATION_SETTINGS, DEFAULT_EXTENSION_SETTINGS } from '../constants';
 import { BROWSER_CONFIG } from '../browserConfig';
@@ -126,20 +127,17 @@ export class SettingsController {
     /**
      * Initializes the settings dashboard, registers event listeners, and loads current settings.
      */
+    @CatchAndLog('SettingsController', 'Error initializing settings hub')
     async init(): Promise<void> {
-        try {
-            this.bindTabNavigation();
-            this.bindThemeToggle();
-            this.bindNotificationControls();
-            this.bindHighlighterControls();
-            this.bindDataControls();
-            this.bindDeveloperControls();
-            this.setupRatingLink();
-            await this.loadAllSettings();
-            this.handleUrlHash();
-        } catch (err) {
-            UIUtils.catchError('SettingsController', 'Error initializing settings hub', err);
-        }
+        this.bindTabNavigation();
+        this.bindThemeToggle();
+        this.bindNotificationControls();
+        this.bindHighlighterControls();
+        this.bindDataControls();
+        this.bindDeveloperControls();
+        this.setupRatingLink();
+        await this.loadAllSettings();
+        this.handleUrlHash();
     }
 
     /**
@@ -197,112 +195,109 @@ export class SettingsController {
     /**
      * Loads stored settings and reflects values in UI controls.
      */
+    @CatchAndLog('SettingsController', 'Error loading settings from storage')
     async loadAllSettings(): Promise<void> {
-        try {
-            const result = (await chrome.storage.local.get([
-                'extensionSettings',
-                'notificationSettings',
-                'weeklySummaryEnabled'
-            ])) as StorageData & {
-                notificationSettings?: NotificationSettings & FullNotificationSettings;
-                weeklySummaryEnabled?: boolean;
-            };
+        const result = (await chrome.storage.local.get([
+            'extensionSettings',
+            'notificationSettings',
+            'weeklySummaryEnabled'
+        ])) as StorageData & {
+            notificationSettings?: NotificationSettings & FullNotificationSettings;
+            weeklySummaryEnabled?: boolean;
+        };
 
-            const extSettings = (result.extensionSettings || {}) as ExtensionSettings;
-            const notifSettings = (result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS }) as NotificationSettings & FullNotificationSettings;
-            const weeklySummaryEnabled = result.weeklySummaryEnabled !== false;
+        const extSettings = (result.extensionSettings || {}) as ExtensionSettings;
+        const notifSettings = (result.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS }) as NotificationSettings & FullNotificationSettings;
+        const weeklySummaryEnabled = result.weeklySummaryEnabled !== false;
 
-            // Populate notification controls
-            if (this.dom.toggleNotifications) {
-                const isEnabled = notifSettings.enabled !== false;
-                this.dom.toggleNotifications.checked = isEnabled;
-                this.dom.toggleNotifications.setAttribute('aria-checked', isEnabled.toString());
-            }
+        // Populate notification controls
+        if (this.dom.toggleNotifications) {
+            const isEnabled = notifSettings.enabled !== false;
+            this.dom.toggleNotifications.checked = isEnabled;
+            this.dom.toggleNotifications.setAttribute('aria-checked', isEnabled.toString());
+        }
 
-            if (this.dom.notificationInterval) {
-                const freq = String(notifSettings.frequency || '60');
-                const standardOptions = ['1', '15', '30', '60', '120', '360', '720', '1440'];
-                if (standardOptions.includes(freq)) {
-                    this.dom.notificationInterval.value = freq;
-                    this.dom.customIntervalContainer?.classList.add('hide-panel');
-                } else {
-                    this.dom.notificationInterval.value = 'custom';
-                    if (this.dom.customIntervalInput) {
-                        this.dom.customIntervalInput.value = notifSettings.customInterval ? String(notifSettings.customInterval) : (freq !== 'custom' ? freq : '60');
-                    }
-                    this.dom.customIntervalContainer?.classList.remove('hide-panel');
+        if (this.dom.notificationInterval) {
+            const freq = String(notifSettings.frequency || '60');
+            const standardOptions = ['1', '15', '30', '60', '120', '360', '720', '1440'];
+            if (standardOptions.includes(freq)) {
+                this.dom.notificationInterval.value = freq;
+                this.dom.customIntervalContainer?.classList.add('hide-panel');
+            } else {
+                this.dom.notificationInterval.value = 'custom';
+                if (this.dom.customIntervalInput) {
+                    this.dom.customIntervalInput.value = notifSettings.customInterval ? String(notifSettings.customInterval) : (freq !== 'custom' ? freq : '60');
                 }
+                this.dom.customIntervalContainer?.classList.remove('hide-panel');
             }
+        }
 
-            if (this.dom.toggleSticky) {
-                const isSticky = notifSettings.requireInteraction !== false && notifSettings.sticky !== false;
-                this.dom.toggleSticky.checked = isSticky;
-                this.dom.toggleSticky.setAttribute('aria-checked', isSticky.toString());
-            }
+        if (this.dom.toggleSticky) {
+            const isSticky = notifSettings.requireInteraction !== false && notifSettings.sticky !== false;
+            this.dom.toggleSticky.checked = isSticky;
+            this.dom.toggleSticky.setAttribute('aria-checked', isSticky.toString());
+        }
 
-            if (this.dom.toggleQuietHours) {
-                const isQuiet = notifSettings.quietHoursEnabled === true;
-                this.dom.toggleQuietHours.checked = isQuiet;
-                this.dom.toggleQuietHours.setAttribute('aria-checked', isQuiet.toString());
-                if (this.dom.quietHoursContainer) {
-                    this.dom.quietHoursContainer.classList.toggle('hide-panel', !isQuiet);
-                }
+        if (this.dom.toggleQuietHours) {
+            const isQuiet = notifSettings.quietHoursEnabled === true;
+            this.dom.toggleQuietHours.checked = isQuiet;
+            this.dom.toggleQuietHours.setAttribute('aria-checked', isQuiet.toString());
+            if (this.dom.quietHoursContainer) {
+                this.dom.quietHoursContainer.classList.toggle('hide-panel', !isQuiet);
             }
+        }
 
-            if (this.dom.quietHoursStart) {
-                this.dom.quietHoursStart.value = notifSettings.quietHoursStart || '23:00';
-            }
+        if (this.dom.quietHoursStart) {
+            this.dom.quietHoursStart.value = notifSettings.quietHoursStart || '23:00';
+        }
 
-            if (this.dom.quietHoursEnd) {
-                this.dom.quietHoursEnd.value = notifSettings.quietHoursEnd || '07:00';
-            }
+        if (this.dom.quietHoursEnd) {
+            this.dom.quietHoursEnd.value = notifSettings.quietHoursEnd || '07:00';
+        }
 
-            if (this.dom.toggleWeeklyDigest) {
-                const isWeekly = weeklySummaryEnabled && notifSettings.weeklyDigest !== false;
-                this.dom.toggleWeeklyDigest.checked = isWeekly;
-                this.dom.toggleWeeklyDigest.setAttribute('aria-checked', isWeekly.toString());
-            }
+        if (this.dom.toggleWeeklyDigest) {
+            const isWeekly = weeklySummaryEnabled && notifSettings.weeklyDigest !== false;
+            this.dom.toggleWeeklyDigest.checked = isWeekly;
+            this.dom.toggleWeeklyDigest.setAttribute('aria-checked', isWeekly.toString());
+        }
 
-            if (this.dom.toggleBadgeDueCount) {
-                const isBadge = notifSettings.badgeEnabled !== false && notifSettings.showDueBadge !== false && notifSettings.badgeDueCount !== false;
-                this.dom.toggleBadgeDueCount.checked = isBadge;
-                this.dom.toggleBadgeDueCount.setAttribute('aria-checked', isBadge.toString());
-            }
+        if (this.dom.toggleBadgeDueCount) {
+            const isBadge = notifSettings.badgeEnabled !== false && notifSettings.showDueBadge !== false && notifSettings.badgeDueCount !== false;
+            this.dom.toggleBadgeDueCount.checked = isBadge;
+            this.dom.toggleBadgeDueCount.setAttribute('aria-checked', isBadge.toString());
+        }
 
-            // Populate highlighter & launcher controls
-            if (this.dom.toggleMarker) {
-                const isMarker = extSettings.showMarkerPopup !== false;
-                this.dom.toggleMarker.checked = isMarker;
-                this.dom.toggleMarker.setAttribute('aria-checked', isMarker.toString());
-            }
+        // Populate highlighter & launcher controls
+        if (this.dom.toggleMarker) {
+            const isMarker = extSettings.showMarkerPopup !== false;
+            this.dom.toggleMarker.checked = isMarker;
+            this.dom.toggleMarker.setAttribute('aria-checked', isMarker.toString());
+        }
 
-            if (this.dom.toggleLauncher) {
-                const isLauncher = extSettings.showLauncher !== false;
-                this.dom.toggleLauncher.checked = isLauncher;
-                this.dom.toggleLauncher.setAttribute('aria-checked', isLauncher.toString());
-            }
+        if (this.dom.toggleLauncher) {
+            const isLauncher = extSettings.showLauncher !== false;
+            this.dom.toggleLauncher.checked = isLauncher;
+            this.dom.toggleLauncher.setAttribute('aria-checked', isLauncher.toString());
+        }
 
-            // Populate appearance & developer controls
-            if (this.dom.toggleShowCharts) {
-                const isCharts = extSettings.showCharts !== false;
-                this.dom.toggleShowCharts.checked = isCharts;
-                this.dom.toggleShowCharts.setAttribute('aria-checked', isCharts.toString());
-            }
+        // Populate appearance & developer controls
+        if (this.dom.toggleShowCharts) {
+            const isCharts = extSettings.showCharts !== false;
+            this.dom.toggleShowCharts.checked = isCharts;
+            this.dom.toggleShowCharts.setAttribute('aria-checked', isCharts.toString());
+        }
 
-            if (this.dom.toggleDailyFocus) {
-                const isDailyFocus = extSettings.showDailyFocus !== false;
-                this.dom.toggleDailyFocus.checked = isDailyFocus;
-                this.dom.toggleDailyFocus.setAttribute('aria-checked', isDailyFocus.toString());
-            }
+        if (this.dom.toggleDailyFocus) {
+            const isDailyFocus = extSettings.showDailyFocus !== false;
+            this.dom.toggleDailyFocus.checked = isDailyFocus;
+            this.dom.toggleDailyFocus.setAttribute('aria-checked', isDailyFocus.toString());
+        }
 
-            if (this.dom.toggleDevMode) {
-                const isDev = extSettings.developerMode ?? false;
-                this.dom.toggleDevMode.checked = isDev;
-                this.dom.toggleDevMode.setAttribute('aria-checked', isDev.toString());
-                this.updateDevModeDisplay(isDev);
-            }
-        } catch (err) {
-            UIUtils.catchError('SettingsController', 'Error loading settings from storage', err);
+        if (this.dom.toggleDevMode) {
+            const isDev = extSettings.developerMode ?? false;
+            this.dom.toggleDevMode.checked = isDev;
+            this.dom.toggleDevMode.setAttribute('aria-checked', isDev.toString());
+            this.updateDevModeDisplay(isDev);
         }
     }
 
@@ -310,93 +305,85 @@ export class SettingsController {
      * Binds dark/light theme toggle.
      */
     private bindThemeToggle(): void {
-        this.dom.themeToggleBtn?.addEventListener('click', async () => {
-            try {
-                await ActionService.toggleTheme();
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error toggling theme', err);
-            }
-        });
+        this.dom.themeToggleBtn?.addEventListener('click', withErrorHandling(async () => {
+            await ActionService.toggleTheme();
+        }, 'SettingsController', 'Error toggling theme'));
     }
 
     /**
      * Binds notification preferences event listeners and auto-saves changes.
      */
     private bindNotificationControls(): void {
-        const saveNotifSettings = async () => {
-            try {
-                const isEnabled = this.dom.toggleNotifications?.checked ?? true;
-                const isSticky = this.dom.toggleSticky?.checked ?? true;
-                const isQuiet = this.dom.toggleQuietHours?.checked ?? false;
-                const qStart = this.dom.quietHoursStart?.value || '23:00';
-                const qEnd = this.dom.quietHoursEnd?.value || '07:00';
-                const isWeekly = this.dom.toggleWeeklyDigest?.checked ?? true;
-                const isBadge = this.dom.toggleBadgeDueCount?.checked ?? true;
+        const saveNotifSettings = withErrorHandling(async () => {
+            const isEnabled = this.dom.toggleNotifications?.checked ?? true;
+            const isSticky = this.dom.toggleSticky?.checked ?? true;
+            const isQuiet = this.dom.toggleQuietHours?.checked ?? false;
+            const qStart = this.dom.quietHoursStart?.value || '23:00';
+            const qEnd = this.dom.quietHoursEnd?.value || '07:00';
+            const isWeekly = this.dom.toggleWeeklyDigest?.checked ?? true;
+            const isBadge = this.dom.toggleBadgeDueCount?.checked ?? true;
 
-                // Sync ARIA attributes on toggles
-                this.dom.toggleNotifications?.setAttribute('aria-checked', isEnabled.toString());
-                this.dom.toggleSticky?.setAttribute('aria-checked', isSticky.toString());
-                this.dom.toggleQuietHours?.setAttribute('aria-checked', isQuiet.toString());
-                this.dom.toggleWeeklyDigest?.setAttribute('aria-checked', isWeekly.toString());
-                this.dom.toggleBadgeDueCount?.setAttribute('aria-checked', isBadge.toString());
+            // Sync ARIA attributes on toggles
+            this.dom.toggleNotifications?.setAttribute('aria-checked', isEnabled.toString());
+            this.dom.toggleSticky?.setAttribute('aria-checked', isSticky.toString());
+            this.dom.toggleQuietHours?.setAttribute('aria-checked', isQuiet.toString());
+            this.dom.toggleWeeklyDigest?.setAttribute('aria-checked', isWeekly.toString());
+            this.dom.toggleBadgeDueCount?.setAttribute('aria-checked', isBadge.toString());
 
-                if (isEnabled && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-                    Notification.requestPermission().catch(() => {});
-                }
-
-                const res = (await chrome.storage.local.get(['notificationSettings', 'weeklySummaryEnabled'])) as StorageData & {
-                    notificationSettings?: NotificationSettings & FullNotificationSettings;
-                    weeklySummaryEnabled?: boolean;
-                };
-                const current: NotificationSettings & FullNotificationSettings = (res.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS }) as FullNotificationSettings;
-
-                let freq = this.dom.notificationInterval?.value || '60';
-                if (freq === 'custom') {
-                    if (this.dom.customIntervalInput) {
-                        const customVal = parseInt(this.dom.customIntervalInput.value, 10);
-                        const validVal = !isNaN(customVal) && customVal > 0 ? customVal : 60;
-                        freq = String(validVal);
-                        current.customInterval = validVal;
-                    } else {
-                        freq = '60';
-                        current.customInterval = 60;
-                    }
-                } else {
-                    current.customInterval = parseInt(freq, 10) || 60;
-                }
-
-                current.enabled = isEnabled;
-                current.frequency = freq;
-                current.requireInteraction = isSticky;
-                current.sticky = isSticky;
-                current.quietHoursEnabled = isQuiet;
-                current.quietHoursStart = qStart;
-                current.quietHoursEnd = qEnd;
-                current.badgeEnabled = isBadge;
-                current.showDueBadge = isBadge;
-                current.badgeDueCount = isBadge;
-                current.weeklyDigest = isWeekly;
-
-                await chrome.storage.local.set({
-                    notificationSettings: current,
-                    weeklySummaryEnabled: isWeekly
-                });
-
-                if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-                    try {
-                        chrome.runtime.sendMessage({ action: 'toggle_weekly_summary', enabled: isWeekly }, () => {
-                            if (chrome.runtime?.lastError) { /* ignore */ }
-                        });
-                    } catch {
-                        // ignore messaging errors
-                    }
-                }
-
-                this.showToast('Notification settings saved');
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error saving notification settings', err);
+            if (isEnabled && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+                Notification.requestPermission().catch(() => {});
             }
-        };
+
+            const res = (await chrome.storage.local.get(['notificationSettings', 'weeklySummaryEnabled'])) as StorageData & {
+                notificationSettings?: NotificationSettings & FullNotificationSettings;
+                weeklySummaryEnabled?: boolean;
+            };
+            const current: NotificationSettings & FullNotificationSettings = (res.notificationSettings || { ...DEFAULT_NOTIFICATION_SETTINGS }) as FullNotificationSettings;
+
+            let freq = this.dom.notificationInterval?.value || '60';
+            if (freq === 'custom') {
+                if (this.dom.customIntervalInput) {
+                    const customVal = parseInt(this.dom.customIntervalInput.value, 10);
+                    const validVal = !isNaN(customVal) && customVal > 0 ? customVal : 60;
+                    freq = String(validVal);
+                    current.customInterval = validVal;
+                } else {
+                    freq = '60';
+                    current.customInterval = 60;
+                }
+            } else {
+                current.customInterval = parseInt(freq, 10) || 60;
+            }
+
+            current.enabled = isEnabled;
+            current.frequency = freq;
+            current.requireInteraction = isSticky;
+            current.sticky = isSticky;
+            current.quietHoursEnabled = isQuiet;
+            current.quietHoursStart = qStart;
+            current.quietHoursEnd = qEnd;
+            current.badgeEnabled = isBadge;
+            current.showDueBadge = isBadge;
+            current.badgeDueCount = isBadge;
+            current.weeklyDigest = isWeekly;
+
+            await chrome.storage.local.set({
+                notificationSettings: current,
+                weeklySummaryEnabled: isWeekly
+            });
+
+            if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+                try {
+                    chrome.runtime.sendMessage({ action: 'toggle_weekly_summary', enabled: isWeekly }, () => {
+                        if (chrome.runtime?.lastError) { /* ignore */ }
+                    });
+                } catch {
+                    // ignore messaging errors
+                }
+            }
+
+            this.showToast('Notification settings saved');
+        }, 'SettingsController', 'Error saving notification settings');
 
         this.dom.toggleNotifications?.addEventListener('change', saveNotifSettings);
         this.dom.toggleSticky?.addEventListener('change', saveNotifSettings);
@@ -431,29 +418,21 @@ export class SettingsController {
      * Binds in-page overlay switches (Floating Marker Menu, Problem Tracker Launcher).
      */
     private bindHighlighterControls(): void {
-        this.dom.toggleMarker?.addEventListener('change', async () => {
-            try {
-                const res = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-                const settings = res.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
-                settings.showMarkerPopup = this.dom.toggleMarker?.checked ?? true;
-                await chrome.storage.local.set({ extensionSettings: settings });
-                this.showToast(`Floating marker ${settings.showMarkerPopup ? 'enabled' : 'disabled'}`);
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error saving marker setting', err);
-            }
-        });
+        this.dom.toggleMarker?.addEventListener('change', withErrorHandling(async () => {
+            const res = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+            const settings = res.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
+            settings.showMarkerPopup = this.dom.toggleMarker?.checked ?? true;
+            await chrome.storage.local.set({ extensionSettings: settings });
+            this.showToast(`Floating marker ${settings.showMarkerPopup ? 'enabled' : 'disabled'}`);
+        }, 'SettingsController', 'Error saving marker setting'));
 
-        this.dom.toggleLauncher?.addEventListener('change', async () => {
-            try {
-                const res = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-                const settings = res.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
-                settings.showLauncher = this.dom.toggleLauncher?.checked ?? true;
-                await chrome.storage.local.set({ extensionSettings: settings });
-                this.showToast(`Problem tracker launcher ${settings.showLauncher ? 'enabled' : 'disabled'}`);
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error saving launcher setting', err);
-            }
-        });
+        this.dom.toggleLauncher?.addEventListener('change', withErrorHandling(async () => {
+            const res = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+            const settings = res.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
+            settings.showLauncher = this.dom.toggleLauncher?.checked ?? true;
+            await chrome.storage.local.set({ extensionSettings: settings });
+            this.showToast(`Problem tracker launcher ${settings.showLauncher ? 'enabled' : 'disabled'}`);
+        }, 'SettingsController', 'Error saving launcher setting'));
     }
 
     /**
@@ -461,15 +440,13 @@ export class SettingsController {
      */
     private bindDataControls(): void {
         // Backup Export
-        this.dom.exportBtn?.addEventListener('click', async () => {
-            try {
-                await BackupManager.exportBackup();
-                this.showToast('Backup export initiated');
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error exporting backup', err);
-                this.showToast('Failed to export backup', true);
-            }
-        });
+        this.dom.exportBtn?.addEventListener('click', withErrorHandling(async () => {
+            await BackupManager.exportBackup();
+            this.showToast('Backup export initiated');
+        }, 'SettingsController', {
+            contextMessage: 'Error exporting backup',
+            fallback: () => { this.showToast('Failed to export backup', true); }
+        }));
 
         // Backup Restore
         const handleRestore = (file: File) => {
@@ -494,79 +471,75 @@ export class SettingsController {
         });
 
         // Anki Export
-        this.dom.ankiExportBtn?.addEventListener('click', async () => {
-            try {
-                const result = await ActionService.executeAction('export-anki');
-                if (result.success) {
-                    this.showToast('Anki deck exported successfully');
-                } else {
-                    this.showToast(result.error || 'No cards to export', true);
-                }
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error exporting Anki cards', err);
-                this.showToast('Failed to export Anki deck', true);
+        this.dom.ankiExportBtn?.addEventListener('click', withErrorHandling(async () => {
+            const result = await ActionService.executeAction('export-anki');
+            if (result.success) {
+                this.showToast('Anki deck exported successfully');
+            } else {
+                this.showToast(result.error || 'No cards to export', true);
             }
-        });
+        }, 'SettingsController', {
+            contextMessage: 'Error exporting Anki cards',
+            fallback: () => { this.showToast('Failed to export Anki deck', true); }
+        }));
 
         // Anki Import
-        this.dom.ankiImportFile?.addEventListener('change', async (e: Event) => {
-            try {
-                const input = e.target as HTMLInputElement;
-                if (!input.files || !input.files[0]) return;
-                const file = input.files[0];
-                const text = await file.text();
-                const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+        this.dom.ankiImportFile?.addEventListener('change', withErrorHandling(async (e: Event) => {
+            const input = e.target as HTMLInputElement;
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            const text = await file.text();
+            const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
 
-                if (lines.length === 0) {
-                    this.showToast('Import file is empty', true);
-                    return;
-                }
-
-                const res = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
-                const existingCards: Card[] = res.fsrsCards || [];
-                let importedCount = 0;
-
-                for (const line of lines) {
-                    const parts = line.split('\t');
-                    if (parts.length >= 2) {
-                        const title = parts[0].trim();
-                        const approach = parts[1].trim();
-                        const tags = parts[2] ? parts[2].split(',').map((t) => t.trim()) : ['Anki'];
-
-                        const newCard: Card = {
-                            id: `card_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-                            problemTitle: title,
-                            problemUrl: '',
-                            approach: approach,
-                            tags: tags,
-                            due: Date.now(),
-                            stability: 1,
-                            difficulty: 5,
-                            elapsed_days: 0,
-                            scheduled_days: 0,
-                            learning_steps: 0,
-                            reps: 0,
-                            lapses: 0,
-                            state: 0,
-                            historyLog: []
-                        };
-                        existingCards.push(newCard);
-                        importedCount++;
-                    }
-                }
-
-                if (importedCount > 0) {
-                    await chrome.storage.local.set({ fsrsCards: existingCards });
-                    this.showToast(`Imported ${importedCount} card(s) from Anki`);
-                } else {
-                    this.showToast('No valid tab-separated cards found in file', true);
-                }
-                input.value = '';
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error importing from Anki', err);
-                this.showToast('Failed to import Anki cards', true);
+            if (lines.length === 0) {
+                this.showToast('Import file is empty', true);
+                return;
             }
-        });
+
+            const res = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
+            const existingCards: Card[] = res.fsrsCards || [];
+            let importedCount = 0;
+
+            for (const line of lines) {
+                const parts = line.split('\t');
+                if (parts.length >= 2) {
+                    const title = parts[0].trim();
+                    const approach = parts[1].trim();
+                    const tags = parts[2] ? parts[2].split(',').map((t) => t.trim()) : ['Anki'];
+
+                    const newCard: Card = {
+                        id: `card_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                        problemTitle: title,
+                        problemUrl: '',
+                        approach: approach,
+                        tags: tags,
+                        due: Date.now(),
+                        stability: 1,
+                        difficulty: 5,
+                        elapsed_days: 0,
+                        scheduled_days: 0,
+                        learning_steps: 0,
+                        reps: 0,
+                        lapses: 0,
+                        state: 0,
+                        historyLog: []
+                    };
+                    existingCards.push(newCard);
+                    importedCount++;
+                }
+            }
+
+            if (importedCount > 0) {
+                await chrome.storage.local.set({ fsrsCards: existingCards });
+                this.showToast(`Imported ${importedCount} card(s) from Anki`);
+            } else {
+                this.showToast('No valid tab-separated cards found in file', true);
+            }
+            input.value = '';
+        }, 'SettingsController', {
+            contextMessage: 'Error importing from Anki',
+            fallback: () => { this.showToast('Failed to import Anki cards', true); }
+        }));
 
         this.dom.ankiImportLabel?.addEventListener('keydown', (e: KeyboardEvent) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -580,43 +553,31 @@ export class SettingsController {
      * Binds developer diagnostics and chart visibility controls.
      */
     private bindDeveloperControls(): void {
-        this.dom.toggleShowCharts?.addEventListener('change', async () => {
-            try {
-                const res = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-                const settings = res.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
-                settings.showCharts = this.dom.toggleShowCharts?.checked ?? true;
-                await chrome.storage.local.set({ extensionSettings: settings });
-                this.showToast(`Popup activity charts ${settings.showCharts ? 'enabled' : 'hidden'}`);
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error updating chart settings', err);
-            }
-        });
+        this.dom.toggleShowCharts?.addEventListener('change', withErrorHandling(async () => {
+            const res = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+            const settings = res.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
+            settings.showCharts = this.dom.toggleShowCharts?.checked ?? true;
+            await chrome.storage.local.set({ extensionSettings: settings });
+            this.showToast(`Popup activity charts ${settings.showCharts ? 'enabled' : 'hidden'}`);
+        }, 'SettingsController', 'Error updating chart settings'));
 
-        this.dom.toggleDailyFocus?.addEventListener('change', async () => {
-            try {
-                const res = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-                const settings = res.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
-                settings.showDailyFocus = this.dom.toggleDailyFocus?.checked ?? true;
-                await chrome.storage.local.set({ extensionSettings: settings });
-                this.showToast(`Popup daily focus ${settings.showDailyFocus ? 'enabled' : 'hidden'}`);
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error updating daily focus settings', err);
-            }
-        });
+        this.dom.toggleDailyFocus?.addEventListener('change', withErrorHandling(async () => {
+            const res = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+            const settings = res.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
+            settings.showDailyFocus = this.dom.toggleDailyFocus?.checked ?? true;
+            await chrome.storage.local.set({ extensionSettings: settings });
+            this.showToast(`Popup daily focus ${settings.showDailyFocus ? 'enabled' : 'hidden'}`);
+        }, 'SettingsController', 'Error updating daily focus settings'));
 
-        this.dom.toggleDevMode?.addEventListener('change', async () => {
-            try {
-                const isDev = this.dom.toggleDevMode?.checked ?? false;
-                const res = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
-                const settings = res.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
-                settings.developerMode = isDev;
-                await chrome.storage.local.set({ extensionSettings: settings });
-                this.updateDevModeDisplay(isDev);
-                this.showToast(`Developer mode ${isDev ? 'enabled' : 'disabled'}`);
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error saving developer mode', err);
-            }
-        });
+        this.dom.toggleDevMode?.addEventListener('change', withErrorHandling(async () => {
+            const isDev = this.dom.toggleDevMode?.checked ?? false;
+            const res = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+            const settings = res.extensionSettings || { ...DEFAULT_EXTENSION_SETTINGS };
+            settings.developerMode = isDev;
+            await chrome.storage.local.set({ extensionSettings: settings });
+            this.updateDevModeDisplay(isDev);
+            this.showToast(`Developer mode ${isDev ? 'enabled' : 'disabled'}`);
+        }, 'SettingsController', 'Error saving developer mode'));
 
         this.dom.testNotificationBtn?.addEventListener('click', () => {
             chrome.runtime.sendMessage({ action: 'send_test_notification' });
@@ -628,25 +589,23 @@ export class SettingsController {
             this.showToast('Test summary notification dispatched');
         });
 
-        this.dom.exportDebugLogsBtn?.addEventListener('click', async () => {
-            try {
-                const result = (await chrome.storage.local.get(['debugLogs'])) as StorageData;
-                const logs = result.debugLogs || [];
-                const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `algorecall-debug-logs-${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
-                this.showToast('Debug logs exported');
-            } catch (err) {
-                UIUtils.catchError('SettingsController', 'Error exporting debug logs', err);
-                this.showToast('Failed to export debug logs', true);
-            }
-        });
+        this.dom.exportDebugLogsBtn?.addEventListener('click', withErrorHandling(async () => {
+            const result = (await chrome.storage.local.get(['debugLogs'])) as StorageData;
+            const logs = result.debugLogs || [];
+            const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `algorecall-debug-logs-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            this.showToast('Debug logs exported');
+        }, 'SettingsController', {
+            contextMessage: 'Error exporting debug logs',
+            fallback: () => { this.showToast('Failed to export debug logs', true); }
+        }));
     }
 
     /**
@@ -697,15 +656,13 @@ export class SettingsController {
  * Bootstrap entry function creating and initializing the settings controller on DOM readiness.
  */
 function initSettings(): void {
-    try {
+    withErrorHandling(() => {
         const controller = new SettingsController();
         controller.init().catch((err) => {
             Logger.error('SettingsController', 'Uncaught error during bootstrap', { err });
         });
         (window as unknown as { settingsController?: SettingsController }).settingsController = controller;
-    } catch (err) {
-        Logger.error('SettingsController', 'Error instantiating SettingsController', { err });
-    }
+    }, 'SettingsController', 'Error instantiating SettingsController')();
 }
 
 if (typeof document !== 'undefined') {

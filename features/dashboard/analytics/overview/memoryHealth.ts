@@ -8,6 +8,7 @@
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, SummaryStats } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
+import { CatchAndLog } from '../../../../decorators';
 
 /**
  * Summary statistics shape required for computing and rendering the Memory Health card.
@@ -51,45 +52,42 @@ export class MemoryHealth {
      * @param containerId - DOM ID of the container element hosting memory health.
      * @returns void
      */
+    @CatchAndLog('MemoryHealth', 'Error rendering MemoryHealth')
     render(containerId: string): void {
-        try {
-            const container = document.getElementById(containerId);
-            if (!container) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-            const stats = this.dataUtils.getSummaryStats();
-            const healthScore = this.calculateHealthScore(stats);
-            const targetRetention = this.getTargetRetention();
+        const stats = this.dataUtils.getSummaryStats();
+        const healthScore = this.calculateHealthScore(stats);
+        const targetRetention = this.getTargetRetention();
 
-            let statusText = 'Excellent';
-            let statusClass = 'health-excellent';
-            if (healthScore === 0) { 
-                statusText = 'Need Data'; 
-                statusClass = 'health-nodata'; 
-            } else if (healthScore < targetRetention - 7) { 
-                statusText = 'Needs Attention'; 
-                statusClass = 'health-warning'; 
-            } else if (healthScore < targetRetention - 2) { 
-                statusText = 'Good'; 
-                statusClass = 'health-good'; 
-            }
-
-            const trend = stats.streak >= 3 ? '▲ Consistent' : (stats.streak > 0 ? '▶ Active' : '▼ Needs Review');
-            const trendMsg = stats.streak >= 3 ? 'You are building strong long-term memory.' : 'Review more consistently to improve memory health.';
-            const trendClass = stats.streak >= 3 ? 'trend-up' : (stats.streak > 0 ? '' : 'trend-down');
-
-            const svgCircle = `
-                <svg class="health-ring" viewBox="0 0 120 120">
-                    <circle class="ring-bg" cx="60" cy="60" r="50"></circle>
-                    <circle class="ring-progress ${statusClass}" cx="60" cy="60" r="50" 
-                            stroke-dasharray="314" stroke-dashoffset="${314 - (314 * healthScore / 100)}">
-                    </circle>
-                </svg>
-            `;
-
-            container.innerHTML = this.buildHealthCard(healthScore, statusText, statusClass, trend, trendMsg, trendClass, svgCircle, stats);
-        } catch (err) {
-            UIUtils.catchError('MemoryHealth', 'Error rendering MemoryHealth', err, { containerId });
+        let statusText = 'Excellent';
+        let statusClass = 'health-excellent';
+        if (healthScore === 0) { 
+            statusText = 'Need Data'; 
+            statusClass = 'health-nodata'; 
+        } else if (healthScore < targetRetention - 7) { 
+            statusText = 'Needs Attention'; 
+            statusClass = 'health-warning'; 
+        } else if (healthScore < targetRetention - 2) { 
+            statusText = 'Good'; 
+            statusClass = 'health-good'; 
         }
+
+        const trend = stats.streak >= 3 ? '▲ Consistent' : (stats.streak > 0 ? '▶ Active' : '▼ Needs Review');
+        const trendMsg = stats.streak >= 3 ? 'You are building strong long-term memory.' : 'Review more consistently to improve memory health.';
+        const trendClass = stats.streak >= 3 ? 'trend-up' : (stats.streak > 0 ? '' : 'trend-down');
+
+        const svgCircle = `
+            <svg class="health-ring" viewBox="0 0 120 120">
+                <circle class="ring-bg" cx="60" cy="60" r="50"></circle>
+                <circle class="ring-progress ${statusClass}" cx="60" cy="60" r="50" 
+                        stroke-dasharray="314" stroke-dashoffset="${314 - (314 * healthScore / 100)}">
+                </circle>
+            </svg>
+        `;
+
+        container.innerHTML = this.buildHealthCard(healthScore, statusText, statusClass, trend, trendMsg, trendClass, svgCircle, stats);
     }
 
     /**

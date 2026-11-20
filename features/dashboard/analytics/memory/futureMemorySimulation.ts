@@ -9,6 +9,7 @@
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, FutureMemorySimulationStats } from '../utils/dataUtils';
+import { CatchAndLog, CatchAndReturn, withErrorHandling } from '../../../../decorators';
 
 /**
  * Visualizes projected memory decay over time under a zero-review scenario.
@@ -45,43 +46,40 @@ export class FutureMemorySimulation {
      * @param containerId - DOM ID of the container element hosting the simulation.
      * @returns void
      */
+    @CatchAndLog('FutureMemorySimulation', 'Error rendering FutureMemorySimulation')
     render(containerId: string): void {
-        try {
-            this.lastContainerId = containerId;
-            const container = document.getElementById(containerId);
-            if (!container) return;
+        this.lastContainerId = containerId;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-            // 1. Fetch simulation data and calculate SVG geometry
-            const data = this.dataUtils.getFutureMemorySimulation(this.sliderDays);
-            const { svgPathD, areaPathD, currentX, currentY } = this.generateCurveSvgPath(data.curvePoints, data.custom.retention);
+        // 1. Fetch simulation data and calculate SVG geometry
+        const data = this.dataUtils.getFutureMemorySimulation(this.sliderDays);
+        const { svgPathD, areaPathD, currentX, currentY } = this.generateCurveSvgPath(data.curvePoints, data.custom.retention);
 
-            // 2. Build UI sections
-            const cardsHtml = this.buildSimulationCardsHTML(data);
-            const sliderHtml = this.buildInteractiveSliderHTML(data);
-            const chartHtml = this.buildChartHTML(svgPathD, areaPathD, currentX, currentY);
+        // 2. Build UI sections
+        const cardsHtml = this.buildSimulationCardsHTML(data);
+        const sliderHtml = this.buildInteractiveSliderHTML(data);
+        const chartHtml = this.buildChartHTML(svgPathD, areaPathD, currentX, currentY);
 
-            // 3. Assemble and inject HTML
-            container.innerHTML = `
-                <div class="memory-panel ana-panel-wide future-sim-panel">
-                    <div class="ana-panel-header">
-                        <div>
-                            <span class="ana-panel-title">
-                                Future Memory Simulation
-                                <span class="help-icon" data-tooltip="Simulates how your overall retention percentage decays over time if you stop reviewing today.">?</span>
-                            </span>
-                            <p class="sim-subtitle">Predict: <strong>&ldquo;What if I stop studying?&rdquo;</strong></p>
-                        </div>
+        // 3. Assemble and inject HTML
+        container.innerHTML = `
+            <div class="memory-panel ana-panel-wide future-sim-panel">
+                <div class="ana-panel-header">
+                    <div>
+                        <span class="ana-panel-title">
+                            Future Memory Simulation
+                            <span class="help-icon" data-tooltip="Simulates how your overall retention percentage decays over time if you stop reviewing today.">?</span>
+                        </span>
+                        <p class="sim-subtitle">Predict: <strong>&ldquo;What if I stop studying?&rdquo;</strong></p>
                     </div>
-                    ${cardsHtml}
-                    ${sliderHtml}
-                    ${chartHtml}
                 </div>
-            `;
+                ${cardsHtml}
+                ${sliderHtml}
+                ${chartHtml}
+            </div>
+        `;
 
-            this.bindEvents();
-        } catch (err) {
-            UIUtils.catchError('FutureMemorySimulation', 'Error rendering FutureMemorySimulation', err, { containerId, sliderDays: this.sliderDays });
-        }
+        this.bindEvents();
     }
 
     /**
@@ -90,76 +88,65 @@ export class FutureMemorySimulation {
      * @param currentRetentionVal - Simulated retention at current slider position.
      * @returns Object containing SVG path strings and dot position coordinates.
      */
+    @CatchAndReturn({
+        svgPathD: 'M50,20 L880,210',
+        areaPathD: 'M50,20 L880,210 L880,230 L50,230 Z',
+        currentX: 50,
+        currentY: 20
+    }, 'FutureMemorySimulation', 'Error generating curve SVG path')
     generateCurveSvgPath(points: Array<{ day: number; retention: number }>, currentRetentionVal: number): { svgPathD: string; areaPathD: string; currentX: number; currentY: number } {
-        try {
-            const svgW = 900, svgH = 250;
-            const padL = 50, padR = 20, padT = 20, padB = 40;
-            const chartW = svgW - padL - padR;
-            const chartH = svgH - padT - padB;
+        const svgW = 900, svgH = 250;
+        const padL = 50, padR = 20, padT = 20, padB = 40;
+        const chartW = svgW - padL - padR;
+        const chartH = svgH - padT - padB;
 
-            const xScale = (t: number) => padL + (t / 180) * chartW;
-            const yScale = (r: number) => padT + (1 - r) * chartH;
+        const xScale = (t: number) => padL + (t / 180) * chartW;
+        const yScale = (r: number) => padT + (1 - r) * chartH;
 
-            if (!points || points.length === 0) {
-                return {
-                    svgPathD: `M${padL},${yScale(0.9)} L${svgW - padR},${yScale(0.1)}`,
-                    areaPathD: `M${padL},${yScale(0.9)} L${svgW - padR},${yScale(0.1)} L${svgW - padR},${padT + chartH} L${padL},${padT + chartH} Z`,
-                    currentX: xScale(this.sliderDays),
-                    currentY: yScale(0.5)
-                };
-            }
-
-            const coords = points.map(p => {
-                const rRatio = Math.max(0, Math.min(100, p.retention)) / 100;
-                return {
-                    x: Math.round(xScale(p.day) * 10) / 10,
-                    y: Math.round(yScale(rRatio) * 10) / 10
-                };
-            });
-
-            const pathStr = coords.map(c => `${c.x},${c.y}`).join(' L');
-            const svgPathD = `M${pathStr}`;
-            const areaPathD = `M${pathStr} L${svgW - padR},${padT + chartH} L${padL},${padT + chartH} Z`;
-
-            const sliderR = Math.max(0, Math.min(100, currentRetentionVal)) / 100;
-            const currentX = Math.round(xScale(this.sliderDays) * 10) / 10;
-            const currentY = Math.round(yScale(sliderR) * 10) / 10;
-
-            return { svgPathD, areaPathD, currentX, currentY };
-        } catch (err) {
-            UIUtils.catchError('FutureMemorySimulation', 'Error generating curve SVG path', err, { currentRetentionVal });
+        if (!points || points.length === 0) {
             return {
-                svgPathD: 'M50,20 L880,210',
-                areaPathD: 'M50,20 L880,210 L880,230 L50,230 Z',
-                currentX: 50,
-                currentY: 20
+                svgPathD: `M${padL},${yScale(0.9)} L${svgW - padR},${yScale(0.1)}`,
+                areaPathD: `M${padL},${yScale(0.9)} L${svgW - padR},${yScale(0.1)} L${svgW - padR},${padT + chartH} L${padL},${padT + chartH} Z`,
+                currentX: xScale(this.sliderDays),
+                currentY: yScale(0.5)
             };
         }
+
+        const coords = points.map(p => {
+            const rRatio = Math.max(0, Math.min(100, p.retention)) / 100;
+            return {
+                x: Math.round(xScale(p.day) * 10) / 10,
+                y: Math.round(yScale(rRatio) * 10) / 10
+            };
+        });
+
+        const pathStr = coords.map(c => `${c.x},${c.y}`).join(' L');
+        const svgPathD = `M${pathStr}`;
+        const areaPathD = `M${pathStr} L${svgW - padR},${padT + chartH} L${padL},${padT + chartH} Z`;
+
+        const sliderR = Math.max(0, Math.min(100, currentRetentionVal)) / 100;
+        const currentX = Math.round(xScale(this.sliderDays) * 10) / 10;
+        const currentY = Math.round(yScale(sliderR) * 10) / 10;
+
+        return { svgPathD, areaPathD, currentX, currentY };
     }
 
     /**
      * Binds input event listeners to the interactive range slider to trigger real-time re-renders.
      * @returns void
      */
+    @CatchAndLog('FutureMemorySimulation', 'Error binding FutureMemorySimulation event listeners')
     bindEvents(): void {
-        try {
-            const slider = document.getElementById('sim-days-range') as HTMLInputElement | null;
-            if (slider) {
-                slider.addEventListener('input', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        const days = parseInt(target.value, 10);
-                        if (!isNaN(days)) {
-                            this.sliderDays = days;
-                            this.render(this.lastContainerId);
-                        }
-                    } catch (inputErr) {
-                        UIUtils.catchError('FutureMemorySimulation', 'Error handling sim-days-range input event', inputErr);
-                    }
-                });
-            }
-        } catch (err) {
-            UIUtils.catchError('FutureMemorySimulation', 'Error binding FutureMemorySimulation event listeners', err);
+        const slider = document.getElementById('sim-days-range') as HTMLInputElement | null;
+        if (slider) {
+            slider.addEventListener('input', withErrorHandling((e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const days = parseInt(target.value, 10);
+                if (!isNaN(days)) {
+                    this.sliderDays = days;
+                    this.render(this.lastContainerId);
+                }
+            }, 'FutureMemorySimulation', 'Error handling sim-days-range input event'));
         }
     }
 

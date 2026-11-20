@@ -8,6 +8,7 @@
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
+import { CatchAndLog } from '../../../../decorators';
 import {
     DEFAULT_FSRS_DECAY,
     DEFAULT_FSRS_FACTOR,
@@ -55,34 +56,31 @@ export class PredictionComparison {
      * @param containerId - DOM ID of the container element hosting the comparison.
      * @returns void
      */
+    @CatchAndLog('PredictionComparison', 'Error rendering PredictionComparison')
     render(containerId: string): void {
-        try {
-            const container = document.getElementById(containerId);
-            if (!container) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-            const svgW = 900, svgH = 200;
-            const padL = 50, padR = 20, padT = 20, padB = 40;
-            const chartW = svgW - padL - padR;
-            const chartH = svgH - padT - padB;
+        const svgW = 900, svgH = 200;
+        const padL = 50, padR = 20, padT = 20, padB = 40;
+        const chartW = svgW - padL - padR;
+        const chartH = svgH - padT - padB;
 
-            const xScale = (t: number) => padL + (t / 30) * chartW;
-            const yScale = (r: number) => padT + (1 - r) * chartH;
-            
-            const timePoints = RETENTION_TIME_POINTS;
+        const xScale = (t: number) => padL + (t / 30) * chartW;
+        const yScale = (r: number) => padT + (1 - r) * chartH;
+        
+        const timePoints = RETENTION_TIME_POINTS;
 
-            // 1. Calculate the prediction points and actual recall points
-            const data = this.calculateChartData(timePoints, xScale, yScale);
+        // 1. Calculate the prediction points and actual recall points
+        const data = this.calculateChartData(timePoints, xScale, yScale);
 
-            // 2. Generate the SVG structure
-            const svgContent = this.generateSvgContent(data.predPoints, data.actPoints, timePoints, xScale, yScale, svgW, svgH, padL, padR);
-            
-            // 3. Generate Legend HTML
-            const legendHtml = this.generateLegendHTML(data.gapText, data.diff);
+        // 2. Generate the SVG structure
+        const svgContent = this.generateSvgContent(data.predPoints, data.actPoints, timePoints, xScale, yScale, svgW, svgH, padL, padR);
+        
+        // 3. Generate Legend HTML
+        const legendHtml = this.generateLegendHTML(data.gapText, data.diff);
 
-            container.innerHTML = svgContent + legendHtml;
-        } catch (err) {
-            UIUtils.catchError('PredictionComparison', 'Error rendering PredictionComparison', err, { containerId });
-        }
+        container.innerHTML = svgContent + legendHtml;
     }
 
     /**

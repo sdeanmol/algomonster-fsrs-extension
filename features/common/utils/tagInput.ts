@@ -8,6 +8,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { CatchAndLog } from '../../../decorators';
 import { UIUtils } from './uiUtils';
 
 /**
@@ -136,26 +137,23 @@ export class TagInputControl {
      * Intercepts `targetInput.value` getters and setters to mirror changes between
      * the underlying text value and chip array.
      */
+    @CatchAndLog('TagInputControl', 'Could not intercept value descriptor')
     private interceptValueProperty(): void {
         const self = this;
         this.originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
 
-        try {
-            Object.defineProperty(this.targetInput, 'value', {
-                get() {
-                    return self.tags.join(', ');
-                },
-                set(val: string) {
-                    self.setTagsFromString(val, false);
-                    if (self.originalValueDescriptor?.set) {
-                        self.originalValueDescriptor.set.call(this, val);
-                    }
-                },
-                configurable: true
-            });
-        } catch (err) {
-            UIUtils.catchError('TagInputControl', 'Could not intercept value descriptor', err);
-        }
+        Object.defineProperty(this.targetInput, 'value', {
+            get() {
+                return self.tags.join(', ');
+            },
+            set(val: string) {
+                self.setTagsFromString(val, false);
+                if (self.originalValueDescriptor?.set) {
+                    self.originalValueDescriptor.set.call(this, val);
+                }
+            },
+            configurable: true
+        });
     }
 
     /**
@@ -369,6 +367,12 @@ export class TagInputControl {
      * Executes autocomplete query against `options.getSuggestions()` and displays matching dropdown.
      * @async
      */
+    @CatchAndLog('TagInputControl', {
+        contextMessage: 'Error fetching autocomplete suggestions',
+        fallback: function (this: TagInputControl) {
+            this.closeDropdown();
+        }
+    })
     private async triggerAutocomplete(): Promise<void> {
         const query = this.inlineInputEl.value.trim().toLowerCase();
         if (!query || !this.options.getSuggestions) {
@@ -376,25 +380,20 @@ export class TagInputControl {
             return;
         }
 
-        try {
-            const rawSuggestions = await Promise.resolve(this.options.getSuggestions());
-            const currentTagSet = new Set(this.tags.map(t => t.toLowerCase()));
+        const rawSuggestions = await Promise.resolve(this.options.getSuggestions());
+        const currentTagSet = new Set(this.tags.map(t => t.toLowerCase()));
 
-            this.suggestions = (rawSuggestions || []).filter(tag => {
-                const trimmed = tag.trim();
-                return trimmed.length > 0 &&
-                    !currentTagSet.has(trimmed.toLowerCase()) &&
-                    trimmed.toLowerCase().includes(query);
-            }).slice(0, 8); // Top 8 suggestions
+        this.suggestions = (rawSuggestions || []).filter(tag => {
+            const trimmed = tag.trim();
+            return trimmed.length > 0 &&
+                !currentTagSet.has(trimmed.toLowerCase()) &&
+                trimmed.toLowerCase().includes(query);
+        }).slice(0, 8); // Top 8 suggestions
 
-            if (this.suggestions.length > 0) {
-                this.highlightedIndex = 0;
-                this.renderDropdown(query);
-            } else {
-                this.closeDropdown();
-            }
-        } catch (err) {
-            UIUtils.catchError('TagInputControl', 'Error fetching autocomplete suggestions', err);
+        if (this.suggestions.length > 0) {
+            this.highlightedIndex = 0;
+            this.renderDropdown(query);
+        } else {
             this.closeDropdown();
         }
     }

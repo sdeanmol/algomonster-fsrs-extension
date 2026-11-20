@@ -12,6 +12,7 @@ import { LearningVelocity } from './learningVelocity';
 import { MiniForecast } from './miniForecast';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
+import { CatchAndLog } from '../../../../decorators';
 
 /**
  * Controller for the Overview tab view in the analytics dashboard.
@@ -55,30 +56,27 @@ export class OverviewTab {
      * @param containerId - DOM ID of the container element hosting the overview tab.
      * @returns void
      */
+    @CatchAndLog('OverviewTab', 'Error rendering OverviewTab')
     render(containerId: string): void {
-        try {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            
-            if (!this.rendered) {
-                container.innerHTML = `
-                    <div id="overview-next-action-container"></div>
-                    <div class="overview-grid">
-                        <div id="memory-health-container" class="overview-panel"></div>
-                        <div id="learning-velocity-container" class="overview-panel"></div>
-                    </div>
-                    <div id="mini-forecast-container"></div>
-                `;
-                this.rendered = true;
-            }
-
-            this.renderNextAction('overview-next-action-container');
-            this.memoryHealth.render('memory-health-container');
-            this.learningVelocity.render('learning-velocity-container');
-            this.miniForecast.render('mini-forecast-container');
-        } catch (err) {
-            UIUtils.catchError('OverviewTab', 'Error rendering OverviewTab', err, { containerId });
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        if (!this.rendered) {
+            container.innerHTML = `
+                <div id="overview-next-action-container"></div>
+                <div class="overview-grid">
+                    <div id="memory-health-container" class="overview-panel"></div>
+                    <div id="learning-velocity-container" class="overview-panel"></div>
+                </div>
+                <div id="mini-forecast-container"></div>
+            `;
+            this.rendered = true;
         }
+
+        this.renderNextAction('overview-next-action-container');
+        this.memoryHealth.render('memory-health-container');
+        this.learningVelocity.render('learning-velocity-container');
+        this.miniForecast.render('mini-forecast-container');
     }
 
     /**
@@ -87,36 +85,33 @@ export class OverviewTab {
      * @param containerId - DOM ID of the container element hosting the action banner.
      * @returns void
      */
+    @CatchAndLog('OverviewTab', 'Error rendering overview next action')
     renderNextAction(containerId: string): void {
-        try {
-            const container = document.getElementById(containerId);
-            if (!container) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-            const stats = this.dataUtils.getSummaryStats();
-            const dueCount = stats.due || 0;
-            
-            let healthScore = 0;
-            if (stats.trueRetention > 0) {
-                healthScore = stats.trueRetention;
-            } else if (stats.retention > 0) {
-                healthScore = stats.retention;
-            }
-            const health = healthScore;
-            
-            const sched = this.dataUtils.scheduler as (AbstractScheduler & { requestRetention?: number }) | null;
-            const targetRetention = (sched && sched.requestRetention)
-                ? sched.requestRetention * 100
-                : 90;
+        const stats = this.dataUtils.getSummaryStats();
+        const dueCount = stats.due || 0;
+        
+        let healthScore = 0;
+        if (stats.trueRetention > 0) {
+            healthScore = stats.trueRetention;
+        } else if (stats.retention > 0) {
+            healthScore = stats.retention;
+        }
+        const health = healthScore;
+        
+        const sched = this.dataUtils.scheduler as (AbstractScheduler & { requestRetention?: number }) | null;
+        const targetRetention = (sched && sched.requestRetention)
+            ? sched.requestRetention * 100
+            : 90;
 
-            if (dueCount > 0) {
-                container.innerHTML = this.buildPendingReviewsBanner(dueCount);
-            } else if (health < (targetRetention - 7) && stats.totalCards > 10) {
-                container.innerHTML = this.buildMemoryHealthDroppingBanner(health);
-            } else {
-                container.innerHTML = this.buildCaughtUpBanner();
-            }
-        } catch (err) {
-            UIUtils.catchError('OverviewTab', 'Error rendering overview next action', err, { containerId });
+        if (dueCount > 0) {
+            container.innerHTML = this.buildPendingReviewsBanner(dueCount);
+        } else if (health < (targetRetention - 7) && stats.totalCards > 10) {
+            container.innerHTML = this.buildMemoryHealthDroppingBanner(health);
+        } else {
+            container.innerHTML = this.buildCaughtUpBanner();
         }
     }
 

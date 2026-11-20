@@ -8,6 +8,7 @@
 
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
+import { CatchAndLog, CatchAndReturn } from '../../../../decorators';
 
 /**
  * Visualizes the rate of knowledge acquisition and progression into long-term memory.
@@ -35,33 +36,30 @@ export class LearningVelocity {
      * @param containerId - DOM ID of the container element hosting learning velocity.
      * @returns void
      */
+    @CatchAndLog('LearningVelocity', 'Error rendering LearningVelocity')
     render(containerId: string): void {
-        try {
-            const container = document.getElementById(containerId);
-            if (!container) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-            const velocity = this.dataUtils.getLearningVelocity();
-            
-            const sparkline1 = this.generateSparkline('#a8c7fa', velocity.sparklineNew);
-            const sparkline2 = this.generateSparkline('#50e3c2', velocity.sparklineGrad);
-            const sparkline3 = this.generateSparkline('#f5a623', velocity.sparklineRev);
+        const velocity = this.dataUtils.getLearningVelocity();
+        
+        const sparkline1 = this.generateSparkline('#a8c7fa', velocity.sparklineNew);
+        const sparkline2 = this.generateSparkline('#50e3c2', velocity.sparklineGrad);
+        const sparkline3 = this.generateSparkline('#f5a623', velocity.sparklineRev);
 
-            container.innerHTML = `
-                <div class="ana-panel-header" style="margin-bottom:0;">
-                    <span class="ana-panel-title">
-                        Learning Velocity
-                        <span class="help-icon" data-tooltip="How fast you are acquiring new knowledge and moving cards into long-term memory.">?</span>
-                    </span>
-                </div>
-                <div class="velocity-kpi-grid">
-                    ${this.buildKpiCard('New Cards/Day', 'The average number of new cards you learn each day.', velocity.newCardsTrend, velocity.newCardsPerDay, '/day', sparkline1)}
-                    ${this.buildKpiCard('Graduated/Week', 'Cards that have successfully moved out of the learning phase this week.', velocity.graduatedTrend, velocity.graduatedPerWeek, '/week', sparkline2)}
-                    ${this.buildKpiCard('Total Reviews', 'The overall count of reviews you\'ve completed across all time.', velocity.reviewsTrend, velocity.reviewsPerDay, '/day', sparkline3)}
-                </div>
-            `;
-        } catch (err) {
-            UIUtils.catchError('LearningVelocity', 'Error rendering LearningVelocity', err, { containerId });
-        }
+        container.innerHTML = `
+            <div class="ana-panel-header" style="margin-bottom:0;">
+                <span class="ana-panel-title">
+                    Learning Velocity
+                    <span class="help-icon" data-tooltip="How fast you are acquiring new knowledge and moving cards into long-term memory.">?</span>
+                </span>
+            </div>
+            <div class="velocity-kpi-grid">
+                ${this.buildKpiCard('New Cards/Day', 'The average number of new cards you learn each day.', velocity.newCardsTrend, velocity.newCardsPerDay, '/day', sparkline1)}
+                ${this.buildKpiCard('Graduated/Week', 'Cards that have successfully moved out of the learning phase this week.', velocity.graduatedTrend, velocity.graduatedPerWeek, '/week', sparkline2)}
+                ${this.buildKpiCard('Total Reviews', 'The overall count of reviews you\'ve completed across all time.', velocity.reviewsTrend, velocity.reviewsPerDay, '/day', sparkline3)}
+            </div>
+        `;
     }
 
     /**
@@ -95,15 +93,11 @@ export class LearningVelocity {
      * @param val - Integer percentage trend value (positive for growth, negative for decline).
      * @returns HTML span element string with trend-up, trend-down, or neutral styling.
      */
+    @CatchAndReturn('<span class="kpi-trend" style="color:var(--md-text-low);">0%</span>', 'LearningVelocity', 'Error formatting trend value')
     private formatTrend(val: number): string {
-        try {
-            if (val === 0) return `<span class="kpi-trend" style="color:var(--md-text-low);">0%</span>`;
-            if (val > 0) return `<span class="kpi-trend trend-up">▲ ${val}%</span>`;
-            return `<span class="kpi-trend trend-down">▼ ${Math.abs(val)}%</span>`;
-        } catch (trendErr) {
-            UIUtils.catchError('LearningVelocity', 'Error formatting trend value', trendErr, { val });
-            return `<span class="kpi-trend" style="color:var(--md-text-low);">0%</span>`;
-        }
+        if (val === 0) return `<span class="kpi-trend" style="color:var(--md-text-low);">0%</span>`;
+        if (val > 0) return `<span class="kpi-trend trend-up">▲ ${val}%</span>`;
+        return `<span class="kpi-trend trend-down">▼ ${Math.abs(val)}%</span>`;
     }
 
     /**
@@ -112,27 +106,23 @@ export class LearningVelocity {
      * @param dataArray - Sequence of historical numerical data points (defaults to empty array).
      * @returns Rendered SVG markup string, or empty string if no data available.
      */
+    @CatchAndReturn('', 'LearningVelocity', 'Error generating sparkline SVG')
     generateSparkline(color: string, dataArray: number[] = []): string {
-        try {
-            if (!dataArray || dataArray.length === 0) return '';
-            
-            const maxVal = Math.max(...dataArray, 1);
-            const pts: string[] = [];
-            const xStep = 100 / Math.max(1, dataArray.length - 1);
-            
-            for (let i = 0; i < dataArray.length; i++) {
-                const y = 35 - ((dataArray[i] / maxVal) * 30);
-                pts.push(`${i * xStep},${y}`);
-            }
-            
-            return `
-                <svg viewBox="0 0 100 40" class="sparkline-svg" preserveAspectRatio="none">
-                    <polyline points="${pts.join(' ')}" stroke="${color}" fill="none" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            `;
-        } catch (err) {
-            UIUtils.catchError('LearningVelocity', 'Error generating sparkline SVG', err, { color, dataArray });
-            return '';
+        if (!dataArray || dataArray.length === 0) return '';
+        
+        const maxVal = Math.max(...dataArray, 1);
+        const pts: string[] = [];
+        const xStep = 100 / Math.max(1, dataArray.length - 1);
+        
+        for (let i = 0; i < dataArray.length; i++) {
+            const y = 35 - ((dataArray[i] / maxVal) * 30);
+            pts.push(`${i * xStep},${y}`);
         }
+        
+        return `
+            <svg viewBox="0 0 100 40" class="sparkline-svg" preserveAspectRatio="none">
+                <polyline points="${pts.join(' ')}" stroke="${color}" fill="none" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        `;
     }
 }

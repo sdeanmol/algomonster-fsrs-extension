@@ -7,6 +7,7 @@
  * validates schema conformance, and supports seamless migration from legacy uncompressed JSON archives.
  */
 import { Logger } from '@common/logger';
+import { CatchAndLog, CatchAndReturn, MeasureTime, withErrorHandling, withFallback } from '../../../decorators';
 import { ensureCardIds } from '../utils/cardUtils';
 import { Card, StorageData, UserSettings, WhitelistedWebsite, HighlightMark, BookmarkItem } from '../../../types/domain';
 import {
@@ -51,19 +52,14 @@ const VALID_RECORD_TYPES: ReadonlySet<string> = VALID_BACKUP_RECORD_TYPES;
  * @returns True if parsed matches the BackupRecord discriminated union.
  */
 export function isValidBackupRecord(parsed: unknown): parsed is BackupRecord {
-    try {
+    return withFallback(() => {
         if (typeof parsed !== 'object' || parsed === null) return false;
         const rec = parsed as { type?: unknown; data?: unknown };
         if (typeof rec.type !== 'string' || !VALID_RECORD_TYPES.has(rec.type as BackupRecordType)) {
             return false;
         }
         return typeof rec.data === 'object' && rec.data !== null;
-    } catch (err) {
-        // Comment: Recover gracefully with false if property access throws
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.warn('Backup', `Validation error in isValidBackupRecord: ${errorMessage}`, { err });
-        return false;
-    }
+    }, false, 'Backup', 'Validation error in isValidBackupRecord')() ?? false;
 }
 
 /**
@@ -84,16 +80,11 @@ export class Fnv1aHasher {
      * Feeds an input string into the rolling hash computation.
      * @param str - Input string to process.
      */
+    @CatchAndLog('Backup', 'Fnv1aHasher update failed')
     update(str: string): void {
-        try {
-            for (let i = 0; i < str.length; i++) {
-                this.hash ^= str.charCodeAt(i);
-                this.hash = (this.hash * FNV_PRIME_32) >>> 0;
-            }
-        } catch (err) {
-            // Comment: Catch hasher string update error
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Backup', `Fnv1aHasher update failed: ${errorMessage}`, { err });
+        for (let i = 0; i < str.length; i++) {
+            this.hash ^= str.charCodeAt(i);
+            this.hash = (this.hash * FNV_PRIME_32) >>> 0;
         }
     }
 
@@ -101,15 +92,9 @@ export class Fnv1aHasher {
      * Retrieves the final 8-character hex checksum digest.
      * @returns 8-character hex string.
      */
+    @CatchAndReturn('00000000', 'Backup', 'Fnv1aHasher digest failed')
     digest(): string {
-        try {
-            return this.hash.toString(16).padStart(8, '0');
-        } catch (err) {
-            // Comment: Return default empty digest on formatting error
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Backup', `Fnv1aHasher digest failed: ${errorMessage}`, { err });
-            return '00000000';
-        }
+        return this.hash.toString(16).padStart(8, '0');
     }
 }
 
@@ -169,273 +154,255 @@ export class BackupManager {
      * @fires chrome.downloads.download
      * @throws Error if storage retrieval, compression, or download generation fails.
      */
+    @MeasureTime('Backup', 'exportBackup')
+    @CatchAndLog('Backup', { contextMessage: 'Backup export failed', rethrow: true })
     static async exportBackup(): Promise<void> {
-        Logger.time('Backup', 'exportBackup');
         Logger.info('Backup', 'Starting backup export process...');
-        try {
-            const raw = (await chrome.storage.local.get(null)) as StorageData & {
-                marks?: BackupMarkData[];
-                bookmarks?: BackupBookmarkData[];
-                pagecontents?: BackupPageContentData[];
-                ratingPromptState?: unknown;
-                dailyGoalTarget?: number | null;
-                longestStreak?: number;
+        const raw = (await chrome.storage.local.get(null)) as StorageData & {
+            marks?: BackupMarkData[];
+            bookmarks?: BackupBookmarkData[];
+            pagecontents?: BackupPageContentData[];
+            ratingPromptState?: unknown;
+            dailyGoalTarget?: number | null;
+            longestStreak?: number;
+        };
+
+        // Extract and deduplicate URLs across bookmarks, cards, marks, pagecontents
+        const pages: BackupPageData[] = [];
+        const urlToPageId = new Map<string, number>();
+
+        const getOrCreatePageId = (url: string | undefined, title: string = '', icon: string = ''): number | null => {
+            if (!url) return null;
+            let id = urlToPageId.get(url);
+            if (id === undefined) {
+                id = pages.length;
+                urlToPageId.set(url, id);
+                pages.push({ id, url, title, icon });
+            } else {
+                if (title && !pages[id].title) pages[id].title = title;
+                if (icon && !pages[id].icon) pages[id].icon = icon;
+            }
+            return id;
+        };
+
+        // Populate URLs from bookmarks
+        for (const b of raw.bookmarks || []) {
+            getOrCreatePageId(b.url, b.title, b.meta?.favIconUrl);
+        }
+
+        // Populate URLs from FSRS cards
+        for (const c of raw.fsrsCards || []) {
+            getOrCreatePageId(c.problemUrl, c.problemTitle);
+        }
+
+        // Populate URLs from marks
+        for (const m of raw.marks || []) {
+            getOrCreatePageId(m.url);
+        }
+
+        // Populate URLs from pagecontents
+        for (const pc of raw.pagecontents || []) {
+            getOrCreatePageId(pc.url);
+        }
+
+        // Generate deduplicated structures
+        const dupBookmarks: BackupBookmarkData[] = (raw.bookmarks || []).map((b) => {
+            const copy: BackupBookmarkData = {
+                u: b.url ? (urlToPageId.get(b.url) ?? undefined) : undefined
             };
-
-            // Extract and deduplicate URLs across bookmarks, cards, marks, pagecontents
-            const pages: BackupPageData[] = [];
-            const urlToPageId = new Map<string, number>();
-
-            const getOrCreatePageId = (url: string | undefined, title: string = '', icon: string = ''): number | null => {
-                if (!url) return null;
-                let id = urlToPageId.get(url);
-                if (id === undefined) {
-                    id = pages.length;
-                    urlToPageId.set(url, id);
-                    pages.push({ id, url, title, icon });
-                } else {
-                    if (title && !pages[id].title) pages[id].title = title;
-                    if (icon && !pages[id].icon) pages[id].icon = icon;
+            if (b.meta) {
+                const metaCopy = { ...(b.meta as Record<string, unknown>) };
+                delete metaCopy.favIconUrl;
+                if (Object.keys(metaCopy).length > 0) {
+                    copy.meta = metaCopy;
                 }
-                return id;
+            }
+            return copy;
+        });
+
+        const dupCards: BackupCardData[] = (raw.fsrsCards || []).map((c) => {
+            const copy: BackupCardData = { ...(c as unknown as BackupCardData) };
+            if (c.problemUrl) copy.u = urlToPageId.get(c.problemUrl) ?? undefined;
+            delete copy.problemUrl;
+            delete copy.problemTitle;
+            return copy;
+        });
+
+        const dupMarks: BackupMarkData[] = (raw.marks || []).map((m) => {
+            const copy: BackupMarkData = { ...m };
+            if (m.url) copy.u = urlToPageId.get(m.url) ?? undefined;
+            delete copy.url;
+            return copy;
+        });
+
+        const dupPageContents: BackupPageContentData[] = (raw.pagecontents || []).map((pc) => {
+            const copy: BackupPageContentData = { ...pc };
+            if (pc.url) copy.u = urlToPageId.get(pc.url) ?? undefined;
+            delete copy.url;
+            return copy;
+        });
+
+        // Generator yielding each serialized line
+        function* generateLines(): Generator<string, void, unknown> {
+            const header: BackupHeaderRecord = {
+                type: "header",
+                data: {
+                    version: 2,
+                    timestamp: Date.now(),
+                    counts: {
+                        pages: pages.length,
+                        cards: dupCards.length,
+                        marks: dupMarks.length,
+                        bookmarks: dupBookmarks.length,
+                        pagecontents: dupPageContents.length
+                    }
+                }
             };
+            yield JSON.stringify(header);
 
-            // Populate URLs from bookmarks
-            for (const b of raw.bookmarks || []) {
-                getOrCreatePageId(b.url, b.title, b.meta?.favIconUrl);
+            for (const p of pages) {
+                yield JSON.stringify({ type: "page", data: p });
+            }
+            for (const c of dupCards) {
+                yield JSON.stringify({ type: "card", data: c });
+            }
+            for (const m of dupMarks) {
+                yield JSON.stringify({ type: "mark", data: m });
+            }
+            for (const b of dupBookmarks) {
+                yield JSON.stringify({ type: "bookmark", data: b });
+            }
+            for (const pc of dupPageContents) {
+                yield JSON.stringify({ type: "pagecontent", data: pc });
             }
 
-            // Populate URLs from FSRS cards
-            for (const c of raw.fsrsCards || []) {
-                getOrCreatePageId(c.problemUrl, c.problemTitle);
+            if (raw.fsrsActivity) {
+                yield JSON.stringify({ type: "activity", data: raw.fsrsActivity });
             }
 
-            // Populate URLs from marks
-            for (const m of raw.marks || []) {
-                getOrCreatePageId(m.url);
+            if (raw.fsrsTopicWeights) {
+                yield JSON.stringify({ type: "weights", data: raw.fsrsTopicWeights });
             }
 
-            // Populate URLs from pagecontents
-            for (const pc of raw.pagecontents || []) {
-                getOrCreatePageId(pc.url);
+            // Export general user preferences and statistics
+            const settings: SettingsData = {
+                extensionSettings: raw.extensionSettings || {},
+                notificationSettings: raw.notificationSettings || {},
+                theme: raw.theme || 'dark',
+                fsrsGlobalParams: raw.fsrsGlobalParams || {},
+                ratingPromptState: raw.ratingPromptState as { snoozedUntil?: number; status?: string } || {},
+                dailyGoalTarget: raw.dailyGoalTarget || null,
+                longestStreak: raw.longestStreak || 0
+            };
+            if (raw.whitelistedWebsites !== undefined) {
+                settings.whitelistedWebsites = raw.whitelistedWebsites;
             }
+            yield JSON.stringify({ type: "settings", data: settings });
+        }
 
-            // Generate deduplicated structures
-            const dupBookmarks: BackupBookmarkData[] = (raw.bookmarks || []).map((b) => {
-                const copy: BackupBookmarkData = {
-                    u: b.url ? (urlToPageId.get(b.url) ?? undefined) : undefined
-                };
-                if (b.meta) {
-                    const metaCopy = { ...(b.meta as Record<string, unknown>) };
-                    delete metaCopy.favIconUrl;
-                    if (Object.keys(metaCopy).length > 0) {
-                        copy.meta = metaCopy;
+        const lineGenerator = generateLines();
+        const hasher = new Fnv1aHasher();
+        const encoder = new TextEncoder();
+        let totalCount = 0;
+
+        const stream = new ReadableStream({
+            pull(controller) {
+                try {
+                    const { value, done } = lineGenerator.next();
+                    if (done) {
+                        const checksum = hasher.digest();
+                        const footerLine = JSON.stringify({ type: "footer", data: { checksum, count: totalCount } });
+                        controller.enqueue(encoder.encode(footerLine + "\n"));
+                        controller.close();
+                        return;
                     }
-                }
-                return copy;
-            });
 
-            const dupCards: BackupCardData[] = (raw.fsrsCards || []).map((c) => {
-                const copy: BackupCardData = { ...(c as unknown as BackupCardData) };
-                if (c.problemUrl) copy.u = urlToPageId.get(c.problemUrl) ?? undefined;
-                delete copy.problemUrl;
-                delete copy.problemTitle;
-                return copy;
-            });
+                    const lineWithNewline = value + "\n";
+                    hasher.update(lineWithNewline);
+                    totalCount++;
 
-            const dupMarks: BackupMarkData[] = (raw.marks || []).map((m) => {
-                const copy: BackupMarkData = { ...m };
-                if (m.url) copy.u = urlToPageId.get(m.url) ?? undefined;
-                delete copy.url;
-                return copy;
-            });
-
-            const dupPageContents: BackupPageContentData[] = (raw.pagecontents || []).map((pc) => {
-                const copy: BackupPageContentData = { ...pc };
-                if (pc.url) copy.u = urlToPageId.get(pc.url) ?? undefined;
-                delete copy.url;
-                return copy;
-            });
-
-            // Generator yielding each serialized line
-            function* generateLines(): Generator<string, void, unknown> {
-                const header: BackupHeaderRecord = {
-                    type: "header",
-                    data: {
-                        version: 2,
-                        timestamp: Date.now(),
-                        counts: {
-                            pages: pages.length,
-                            cards: dupCards.length,
-                            marks: dupMarks.length,
-                            bookmarks: dupBookmarks.length,
-                            pagecontents: dupPageContents.length
-                        }
-                    }
-                };
-                yield JSON.stringify(header);
-
-                for (const p of pages) {
-                    yield JSON.stringify({ type: "page", data: p });
+                    controller.enqueue(encoder.encode(lineWithNewline));
+                } catch (pullErr) {
+                    // Comment: Abort stream controller on line generation error
+                    const errorMessage = pullErr instanceof Error ? pullErr.message : String(pullErr);
+                    Logger.error('Backup', `Error in export stream pull: ${errorMessage}`, { pullErr });
+                    controller.error(pullErr);
                 }
-                for (const c of dupCards) {
-                    yield JSON.stringify({ type: "card", data: c });
-                }
-                for (const m of dupMarks) {
-                    yield JSON.stringify({ type: "mark", data: m });
-                }
-                for (const b of dupBookmarks) {
-                    yield JSON.stringify({ type: "bookmark", data: b });
-                }
-                for (const pc of dupPageContents) {
-                    yield JSON.stringify({ type: "pagecontent", data: pc });
-                }
-
-                if (raw.fsrsActivity) {
-                    yield JSON.stringify({ type: "activity", data: raw.fsrsActivity });
-                }
-
-                if (raw.fsrsTopicWeights) {
-                    yield JSON.stringify({ type: "weights", data: raw.fsrsTopicWeights });
-                }
-
-                // Export general user preferences and statistics
-                const settings: SettingsData = {
-                    extensionSettings: raw.extensionSettings || {},
-                    notificationSettings: raw.notificationSettings || {},
-                    theme: raw.theme || 'dark',
-                    fsrsGlobalParams: raw.fsrsGlobalParams || {},
-                    ratingPromptState: raw.ratingPromptState as { snoozedUntil?: number; status?: string } || {},
-                    dailyGoalTarget: raw.dailyGoalTarget || null,
-                    longestStreak: raw.longestStreak || 0
-                };
-                if (raw.whitelistedWebsites !== undefined) {
-                    settings.whitelistedWebsites = raw.whitelistedWebsites;
-                }
-                yield JSON.stringify({ type: "settings", data: settings });
             }
+        });
 
-            const lineGenerator = generateLines();
-            const hasher = new Fnv1aHasher();
-            const encoder = new TextEncoder();
-            let totalCount = 0;
+        // Native Compression Stream
+        const windowWithCompression = window as unknown as { CompressionStream: new (format: string) => TransformStream };
+        const compressedStream = stream.pipeThrough(new windowWithCompression.CompressionStream('gzip'));
+        const response = new Response(compressedStream, {
+            headers: { 'Content-Type': 'application/gzip' }
+        });
+        const rawBlob = await response.blob();
+        const blob = new Blob([rawBlob], { type: 'application/gzip' });
+        const blobUrl = URL.createObjectURL(blob);
 
-            const stream = new ReadableStream({
-                pull(controller) {
-                    try {
-                        const { value, done } = lineGenerator.next();
-                        if (done) {
-                            const checksum = hasher.digest();
-                            const footerLine = JSON.stringify({ type: "footer", data: { checksum, count: totalCount } });
-                            controller.enqueue(encoder.encode(footerLine + "\n"));
-                            controller.close();
-                            return;
-                        }
+        const filename = `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json.gz`;
 
-                        const lineWithNewline = value + "\n";
-                        hasher.update(lineWithNewline);
-                        totalCount++;
-
-                        controller.enqueue(encoder.encode(lineWithNewline));
-                    } catch (pullErr) {
-                        // Comment: Abort stream controller on line generation error
-                        const errorMessage = pullErr instanceof Error ? pullErr.message : String(pullErr);
-                        Logger.error('Backup', `Error in export stream pull: ${errorMessage}`, { pullErr });
-                        controller.error(pullErr);
-                    }
+        // Safari does not support chrome.downloads. Fall back to an anchor-click download,
+        // which works cross-browser and does not require the 'downloads' permission.
+        const isFirefoxAndroid = BROWSER_CONFIG.target === 'firefox' && /Android/i.test(navigator.userAgent || '');
+        
+        if (BROWSER_CONFIG.supportsDownloads && !isFirefoxAndroid) {
+            chrome.downloads.download({
+                url: blobUrl,
+                filename: filename,
+                saveAs: true
+            }, () => {
+                if (chrome.runtime.lastError) {
+                    Logger.error('Backup', `chrome.downloads error: ${chrome.runtime.lastError.message}`);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
                 }
+                setTimeout(() => {
+                    withErrorHandling(() => URL.revokeObjectURL(blobUrl), 'Backup', 'Blob URL revocation exception')();
+                }, 5000); // Wait longer before revoking just in case
             });
-
-            // Native Compression Stream
-            const windowWithCompression = window as unknown as { CompressionStream: new (format: string) => TransformStream };
-            const compressedStream = stream.pipeThrough(new windowWithCompression.CompressionStream('gzip'));
-            const response = new Response(compressedStream, {
-                headers: { 'Content-Type': 'application/gzip' }
-            });
-            const rawBlob = await response.blob();
-            const blob = new Blob([rawBlob], { type: 'application/gzip' });
-            const blobUrl = URL.createObjectURL(blob);
-
-            const filename = `algo_pro_backup_${new Date().toISOString().split('T')[0]}.json.gz`;
-
-            // Safari does not support chrome.downloads. Fall back to an anchor-click download,
-            // which works cross-browser and does not require the 'downloads' permission.
-            const isFirefoxAndroid = BROWSER_CONFIG.target === 'firefox' && /Android/i.test(navigator.userAgent || '');
-            
-            if (BROWSER_CONFIG.supportsDownloads && !isFirefoxAndroid) {
+        } else if (isFirefoxAndroid) {
+            // Firefox Android: OS download manager often fails to resolve extension blob URLs.
+            // We use a base64 Data URL to bypass origin resolution issues entirely.
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const dataUrl = reader.result as string;
                 chrome.downloads.download({
-                    url: blobUrl,
+                    url: dataUrl,
                     filename: filename,
-                    saveAs: true
+                    saveAs: false // saveAs is unsupported on Firefox Android
                 }, () => {
                     if (chrome.runtime.lastError) {
-                        Logger.error('Backup', `chrome.downloads error: ${chrome.runtime.lastError.message}`);
+                        Logger.error('Backup', `Firefox Android download error: ${chrome.runtime.lastError.message}`);
+                        // Absolute last resort
                         const a = document.createElement('a');
-                        a.href = blobUrl;
+                        a.href = dataUrl;
                         a.download = filename;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
                     }
-                    setTimeout(() => {
-                        try {
-                            URL.revokeObjectURL(blobUrl);
-                        } catch (e) {
-                            Logger.debug('Backup', 'Blob URL revocation exception', { error: e });
-                        }
-                    }, 5000); // Wait longer before revoking just in case
                 });
-            } else if (isFirefoxAndroid) {
-                // Firefox Android: OS download manager often fails to resolve extension blob URLs.
-                // We use a base64 Data URL to bypass origin resolution issues entirely.
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const dataUrl = reader.result as string;
-                    chrome.downloads.download({
-                        url: dataUrl,
-                        filename: filename,
-                        saveAs: false // saveAs is unsupported on Firefox Android
-                    }, () => {
-                        if (chrome.runtime.lastError) {
-                            Logger.error('Backup', `Firefox Android download error: ${chrome.runtime.lastError.message}`);
-                            // Absolute last resort
-                            const a = document.createElement('a');
-                            a.href = dataUrl;
-                            a.download = filename;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                        }
-                    });
-                };
-                reader.readAsDataURL(blob);
-            } else {
-                // Anchor-click fallback for Safari
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => {
-                    try {
-                        URL.revokeObjectURL(blobUrl);
-                    } catch (e) {
-                        Logger.debug('Backup', 'Blob URL revocation exception', { error: e });
-                    }
-                }, 1000);
-            }
-            Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
-
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Backup', `Backup export failed: ${errorMessage}`, { err });
-            // Comment: Re-throw export error so calling UI component can show error notification
-            throw err;
-        } finally {
-            // Comment: Always end exportBackup performance timer regardless of success or failure
-            Logger.timeEnd('Backup', 'exportBackup');
+            };
+            reader.readAsDataURL(blob);
+        } else {
+            // Anchor-click fallback for Safari
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => {
+                withErrorHandling(() => URL.revokeObjectURL(blobUrl), 'Backup', 'Blob URL revocation exception')();
+            }, 1000);
         }
+        Logger.info('Backup', `Backup export completed successfully. Download started for ${filename}.`);
     }
 
     /**
@@ -634,85 +601,79 @@ export class BackupManager {
      * @async
      * @throws Error if stream contains corrupted JSON or checksum mismatch.
      */
+    @CatchAndLog('Backup', { contextMessage: 'Error during validateStream', rethrow: true })
     static async validateStream(file: File, isGzip: boolean): Promise<{ isV2: boolean; header?: BackupHeaderRecord; counts?: BackupCounts }> {
-        try {
-            let stream: ReadableStream = file.stream();
-            if (isGzip) {
-                const windowWithDecompression = window as unknown as { DecompressionStream: new (format: string) => TransformStream };
-                stream = stream.pipeThrough(new windowWithDecompression.DecompressionStream('gzip'));
-            }
-
-            const hasher = new Fnv1aHasher();
-            let lineCount = 0;
-            let header: BackupHeaderRecord | null = null;
-            let footer: FooterRecord | null = null;
-
-            const linesIterable = readLines(stream);
-            for await (const line of linesIterable) {
-                if (!line.trim()) continue;
-
-                let parsed: unknown;
-                try {
-                    parsed = JSON.parse(line);
-                } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Backup', `JSON parse error in validateStream line ${lineCount + 1}: ${errorMessage}`, { lineContent: line, lineCount, err });
-                    // If it fails on the first line, it's definitely not V2 JSONL
-                    if (lineCount === 0) {
-                        return { isV2: false };
-                    }
-                    // Comment: Re-throw validation error to abort corrupted backup validation
-                    throw new Error(`Corrupted file: Invalid JSON structure at line ${lineCount + 1}`);
-                }
-
-                if (!isValidBackupRecord(parsed)) {
-                    if (lineCount === 0) {
-                        return { isV2: false };
-                    }
-                    Logger.error('Backup', `Misformed line record in validateStream line ${lineCount + 1}`, { parsed, lineCount });
-                    // Comment: Re-throw validation error for misformed backup record type
-                    throw new Error(`Corrupted file: Misformed line record at line ${lineCount + 1}`);
-                }
-
-                if (parsed.type === "header") {
-                    if (lineCount !== 0) {
-                        Logger.error('Backup', 'Misplaced header record in backup file', { lineCount });
-                        // Comment: Re-throw error for misplaced header record
-                        throw new Error("Corrupted file: Backup header misplaced");
-                    }
-                    header = parsed;
-                    const lineWithNewline = line + "\n";
-                    hasher.update(lineWithNewline);
-                } else if (parsed.type === "footer") {
-                    footer = parsed;
-                    break;
-                } else {
-                    const lineWithNewline = line + "\n";
-                    hasher.update(lineWithNewline);
-                }
-                lineCount++;
-            }
-
-            if (!header) {
-                return { isV2: false };
-            }
-
-            if (!footer) {
-                throw new Error("Corrupted file: Missing checksum integrity footer");
-            }
-
-            const calculatedChecksum = hasher.digest();
-            if (calculatedChecksum !== footer.data.checksum) {
-                throw new Error(`Integrity check failed: Checksum mismatch (expected ${footer.data.checksum}, calculated ${calculatedChecksum})`);
-            }
-
-            return { isV2: true, header, counts: header.data.counts };
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Backup', `Error during validateStream: ${errorMessage}`, { err });
-            // Comment: Re-throw stream validation exception to notify importer caller
-            throw err;
+        let stream: ReadableStream = file.stream();
+        if (isGzip) {
+            const windowWithDecompression = window as unknown as { DecompressionStream: new (format: string) => TransformStream };
+            stream = stream.pipeThrough(new windowWithDecompression.DecompressionStream('gzip'));
         }
+
+        const hasher = new Fnv1aHasher();
+        let lineCount = 0;
+        let header: BackupHeaderRecord | null = null;
+        let footer: FooterRecord | null = null;
+
+        const linesIterable = readLines(stream);
+        for await (const line of linesIterable) {
+            if (!line.trim()) continue;
+
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(line);
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                Logger.error('Backup', `JSON parse error in validateStream line ${lineCount + 1}: ${errorMessage}`, { lineContent: line, lineCount, err });
+                // If it fails on the first line, it's definitely not V2 JSONL
+                if (lineCount === 0) {
+                    return { isV2: false };
+                }
+                // Comment: Re-throw validation error to abort corrupted backup validation
+                throw new Error(`Corrupted file: Invalid JSON structure at line ${lineCount + 1}`);
+            }
+
+            if (!isValidBackupRecord(parsed)) {
+                if (lineCount === 0) {
+                    return { isV2: false };
+                }
+                Logger.error('Backup', `Misformed line record in validateStream line ${lineCount + 1}`, { parsed, lineCount });
+                // Comment: Re-throw validation error for misformed backup record type
+                throw new Error(`Corrupted file: Misformed line record at line ${lineCount + 1}`);
+            }
+
+            if (parsed.type === "header") {
+                if (lineCount !== 0) {
+                    Logger.error('Backup', 'Misplaced header record in backup file', { lineCount });
+                    // Comment: Re-throw error for misplaced header record
+                    throw new Error("Corrupted file: Backup header misplaced");
+                }
+                header = parsed;
+                const lineWithNewline = line + "\n";
+                hasher.update(lineWithNewline);
+            } else if (parsed.type === "footer") {
+                footer = parsed;
+                break;
+            } else {
+                const lineWithNewline = line + "\n";
+                hasher.update(lineWithNewline);
+            }
+            lineCount++;
+        }
+
+        if (!header) {
+            return { isV2: false };
+        }
+
+        if (!footer) {
+            throw new Error("Corrupted file: Missing checksum integrity footer");
+        }
+
+        const calculatedChecksum = hasher.digest();
+        if (calculatedChecksum !== footer.data.checksum) {
+            throw new Error(`Integrity check failed: Checksum mismatch (expected ${footer.data.checksum}, calculated ${calculatedChecksum})`);
+        }
+
+        return { isV2: true, header, counts: header.data.counts };
     }
 
     /**
@@ -733,73 +694,74 @@ export class BackupManager {
                 reject(new Error(errorMsg));
             };
 
-            reader.onload = async (event: ProgressEvent<FileReader>) => {
-                try {
-                    const text = event.target?.result as string;
-                    const imported = JSON.parse(text) as {
-                        cards?: Card[];
-                        activity?: Record<string, number>;
-                        weights?: Record<string, number[]>;
-                        marks?: BackupMarkData[];
-                        bookmarks?: BackupBookmarkData[];
-                        pagecontents?: BackupPageContentData[];
-                        extensionSettings?: Record<string, unknown>;
-                        notificationSettings?: Record<string, unknown>;
-                        theme?: 'dark' | 'light';
-                        whitelistedWebsites?: WhitelistedWebsite[];
-                        fsrsGlobalParams?: Record<string, unknown>;
-                        ratingPromptState?: Record<string, unknown>;
-                        dailyGoalTarget?: number | null;
-                        longestStreak?: number;
-                    } | Card[];
+            reader.onload = withErrorHandling(async (event: ProgressEvent<FileReader>) => {
+                const text = event.target?.result as string;
+                const imported = JSON.parse(text) as {
+                    cards?: Card[];
+                    activity?: Record<string, number>;
+                    weights?: Record<string, number[]>;
+                    marks?: BackupMarkData[];
+                    bookmarks?: BackupBookmarkData[];
+                    pagecontents?: BackupPageContentData[];
+                    extensionSettings?: Record<string, unknown>;
+                    notificationSettings?: Record<string, unknown>;
+                    theme?: 'dark' | 'light';
+                    whitelistedWebsites?: WhitelistedWebsite[];
+                    fsrsGlobalParams?: Record<string, unknown>;
+                    ratingPromptState?: Record<string, unknown>;
+                    dailyGoalTarget?: number | null;
+                    longestStreak?: number;
+                } | Card[];
 
-                    let rawImportedCards: Card[] = [];
-                    if (Array.isArray(imported)) {
-                        rawImportedCards = imported;
-                    } else if (imported.cards && Array.isArray(imported.cards)) {
-                        rawImportedCards = imported.cards;
+                let rawImportedCards: Card[] = [];
+                if (Array.isArray(imported)) {
+                    rawImportedCards = imported;
+                } else if (imported.cards && Array.isArray(imported.cards)) {
+                    rawImportedCards = imported.cards;
+                }
+
+                ensureCardIds(rawImportedCards);
+
+                const storageUpdate: StorageData & Record<string, unknown> = {
+                    fsrsCards: rawImportedCards,
+                    fsrsActivity: Array.isArray(imported) ? {} : (imported.activity || {}),
+                    fsrsTopicWeights: Array.isArray(imported) ? {} : (imported.weights || {})
+                };
+
+                if (!Array.isArray(imported)) {
+                    if (imported.marks) {
+                        storageUpdate.marks = (imported.marks as unknown as HighlightMark[]).map((m) => {
+                            m.type = m.type || 'highlight';
+                            return m;
+                        });
                     }
+                    if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks as unknown as BookmarkItem[];
+                    if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
+                    if (imported.extensionSettings) storageUpdate.extensionSettings = imported.extensionSettings;
+                    if (imported.notificationSettings) storageUpdate.notificationSettings = imported.notificationSettings;
 
-                    ensureCardIds(rawImportedCards);
-
-                    const storageUpdate: StorageData & Record<string, unknown> = {
-                        fsrsCards: rawImportedCards,
-                        fsrsActivity: Array.isArray(imported) ? {} : (imported.activity || {}),
-                        fsrsTopicWeights: Array.isArray(imported) ? {} : (imported.weights || {})
-                    };
-
-                    if (!Array.isArray(imported)) {
-                        if (imported.marks) {
-                            storageUpdate.marks = (imported.marks as unknown as HighlightMark[]).map((m) => {
-                                m.type = m.type || 'highlight';
-                                return m;
-                            });
-                        }
-                        if (imported.bookmarks) storageUpdate.bookmarks = imported.bookmarks as unknown as BookmarkItem[];
-                        if (imported.pagecontents) storageUpdate.pagecontents = imported.pagecontents;
-                        if (imported.extensionSettings) storageUpdate.extensionSettings = imported.extensionSettings;
-                        if (imported.notificationSettings) storageUpdate.notificationSettings = imported.notificationSettings;
-
-                        if (imported.theme) storageUpdate.theme = imported.theme;
-                        if (imported.whitelistedWebsites && imported.whitelistedWebsites.length > 0) {
-                            storageUpdate.whitelistedWebsites = imported.whitelistedWebsites;
-                        }
-                        if (imported.fsrsGlobalParams) storageUpdate.fsrsGlobalParams = imported.fsrsGlobalParams;
-                        if (imported.ratingPromptState) storageUpdate.ratingPromptState = imported.ratingPromptState;
-                        if (imported.dailyGoalTarget !== undefined) storageUpdate.dailyGoalTarget = imported.dailyGoalTarget;
-                        if (imported.longestStreak !== undefined) storageUpdate.longestStreak = imported.longestStreak;
+                    if (imported.theme) storageUpdate.theme = imported.theme;
+                    if (imported.whitelistedWebsites && imported.whitelistedWebsites.length > 0) {
+                        storageUpdate.whitelistedWebsites = imported.whitelistedWebsites;
                     }
+                    if (imported.fsrsGlobalParams) storageUpdate.fsrsGlobalParams = imported.fsrsGlobalParams;
+                    if (imported.ratingPromptState) storageUpdate.ratingPromptState = imported.ratingPromptState;
+                    if (imported.dailyGoalTarget !== undefined) storageUpdate.dailyGoalTarget = imported.dailyGoalTarget;
+                    if (imported.longestStreak !== undefined) storageUpdate.longestStreak = imported.longestStreak;
+                }
 
-                    await chrome.storage.local.set(storageUpdate);
-                    onStatus("Legacy backup imported successfully!");
-                    resolve();
-                } catch (err) {
+                await chrome.storage.local.set(storageUpdate);
+                onStatus("Legacy backup imported successfully!");
+                resolve();
+            }, 'Backup', {
+                contextMessage: 'Error reading legacy file',
+                fallback: (err: unknown) => {
                     const errorObj = err instanceof Error ? err : new Error(String(err));
-                    Logger.error('Backup', `Error reading legacy file: ${errorObj.message}`, { err: errorObj });
                     onStatus("Failed to parse JSON: " + errorObj.message, true);
                     reject(errorObj);
                 }
-            };
+            });
+
             reader.readAsText(file);
         });
     }

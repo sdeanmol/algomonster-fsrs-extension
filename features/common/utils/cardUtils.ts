@@ -7,6 +7,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { withErrorHandling, withFallback } from '../../../decorators';
 import { Card } from '../../../types/domain';
 import { UIUtils } from './uiUtils';
 
@@ -55,7 +56,7 @@ export interface CardLike {
  */
 export function getLastReviewDate(card?: CardLike | null): number | null {
     if (!card) return null;
-    try {
+    return withErrorHandling(() => {
         let lr = card.lastReview || card.last_review;
 
         if (!lr && card.historyLog && card.historyLog.length > 0) {
@@ -73,10 +74,7 @@ export function getLastReviewDate(card?: CardLike | null): number | null {
         if (lr instanceof Date) return lr.getTime();
 
         return null;
-    } catch (err) {
-        UIUtils.catchError('CardUtils', 'Error in getLastReviewDate', err, { card });
-        return null;
-    }
+    }, 'CardUtils', { contextMessage: 'Error in getLastReviewDate', fallback: null, metadata: { card } })() ?? null;
 }
 
 /**
@@ -85,12 +83,14 @@ export function getLastReviewDate(card?: CardLike | null): number | null {
  * @returns A unique card identifier string.
  */
 export function generateCardId(): string {
-    try {
-        return Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
-    } catch (err) {
-        UIUtils.catchError('CardUtils', 'Error generating card ID', err);
-        return `id_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
-    }
+    return withErrorHandling(
+        () => Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9),
+        'CardUtils',
+        {
+            contextMessage: 'Error generating card ID',
+            fallback: () => `id_${Date.now()}_${Math.floor(Math.random() * 1000000)}`
+        }
+    )() ?? `id_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 }
 
 /**
@@ -106,12 +106,11 @@ export function generateCardId(): string {
  */
 export function cleanUrl(url?: string | null): string {
     if (!url) return '';
-    try {
-        return url.split('?')[0].split('#')[0];
-    } catch (err) {
-        UIUtils.catchError('CardUtils', `Error cleaning URL '${url}'`, err, { url });
-        return String(url);
-    }
+    return withErrorHandling(
+        () => url.split('?')[0].split('#')[0],
+        'CardUtils',
+        { contextMessage: `Error cleaning URL '${url}'`, fallback: String(url), metadata: { url } }
+    )() ?? String(url);
 }
 
 /**
@@ -122,13 +121,14 @@ export function cleanUrl(url?: string | null): string {
  */
 export function getCardsForUrl(cards: Card[], url: string): Card[] {
     if (!Array.isArray(cards) || !url) return [];
-    try {
-        const targetClean = cleanUrl(url);
-        return cards.filter(c => c && c.problemUrl && cleanUrl(c.problemUrl) === targetClean);
-    } catch (err) {
-        UIUtils.catchError('CardUtils', `Error filtering cards for URL '${url}'`, err, { url });
-        return [];
-    }
+    return withErrorHandling(
+        () => {
+            const targetClean = cleanUrl(url);
+            return cards.filter(c => c && c.problemUrl && cleanUrl(c.problemUrl) === targetClean);
+        },
+        'CardUtils',
+        { contextMessage: `Error filtering cards for URL '${url}'`, fallback: [], metadata: { url } }
+    )() ?? [];
 }
 
 /**
@@ -139,28 +139,29 @@ export function getCardsForUrl(cards: Card[], url: string): Card[] {
  */
 export function ensureCardIds(cards: Card[]): Card[] {
     if (!Array.isArray(cards)) return [];
-    try {
-        const existingIds = new Set<string>();
-        cards.forEach(c => {
-            if (c && c.id) {
-                existingIds.add(String(c.id));
-            }
-        });
-
-        cards.forEach(c => {
-            if (c && !c.id) {
-                let newId = generateCardId();
-                while (existingIds.has(newId)) {
-                    newId = generateCardId();
+    return withErrorHandling(
+        () => {
+            const existingIds = new Set<string>();
+            cards.forEach(c => {
+                if (c && c.id) {
+                    existingIds.add(String(c.id));
                 }
-                c.id = newId;
-                existingIds.add(newId);
-            }
-        });
+            });
 
-        return cards;
-    } catch (err) {
-        UIUtils.catchError('CardUtils', 'Error in ensureCardIds', err);
-        return cards;
-    }
+            cards.forEach(c => {
+                if (c && !c.id) {
+                    let newId = generateCardId();
+                    while (existingIds.has(newId)) {
+                        newId = generateCardId();
+                    }
+                    c.id = newId;
+                    existingIds.add(newId);
+                }
+            });
+
+            return cards;
+        },
+        'CardUtils',
+        { contextMessage: 'Error in ensureCardIds', fallback: cards }
+    )() ?? cards;
 }

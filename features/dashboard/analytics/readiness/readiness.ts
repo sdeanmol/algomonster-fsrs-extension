@@ -12,6 +12,7 @@
 import { Logger } from '@common/logger';
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { DataUtils } from '../utils/dataUtils';
+import { CatchAndLog, CatchAndReturn, withErrorHandling } from '../../../../decorators';
 
 /**
  * Controller for the Exam Readiness tab, calculating projected recall on an upcoming date.
@@ -42,10 +43,10 @@ export class ReadinessTab {
      * Renders readiness overview cards, preset day chips, and subject-by-subject recall scores into container.
      * @param containerId - ID of DOM element to render into.
      */
+    @CatchAndLog('ReadinessTab', 'Error rendering ReadinessTab')
     render(containerId: string): void {
-        try {
-            const container = document.getElementById(containerId);
-            if (!container) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
             const stats = this.dataUtils.getExamReadinessStats(this.daysAhead);
             const formattedDate = stats.targetDate.toLocaleDateString(undefined, {
@@ -177,54 +178,36 @@ export class ReadinessTab {
             `;
 
             this.bindEvents();
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ReadinessTab', `Error rendering ReadinessTab: ${errorMessage}`, { containerId, daysAhead: this.daysAhead, err });
-        }
     }
 
     /**
      * Binds input listeners to the days-until-exam number input and preset day chips.
      */
+    @CatchAndLog('ReadinessTab', 'Error binding ReadinessTab event listeners')
     bindEvents(): void {
-        try {
-            const daysInput = document.getElementById('readiness-days-input') as HTMLInputElement | null;
-            if (daysInput) {
-                daysInput.addEventListener('input', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        const val = parseInt(target.value, 10);
-                        if (!isNaN(val) && val >= 0) {
-                            this.daysAhead = val;
-                            this.render('tab-readiness');
-                        }
-                    } catch (inputErr) {
-                        const errorMessage = inputErr instanceof Error ? inputErr.message : String(inputErr);
-                        Logger.error('ReadinessTab', `Error in readiness days input handler: ${errorMessage}`, { inputErr });
-                    }
-                });
-            }
-
-            const presetChips = document.querySelectorAll('.preset-chip');
-            presetChips.forEach(chip => {
-                chip.addEventListener('click', (e: Event) => {
-                    try {
-                        const currentTarget = e.currentTarget as HTMLElement;
-                        const days = parseInt(currentTarget.dataset.days || '', 10);
-                        if (!isNaN(days)) {
-                            this.daysAhead = days;
-                            this.render('tab-readiness');
-                        }
-                    } catch (chipErr) {
-                        const errorMessage = chipErr instanceof Error ? chipErr.message : String(chipErr);
-                        Logger.error('ReadinessTab', `Error in preset chip click handler: ${errorMessage}`, { chipErr });
-                    }
-                });
-            });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ReadinessTab', `Error binding ReadinessTab event listeners: ${errorMessage}`, { err });
+        const daysInput = document.getElementById('readiness-days-input') as HTMLInputElement | null;
+        if (daysInput) {
+            daysInput.addEventListener('input', withErrorHandling((e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const val = parseInt(target.value, 10);
+                if (!isNaN(val) && val >= 0) {
+                    this.daysAhead = val;
+                    this.render('tab-readiness');
+                }
+            }, 'ReadinessTab', 'Error in readiness days input handler'));
         }
+
+        const presetChips = document.querySelectorAll('.preset-chip');
+        presetChips.forEach(chip => {
+            chip.addEventListener('click', withErrorHandling((e: Event) => {
+                const currentTarget = e.currentTarget as HTMLElement;
+                const days = parseInt(currentTarget.dataset.days || '', 10);
+                if (!isNaN(days)) {
+                    this.daysAhead = days;
+                    this.render('tab-readiness');
+                }
+            }, 'ReadinessTab', 'Error in preset chip click handler'));
+        });
     }
 
     /**
@@ -232,18 +215,13 @@ export class ReadinessTab {
      * @param str - Raw input string.
      * @returns Escaped safe HTML string.
      */
+    @CatchAndReturn('', 'ReadinessTab', 'Error escaping HTML string')
     escapeHtml(str: string): string {
-        try {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ReadinessTab', `Error escaping HTML string: ${errorMessage}`, { str, err });
-            return String(str || '');
-        }
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 }

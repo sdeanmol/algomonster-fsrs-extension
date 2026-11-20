@@ -7,6 +7,7 @@
  */
 
 import { Logger } from '@common/logger';
+import { CatchAndLog, CatchAndReturn, withErrorHandling } from '../../../decorators';
 import { Card, StorageData } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../browserConfig';
 import {
@@ -97,67 +98,70 @@ export class ActionService {
      * console.log('New theme:', res.data.theme);
      * ```
      */
+    @CatchAndReturn(
+        (err: unknown, actionId: CommandActionId) => ({
+            success: false,
+            action: actionId,
+            error: err instanceof Error ? err.message : String(err)
+        }),
+        'ActionService',
+        'Error executing action'
+    )
     static async executeAction(actionId: CommandActionId, options?: ActionExecutionOptions): Promise<ActionResult> {
         Logger.info('ActionService', `Executing action: ${actionId}`);
-        try {
-            // 1. Navigation Actions
-            if (ACTION_URL_MAP[actionId]) {
-                const tab = await ActionService.openExtensionPage(ACTION_URL_MAP[actionId]);
-                return { success: true, action: actionId, data: tab };
+        // 1. Navigation Actions
+        if (ACTION_URL_MAP[actionId]) {
+            const tab = await ActionService.openExtensionPage(ACTION_URL_MAP[actionId]);
+            return { success: true, action: actionId, data: tab };
+        }
+
+        // 2. Specific Actions
+        switch (actionId) {
+            case 'check-due-reviews': {
+                const dueCount = await ActionService.checkDueReviews(options);
+                return { success: true, action: actionId, data: { dueCount } };
             }
 
-            // 2. Specific Actions
-            switch (actionId) {
-                case 'check-due-reviews': {
-                    const dueCount = await ActionService.checkDueReviews(options);
-                    return { success: true, action: actionId, data: { dueCount } };
-                }
-
-                case 'toggle-theme': {
-                    const newTheme = await ActionService.toggleTheme();
-                    return { success: true, action: actionId, data: { theme: newTheme } };
-                }
-
-                case 'toggle-floating-marker': {
-                    const enabled = await ActionService.toggleFloatingMarker();
-                    return { success: true, action: actionId, data: { enabled } };
-                }
-
-                case 'toggle-algo-launcher': {
-                    const enabled = await ActionService.toggleAlgoLauncher();
-                    return { success: true, action: actionId, data: { enabled } };
-                }
-
-                case 'toggle-notifications': {
-                    const enabled = await ActionService.toggleNotifications();
-                    return { success: true, action: actionId, data: { enabled } };
-                }
-
-                case 'rate-extension': {
-                    await ActionService.rateExtension();
-                    return { success: true, action: actionId };
-                }
-
-                case 'export-backup': {
-                    await ActionService.exportBackup();
-                    return { success: true, action: actionId };
-                }
-
-                case 'export-anki': {
-                    const count = await ActionService.exportAnki();
-                    return { success: true, action: actionId, data: { cardCount: count } };
-                }
-
-                default: {
-                    const err = `Unknown command action: ${actionId}`;
-                    Logger.warn('ActionService', err);
-                    return { success: false, action: actionId, error: err };
-                }
+            case 'toggle-theme': {
+                const newTheme = await ActionService.toggleTheme();
+                return { success: true, action: actionId, data: { theme: newTheme } };
             }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('ActionService', `Error executing ${actionId}: ${errorMessage}`, { err });
-            return { success: false, action: actionId, error: errorMessage };
+
+            case 'toggle-floating-marker': {
+                const enabled = await ActionService.toggleFloatingMarker();
+                return { success: true, action: actionId, data: { enabled } };
+            }
+
+            case 'toggle-algo-launcher': {
+                const enabled = await ActionService.toggleAlgoLauncher();
+                return { success: true, action: actionId, data: { enabled } };
+            }
+
+            case 'toggle-notifications': {
+                const enabled = await ActionService.toggleNotifications();
+                return { success: true, action: actionId, data: { enabled } };
+            }
+
+            case 'rate-extension': {
+                await ActionService.rateExtension();
+                return { success: true, action: actionId };
+            }
+
+            case 'export-backup': {
+                await ActionService.exportBackup();
+                return { success: true, action: actionId };
+            }
+
+            case 'export-anki': {
+                const count = await ActionService.exportAnki();
+                return { success: true, action: actionId, data: { cardCount: count } };
+            }
+
+            default: {
+                const err = `Unknown command action: ${actionId}`;
+                Logger.warn('ActionService', err);
+                return { success: false, action: actionId, error: err };
+            }
         }
     }
 
@@ -166,20 +170,15 @@ export class ActionService {
      * @param path - Relative extension page path or absolute web URL.
      * @returns Promise resolving to the created Tab object, or null on error.
      */
+    @CatchAndReturn(null, 'ActionService', 'Failed to open page')
     static openExtensionPage(path: string): Promise<chrome.tabs.Tab | null> {
         return new Promise((resolve) => {
-            try {
-                const url = path.startsWith('http://') || path.startsWith('https://')
-                    ? path
-                    : chrome.runtime.getURL(path);
-                chrome.tabs.create({ url }, (tab) => {
-                    resolve(tab || null);
-                });
-            } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                Logger.error('ActionService', `Failed to open page ${path}: ${errorMessage}`, { err });
-                resolve(null);
-            }
+            const url = path.startsWith('http://') || path.startsWith('https://')
+                ? path
+                : chrome.runtime.getURL(path);
+            chrome.tabs.create({ url }, (tab) => {
+                resolve(tab || null);
+            });
         });
     }
 
@@ -393,20 +392,12 @@ export class ActionService {
                             ActionService.triggerDomDownload(url, filename);
                             resolve();
                         } else {
-                            try {
-                                URL.revokeObjectURL(url);
-                            } catch (e) {
-                                Logger.debug('ActionService', 'Blob URL revocation exception', { error: e });
-                            }
+                            withErrorHandling(() => URL.revokeObjectURL(url), 'ActionService', 'Blob URL revocation exception')();
                             reject(new Error(lastError.message));
                         }
                     } else {
                         setTimeout(() => {
-                            try {
-                                URL.revokeObjectURL(url);
-                            } catch (e) {
-                                Logger.debug('ActionService', 'Blob URL revocation exception', { error: e });
-                            }
+                            withErrorHandling(() => URL.revokeObjectURL(url), 'ActionService', 'Blob URL revocation exception')();
                         }, 5000);
                         resolve();
                     }
@@ -415,11 +406,7 @@ export class ActionService {
         } else if (typeof document !== 'undefined') {
             ActionService.triggerDomDownload(url, filename);
         } else {
-            try {
-                URL.revokeObjectURL(url);
-            } catch (e) {
-                Logger.debug('ActionService', 'Blob URL revocation exception', { error: e });
-            }
+            withErrorHandling(() => URL.revokeObjectURL(url), 'ActionService', 'Blob URL revocation exception')();
             await ActionService.openExtensionPage(fallbackPath);
         }
     }
@@ -437,11 +424,7 @@ export class ActionService {
         a.click();
         document.body.removeChild(a);
         setTimeout(() => {
-            try {
-                URL.revokeObjectURL(url);
-            } catch (e) {
-                Logger.debug('ActionService', 'Blob URL revocation exception', { error: e });
-            }
+            withErrorHandling(() => URL.revokeObjectURL(url), 'ActionService', 'Blob URL revocation exception')();
         }, 1000);
     }
 }

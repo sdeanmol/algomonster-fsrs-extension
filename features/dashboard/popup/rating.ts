@@ -12,6 +12,7 @@
 
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
+import { CatchAndLog, withErrorHandling } from '../../../decorators';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { StorageData } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
@@ -36,170 +37,152 @@ export class RatingComponent extends DashboardComponent {
      * @async
      * @returns Promise resolving when rating state has been loaded and UI updated.
      */
+    @CatchAndLog('RatingComponent', 'Error loading rating prompt config')
     async load(): Promise<void> {
-        try {
-            const card = document.getElementById('rating-prompt-card');
-            const promptState = document.getElementById('rating-prompt-state');
-            const thanksState = document.getElementById('rating-thanks-state');
-            const rateBtn = document.getElementById('rate-store-btn') as HTMLAnchorElement | null;
-            const rateLabel = document.getElementById('rate-store-label');
-            const ratingPromptText = document.getElementById('rating-prompt-text');
-            const staticReviewLink = document.getElementById('static-review-link') as HTMLAnchorElement | null;
+        const card = document.getElementById('rating-prompt-card');
+        const promptState = document.getElementById('rating-prompt-state');
+        const thanksState = document.getElementById('rating-thanks-state');
+        const rateBtn = document.getElementById('rate-store-btn') as HTMLAnchorElement | null;
+        const rateLabel = document.getElementById('rate-store-label');
+        const ratingPromptText = document.getElementById('rating-prompt-text');
+        const staticReviewLink = document.getElementById('static-review-link') as HTMLAnchorElement | null;
 
-            if (!card) return;
+        if (!card) return;
 
-            // Inject browser-specific store text and review URL from build-time config.
-            // BROWSER_CONFIG.reviewUrl and BROWSER_CONFIG.ratingButtonLabel are set at bundle
-            // time by webpack DefinePlugin — no runtime browser detection needed.
-            const reviewUrl = BROWSER_CONFIG.reviewUrl;
+        // Inject browser-specific store text and review URL from build-time config.
+        // BROWSER_CONFIG.reviewUrl and BROWSER_CONFIG.ratingButtonLabel are set at bundle
+        // time by webpack DefinePlugin — no runtime browser detection needed.
+        const reviewUrl = BROWSER_CONFIG.reviewUrl;
 
-            if (rateBtn) {
-                // Only Chrome Web Store URLs embed the extension ID at runtime.
-                // Firefox AMO and Safari App Store URLs are static slugs.
-                if (BROWSER_CONFIG.target === 'chrome') {
-                    const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : undefined;
-                    rateBtn.href = extId
-                        ? reviewUrl.replace('YOUR_EXTENSION_ID', extId)
-                        : reviewUrl;
-                } else {
-                    rateBtn.href = reviewUrl;
-                }
+        if (rateBtn) {
+            // Only Chrome Web Store URLs embed the extension ID at runtime.
+            // Firefox AMO and Safari App Store URLs are static slugs.
+            if (BROWSER_CONFIG.target === 'chrome') {
+                const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : undefined;
+                rateBtn.href = extId
+                    ? reviewUrl.replace('YOUR_EXTENSION_ID', extId)
+                    : reviewUrl;
+            } else {
+                rateBtn.href = reviewUrl;
             }
+        }
 
-            if (rateLabel) {
-                rateLabel.textContent = BROWSER_CONFIG.ratingButtonLabel;
+        if (rateLabel) {
+            rateLabel.textContent = BROWSER_CONFIG.ratingButtonLabel;
+        }
+
+        if (ratingPromptText) {
+            ratingPromptText.textContent = BROWSER_CONFIG.ratingPromptText;
+        }
+
+        if (staticReviewLink) {
+            if (BROWSER_CONFIG.target === 'chrome') {
+                const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : undefined;
+                staticReviewLink.href = extId
+                    ? reviewUrl.replace('YOUR_EXTENSION_ID', extId)
+                    : reviewUrl;
+            } else {
+                staticReviewLink.href = reviewUrl;
             }
+        }
 
-            if (ratingPromptText) {
-                ratingPromptText.textContent = BROWSER_CONFIG.ratingPromptText;
-            }
+        const result = (await chrome.storage.local.get(['ratingPromptState', 'fsrsCards'])) as StorageData & {
+            ratingPromptState?: { status?: string; snoozedUntil?: number };
+        };
+        const rating = result.ratingPromptState || { status: 'unrated', snoozedUntil: 0 };
+        const cardsCount = (result.fsrsCards || []).length;
 
-            if (staticReviewLink) {
-                if (BROWSER_CONFIG.target === 'chrome') {
-                    const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : undefined;
-                    staticReviewLink.href = extId
-                        ? reviewUrl.replace('YOUR_EXTENSION_ID', extId)
-                        : reviewUrl;
-                } else {
-                    staticReviewLink.href = reviewUrl;
-                }
-            }
+        // Check snooze expiration
+        const now = Date.now();
+        if (rating.status === 'snoozed' && rating.snoozedUntil && now >= rating.snoozedUntil) {
+            rating.status = 'unrated';
+            await chrome.storage.local.set({ ratingPromptState: rating });
+        }
 
-            const result = (await chrome.storage.local.get(['ratingPromptState', 'fsrsCards'])) as StorageData & {
-                ratingPromptState?: { status?: string; snoozedUntil?: number };
-            };
-            const rating = result.ratingPromptState || { status: 'unrated', snoozedUntil: 0 };
-            const cardsCount = (result.fsrsCards || []).length;
-
-            // Check snooze expiration
-            const now = Date.now();
-            if (rating.status === 'snoozed' && rating.snoozedUntil && now >= rating.snoozedUntil) {
-                rating.status = 'unrated';
-                await chrome.storage.local.set({ ratingPromptState: rating });
-            }
-
-            // Show/hide based on status and engagement (at least 1 card in system)
-            if (rating.status === 'unrated') {
-                if (cardsCount >= 1) {
-                    card.classList.remove('hide-panel');
-                    promptState?.classList.remove('hide-panel');
-                    thanksState?.classList.add('hide-panel');
-                } else {
-                    card.classList.add('hide-panel');
-                }
-            } else if (rating.status === 'rated') {
+        // Show/hide based on status and engagement (at least 1 card in system)
+        if (rating.status === 'unrated') {
+            if (cardsCount >= 1) {
                 card.classList.remove('hide-panel');
-                promptState?.classList.add('hide-panel');
-                thanksState?.classList.remove('hide-panel');
+                promptState?.classList.remove('hide-panel');
+                thanksState?.classList.add('hide-panel');
             } else {
                 card.classList.add('hide-panel');
             }
+        } else if (rating.status === 'rated') {
+            card.classList.remove('hide-panel');
+            promptState?.classList.add('hide-panel');
+            thanksState?.classList.remove('hide-panel');
+        } else {
+            card.classList.add('hide-panel');
+        }
 
-            // UA-014: Consolidate store review CTAs — hide static review banner when prompt card is visible
-            const staticBanner = document.querySelector('.static-review-banner') as HTMLElement | null;
-            if (staticBanner) {
-                staticBanner.style.display = card.classList.contains('hide-panel') ? 'block' : 'none';
-            }
-        } catch (error) {
-            UIUtils.catchError('RatingComponent', 'Error loading rating prompt config', error);
+        // UA-014: Consolidate store review CTAs — hide static review banner when prompt card is visible
+        const staticBanner = document.querySelector('.static-review-banner') as HTMLElement | null;
+        if (staticBanner) {
+            staticBanner.style.display = card.classList.contains('hide-panel') ? 'block' : 'none';
         }
     }
 
     /**
      * Binds click events to snooze, feedback rating confirmation, and edits.
      */
+    @CatchAndLog('RatingComponent', 'Error binding rating events')
     bindEvents(): void {
-        try {
-            const card = document.getElementById('rating-prompt-card');
-            const promptState = document.getElementById('rating-prompt-state');
-            const thanksState = document.getElementById('rating-thanks-state');
-            const snoozeBtn = document.getElementById('snooze-rate-btn');
-            const alreadyBtn = document.getElementById('already-rated-btn');
-            const editBtn = document.getElementById('edit-rating-btn');
+        const card = document.getElementById('rating-prompt-card');
+        const promptState = document.getElementById('rating-prompt-state');
+        const thanksState = document.getElementById('rating-thanks-state');
+        const snoozeBtn = document.getElementById('snooze-rate-btn');
+        const alreadyBtn = document.getElementById('already-rated-btn');
+        const editBtn = document.getElementById('edit-rating-btn');
 
-            if (!card) return;
+        if (!card) return;
 
-            const updateStaticBanner = (show: boolean) => {
-                const staticBanner = document.querySelector('.static-review-banner') as HTMLElement | null;
-                if (staticBanner) staticBanner.style.display = show ? 'block' : 'none';
-            };
+        const updateStaticBanner = (show: boolean) => {
+            const staticBanner = document.querySelector('.static-review-banner') as HTMLElement | null;
+            if (staticBanner) staticBanner.style.display = show ? 'block' : 'none';
+        };
 
-            if (snoozeBtn) {
-                snoozeBtn.addEventListener('click', async () => {
-                    const snoozedUntil = Date.now() + 7 * 24 * 60 * 60 * 1000; // Snooze for 7 days
-                    try {
-                        await chrome.storage.local.set({
-                            ratingPromptState: { status: 'snoozed', snoozedUntil }
-                        });
-                        card.classList.add('hide-panel');
-                        updateStaticBanner(true);
-                        this.showStatus("Notification paused for 7 days!");
-                    } catch (error) {
-            UIUtils.catchError('RatingComponent', 'Error saving snooze state', error);
-        }
+        if (snoozeBtn) {
+            snoozeBtn.addEventListener('click', withErrorHandling(async () => {
+                const snoozedUntil = Date.now() + 7 * 24 * 60 * 60 * 1000; // Snooze for 7 days
+                await chrome.storage.local.set({
+                    ratingPromptState: { status: 'snoozed', snoozedUntil }
                 });
-            }
-
-            if (alreadyBtn) {
-                alreadyBtn.addEventListener('click', async () => {
-                    try {
-                        await chrome.storage.local.set({
-                            ratingPromptState: { status: 'rated', snoozedUntil: 0 }
-                        });
-                        promptState?.classList.add('hide-panel');
-                        thanksState?.classList.remove('hide-panel');
-                        updateStaticBanner(false);
-                        this.showStatus("Thank you for your rating!");
-                    } catch (error) {
-            UIUtils.catchError('RatingComponent', 'Error setting already rated status', error);
+                card.classList.add('hide-panel');
+                updateStaticBanner(true);
+                this.showStatus("Notification paused for 7 days!");
+            }, { context: 'RatingComponent', message: 'Error saving snooze state' }));
         }
-                });
-            }
 
-            if (editBtn) {
-                editBtn.addEventListener('click', async () => {
-                    try {
-                        // Navigate to the appropriate store review page for this browser target
-                        let url = BROWSER_CONFIG.reviewUrl;
-                        if (BROWSER_CONFIG.target === 'chrome') {
-                            // Chrome: substitute the runtime extension ID into the CWS URL
-                            const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : 'unknown';
-                            url = url.replace('YOUR_EXTENSION_ID', extId);
-                        }
-                        // Firefox AMO and Safari App Store URLs are static — no substitution needed.
-                        chrome.tabs.create({ url });
-                        await chrome.storage.local.set({
-                            ratingPromptState: { status: 'unrated', snoozedUntil: 0 }
-                        });
-                        promptState?.classList.remove('hide-panel');
-                        thanksState?.classList.add('hide-panel');
-                    } catch (error) {
-            UIUtils.catchError('RatingComponent', 'Error resetting rating status', error);
-        }
+        if (alreadyBtn) {
+            alreadyBtn.addEventListener('click', withErrorHandling(async () => {
+                await chrome.storage.local.set({
+                    ratingPromptState: { status: 'rated', snoozedUntil: 0 }
                 });
-            }
-        } catch (err) {
-            UIUtils.catchError('RatingComponent', 'Error binding rating events', err);
+                promptState?.classList.add('hide-panel');
+                thanksState?.classList.remove('hide-panel');
+                updateStaticBanner(false);
+                this.showStatus("Thank you for your rating!");
+            }, { context: 'RatingComponent', message: 'Error setting already rated status' }));
+        }
+
+        if (editBtn) {
+            editBtn.addEventListener('click', withErrorHandling(async () => {
+                // Navigate to the appropriate store review page for this browser target
+                let url = BROWSER_CONFIG.reviewUrl;
+                if (BROWSER_CONFIG.target === 'chrome') {
+                    // Chrome: substitute the runtime extension ID into the CWS URL
+                    const extId = typeof chrome !== 'undefined' ? chrome.runtime?.id : 'unknown';
+                    url = url.replace('YOUR_EXTENSION_ID', extId);
+                }
+                // Firefox AMO and Safari App Store URLs are static — no substitution needed.
+                chrome.tabs.create({ url });
+                await chrome.storage.local.set({
+                    ratingPromptState: { status: 'unrated', snoozedUntil: 0 }
+                });
+                promptState?.classList.remove('hide-panel');
+                thanksState?.classList.add('hide-panel');
+            }, { context: 'RatingComponent', message: 'Error resetting rating status' }));
         }
     }
 }

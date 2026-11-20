@@ -11,6 +11,7 @@ import { ConfidenceBand } from './confidenceBand';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 import { ANALYTICS_CHART_COLORS, RETENTION_TIME_POINTS } from '../../../common/constants';
+import { CatchAndLog, withErrorHandling } from '../../../../decorators';
 
 /**
  * Visualizes memory decay trajectories across flashcard cohorts.
@@ -60,12 +61,9 @@ export class RetentionChart {
      * @param tag - Tag filter string query.
      * @returns void
      */
+    @CatchAndLog('RetentionChart', 'Error setting filter tag')
     setFilterTag(tag: string): void {
-        try {
-            this.filterTag = (tag || '').trim().toLowerCase();
-        } catch (err) {
-            UIUtils.catchError('RetentionChart', 'Error setting filter tag', err, { tag });
-        }
+        this.filterTag = (tag || '').trim().toLowerCase();
     }
 
     /**
@@ -73,12 +71,9 @@ export class RetentionChart {
      * @param type - Cohort grouping criterion ('tag', 'deck', or 'difficulty').
      * @returns void
      */
+    @CatchAndLog('RetentionChart', 'Error setting group by')
     setGroupBy(type: string): void {
-        try {
-            this.groupBy = type || 'tag';
-        } catch (err) {
-            UIUtils.catchError('RetentionChart', 'Error setting group by', err, { type });
-        }
+        this.groupBy = type || 'tag';
     }
 
     /**
@@ -86,12 +81,9 @@ export class RetentionChart {
      * @param show - True to display confidence bands; false to hide.
      * @returns void
      */
+    @CatchAndLog('RetentionChart', 'Error setting show confidence')
     setShowConfidence(show: boolean): void {
-        try {
-            this.showConfidence = Boolean(show);
-        } catch (err) {
-            UIUtils.catchError('RetentionChart', 'Error setting show confidence', err, { show });
-        }
+        this.showConfidence = Boolean(show);
     }
 
     /**
@@ -100,50 +92,43 @@ export class RetentionChart {
      * @param containerId - DOM ID of the container element hosting the chart.
      * @returns void
      */
+    @CatchAndLog('RetentionChart', 'Error rendering RetentionChart')
     render(containerId: string): void {
-        try {
-            const container = document.getElementById(containerId);
-            if (!container) return;
+        const container = document.getElementById(containerId);
+        if (!container) return;
 
-            // 1. Process and group card data
-            const groupAvgs = this.calculateGroupStats();
-            if (groupAvgs.length === 0) {
-                container.innerHTML = '<div class="retention-empty">No reviewed cards yet to generate curves.</div>';
-                return;
-            }
-
-            const timePoints = RETENTION_TIME_POINTS;
-            const svgW = 900, svgH = 250;
-            const padL = 50, padR = 20, padT = 20, padB = 40;
-            const chartW = svgW - padL - padR;
-            const chartH = svgH - padT - padB;
-
-            const xScale = (t: number) => padL + (t / 30) * chartW;
-            const yScale = (r: number) => padT + (1 - r) * chartH;
-
-            // 2. Build the SVG Grid and Labels
-            let svgContent = `<svg class="retention-curve-svg multi-line" viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="none" style="width: 100%; height: 100%; min-height: 250px;">`;
-            svgContent += this.generateSvgAxes(svgW, svgH, padL, padR, padT, xScale, yScale, timePoints);
-
-            // 3. Render curves and data points for each group
-            groupAvgs.forEach((gData, idx) => {
-                try {
-                    const color = this.chartColors[idx % this.chartColors.length];
-                    svgContent += this.generateGroupCurve(gData, color, timePoints, xScale, yScale);
-                } catch (groupErr) {
-                    UIUtils.catchError('RetentionChart', 'Error rendering curve for retention group', groupErr, { gData });
-                }
-            });
-
-            svgContent += `</svg>`;
-
-            // 4. Build the Legend HTML
-            const legendHtml = this.generateLegendHTML(groupAvgs);
-
-            container.innerHTML = svgContent + legendHtml;
-        } catch (err) {
-            UIUtils.catchError('RetentionChart', 'Error rendering RetentionChart', err, { containerId, groupBy: this.groupBy, filterTag: this.filterTag });
+        // 1. Process and group card data
+        const groupAvgs = this.calculateGroupStats();
+        if (groupAvgs.length === 0) {
+            container.innerHTML = '<div class="retention-empty">No reviewed cards yet to generate curves.</div>';
+            return;
         }
+
+        const timePoints = RETENTION_TIME_POINTS;
+        const svgW = 900, svgH = 250;
+        const padL = 50, padR = 20, padT = 20, padB = 40;
+        const chartW = svgW - padL - padR;
+        const chartH = svgH - padT - padB;
+
+        const xScale = (t: number) => padL + (t / 30) * chartW;
+        const yScale = (r: number) => padT + (1 - r) * chartH;
+
+        // 2. Build the SVG Grid and Labels
+        let svgContent = `<svg class="retention-curve-svg multi-line" viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="none" style="width: 100%; height: 100%; min-height: 250px;">`;
+        svgContent += this.generateSvgAxes(svgW, svgH, padL, padR, padT, xScale, yScale, timePoints);
+
+        // 3. Render curves and data points for each group
+        groupAvgs.forEach(withErrorHandling((gData, idx) => {
+            const color = this.chartColors[idx % this.chartColors.length];
+            svgContent += this.generateGroupCurve(gData, color, timePoints, xScale, yScale);
+        }, 'RetentionChart', 'Error rendering curve for retention group'));
+
+        svgContent += `</svg>`;
+
+        // 4. Build the Legend HTML
+        const legendHtml = this.generateLegendHTML(groupAvgs);
+
+        container.innerHTML = svgContent + legendHtml;
     }
 
     /**
@@ -156,39 +141,35 @@ export class RetentionChart {
         
         if (!this.dataUtils || !this.dataUtils.cards) return [];
 
-        this.dataUtils.cards.forEach(card => {
-            try {
-                // Apply tag filtering if specified
-                if (this.filterTag) {
-                    const hasTag = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(this.filterTag));
-                    if (!hasTag) return;
-                }
-
-                // Only consider cards with valid stability
-                if (card.stability > 0) {
-                    let keys: string[] = [];
-                    if (this.groupBy === 'tag') {
-                        keys = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
-                    } else if (this.groupBy === 'deck') {
-                        keys = ['Default']; // Deck support can be expanded here
-                    } else if (this.groupBy === 'difficulty') {
-                        if (card.difficulty < 3) keys = ['Easy'];
-                        else if (card.difficulty < 7) keys = ['Medium'];
-                        else keys = ['Hard'];
-                    }
-
-                    // Aggregate stats per group
-                    keys.forEach(key => {
-                        if (!groups[key]) groups[key] = { stabilities: [], count: 0, difficulties: [] };
-                        groups[key].stabilities.push(card.stability);
-                        groups[key].difficulties.push(card.difficulty || 0);
-                        groups[key].count++;
-                    });
-                }
-            } catch (cardErr) {
-                UIUtils.catchError('RetentionChart', 'Error processing card for retention chart', cardErr, { card });
+        this.dataUtils.cards.forEach(withErrorHandling(card => {
+            // Apply tag filtering if specified
+            if (this.filterTag) {
+                const hasTag = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(this.filterTag));
+                if (!hasTag) return;
             }
-        });
+
+            // Only consider cards with valid stability
+            if (card.stability > 0) {
+                let keys: string[] = [];
+                if (this.groupBy === 'tag') {
+                    keys = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
+                } else if (this.groupBy === 'deck') {
+                    keys = ['Default']; // Deck support can be expanded here
+                } else if (this.groupBy === 'difficulty') {
+                    if (card.difficulty < 3) keys = ['Easy'];
+                    else if (card.difficulty < 7) keys = ['Medium'];
+                    else keys = ['Hard'];
+                }
+
+                // Aggregate stats per group
+                keys.forEach(key => {
+                    if (!groups[key]) groups[key] = { stabilities: [], count: 0, difficulties: [] };
+                    groups[key].stabilities.push(card.stability);
+                    groups[key].difficulties.push(card.difficulty || 0);
+                    groups[key].count++;
+                });
+            }
+        }, 'RetentionChart', 'Error processing card for retention chart'));
 
         // Convert the aggregated groups into averaged stats, sort by count, and keep top 6
         return Object.keys(groups).map(name => {
@@ -263,11 +244,9 @@ export class RetentionChart {
 
         // 2. Render Confidence Band (Optional)
         if (this.showConfidence) {
-            try {
+            withErrorHandling(() => {
                 content += ConfidenceBand.renderBand(points, color, gData.count);
-            } catch (bandErr) {
-                UIUtils.catchError('RetentionChart', 'Error rendering confidence band', bandErr, { gData });
-            }
+            }, 'RetentionChart', 'Error rendering confidence band')();
         }
 
         // 3. Render the connecting line

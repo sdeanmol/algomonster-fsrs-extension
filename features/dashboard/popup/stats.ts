@@ -13,6 +13,7 @@
 
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
+import { CatchAndLog, CatchAndReturn, withErrorHandling } from '../../../decorators';
 import {
     RECALL_THRESHOLD_GOOD,
     RECALL_THRESHOLD_WARNING,
@@ -99,8 +100,8 @@ export class StatsComponent extends DashboardComponent {
      * @async
      * @returns Promise resolving when statistics calculations and DOM updates complete.
      */
+    @CatchAndLog('StatsComponent', 'Error loading stats')
     async load(): Promise<void> {
-        try {
             const result = (await chrome.storage.local.get([
                 'fsrsCards',
                 'fsrsActivity',
@@ -275,14 +276,10 @@ export class StatsComponent extends DashboardComponent {
             if (evalResult.newUnlocks.length > 0) {
                 await chrome.storage.local.set({ unlockedAchievements: evalResult.allUnlockedIds });
                 const first = evalResult.newUnlocks[0];
-                setTimeout(() => {
-                    try {
-                        this.showMilestoneToast(`🏆 ${first.icon} ${first.title} Unlocked!`);
-                        this.showConfetti();
-                    } catch (mErr) {
-                        UIUtils.catchError('StatsComponent', 'Error in achievement celebration callback', mErr);
-                    }
-                }, 300);
+                setTimeout(withErrorHandling(() => {
+                    this.showMilestoneToast(`🏆 ${first.icon} ${first.title} Unlocked!`);
+                    this.showConfetti();
+                }, { context: 'StatsComponent', message: 'Error in achievement celebration callback' }), 300);
             }
             
             const gamificationPanel = document.getElementById('gamification-panel');
@@ -343,312 +340,271 @@ export class StatsComponent extends DashboardComponent {
                 const milestoneKey = newMilestone.value;
                 await chrome.storage.local.set({ lastCelebratedMilestone: milestoneKey });
 
-                setTimeout(() => {
-                    try {
-                        const label = newMilestone!.type === 'streak'
-                            ? `🔥 ${milestoneKey}-Day Streak!`
-                            : `⭐ ${milestoneKey} Reviews!`;
-                        this.showMilestoneToast(label);
-                        this.showConfetti();
-                    } catch (mErr) {
-            UIUtils.catchError('StatsComponent', 'Error in milestone celebration callback', mErr);
-        }
-                }, 300);
+                setTimeout(withErrorHandling(() => {
+                    const label = newMilestone!.type === 'streak'
+                        ? `🔥 ${milestoneKey}-Day Streak!`
+                        : `⭐ ${milestoneKey} Reviews!`;
+                    this.showMilestoneToast(label);
+                    this.showConfetti();
+                }, { context: 'StatsComponent', message: 'Error in milestone celebration callback' }), 300);
             }
-
-        } catch (error) {
-            UIUtils.catchError('StatsComponent', 'Error loading stats', error);
-        }
     }
 
     /**
      * Binds event listeners for daily goal input adjustments inside the gamification container.
      */
+    @CatchAndLog('StatsComponent', 'Error binding goal editor events')
     bindEditorEvents(gamificationPanel: HTMLElement): void {
-        try {
-            const goalEditBtn = gamificationPanel.querySelector('#goal-edit-btn');
-            const goalEditor = gamificationPanel.querySelector('#goal-editor') as HTMLElement | null;
-            const goalInput = gamificationPanel.querySelector('#goal-input') as HTMLInputElement | null;
-            const goalSaveBtn = gamificationPanel.querySelector('#goal-save-btn');
+        const goalEditBtn = gamificationPanel.querySelector('#goal-edit-btn');
+        const goalEditor = gamificationPanel.querySelector('#goal-editor') as HTMLElement | null;
+        const goalInput = gamificationPanel.querySelector('#goal-input') as HTMLInputElement | null;
+        const goalSaveBtn = gamificationPanel.querySelector('#goal-save-btn');
 
-            if (goalEditBtn && goalEditor && goalInput) {
-                goalEditBtn.addEventListener('click', () => {
+        if (goalEditBtn && goalEditor && goalInput) {
+            goalEditBtn.addEventListener('click', withErrorHandling(() => {
+                goalEditor.style.display = goalEditor.style.display === 'none' ? 'flex' : 'none';
+                if (goalEditor.style.display === 'flex') goalInput.focus();
+            }, { context: 'StatsComponent', message: 'Error toggling goal editor visibility' }));
+
+            const saveGoal = async () => {
+                const val = parseInt(goalInput.value, 10);
+                if (val && val > 0 && val <= 999) {
                     try {
-                        goalEditor.style.display = goalEditor.style.display === 'none' ? 'flex' : 'none';
-                        if (goalEditor.style.display === 'flex') goalInput.focus();
-                    } catch (err) {
-            UIUtils.catchError('StatsComponent', 'Error toggling goal editor visibility', err);
-        }
-                });
-
-                const saveGoal = async () => {
-                    const val = parseInt(goalInput.value, 10);
-                    if (val && val > 0 && val <= 999) {
-                        try {
-                            await chrome.storage.local.set({ dailyGoalTarget: val });
-                            goalEditor.style.display = 'none';
-                            await this.load();
-                        } catch (error) {
-            UIUtils.catchError('StatsComponent', 'Error saving daily goal target', error, { val });
-        }
+                        await chrome.storage.local.set({ dailyGoalTarget: val });
+                        goalEditor.style.display = 'none';
+                        await this.load();
+                    } catch (error) {
+                        UIUtils.catchError('StatsComponent', 'Error saving daily goal target', error, { val });
                     }
-                };
-
-                if (goalSaveBtn) {
-                    goalSaveBtn.addEventListener('click', () => {
-                        saveGoal().catch(err => {
-                            const errorMessage = err instanceof Error ? err.message : String(err);
-                            Logger.error('StatsComponent', `Error in saveGoal callback on click: ${errorMessage}`, { err });
-                        });
-                    });
                 }
-                goalInput.addEventListener('keydown', (e: KeyboardEvent) => {
-                    if (e.key === 'Enter') {
-                        saveGoal().catch(err => {
-                            const errorMessage = err instanceof Error ? err.message : String(err);
-                            Logger.error('StatsComponent', `Error in saveGoal callback on keydown: ${errorMessage}`, { err });
-                        });
-                    }
+            };
+
+            if (goalSaveBtn) {
+                goalSaveBtn.addEventListener('click', () => {
+                    saveGoal().catch(err => {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('StatsComponent', `Error in saveGoal callback on click: ${errorMessage}`, { err });
+                    });
                 });
             }
-
-            this.bindAchievementsModal(gamificationPanel);
-        } catch (err) {
-            UIUtils.catchError('StatsComponent', 'Error binding goal editor events', err);
+            goalInput.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Enter') {
+                    saveGoal().catch(err => {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('StatsComponent', `Error in saveGoal callback on keydown: ${errorMessage}`, { err });
+                    });
+                }
+            });
         }
+
+        this.bindAchievementsModal(gamificationPanel);
     }
 
     /**
      * Binds click and keyboard listeners for the Achievements & Records modal.
      */
+    @CatchAndLog('StatsComponent', 'Error binding achievements modal events')
     bindAchievementsModal(container?: HTMLElement): void {
-        try {
-            const openModal = () => {
-                const modal = document.getElementById('achievements-modal');
-                const modalBody = document.getElementById('achievements-modal-body');
-                if (modal && modalBody) {
-                    if (this.cachedRecords) {
-                        modalBody.innerHTML = renderAchievementsModalContent(
-                            this.cachedAchievements,
-                            this.cachedRecords
-                        );
-                    }
-                    modal.classList.remove('hide-panel');
-                    modal.setAttribute('aria-hidden', 'false');
-                    const closeBtn = document.getElementById('close-achievements-btn');
-                    closeBtn?.focus();
-                }
-            };
-
-            const closeModal = () => {
-                const modal = document.getElementById('achievements-modal');
-                if (modal) {
-                    modal.classList.add('hide-panel');
-                    modal.setAttribute('aria-hidden', 'true');
-                }
-            };
-
-            const openBtns = [
-                container?.querySelector('#achievements-open-btn'),
-                document.getElementById('achievements-open-btn'),
-                document.getElementById('achievements-btn')
-            ];
-
-            openBtns.forEach(btn => {
-                if (btn) {
-                    btn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        openModal();
-                    });
-                }
-            });
-
-            const closeBtn = document.getElementById('close-achievements-btn');
-            closeBtn?.addEventListener('click', closeModal);
-
+        const openModal = () => {
             const modal = document.getElementById('achievements-modal');
-            modal?.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    closeModal();
+            const modalBody = document.getElementById('achievements-modal-body');
+            if (modal && modalBody) {
+                if (this.cachedRecords) {
+                    modalBody.innerHTML = renderAchievementsModalContent(
+                        this.cachedAchievements,
+                        this.cachedRecords
+                    );
                 }
-            });
+                modal.classList.remove('hide-panel');
+                modal.setAttribute('aria-hidden', 'false');
+                const closeBtn = document.getElementById('close-achievements-btn');
+                closeBtn?.focus();
+            }
+        };
 
-            document.addEventListener('keydown', (e: KeyboardEvent) => {
-                if (e.key === 'Escape' && modal && !modal.classList.contains('hide-panel')) {
-                    closeModal();
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('StatsComponent', 'Error binding achievements modal events', err);
-        }
+        const closeModal = () => {
+            const modal = document.getElementById('achievements-modal');
+            if (modal) {
+                modal.classList.add('hide-panel');
+                modal.setAttribute('aria-hidden', 'true');
+            }
+        };
+
+        const openBtns = [
+            container?.querySelector('#achievements-open-btn'),
+            document.getElementById('achievements-open-btn'),
+            document.getElementById('achievements-btn')
+        ];
+
+        openBtns.forEach(btn => {
+            if (btn) {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    openModal();
+                });
+            }
+        });
+
+        const closeBtn = document.getElementById('close-achievements-btn');
+        closeBtn?.addEventListener('click', closeModal);
+
+        const modal = document.getElementById('achievements-modal');
+        modal?.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        document.addEventListener('keydown', (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && modal && !modal.classList.contains('hide-panel')) {
+                closeModal();
+            }
+        });
     }
 
     /**
      * Renders a compact 7-day rolling weekly activity momentum indicator.
      */
+    @CatchAndReturn('', 'StatsComponent', 'Error rendering weekly progress')
     renderWeeklyProgress(activity: Record<string, number> = {}, dailyGoal: number = DEFAULT_DAILY_GOAL): string {
-        try {
-            const today = new Date();
-            const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-            const daysHtml: string[] = [];
-            let activeDaysCount = 0;
+        const today = new Date();
+        const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+        const daysHtml: string[] = [];
+        let activeDaysCount = 0;
 
-            for (let i = 6; i >= 0; i--) {
-                const d = new Date(today);
-                d.setDate(d.getDate() - i);
-                const dateKey = this.formatDateKey(d);
-                const count = activity[dateKey] || 0;
-                const isToday = i === 0;
-                const dayInitial = dayNames[d.getDay()];
-                const goalMet = count >= dailyGoal && dailyGoal > 0;
-                const hasActivity = count > 0;
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            const dateKey = this.formatDateKey(d);
+            const count = activity[dateKey] || 0;
+            const isToday = i === 0;
+            const dayInitial = dayNames[d.getDay()];
+            const goalMet = count >= dailyGoal && dailyGoal > 0;
+            const hasActivity = count > 0;
 
-                if (hasActivity) activeDaysCount++;
+            if (hasActivity) activeDaysCount++;
 
-                let stateClass = 'empty';
-                if (goalMet) stateClass = 'goal-met';
-                else if (hasActivity) stateClass = 'active';
+            let stateClass = 'empty';
+            if (goalMet) stateClass = 'goal-met';
+            else if (hasActivity) stateClass = 'active';
 
-                const tooltip = `${dateKey}: ${count} review${count === 1 ? '' : 's'}${goalMet ? ' (Goal reached!)' : ''}`;
+            const tooltip = `${dateKey}: ${count} review${count === 1 ? '' : 's'}${goalMet ? ' (Goal reached!)' : ''}`;
 
-                daysHtml.push(`
-                    <div class="weekly-day-col ${stateClass} ${isToday ? 'is-today' : ''}" title="${tooltip}" tabindex="0" role="img" aria-label="${tooltip}">
-                        <span class="weekly-day-name">${dayInitial}</span>
-                        <div class="weekly-day-dot">
-                            ${goalMet ? '✓' : (count > 0 ? count : '')}
-                        </div>
-                    </div>
-                `);
-            }
-
-            return `
-                <div class="weekly-progress-container" aria-label="7-Day Review Momentum">
-                    <div class="weekly-progress-header">
-                        <span class="weekly-progress-title">7-Day Momentum</span>
-                        <span class="weekly-progress-badge">${activeDaysCount}/7 active</span>
-                    </div>
-                    <div class="weekly-days-row">
-                        ${daysHtml.join('')}
+            daysHtml.push(`
+                <div class="weekly-day-col ${stateClass} ${isToday ? 'is-today' : ''}" title="${tooltip}" tabindex="0" role="img" aria-label="${tooltip}">
+                    <span class="weekly-day-name">${dayInitial}</span>
+                    <div class="weekly-day-dot">
+                        ${goalMet ? '✓' : (count > 0 ? count : '')}
                     </div>
                 </div>
-            `;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error rendering weekly progress: ${errorMessage}`, { err });
-            return '';
+            `);
         }
+
+        return `
+            <div class="weekly-progress-container" aria-label="7-Day Review Momentum">
+                <div class="weekly-progress-header">
+                    <span class="weekly-progress-title">7-Day Momentum</span>
+                    <span class="weekly-progress-badge">${activeDaysCount}/7 active</span>
+                </div>
+                <div class="weekly-days-row">
+                    ${daysHtml.join('')}
+                </div>
+            </div>
+        `;
     }
 
     /**
      * Renders a compact button linking to the full achievements & records dialog.
      */
+    @CatchAndReturn('', 'StatsComponent', 'Error rendering achievements pill')
     renderAchievementsPill(achievements: Achievement[] = []): string {
-        try {
-            const unlockedCount = achievements.filter(a => a.unlocked).length;
-            const totalCount = achievements.length || 8;
+        const unlockedCount = achievements.filter(a => a.unlocked).length;
+        const totalCount = achievements.length || 8;
 
-            return `
-                <div class="achievements-pill-container">
-                    <button id="achievements-open-btn" class="achievements-pill-btn" type="button" aria-haspopup="dialog" aria-expanded="false" title="View unlocked milestones and personal records">
-                        <span class="achievements-pill-icon">🏆</span>
-                        <span class="achievements-pill-text">Milestones & Records</span>
-                        <span class="achievements-pill-count">${unlockedCount}/${totalCount}</span>
-                    </button>
-                </div>
-            `;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error rendering achievements pill: ${errorMessage}`, { err });
-            return '';
-        }
+        return `
+            <div class="achievements-pill-container">
+                <button id="achievements-open-btn" class="achievements-pill-btn" type="button" aria-haspopup="dialog" aria-expanded="false" title="View unlocked milestones and personal records">
+                    <span class="achievements-pill-icon">🏆</span>
+                    <span class="achievements-pill-text">Milestones & Records</span>
+                    <span class="achievements-pill-count">${unlockedCount}/${totalCount}</span>
+                </button>
+            </div>
+        `;
     }
 
     /**
      * Binds event listeners for interactive stats elements.
      */
+    @CatchAndLog('StatsComponent', 'Error binding stats events')
     bindEvents(): void {
-        try {
-            // Events are bound during load or UI interactions
-        } catch (err) {
-            UIUtils.catchError('StatsComponent', 'Error binding stats events', err);
-        }
+        // Events are bound during load or UI interactions
     }
 
     /**
      * Calculates current and longest streaks based on calendar days reviewed.
      */
+    @CatchAndReturn({ current: 0, longest: 0 }, 'StatsComponent', 'Error calculating streaks')
     calculateStreaks(activity: { [key: string]: number }): StreakResult {
-        try {
-            const sortedDates = Object.keys(activity).filter(k => activity[k] > 0).sort();
-            if (sortedDates.length === 0) return { current: 0, longest: 0 };
+        const sortedDates = Object.keys(activity).filter(k => activity[k] > 0).sort();
+        if (sortedDates.length === 0) return { current: 0, longest: 0 };
 
-            let currentStreak = 0;
-            const today = new Date();
-            const checkDate = new Date(today);
-            
-            for (let i = 0; i < 365; i++) {
-                const dateStr = this.formatDateKey(checkDate);
-                if (activity[dateStr] && activity[dateStr] > 0) {
-                    currentStreak++;
+        let currentStreak = 0;
+        const today = new Date();
+        const checkDate = new Date(today);
+        
+        for (let i = 0; i < 365; i++) {
+            const dateStr = this.formatDateKey(checkDate);
+            if (activity[dateStr] && activity[dateStr] > 0) {
+                currentStreak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+            } else {
+                if (i === 0) {
                     checkDate.setDate(checkDate.getDate() - 1);
-                } else {
-                    if (i === 0) {
-                        checkDate.setDate(checkDate.getDate() - 1);
-                        continue;
-                    }
-                    break;
+                    continue;
                 }
+                break;
             }
+        }
 
-            let longestStreak = 0;
-            let tempStreak = 0;
-            let prevDate: Date | null = null;
+        let longestStreak = 0;
+        let tempStreak = 0;
+        let prevDate: Date | null = null;
 
-            for (const dateStr of sortedDates) {
-                const parts = dateStr.split('-');
-                const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        for (const dateStr of sortedDates) {
+            const parts = dateStr.split('-');
+            const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
 
-                if (prevDate) {
-                    const diffDays = Math.round((d.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-                    if (diffDays === 1) {
-                        tempStreak++;
-                    } else {
-                        tempStreak = 1;
-                    }
+            if (prevDate) {
+                const diffDays = Math.round((d.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+                if (diffDays === 1) {
+                    tempStreak++;
                 } else {
                     tempStreak = 1;
                 }
-
-                if (tempStreak > longestStreak) longestStreak = tempStreak;
-                prevDate = d;
+            } else {
+                tempStreak = 1;
             }
 
-            return { current: currentStreak, longest: longestStreak };
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error calculating streaks: ${errorMessage}`, { err });
-            return { current: 0, longest: 0 };
+            if (tempStreak > longestStreak) longestStreak = tempStreak;
+            prevDate = d;
         }
+
+        return { current: currentStreak, longest: longestStreak };
     }
 
     /**
      * Generates local timezone date key string (YYYY-MM-DD).
      */
+    @CatchAndReturn(new Date().toISOString().split('T')[0], 'StatsComponent', 'Error formatting date key')
     formatDateKey(date: Date): string {
-        try {
-            return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error formatting date key: ${errorMessage}`, { date, err });
-            return new Date().toISOString().split('T')[0];
-        }
+        return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     }
 
     /**
      * Renders the goal progress template including the SVG progress ring circle indicator.
      */
+    @CatchAndReturn('', 'StatsComponent', 'Error rendering goal progress')
     renderGoalProgress(completed: number, target: number, dueRemaining: number, currentStreak: number, longestStreak: number): string {
-        try {
             const pct = Math.min(Math.round((completed / target) * 100), 100);
             const circumference = 2 * Math.PI * 42;
             const offset = circumference - (pct / 100) * circumference;
@@ -697,18 +653,13 @@ export class StatsComponent extends DashboardComponent {
                 ${this.renderWeeklyProgress(this.cachedActivity, target)}
                 ${this.renderAchievementsPill(this.cachedAchievements)}
             `;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error rendering goal progress: ${errorMessage}`, { completed, target, err });
-            return '';
-        }
     }
 
     /**
      * Renders the goal complete success template with checkmark indicator.
      */
+    @CatchAndReturn('', 'StatsComponent', 'Error rendering goal complete')
     renderGoalComplete(completed: number, target: number, currentStreak: number, longestStreak: number): string {
-        try {
             const circumference = 2 * Math.PI * 42;
             const streakHtml = this.renderStreakBadge(currentStreak, longestStreak);
 
@@ -749,18 +700,13 @@ export class StatsComponent extends DashboardComponent {
                 ${this.renderWeeklyProgress(this.cachedActivity, target)}
                 ${this.renderAchievementsPill(this.cachedAchievements)}
             `;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error rendering goal complete: ${errorMessage}`, { completed, target, err });
-            return '';
-        }
     }
 
     /**
      * Helper to render the streak pill badge containing fire icons.
      */
+    @CatchAndReturn('', 'StatsComponent', 'Error rendering streak badge')
     renderStreakBadge(current: number, longest: number): string {
-        try {
             if (current === 0 && longest === 0) return '';
             
             const fireColor = current > 0 ? 'var(--md-warning)' : 'var(--md-text-low)';
@@ -776,122 +722,103 @@ export class StatsComponent extends DashboardComponent {
                     ${bestText ? `<span class="streak-best">${bestText}</span>` : ''}
                 </div>
             `;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('StatsComponent', `Error rendering streak badge: ${errorMessage}`, { current, longest, err });
-            return '';
-        }
     }
 
     /**
      * Displays a milestone toast notification at the top of the popup.
      */
+    @CatchAndLog('StatsComponent', 'Error showing milestone toast')
     showMilestoneToast(message: string): void {
-        try {
-            const toast = document.getElementById('milestone-toast');
-            const toastText = document.getElementById('milestone-toast-text');
-            if (!toast || !toastText) return;
+        const toast = document.getElementById('milestone-toast');
+        const toastText = document.getElementById('milestone-toast-text');
+        if (!toast || !toastText) return;
 
-            toastText.textContent = message;
-            toast.classList.add('show');
+        toastText.textContent = message;
+        toast.classList.add('show');
 
-            setTimeout(() => {
-                try {
-                    toast.classList.remove('show');
-                } catch (timerErr) {
-            UIUtils.catchError('StatsComponent', 'Error hiding milestone toast', timerErr);
-        }
-            }, 3500);
-        } catch (err) {
-            UIUtils.catchError('StatsComponent', 'Error showing milestone toast', err, { message });
-        }
+        setTimeout(withErrorHandling(() => {
+            toast.classList.remove('show');
+        }, { context: 'StatsComponent', message: 'Error hiding milestone toast' }), 3500);
     }
 
     /**
      * Renders a canvas-based confetti particle animation.
      */
+    @CatchAndLog('StatsComponent', 'Error initializing confetti animation')
     showConfetti(): void {
-        try {
-            const canvas = document.getElementById('confetti-canvas') as HTMLCanvasElement | null;
-            if (!canvas) return;
+        const canvas = document.getElementById('confetti-canvas') as HTMLCanvasElement | null;
+        if (!canvas) return;
 
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
 
-            const colors = CONFETTI_COLORS;
-            const particles: ConfettiParticle[] = [];
-            const particleCount = CONFETTI_PARTICLE_COUNT;
+        const colors = CONFETTI_COLORS;
+        const particles: ConfettiParticle[] = [];
+        const particleCount = CONFETTI_PARTICLE_COUNT;
 
-            for (let i = 0; i < particleCount; i++) {
-                particles.push({
-                    x: canvas.width * Math.random(),
-                    y: canvas.height * -0.1 * Math.random(),
-                    w: 4 + Math.random() * 6,
-                    h: 3 + Math.random() * 4,
-                    vx: (Math.random() - 0.5) * 4,
-                    vy: 1 + Math.random() * 3,
-                    color: colors[Math.floor(Math.random() * colors.length)],
-                    rotation: Math.random() * 360,
-                    rotationSpeed: (Math.random() - 0.5) * 10,
-                    opacity: 1,
-                    shape: Math.random() > 0.5 ? 'rect' : 'circle',
-                });
+        for (let i = 0; i < particleCount; i++) {
+            particles.push({
+                x: canvas.width * Math.random(),
+                y: canvas.height * -0.1 * Math.random(),
+                w: 4 + Math.random() * 6,
+                h: 3 + Math.random() * 4,
+                vx: (Math.random() - 0.5) * 4,
+                vy: 1 + Math.random() * 3,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 10,
+                opacity: 1,
+                shape: Math.random() > 0.5 ? 'rect' : 'circle',
+            });
+        }
+
+        let frame = 0;
+        const maxFrames = 150;
+
+        const animate = withErrorHandling(() => {
+            frame++;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (frame > maxFrames) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
             }
 
-            let frame = 0;
-            const maxFrames = 150;
+            const fadeStart = maxFrames * 0.7;
 
-            const animate = () => {
-                try {
-                    frame++;
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.vy += 0.05;
+                p.y += p.vy;
+                p.rotation += p.rotationSpeed;
 
-                    if (frame > maxFrames) {
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        return;
-                    }
+                if (frame > fadeStart) {
+                    p.opacity = Math.max(0, 1 - (frame - fadeStart) / (maxFrames - fadeStart));
+                }
 
-                    const fadeStart = maxFrames * 0.7;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate((p.rotation * Math.PI) / 180);
+                ctx.globalAlpha = p.opacity;
+                ctx.fillStyle = p.color;
 
-                    particles.forEach(p => {
-                        p.x += p.vx;
-                        p.vy += 0.05;
-                        p.y += p.vy;
-                        p.rotation += p.rotationSpeed;
+                if (p.shape === 'rect') {
+                    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
 
-                        if (frame > fadeStart) {
-                            p.opacity = Math.max(0, 1 - (frame - fadeStart) / (maxFrames - fadeStart));
-                        }
-
-                        ctx.save();
-                        ctx.translate(p.x, p.y);
-                        ctx.rotate((p.rotation * Math.PI) / 180);
-                        ctx.globalAlpha = p.opacity;
-                        ctx.fillStyle = p.color;
-
-                        if (p.shape === 'rect') {
-                            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-                        } else {
-                            ctx.beginPath();
-                            ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
-                            ctx.fill();
-                        }
-
-                        ctx.restore();
-                    });
-
-                    requestAnimationFrame(animate);
-                } catch (animErr) {
-            UIUtils.catchError('StatsComponent', 'Error in confetti animation loop', animErr);
-        }
-            };
+                ctx.restore();
+            });
 
             requestAnimationFrame(animate);
-        } catch (err) {
-            UIUtils.catchError('StatsComponent', 'Error initializing confetti animation', err);
-        }
+        }, { context: 'StatsComponent', message: 'Error in confetti animation loop' });
+
+        requestAnimationFrame(animate);
     }
 }
