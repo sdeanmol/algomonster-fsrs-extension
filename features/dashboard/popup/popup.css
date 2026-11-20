@@ -1998,3 +1998,271 @@ details[open] .details-summary .chevron {
     border-radius: 2px;
     transition: width 0.3s ease;
 }
+
+
+/* ==========================================================================
+   Redesigned Daily Focus Dashboard & Quick Launchpad
+   ========================================================================== */
+html {
+    width: 375px;
+}
+
+body {
+    width: 375px;
+}
+
+/* Primary Action CTA Button */
+.primary-cta-btn {
+    width: 100%;
+    margin-top: 12px;
+    margin-bottom: 8px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+    color: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.35);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.primary-cta-btn:hover {
+    background: linear-gradient(135deg, #5393ff 0%, #1e7bf2 100%);
+    box-shadow: 0 4px 12px rgba(26, 115, 232, 0.45);
+    transform: translateY(-1px);
+}
+
+.primary-cta-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(26, 115, 232, 0.3);
+}
+
+.primary-cta-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+    stroke: none;
+}
+
+/* Header buttons */
+.check-now-header-btn:hover svg {
+    transform: rotate(45deg);
+    transition: transform 0.2s ease;
+}
+
+.header-settings-btn:hover svg {
+    transform: rotate(30deg);
+    transition: transform 0.2s ease;
+}
+
+/* Card Header Clean */
+.card-header-clean {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.header-label-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-label-group .section-title-icon {
+    width: 16px;
+    height: 16px;
+    stroke: var(--md-primary);
+}
+
+.achievements-chip {
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    color: var(--md-warning);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.achievements-chip:hover {
+    background: var(--md-border-hover);
+    transform: scale(1.02);
+}
+
+/* Quick Launchpad Section */
+.quick-launchpad-section {
+    margin-bottom: 12px;
+}
+
+.quick-launch-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.launch-tile {
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    padding: 10px 4px 8px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-1);
+}
+
+.launch-tile:hover {
+    border-color: var(--md-border-hover);
+    background: var(--md-surface-variant);
+    transform: translateY(-1px);
+}
+
+.launch-tile:active {
+    transform: translateY(0);
+}
+
+.tile-icon-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+}
+
+.launch-tile:hover .tile-icon-wrap {
+    transform: scale(1.08);
+}
+
+.tile-icon-wrap svg {
+    width: 16px;
+    height: 16px;
+}
+
+.tile-icon-wrap.exam-color {
+    background: rgba(196, 198, 208, 0.12);
+    color: var(--md-secondary);
+}
+
+.tile-icon-wrap.pomodoro-color {
+    background: rgba(242, 139, 130, 0.15);
+    color: #f28b82;
+}
+
+.tile-icon-wrap.analytics-color {
+    background: rgba(168, 199, 250, 0.15);
+    color: var(--md-primary);
+}
+
+.tile-icon-wrap.highlights-color {
+    background: rgba(129, 201, 149, 0.15);
+    color: var(--md-success);
+}
+
+.tile-icon-wrap.summary-color {
+    background: rgba(197, 138, 249, 0.15);
+    color: #c58af9;
+}
+
+.tile-icon-wrap.forecast-color {
+    background: rgba(138, 180, 248, 0.15);
+    color: #8ab4f8;
+}
+
+.tile-icon-wrap.history-color {
+    background: rgba(251, 188, 4, 0.15);
+    color: #fbbc04;
+}
+
+.tile-icon-wrap.colors-color {
+    background: rgba(242, 139, 130, 0.15);
+    color: #f28b82;
+}
+
+.tile-icon-wrap.settings-color {
+    background: rgba(253, 214, 99, 0.15);
+    color: #fdd663;
+}
+
+.tile-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--md-text-med);
+    text-align: center;
+}
+
+/* Heatmap Card (Placed above In-Page Assistive Quick Toggles) */
+.heatmap-card.heatmap-section {
+    margin-bottom: 12px;
+}
+
+.heatmap-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.heatmap-title-wrap .section-title-icon {
+    width: 14px;
+    height: 14px;
+    stroke: var(--md-primary);
+}
+
+
+/* Advanced Tools Drawer */
+.advanced-drawer {
+    margin-bottom: 12px;
+    border-color: rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+}
+
+.sub-header-line {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--md-text-low);
+    margin: 12px 0 6px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--md-border);
+}
+
+.btn-text-subtle {
+    background: transparent;
+    border: none;
+    color: var(--md-text-low);
+    font-size: 0.72rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.2s ease;
+}
+
+.btn-text-subtle:hover {
+    color: var(--md-text-high);
+}
+
+.secondary-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.secondary-chips .chip {
+    font-size: 0.74rem;
+    padding: 4px 8px;
+}

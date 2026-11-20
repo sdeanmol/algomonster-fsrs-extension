@@ -212,7 +212,8 @@ describe('Keyboard Shortcuts & Command Dispatcher', () => {
       ['open-summary', 'features/dashboard/summary/summary.html'],
       ['open-websites-manager', 'features/common/websites/websites.html'],
       ['open-fsrs-config', 'features/tracker/config/fsrsConfig.html'],
-      ['open-help', 'features/common/help/help.html']
+      ['open-help', 'features/common/help/help.html'],
+      ['open-settings', 'features/common/settings/settings.html']
     ];
 
     it.each(navigationCases)('handles command %s by opening %s', async (command: CommandActionId, expectedPage: string) => {

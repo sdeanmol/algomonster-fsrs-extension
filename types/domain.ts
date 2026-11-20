@@ -300,6 +300,8 @@ export interface ExtensionSettings {
     recentColors?: string[];
     /** Whether to render visual memory analytics charts in the popup/dashboard */
     showCharts?: boolean;
+    /** Whether to render daily goal focus and streak momentum in the popup */
+    showDailyFocus?: boolean;
     /** Whether to display the inline toolbar when text is selected */
     showMarkerPopup?: boolean;
     /** Whether to display the floating launcher button on target problem pages */

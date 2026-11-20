@@ -45,6 +45,7 @@ module.exports = (env) => {
     'features/common/data/data': './features/common/data/data.ts',
     'features/common/help/help': './features/common/help/help.ts',
     'features/common/welcome/welcome': './features/common/welcome/welcome.ts',
+    'features/common/settings/settings': './features/common/settings/settings.ts',
 
     // Feature UIs
     'features/highlighter/manager/highlights': './features/highlighter/manager/highlights.ts',

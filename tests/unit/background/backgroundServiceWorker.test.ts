@@ -888,6 +888,7 @@ describe('BackgroundServiceWorker', () => {
       const sendResponse = jest.fn();
       jest.spyOn(worker, 'checkDueCards').mockResolvedValue(undefined);
       jest.spyOn(worker, 'updateDueCardsBadge').mockResolvedValue(1);
+      jest.spyOn(worker, 'getDueCardsCount').mockResolvedValue(1);
 
       const handled = worker.handleMessage({ action: 'check_due_cards_now' }, {} as any, sendResponse);
       expect(handled).toBe(true);
@@ -897,6 +898,22 @@ describe('BackgroundServiceWorker', () => {
       await Promise.resolve();
       await Promise.resolve();
       expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ success: true, dueCount: 1 }));
+    });
+
+    it('calculates getDueCardsCount accurately independent of badge visibility', async () => {
+      const dueCards = [
+        { id: 'c1', due: Date.now() - 5000 },
+        { id: 'c2', due: Date.now() - 10000 },
+        { id: 'c3', due: Date.now() + 100000 }
+      ];
+      (chrome.storage.local.get as any).mockImplementation((keys: any, cb?: any) => {
+        const data = { fsrsCards: dueCards };
+        if (typeof cb === 'function') cb(data);
+        return Promise.resolve(data);
+      });
+
+      const count = await worker.getDueCardsCount();
+      expect(count).toBe(2);
     });
   });
 });

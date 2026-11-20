@@ -1,9 +1,9 @@
 /**
  * @file features/dashboard/popup/popup.ts
  * @description Central coordinator for the AlgoRecall popup dashboard window.
- * Manages configuration updates (theme, highlighting visibility), page data backup (import/export),
- * Anki deck exchange utilities, and instantiates visual dashboard components (stats, heatmap,
- * notifications, ratings, and quick search).
+ * Manages configuration updates (theme, in-page toggles), launchpad navigation,
+ * and instantiates visual dashboard components (stats, heatmap, notifications,
+ * ratings, and quick search).
  *
  * Architecture Role: Popup Master Controller and View Coordinator.
  * Context: Extension Action Popup (`features/dashboard/popup/popup.html`).
@@ -19,8 +19,7 @@ import { HeatmapComponent } from './heatmap';
 import { NotificationsComponent } from './notifications';
 import { RatingComponent } from './rating';
 import { QuickSearchComponent } from './search';
-import { BackupManager } from '../../common/data/backupManager';
-import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
+import { StorageData, ExtensionSettings } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
 import { ActionService } from '../../common/services/actionService';
 
@@ -34,14 +33,12 @@ export interface PopupDOM {
     markerToggle: HTMLInputElement | null;
     /** Toggle switch enabling/disabling visual SVG activity charts. */
     chartsToggle: HTMLInputElement | null;
+    /** Toggle switch enabling/disabling daily goal focus and streak momentum. */
+    dailyFocusToggle: HTMLInputElement | null;
     /** Toggle switch enabling/disabling problem tracker launcher button on content pages. */
     launcherToggle: HTMLInputElement | null;
-    /** Toggle switch enabling developer debug tools and short test intervals. */
+    /** Toggle switch enabling developer debug tools. */
     devModeToggle: HTMLInputElement | null;
-    /** Button navigating to supported websites management page. */
-    managePlatformsBtn: HTMLElement | null;
-    /** Button navigating to FSRS algorithmic weight configuration page. */
-    configureFsrsBtn: HTMLElement | null;
     /** Button navigating to user documentation and help page. */
     helpBtn: HTMLElement | null;
     /** Button navigating to historical review logs page. */
@@ -58,7 +55,7 @@ export interface PopupDOM {
     manageHighlightsBtn: HTMLElement | null;
     /** Button opening highlighter palette options page. */
     openOptionsBtn: HTMLElement | null;
-    /** Footer button opening full analytics dashboard. */
+    /** Launchpad button opening full analytics dashboard. */
     analyticsBtn: HTMLElement | null;
     /** Header button opening full analytics dashboard. */
     headerAnalyticsBtn: HTMLElement | null;
@@ -66,24 +63,14 @@ export interface PopupDOM {
     forecastBtn: HTMLElement | null;
     /** Button opening achievements and records dialog. */
     achievementsBtn: HTMLElement | null;
-    /** Button triggering JSON database backup export. */
-    exportBtn: HTMLElement | null;
-    /** Hidden file input element for restoring JSON backup file. */
-    importFile: HTMLInputElement | null;
-    /** Button exporting cards formatted for Anki deck import. */
-    ankiExportBtn: HTMLElement | null;
-    /** Hidden file input element for importing Anki text deck. */
-    ankiImportFile: HTMLInputElement | null;
     /** Button opening exam countdown study plan page. */
     studyplanBtn: HTMLElement | null;
     /** Button opening Pomodoro timer page. */
     pomodoroBtn: HTMLElement | null;
     /** Button opening review session summary page. */
     openSummaryPageBtn: HTMLElement | null;
-    /** Toggle switch for weekly summary email/digest feature. */
-    weeklyDigestToggle: HTMLInputElement | null;
-    /** Toggle switch displaying due review count badge on browser extension icon. */
-    badgeToggle: HTMLInputElement | null;
+    /** Button in launchpad opening dedicated settings hub. */
+    settingsHubBtn: HTMLElement | null;
     /** Status toast banner container for temporary user notifications. */
     statusMsg: HTMLElement | null;
     /** Container element holding developer-only action buttons. */
@@ -96,8 +83,8 @@ export interface PopupDOM {
 
 /**
  * Central coordinator for the AlgoRecall popup options dashboard page.
- * Manages configuration updates (theme, highlighting visibility), page data backup (import/export),
- * Anki deck exchange utilities, and instantiates visual dashboard components.
+ * Manages configuration updates (theme, in-page toggles), launchpad navigation,
+ * and instantiates visual dashboard components.
  */
 export class AlgoRecallDashboard {
     /** Active timeout handle for auto-dismissing toast notifications. */
@@ -125,10 +112,9 @@ export class AlgoRecallDashboard {
                 themeToggleBtn: document.getElementById('theme-toggle-btn'),
                 markerToggle: document.getElementById('toggle-marker-popup') as HTMLInputElement | null,
                 chartsToggle: document.getElementById('toggle-show-charts') as HTMLInputElement | null,
+                dailyFocusToggle: document.getElementById('toggle-daily-focus') as HTMLInputElement | null,
                 launcherToggle: document.getElementById('toggle-algo-launcher') as HTMLInputElement | null,
                 devModeToggle: document.getElementById('toggle-dev-mode') as HTMLInputElement | null,
-                managePlatformsBtn: document.getElementById('manage-platforms-btn'),
-                configureFsrsBtn: document.getElementById('configure-fsrs-btn'),
                 helpBtn: document.getElementById('help-btn'),
                 historyBtn: document.getElementById('history-btn'),
                 openHeatmapTabBtn: document.getElementById('open-heatmap-tab-btn'),
@@ -141,15 +127,10 @@ export class AlgoRecallDashboard {
                 headerAnalyticsBtn: document.getElementById('header-analytics-btn'),
                 forecastBtn: document.getElementById('forecast-btn'),
                 achievementsBtn: document.getElementById('achievements-btn'),
-                exportBtn: document.getElementById('export-btn'),
-                importFile: document.getElementById('import-file') as HTMLInputElement | null,
-                ankiExportBtn: document.getElementById('anki-export-btn'),
-                ankiImportFile: document.getElementById('anki-import-file') as HTMLInputElement | null,
                 studyplanBtn: document.getElementById('studyplan-btn'),
                 pomodoroBtn: document.getElementById('pomodoro-btn'),
                 openSummaryPageBtn: document.getElementById('open-summary-page-btn'),
-                weeklyDigestToggle: document.getElementById('toggle-weekly-digest') as HTMLInputElement | null,
-                badgeToggle: document.getElementById('toggle-badge-due-count') as HTMLInputElement | null,
+                settingsHubBtn: document.getElementById('settings-hub-btn'),
                 statusMsg: document.getElementById('status-msg'),
                 devModeActions: document.getElementById('dev-mode-actions'),
                 exportDebugLogsBtn: document.getElementById('export-debug-logs-btn'),
@@ -165,7 +146,6 @@ export class AlgoRecallDashboard {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Popup', `Error in AlgoRecallDashboard constructor: ${errorMessage}`, { err });
-            // Comment: Non-fatal constructor DOM caching error
             this.dom = {} as PopupDOM;
             this.stats = new StatsComponent(this);
             this.heatmap = new HeatmapComponent(this);
@@ -230,8 +210,8 @@ export class AlgoRecallDashboard {
                         const newTheme = await ActionService.toggleTheme();
                         this.showStatus(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode!`);
                     } catch (error) {
-            UIUtils.catchError('Popup', 'Error toggling theme settings', error);
-        }
+                        UIUtils.catchError('Popup', 'Error toggling theme settings', error);
+                    }
                 });
             }
 
@@ -249,8 +229,8 @@ export class AlgoRecallDashboard {
                             this.dom.markerToggle.checked = result.extensionSettings.showMarkerPopup;
                         }
                     } catch (err) {
-            UIUtils.catchError('Popup', 'Error rendering marker toggle setting', err);
-        }
+                        UIUtils.catchError('Popup', 'Error rendering marker toggle setting', err);
+                    }
                 });
                 this.dom.markerToggle.addEventListener('change', async (e: Event) => {
                     try {
@@ -260,8 +240,8 @@ export class AlgoRecallDashboard {
                         settings.showMarkerPopup = target.checked;
                         await chrome.storage.local.set({ extensionSettings: settings });
                     } catch (error) {
-            UIUtils.catchError('Popup', 'Error setting showMarkerPopup config', error);
-        }
+                        UIUtils.catchError('Popup', 'Error setting showMarkerPopup config', error);
+                    }
                 });
             }
 
@@ -284,8 +264,8 @@ export class AlgoRecallDashboard {
                         }
                         this.updateChartsVisibility(showCharts);
                     } catch (err) {
-            UIUtils.catchError('Popup', 'Error rendering charts toggle setting', err);
-        }
+                        UIUtils.catchError('Popup', 'Error rendering charts toggle setting', err);
+                    }
                 });
                 this.dom.chartsToggle.addEventListener('change', async (e: Event) => {
                     try {
@@ -298,8 +278,46 @@ export class AlgoRecallDashboard {
                         await chrome.storage.local.set({ extensionSettings: settings });
                         this.showStatus(`Visual charts ${target.checked ? 'enabled' : 'disabled'}!`);
                     } catch (error) {
-            UIUtils.catchError('Popup', 'Error setting showCharts config', error);
-        }
+                        UIUtils.catchError('Popup', 'Error setting showCharts config', error);
+                    }
+                });
+            }
+
+            // Daily Focus & Momentum display switch setup
+            if (this.dom.dailyFocusToggle) {
+                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
+                    try {
+                        const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                        if (lastError) {
+                            const errorMessage = lastError.message || String(lastError);
+                            Logger.error('Popup', `Storage error fetching daily focus toggle settings: ${errorMessage}`, { error: lastError });
+                            return;
+                        }
+                        const showDailyFocus = result.extensionSettings && result.extensionSettings.showDailyFocus !== undefined
+                            ? result.extensionSettings.showDailyFocus
+                            : true;
+                        if (this.dom.dailyFocusToggle) {
+                            this.dom.dailyFocusToggle.checked = showDailyFocus;
+                            this.dom.dailyFocusToggle.setAttribute('aria-checked', showDailyFocus.toString());
+                        }
+                        this.updateDailyFocusVisibility(showDailyFocus);
+                    } catch (err) {
+                        UIUtils.catchError('Popup', 'Error rendering daily focus toggle setting', err);
+                    }
+                });
+                this.dom.dailyFocusToggle.addEventListener('change', async (e: Event) => {
+                    try {
+                        const target = e.target as HTMLInputElement;
+                        target.setAttribute('aria-checked', target.checked.toString());
+                        this.updateDailyFocusVisibility(target.checked);
+                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                        settings.showDailyFocus = target.checked;
+                        await chrome.storage.local.set({ extensionSettings: settings });
+                        this.showStatus(`Daily Focus & Momentum ${target.checked ? 'enabled' : 'hidden'}!`);
+                    } catch (error) {
+                        UIUtils.catchError('Popup', 'Error setting showDailyFocus config', error);
+                    }
                 });
             }
 
@@ -362,14 +380,9 @@ export class AlgoRecallDashboard {
                         if (this.dom.testNotificationsContainer) {
                             this.dom.testNotificationsContainer.style.display = devMode ? 'flex' : 'none';
                         }
-                        const devIntervalOption = document.getElementById('dev-interval-option') as HTMLOptionElement | null;
-                        if (devIntervalOption) {
-                            devIntervalOption.hidden = !devMode;
-                            devIntervalOption.disabled = !devMode;
-                        }
                     } catch (err) {
-            UIUtils.catchError('Popup', 'Error rendering dev mode toggle setting', err);
-        }
+                        UIUtils.catchError('Popup', 'Error rendering dev mode toggle setting', err);
+                    }
                 });
                 this.dom.devModeToggle.addEventListener('change', async (e: Event) => {
                     try {
@@ -385,46 +398,11 @@ export class AlgoRecallDashboard {
                         if (this.dom.testNotificationsContainer) {
                             this.dom.testNotificationsContainer.style.display = target.checked ? 'flex' : 'none';
                         }
-                        const devIntervalOption = document.getElementById('dev-interval-option') as HTMLOptionElement | null;
-                        if (devIntervalOption) {
-                            devIntervalOption.hidden = !target.checked;
-                            devIntervalOption.disabled = !target.checked;
-                            const selectEl = document.getElementById('notification-interval') as HTMLSelectElement | null;
-                            if (!target.checked && selectEl && selectEl.value === '1') {
-                                selectEl.value = '60';
-                                selectEl.dispatchEvent(new Event('change'));
-                            }
-                        }
                         this.showStatus(`Developer mode ${target.checked ? 'enabled' : 'disabled'}!`);
                     } catch (error) {
-            UIUtils.catchError('Popup', 'Error setting developerMode config', error);
-        }
+                        UIUtils.catchError('Popup', 'Error setting developerMode config', error);
+                    }
                 });
-
-                // Weekly summary digest switch setup
-                if (this.dom.weeklyDigestToggle) {
-                    chrome.storage.local.get(['weeklySummaryEnabled'], (result: { weeklySummaryEnabled?: boolean }) => {
-                        try {
-                            const enabled = result.weeklySummaryEnabled !== false;
-                            if (this.dom.weeklyDigestToggle) {
-                                this.dom.weeklyDigestToggle.checked = enabled;
-                                this.dom.weeklyDigestToggle.setAttribute('aria-checked', enabled.toString());
-                            }
-                        } catch (err) {
-                            UIUtils.catchError('Popup', 'Error rendering weekly digest toggle setting', err);
-                        }
-                    });
-                    this.dom.weeklyDigestToggle.addEventListener('change', async (e: Event) => {
-                        try {
-                            const target = e.target as HTMLInputElement;
-                            target.setAttribute('aria-checked', target.checked.toString());
-                            await chrome.storage.local.set({ weeklySummaryEnabled: target.checked });
-                            this.showStatus(`Weekly digest ${target.checked ? 'enabled' : 'disabled'}!`);
-                        } catch (err) {
-                            UIUtils.catchError('Popup', 'Error setting weeklySummaryEnabled config', err);
-                        }
-                    });
-                }
 
                 if (this.dom.exportDebugLogsBtn) {
                     this.dom.exportDebugLogsBtn.addEventListener('click', () => {
@@ -473,58 +451,41 @@ export class AlgoRecallDashboard {
                                     }
                                     this.showStatus(`Exported ${logs.length} debug logs!`);
                                 } catch (innerErr) {
-            UIUtils.catchError('Popup', 'Error exporting debug logs from callback', innerErr);
-        }
+                                    UIUtils.catchError('Popup', 'Error exporting debug logs from callback', innerErr);
+                                }
                             });
                         } catch (err) {
-            UIUtils.catchError('Popup', 'Error handling export debug logs click', err);
-        }
+                            UIUtils.catchError('Popup', 'Error handling export debug logs click', err);
+                        }
                     });
                 }
             }
 
-            // Webpage page redirection setups
-            if (this.dom.managePlatformsBtn) {
-                this.dom.managePlatformsBtn.addEventListener('click', () => {
-                    try {
-                        ActionService.executeAction('open-websites-manager');
-                    } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to websites.html', err);
-        }
-                });
-            }
-
-            if (this.dom.configureFsrsBtn) {
-                this.dom.configureFsrsBtn.addEventListener('click', () => {
-                    try {
-                        ActionService.executeAction('open-fsrs-config');
-                    } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to fsrsConfig.html', err);
-        }
-                });
-            }
-
+            // Navigation and Tool Actions
             this.dom.helpBtn?.addEventListener('click', () => {
                 try {
                     ActionService.executeAction('open-help');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to help.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to help.html', err);
+                }
             });
+
             this.dom.historyBtn?.addEventListener('click', () => {
                 try {
                     ActionService.executeAction('open-history');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to history.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to history.html', err);
+                }
             });
+
             this.dom.openHeatmapTabBtn?.addEventListener('click', () => {
                 try {
                     ActionService.executeAction('open-heatmap');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to heatmap.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to heatmap.html', err);
+                }
             });
+
             const addAccessibleClick = (el: HTMLElement | null, handler: () => void) => {
                 if (!el) return;
                 el.addEventListener('click', handler);
@@ -559,38 +520,49 @@ export class AlgoRecallDashboard {
                     UIUtils.catchError('Popup', 'Error navigating to retention data view', err);
                 }
             });
+
             this.dom.manageHighlightsBtn?.addEventListener('click', () => {
                 try {
                     ActionService.executeAction('open-highlights-manager');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to highlights.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to highlights.html', err);
+                }
             });
+
             this.dom.openOptionsBtn?.addEventListener('click', () => {
                 try {
                     ActionService.executeAction('open-highlights-options');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to highlightOptions.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to highlightOptions.html', err);
+                }
             });
 
             const openAnalyticsTab = () => {
                 try {
                     ActionService.executeAction('open-analytics');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to analytics.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to analytics.html', err);
+                }
             };
             this.dom.analyticsBtn?.addEventListener('click', openAnalyticsTab);
             this.dom.headerAnalyticsBtn?.addEventListener('click', openAnalyticsTab);
+
+            this.dom.settingsHubBtn?.addEventListener('click', () => {
+                try {
+                    ActionService.executeAction('open-settings');
+                } catch (err) {
+                    UIUtils.catchError('Popup', 'Error navigating to settings.html', err);
+                }
+            });
 
             this.dom.forecastBtn?.addEventListener('click', () => {
                 try {
                     ActionService.executeAction('open-forecast');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to forecast.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to forecast.html', err);
+                }
             });
+
             this.dom.achievementsBtn?.addEventListener('click', () => {
                 try {
                     this.stats.bindAchievementsModal();
@@ -605,27 +577,30 @@ export class AlgoRecallDashboard {
                     UIUtils.catchError('Popup', 'Error opening achievements dialog', err);
                 }
             });
+
             this.dom.studyplanBtn?.addEventListener('click', () => {
                 try {
                     ActionService.executeAction('open-study-plan');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to studyplan.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to studyplan.html', err);
+                }
             });
+
             this.dom.pomodoroBtn?.addEventListener('click', () => {
                 try {
                     ActionService.executeAction('open-pomodoro');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to pomodoro.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to pomodoro.html', err);
+                }
             });
+
             this.dom.openSummaryPageBtn?.addEventListener('click', (e: MouseEvent) => {
                 e.stopPropagation();
                 try {
                     ActionService.executeAction('open-summary');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to summary.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to summary.html', err);
+                }
             });
 
             // UA-029: Manual Check Reviews Now trigger
@@ -658,231 +633,6 @@ export class AlgoRecallDashboard {
                     notifCard.style.display = 'none';
                 }
             }
-
-            // Standard JSON database backup export logic
-            if (this.dom.exportBtn) {
-                this.dom.exportBtn.addEventListener('click', async () => {
-                    this.showStatus("Exporting backup...");
-                    try {
-                        await BackupManager.exportBackup();
-                        this.showStatus("Backup exported successfully!");
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('Popup', `Backup export failed: ${errorMessage}`, { err });
-                        this.showStatus("Export failed: " + errorMessage, true);
-                    }
-                });
-            }
-
-            // Firefox closes popups when OS file pickers open, silently killing the import script.
-            // Intercept clicks on file inputs in Firefox popups and open the dashboard as a full tab.
-            const handleFirefoxPopupFileClick = (e: Event) => {
-                const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
-                const isTab = window.location.search.includes('tab=true');
-                if (isFirefox && !isTab) {
-                    e.preventDefault();
-                    chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/popup/popup.html?tab=true') });
-                    window.close();
-                }
-            };
-
-            const handleLabelKeydown = (e: KeyboardEvent, fileInput: HTMLInputElement | null) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    fileInput?.click();
-                }
-            };
-            const importLabel = document.getElementById('import-btn-label');
-            importLabel?.addEventListener('keydown', (e: KeyboardEvent) => handleLabelKeydown(e, this.dom.importFile));
-            const ankiImportLabel = document.getElementById('anki-import-btn-label');
-            ankiImportLabel?.addEventListener('keydown', (e: KeyboardEvent) => handleLabelKeydown(e, this.dom.ankiImportFile));
-
-            // Standard JSON backup import setup
-            if (this.dom.importFile) {
-                this.dom.importFile.addEventListener('click', handleFirefoxPopupFileClick);
-                this.dom.importFile.addEventListener('change', async (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        const file = target.files?.[0];
-                        if (!file) return;
-
-                        this.showStatus("Restoring backup...");
-                        await BackupManager.importBackup(file, async (msg: string, isError?: boolean) => {
-                            try {
-                                this.showStatus(msg, isError);
-                                if (!isError && msg.includes("successfully")) {
-                                    await this.loadAll();
-                                    // Update UI settings toggles in case they changed
-                                    chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
-                                        try {
-                                            const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                                            if (lastError) {
-                                                const errorMessage = lastError.message || String(lastError);
-                                                Logger.error('Popup', `Storage error fetching extensionSettings after import: ${errorMessage}`, { error: lastError });
-                                                return;
-                                            }
-                                            if (result.extensionSettings) {
-                                                if (result.extensionSettings.showMarkerPopup !== undefined && this.dom.markerToggle) {
-                                                    this.dom.markerToggle.checked = result.extensionSettings.showMarkerPopup;
-                                                }
-                                                if (result.extensionSettings.showLauncher !== undefined && this.dom.launcherToggle) {
-                                                    this.dom.launcherToggle.checked = result.extensionSettings.showLauncher;
-                                                    this.dom.launcherToggle.setAttribute('aria-checked', result.extensionSettings.showLauncher.toString());
-                                                }
-                                                if (result.extensionSettings.showCharts !== undefined && this.dom.chartsToggle) {
-                                                    this.dom.chartsToggle.checked = result.extensionSettings.showCharts;
-                                                    this.updateChartsVisibility(result.extensionSettings.showCharts);
-                                                }
-                                                if (result.extensionSettings.developerMode !== undefined && this.dom.devModeToggle) {
-                                                    this.dom.devModeToggle.checked = result.extensionSettings.developerMode;
-                                                }
-                                            }
-                                        } catch (cbErr) {
-            UIUtils.catchError('Popup', 'Error updating UI toggles post-import', cbErr);
-        }
-                                    });
-                                }
-                            } catch (importCbErr) {
-            UIUtils.catchError('Popup', 'Error in import backup callback', importCbErr);
-        }
-                        });
-                        target.value = ''; // Reset file input
-                    } catch (err) {
-                        const msg = err instanceof Error ? err.message : String(err);
-                        this.showStatus(`Import failed: ${msg}`, true);
-                        UIUtils.catchError('Popup', 'Error in importFile change listener', err);
-                    }
-                });
-            }
-
-            // R9.1: Anki backup export setup
-            if (this.dom.ankiExportBtn) {
-                this.dom.ankiExportBtn.addEventListener('click', () => {
-                    try {
-                        chrome.storage.local.get(['fsrsCards'], (result: StorageData) => {
-                            try {
-                                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                                if (lastError) {
-                                    const errorMessage = lastError.message || String(lastError);
-                                    Logger.error('Popup', `Storage error fetching cards for Anki export: ${errorMessage}`, { error: lastError });
-                                    this.showStatus('Error reading cards.', true);
-                                    return;
-                                }
-                                const cards = result.fsrsCards || [];
-                                if (cards.length === 0) {
-                                    this.showStatus('No cards to export.', true);
-                                    return;
-                                }
-                                const ankiText = this.exportToAnkiText(cards);
-                                const blob = new Blob([ankiText], { type: 'text/plain;charset=utf-8' });
-                                const url = URL.createObjectURL(blob);
-                                const filename = `algorecall_anki_${new Date().toISOString().split('T')[0]}.txt`;
-
-                                // Safari does not support chrome.downloads — use anchor-click fallback.
-                                if (BROWSER_CONFIG.supportsDownloads) {
-                                    chrome.downloads.download({
-                                        url: url,
-                                        filename,
-                                        saveAs: true
-                                    }, () => {
-                                        try {
-                                            URL.revokeObjectURL(url);
-                                        } catch (revokeErr) {
-                                            const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
-                                            Logger.debug('Popup', `Ignore revokeObjectURL error: ${errorMessage}`, { revokeErr });
-                                        }
-                                    });
-                                } else {
-                                    const a = document.createElement('a');
-                                    a.href = url;
-                                    a.download = filename;
-                                    document.body.appendChild(a);
-                                    a.click();
-                                    document.body.removeChild(a);
-                                    setTimeout(() => URL.revokeObjectURL(url), 1000);
-                                }
-                                this.showStatus(`Exported ${cards.length} cards for Anki!`);
-
-                            } catch (innerErr) {
-                                const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                                Logger.error('Popup', `Error processing Anki export: ${errorMessage}`, { innerErr });
-                                this.showStatus('Error processing Anki export.', true);
-                            }
-                        });
-                    } catch (err) {
-            UIUtils.catchError('Popup', 'Error in ankiExportBtn click listener', err);
-        }
-                });
-            }
-
-            // R9.1: Anki deck import setup
-            if (this.dom.ankiImportFile) {
-                this.dom.ankiImportFile.addEventListener('click', handleFirefoxPopupFileClick);
-                this.dom.ankiImportFile.addEventListener('change', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        const file = target.files?.[0];
-                        if (!file) return;
-
-                        const reader = new FileReader();
-                        reader.onload = (event: ProgressEvent<FileReader>) => {
-                            try {
-                                const text = event.target?.result as string;
-                                const newCards = this.importFromAnkiText(text);
-
-                                if (newCards.length === 0) {
-                                    this.showStatus('No valid cards found in file.', true);
-                                    return;
-                                }
-
-                                chrome.storage.local.get(['fsrsCards'], (result: StorageData) => {
-                                    try {
-                                        const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                                        if (lastError) {
-                                            const errorMessage = lastError.message || String(lastError);
-                                            Logger.error('Popup', `Storage error reading existing cards for Anki import: ${errorMessage}`, { error: lastError });
-                                            this.showStatus('Error accessing card storage.', true);
-                                            return;
-                                        }
-                                        const existing = result.fsrsCards || [];
-                                        const existingTitles = new Set(existing.map((c: Card) => c.problemTitle?.toLowerCase()));
-
-                                        // Skip duplicates by title
-                                        const unique = newCards.filter(c => !existingTitles.has(c.problemTitle?.toLowerCase()));
-                                        const merged = [...existing, ...unique];
-
-                                        chrome.storage.local.set({ fsrsCards: merged }, () => {
-                                            try {
-                                                const setLastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                                                if (setLastError) {
-                                                    const errorMessage = setLastError.message || String(setLastError);
-                                                    Logger.error('Popup', `Storage error saving imported Anki cards: ${errorMessage}`, { error: setLastError });
-                                                    this.showStatus('Error saving imported cards.', true);
-                                                    return;
-                                                }
-                                                this.showStatus(`Imported ${unique.length} cards from Anki! (${newCards.length - unique.length} duplicates skipped)`);
-                                                this.stats.load();
-                                            } catch (setCbErr) {
-            UIUtils.catchError('Popup', 'Error in storage set callback for Anki import', setCbErr);
-        }
-                                        });
-                                    } catch (readCbErr) {
-            UIUtils.catchError('Popup', 'Error in storage get callback for Anki import', readCbErr);
-        }
-                                });
-                            } catch (readerErr) {
-                                const errorMessage = readerErr instanceof Error ? readerErr.message : String(readerErr);
-                                Logger.error('Popup', `Error parsing Anki text file: ${errorMessage}`, { readerErr });
-                                this.showStatus('Error reading Anki file.', true);
-                            }
-                        };
-                        reader.readAsText(file);
-                        target.value = ''; // Reset file input
-                    } catch (err) {
-            UIUtils.catchError('Popup', 'Error in ankiImportFile change listener', err);
-        }
-                });
-            }
         } catch (err) {
             UIUtils.catchError('Popup', 'Error binding popup dashboard events', err);
         }
@@ -907,34 +657,17 @@ export class AlgoRecallDashboard {
                 : `<svg class="svg-icon" style="stroke: var(--md-success); width: 14px; height: 14px;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 
             el.innerHTML = iconHtml + `<span>${msg}</span>`;
-            el.className = 'toast show ' + (isError ? 'error' : 'success'); // styled to match base toast
+            el.className = 'toast show ' + (isError ? 'error' : 'success');
 
             this.statusTimeout = setTimeout(() => {
                 try {
                     el.classList.remove('show');
                 } catch (timerErr) {
-            UIUtils.catchError('Popup', 'Error hiding status toast', timerErr);
-        }
+                    UIUtils.catchError('Popup', 'Error hiding status toast', timerErr);
+                }
             }, 2500);
         } catch (err) {
             UIUtils.catchError('Popup', 'Error rendering status toast', err, { msg, isError });
-        }
-    }
-
-    /**
-     * Export FSRS cards to Anki-compatible tab-separated text.
-     * Format: Front<TAB>Back<TAB>Tags
-     * Includes Anki header directives for auto-configuration on import.
-     * @param {Card[]} cards - Array of FSRS cards.
-     * @returns {string} Anki-compatible text data.
-     */
-    exportToAnkiText(cards: Card[]): string {
-        try {
-            return ActionService.formatCardsForAnki(cards);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Popup', `Error formatting cards for Anki export: ${errorMessage}`, { err });
-            return '';
         }
     }
 
@@ -949,75 +682,12 @@ export class AlgoRecallDashboard {
     }
 
     /**
-     * Import Anki tab-separated text into FSRS card objects.
-     * Expects: Front<TAB>Back<TAB>Tags (optional)
-     * @param {string} text - The raw Anki-formatted text content.
-     * @returns {Card[]} Created stub FSRS card objects.
+     * Updates visibility of the Daily Focus & Momentum card in popup.
      */
-    importFromAnkiText(text: string): Card[] {
-        try {
-            const lines = text.split('\n');
-            const cards: Card[] = [];
-            const now = Date.now();
-
-            for (const line of lines) {
-                // Skip Anki header directives and empty lines
-                if (!line.trim() || line.startsWith('#')) continue;
-
-                const parts = line.split('\t');
-                if (parts.length < 2) continue;
-
-                let front = parts[0].trim();
-                const back = parts[1].trim();
-                const tagsStr = parts[2] ? parts[2].trim() : '';
-
-                if (!front) continue;
-
-                // Extract URL from front if present (format: [URL: ...])
-                let problemUrl = '';
-                const urlMatch = front.match(/\[URL:\s*(.*?)\]/);
-                if (urlMatch) {
-                    problemUrl = urlMatch[1].trim();
-                    front = front.replace(/\n?\[URL:.*?\]/, '').trim();
-                }
-
-                // Parse tags: remove algorecall:: prefix, convert underscores back to spaces
-                const tags = tagsStr
-                    ? tagsStr.split(/\s+/)
-                        .map(t => t.replace(/^algorecall::/, '').replace(/_/g, ' '))
-                        .filter(t => t)
-                    : [];
-
-                // Create stub FSRS card
-                const card: Card = {
-                    id: `imported_${now}_${Math.random().toString(36).substr(2, 8)}`,
-                    problemTitle: front,
-                    problemUrl: problemUrl || `#imported-${encodeURIComponent(front.substring(0, 50))}`,
-                    approach: back,
-                    tags: tags,
-                    due: now, // Due immediately for first review
-                    stability: 0,
-                    difficulty: 0,
-                    elapsed_days: 0,
-                    scheduled_days: 0,
-                    learning_steps: 0,
-                    reps: 0,
-                    lapses: 0,
-                    state: 0, // New
-                    last_review: null,
-                    lastRating: undefined,
-                    historyLog: [],
-                    previousDue: undefined
-                };
-
-                cards.push(card);
-            }
-
-            return cards;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Popup', `Error parsing Anki cards from text: ${errorMessage}`, { err });
-            return [];
+    updateDailyFocusVisibility(showDailyFocus: boolean): void {
+        const card = document.getElementById('daily-focus-card');
+        if (card) {
+            card.style.display = showDailyFocus ? '' : 'none';
         }
     }
 }
@@ -1030,8 +700,8 @@ function initPopupDashboard(): void {
         const dashboard = new AlgoRecallDashboard();
         dashboard.init();
     } catch (err) {
-            UIUtils.catchError('Popup', 'Initialization failed', err);
-        }
+        UIUtils.catchError('Popup', 'Initialization failed', err);
+    }
 }
 
 if (typeof document !== 'undefined') {

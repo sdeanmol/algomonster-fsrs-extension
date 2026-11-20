@@ -155,7 +155,8 @@ export class AlgoRecallBackground {
             const result = await ActionService.executeAction(command as CommandActionId, {
                 background: {
                     checkDueCards: this.checkDueCards.bind(this),
-                    updateDueCardsBadge: this.updateDueCardsBadge.bind(this)
+                    updateDueCardsBadge: this.updateDueCardsBadge.bind(this),
+                    getDueCardsCount: this.getDueCardsCount.bind(this)
                 }
             });
             if (!result.success && result.error) {
@@ -441,7 +442,8 @@ export class AlgoRecallBackground {
             (async () => {
                 try {
                     await this.checkDueCards('manual');
-                    const dueCount = await this.updateDueCardsBadge();
+                    await this.updateDueCardsBadge();
+                    const dueCount = await this.getDueCardsCount();
                     sendResponse({ success: true, dueCount });
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -736,8 +738,8 @@ export class AlgoRecallBackground {
             const whitelistedWebsites: WhitelistedWebsite[] = result.whitelistedWebsites || DEFAULT_WHITELISTED_WEBSITES;
 
             // Enforce minimum interval to bypass MV3 alarm bugs (like frequent re-triggering upon wake-up)
-            // Allow explicit 'snoozeFsrsReviews' and 'test' source to bypass this throttle
-            if (source !== 'snoozeFsrsReviews' && source !== 'test') {
+            // Allow explicit 'snoozeFsrsReviews', 'test', and 'manual' source to bypass this throttle
+            if (source !== 'snoozeFsrsReviews' && source !== 'test' && source !== 'manual') {
                 const interval = parseInt(settings.frequency || String(ALARM_DEFAULT_CHECK_INTERVAL_MIN), 10);
                 const lastCheck = result.lastNotificationTime || 0;
                 const now = Date.now();
@@ -870,6 +872,28 @@ export class AlgoRecallBackground {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Background', `Error updating due cards badge: ${errorMessage}`, { err });
+            return 0;
+        }
+    }
+
+    /**
+     * Calculates the exact number of cards currently due for review from storage.
+     * Evaluates stored `fsrsCards` against current time independently of
+     * UI badge visibility or Pomodoro session state.
+     * @returns Number of cards currently due.
+     * @async
+     * @fires chrome.storage.local.get
+     */
+    async getDueCardsCount(): Promise<number> {
+        try {
+            if (typeof chrome === 'undefined' || !chrome.storage?.local) return 0;
+            const result = (await chrome.storage.local.get(['fsrsCards'])) as { fsrsCards?: Card[] };
+            const cards = result.fsrsCards || [];
+            const now = Date.now();
+            return cards.filter((c: Card) => typeof c.due === 'number' && c.due <= now).length;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Background', `Error calculating due cards count: ${errorMessage}`, { err });
             return 0;
         }
     }
