@@ -3,7 +3,7 @@
   @context Standalone Options & Extension Settings Hub
   @description Consolidated settings, preferences, and management dashboard for AlgoRecall.
   Organizes notification intervals, quiet hours, in-page overlays, website whitelist,
-  FSRS algorithm tuning, JSON backup/restore, Anki flashcard sync, and developer options.
+  AlgoRecall Engine tuning, JSON backup/restore, Anki flashcard sync, and developer options.
   @linked-scripts
     - ../theme-sync.js (Global dark/light theme synchronizer)
     - settings.js (features/common/settings/settings.ts - Settings Hub Controller)
@@ -353,7 +353,7 @@
                                 <div class="action-info">
                                     <h4 class="action-title">Export Backup (JSON)</h4>
                                     <p class="action-desc">Download an encrypted or plaintext JSON/NDJSON snapshot
-                                        containing all flashcards, FSRS history logs, and settings.</p>
+                                        containing all flashcards, AlgoRecall Engine history logs, and settings.</p>
                                 </div>
                                 <button id="settings-export-btn" class="btn btn-success">
                                     <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -438,8 +438,7 @@
                     aria-labelledby="tab-btn-integrations">
                     <div class="panel-header">
                         <h2>Websites & Spaced Repetition Engine</h2>
-                        <p class="panel-desc">Manage whitelisted practice platforms and tune the FSRS-4.5 scheduling
-                            engine.</p>
+                        <p class="panel-desc">Manage whitelisted practice platforms and tune the AlgoRecall Engine scheduling.</p>
                     </div>
 
                     <div class="settings-card">
@@ -475,12 +474,12 @@
                                 </path>
                             </svg>
                             <div>
-                                <h3 class="card-section-title">Configure AlgoRecall FSRS Engine</h3>
-                                <p class="section-desc">Tune the 17-parameter FSRS weight vector, adjust target
+                                <h3 class="card-section-title">Configure AlgoRecall Engine</h3>
+                                <p class="section-desc">Tune the 17-parameter AlgoRecall Engine weight vector, adjust target
                                     retention (70% - 95%), or run Nelder-Mead weight optimization.</p>
                             </div>
                         </div>
-                        <p class="card-subtext">The Free Spaced Repetition Scheduler provides superior memory stability
+                        <p class="card-subtext">The AlgoRecall Engine provides superior memory stability
                             compared to legacy SM-2 algorithms.</p>
                         <div class="mt-3">
                             <a href="../../tracker/config/fsrsConfig.html" class="btn btn-secondary">

@@ -431,7 +431,7 @@ export class FSRSConfigManager {
                     type: 'basic',
                     iconUrl: '/icons/icon.png',
                     title: 'Optimization Complete',
-                    message: 'Your personalized FSRS weights have been successfully trained in the background!'
+                    message: 'Your personalized AlgoRecall Engine weights have been successfully trained in the background!'
                 });
             }
         } catch (err) {
