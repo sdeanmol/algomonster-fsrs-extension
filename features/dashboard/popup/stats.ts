@@ -25,8 +25,9 @@ import {
 } from '@common/constants';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
-import { Card, StorageData } from '../../../types/domain';
+import { Card, StorageData, Achievement, PersonalRecords } from '../../../types/domain';
 import AbstractScheduler from '../../tracker/scheduler/scheduler';
+import { evaluateAchievements, renderAchievementsModalContent } from './achievements';
 
 /**
  * Result structure representing consecutive study day streaks.
@@ -75,6 +76,12 @@ export class StatsComponent extends DashboardComponent {
     dailyGoalTarget: number;
     /** Best all-time daily review streak recorded. */
     longestStreak: number;
+    /** Cached activity map for rendering rolling weekly progress. */
+    cachedActivity: Record<string, number> = {};
+    /** Cached evaluated achievements. */
+    cachedAchievements: Achievement[] = [];
+    /** Cached calculated personal records. */
+    cachedRecords: PersonalRecords | null = null;
 
     /**
      * Initializes the stats component with a coordinator reference.
@@ -94,8 +101,17 @@ export class StatsComponent extends DashboardComponent {
      */
     async load(): Promise<void> {
         try {
-            const result = (await chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'dailyGoalTarget', 'longestStreak', 'lastCelebratedMilestone', 'studyPlanSettings'])) as StorageData & {
+            const result = (await chrome.storage.local.get([
+                'fsrsCards',
+                'fsrsActivity',
+                'dailyGoalTarget',
+                'longestStreak',
+                'lastCelebratedMilestone',
+                'unlockedAchievements',
+                'studyPlanSettings'
+            ])) as StorageData & {
                 lastCelebratedMilestone?: number;
+                unlockedAchievements?: string[];
                 studyPlanSettings?: { isActive?: boolean; examDate?: string };
             };
             const cards: Card[] = result.fsrsCards || [];
@@ -241,6 +257,33 @@ export class StatsComponent extends DashboardComponent {
                     completedToday++;
                 }
             });
+
+            // 4. Lightweight Achievements & Personal Records Evaluation
+            this.cachedActivity = activity;
+            const evalResult = evaluateAchievements({
+                cards,
+                activity,
+                dailyGoalTarget: this.dailyGoalTarget,
+                currentStreak: streakData.current,
+                longestStreak: this.longestStreak,
+                completedToday,
+                unlockedIds: result.unlockedAchievements || []
+            });
+            this.cachedAchievements = evalResult.achievements;
+            this.cachedRecords = evalResult.records;
+
+            if (evalResult.newUnlocks.length > 0) {
+                await chrome.storage.local.set({ unlockedAchievements: evalResult.allUnlockedIds });
+                const first = evalResult.newUnlocks[0];
+                setTimeout(() => {
+                    try {
+                        this.showMilestoneToast(`🏆 ${first.icon} ${first.title} Unlocked!`);
+                        this.showConfetti();
+                    } catch (mErr) {
+                        UIUtils.catchError('StatsComponent', 'Error in achievement celebration callback', mErr);
+                    }
+                }, 300);
+            }
             
             const gamificationPanel = document.getElementById('gamification-panel');
             if (gamificationPanel) {
@@ -368,8 +411,155 @@ export class StatsComponent extends DashboardComponent {
                     }
                 });
             }
+
+            this.bindAchievementsModal(gamificationPanel);
         } catch (err) {
             UIUtils.catchError('StatsComponent', 'Error binding goal editor events', err);
+        }
+    }
+
+    /**
+     * Binds click and keyboard listeners for the Achievements & Records modal.
+     */
+    bindAchievementsModal(container?: HTMLElement): void {
+        try {
+            const openModal = () => {
+                const modal = document.getElementById('achievements-modal');
+                const modalBody = document.getElementById('achievements-modal-body');
+                if (modal && modalBody) {
+                    if (this.cachedRecords) {
+                        modalBody.innerHTML = renderAchievementsModalContent(
+                            this.cachedAchievements,
+                            this.cachedRecords
+                        );
+                    }
+                    modal.classList.remove('hide-panel');
+                    modal.setAttribute('aria-hidden', 'false');
+                    const closeBtn = document.getElementById('close-achievements-btn');
+                    closeBtn?.focus();
+                }
+            };
+
+            const closeModal = () => {
+                const modal = document.getElementById('achievements-modal');
+                if (modal) {
+                    modal.classList.add('hide-panel');
+                    modal.setAttribute('aria-hidden', 'true');
+                }
+            };
+
+            const openBtns = [
+                container?.querySelector('#achievements-open-btn'),
+                document.getElementById('achievements-open-btn'),
+                document.getElementById('achievements-btn')
+            ];
+
+            openBtns.forEach(btn => {
+                if (btn) {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        openModal();
+                    });
+                }
+            });
+
+            const closeBtn = document.getElementById('close-achievements-btn');
+            closeBtn?.addEventListener('click', closeModal);
+
+            const modal = document.getElementById('achievements-modal');
+            modal?.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+
+            document.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Escape' && modal && !modal.classList.contains('hide-panel')) {
+                    closeModal();
+                }
+            });
+        } catch (err) {
+            UIUtils.catchError('StatsComponent', 'Error binding achievements modal events', err);
+        }
+    }
+
+    /**
+     * Renders a compact 7-day rolling weekly activity momentum indicator.
+     */
+    renderWeeklyProgress(activity: Record<string, number> = {}, dailyGoal: number = DEFAULT_DAILY_GOAL): string {
+        try {
+            const today = new Date();
+            const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+            const daysHtml: string[] = [];
+            let activeDaysCount = 0;
+
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                const dateKey = this.formatDateKey(d);
+                const count = activity[dateKey] || 0;
+                const isToday = i === 0;
+                const dayInitial = dayNames[d.getDay()];
+                const goalMet = count >= dailyGoal && dailyGoal > 0;
+                const hasActivity = count > 0;
+
+                if (hasActivity) activeDaysCount++;
+
+                let stateClass = 'empty';
+                if (goalMet) stateClass = 'goal-met';
+                else if (hasActivity) stateClass = 'active';
+
+                const tooltip = `${dateKey}: ${count} review${count === 1 ? '' : 's'}${goalMet ? ' (Goal reached!)' : ''}`;
+
+                daysHtml.push(`
+                    <div class="weekly-day-col ${stateClass} ${isToday ? 'is-today' : ''}" title="${tooltip}" tabindex="0" role="img" aria-label="${tooltip}">
+                        <span class="weekly-day-name">${dayInitial}</span>
+                        <div class="weekly-day-dot">
+                            ${goalMet ? '✓' : (count > 0 ? count : '')}
+                        </div>
+                    </div>
+                `);
+            }
+
+            return `
+                <div class="weekly-progress-container" aria-label="7-Day Review Momentum">
+                    <div class="weekly-progress-header">
+                        <span class="weekly-progress-title">7-Day Momentum</span>
+                        <span class="weekly-progress-badge">${activeDaysCount}/7 active</span>
+                    </div>
+                    <div class="weekly-days-row">
+                        ${daysHtml.join('')}
+                    </div>
+                </div>
+            `;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('StatsComponent', `Error rendering weekly progress: ${errorMessage}`, { err });
+            return '';
+        }
+    }
+
+    /**
+     * Renders a compact button linking to the full achievements & records dialog.
+     */
+    renderAchievementsPill(achievements: Achievement[] = []): string {
+        try {
+            const unlockedCount = achievements.filter(a => a.unlocked).length;
+            const totalCount = achievements.length || 8;
+
+            return `
+                <div class="achievements-pill-container">
+                    <button id="achievements-open-btn" class="achievements-pill-btn" type="button" aria-haspopup="dialog" aria-expanded="false" title="View unlocked milestones and personal records">
+                        <span class="achievements-pill-icon">🏆</span>
+                        <span class="achievements-pill-text">Milestones & Records</span>
+                        <span class="achievements-pill-count">${unlockedCount}/${totalCount}</span>
+                    </button>
+                </div>
+            `;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('StatsComponent', `Error rendering achievements pill: ${errorMessage}`, { err });
+            return '';
         }
     }
 
@@ -504,6 +694,8 @@ export class StatsComponent extends DashboardComponent {
                         <div class="gamification-msg">${motivationMsg}</div>
                     </div>
                 </div>
+                ${this.renderWeeklyProgress(this.cachedActivity, target)}
+                ${this.renderAchievementsPill(this.cachedAchievements)}
             `;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
@@ -554,6 +746,8 @@ export class StatsComponent extends DashboardComponent {
                         </div>
                     </div>
                 </div>
+                ${this.renderWeeklyProgress(this.cachedActivity, target)}
+                ${this.renderAchievementsPill(this.cachedAchievements)}
             `;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);

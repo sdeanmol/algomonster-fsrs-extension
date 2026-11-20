@@ -324,6 +324,8 @@ export interface UserSettings {
     dailyGoalTarget?: number | null;
     /** Longest consecutive daily study streak achieved */
     longestStreak?: number;
+    /** Array of achievement IDs successfully unlocked by the user */
+    unlockedAchievements?: string[];
     /** State tracking for review rating prompt snoozing and visibility */
     ratingPromptState?: { snoozedUntil?: number; status?: string };
     /** Additional extensible settings keys */
@@ -422,8 +424,50 @@ export interface StorageData {
     pomodoroStats?: PomodoroStats;
     /** Flag indicating whether the weekly study digest summary is enabled */
     weeklySummaryEnabled?: boolean;
+    /** Target number of cards to review daily */
+    dailyGoalTarget?: number | null;
+    /** All-time longest consecutive study day streak */
+    longestStreak?: number;
+    /** Array of achievement IDs successfully unlocked by the user */
+    unlockedAchievements?: string[];
     /** Consolidated user settings wrapper */
     userSettings?: UserSettings;
     /** Extensible storage properties */
     [key: string]: unknown;
+}
+
+/**
+ * Representation of a single milestone achievement in the lightweight gamification system.
+ */
+export interface Achievement {
+    /** Unique identifier for the achievement (e.g., "first_review", "streak_7") */
+    id: string;
+    /** Display title of the achievement */
+    title: string;
+    /** Explanatory description and criteria required to unlock */
+    description: string;
+    /** Visual emoji or icon representation */
+    icon: string;
+    /** Whether the user has unlocked this achievement */
+    unlocked: boolean;
+    /** Formatted human-readable progress string towards unlocking (e.g., "4 / 7 days") */
+    progress?: string;
+    /** Numeric progress percentage between 0 and 100 */
+    progressPercent?: number;
+}
+
+/**
+ * Summary of all-time study statistics and personal bests.
+ */
+export interface PersonalRecords {
+    /** Current active consecutive study day streak */
+    currentStreak: number;
+    /** All-time highest consecutive study day streak */
+    longestStreak: number;
+    /** Highest number of card reviews completed on any single calendar day */
+    maxDailyReviews: number;
+    /** Total lifetime card reviews completed across all days */
+    totalReviews: number;
+    /** Total cards currently tracked in the collection */
+    totalCards: number;
 }

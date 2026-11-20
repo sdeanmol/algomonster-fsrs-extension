@@ -350,4 +350,69 @@ describe('StatsComponent (Popup)', () => {
       expect(component.formatDateKey(new Date('invalid-date'))).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
   });
+
+  describe('Lightweight Gamification: Weekly Momentum and Achievements Modal', () => {
+    it('renders 7-day rolling weekly momentum indicator with goal met and active days', () => {
+      const today = new Date();
+      const activity: Record<string, number> = {};
+      const todayKey = component.formatDateKey(today);
+      activity[todayKey] = 10;
+
+      const html = component.renderWeeklyProgress(activity, 10);
+      expect(html).toContain('7-Day Momentum');
+      expect(html).toContain('goal-met');
+      expect(html).toContain('is-today');
+      expect(html).toContain('1/7 active');
+    });
+
+    it('renders achievements pill with current unlocked progress count', () => {
+      const mockAchievements = [
+        { id: '1', title: 'A', description: 'Desc', icon: '🚀', unlocked: true },
+        { id: '2', title: 'B', description: 'Desc', icon: '⚡', unlocked: false }
+      ];
+
+      const html = component.renderAchievementsPill(mockAchievements);
+      expect(html).toContain('Milestones & Records');
+      expect(html).toContain('1/2');
+    });
+
+    it('opens and closes achievements modal on click and Escape key', () => {
+      document.body.innerHTML += `
+        <button id="achievements-btn"></button>
+        <div id="achievements-modal" class="modal-overlay hide-panel">
+          <button id="close-achievements-btn"></button>
+          <div id="achievements-modal-body"></div>
+        </div>
+      `;
+
+      component.cachedRecords = {
+        currentStreak: 2,
+        longestStreak: 5,
+        maxDailyReviews: 12,
+        totalReviews: 40,
+        totalCards: 15
+      };
+
+      component.bindAchievementsModal();
+
+      const modal = document.getElementById('achievements-modal');
+      const openBtn = document.getElementById('achievements-btn');
+      const closeBtn = document.getElementById('close-achievements-btn');
+
+      expect(modal?.classList.contains('hide-panel')).toBe(true);
+
+      openBtn?.click();
+      expect(modal?.classList.contains('hide-panel')).toBe(false);
+      expect(document.getElementById('achievements-modal-body')?.innerHTML).toContain('Personal Records');
+
+      closeBtn?.click();
+      expect(modal?.classList.contains('hide-panel')).toBe(true);
+
+      openBtn?.click();
+      expect(modal?.classList.contains('hide-panel')).toBe(false);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(modal?.classList.contains('hide-panel')).toBe(true);
+    });
+  });
 });

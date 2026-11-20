@@ -64,6 +64,8 @@ export interface PopupDOM {
     headerAnalyticsBtn: HTMLElement | null;
     /** Button opening future workload forecast page. */
     forecastBtn: HTMLElement | null;
+    /** Button opening achievements and records dialog. */
+    achievementsBtn: HTMLElement | null;
     /** Button triggering JSON database backup export. */
     exportBtn: HTMLElement | null;
     /** Hidden file input element for restoring JSON backup file. */
@@ -138,6 +140,7 @@ export class AlgoRecallDashboard {
                 analyticsBtn: document.getElementById('analytics-btn'),
                 headerAnalyticsBtn: document.getElementById('header-analytics-btn'),
                 forecastBtn: document.getElementById('forecast-btn'),
+                achievementsBtn: document.getElementById('achievements-btn'),
                 exportBtn: document.getElementById('export-btn'),
                 importFile: document.getElementById('import-file') as HTMLInputElement | null,
                 ankiExportBtn: document.getElementById('anki-export-btn'),
@@ -587,6 +590,20 @@ export class AlgoRecallDashboard {
                 } catch (err) {
             UIUtils.catchError('Popup', 'Error navigating to forecast.html', err);
         }
+            });
+            this.dom.achievementsBtn?.addEventListener('click', () => {
+                try {
+                    this.stats.bindAchievementsModal();
+                    const openBtn = document.getElementById('achievements-open-btn');
+                    if (openBtn) {
+                        openBtn.click();
+                    } else {
+                        const modal = document.getElementById('achievements-modal');
+                        modal?.classList.remove('hide-panel');
+                    }
+                } catch (err) {
+                    UIUtils.catchError('Popup', 'Error opening achievements dialog', err);
+                }
             });
             this.dom.studyplanBtn?.addEventListener('click', () => {
                 try {

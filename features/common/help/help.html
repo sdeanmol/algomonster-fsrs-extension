@@ -209,6 +209,354 @@
                         </ul>
                     </div>
                 </div>
+
+                <!-- 🧭 Complete Extension Popup & Daily Controls Guide -->
+                <div class="card" style="margin-top: 24px; border-left: 4px solid var(--md-primary);">
+                    <h2>🧭 Extension Popup & Daily Controls: Complete Guide</h2>
+                    <p class="section-intro">
+                        The AlgoRecall popup is your daily command center. Whenever you click the extension icon in your
+                        browser toolbar, you get an immediate overview of your review queue, memory health, study
+                        streak, quick search, and configuration settings.
+                    </p>
+
+                    <!-- Quick Jump Links -->
+                    <div class="callout-box"
+                        style="margin-bottom: 20px; background: rgba(168, 199, 250, 0.08); border-left-color: var(--md-primary);">
+                        <strong style="color: var(--md-primary); font-size: 13px;">⚡ Quick Navigation to Popup
+                            Sections:</strong>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                            <a href="#popup-header" class="platform-tag"
+                                style="text-decoration: none; color: inherit;">Header &amp; Level</a>
+                            <a href="#popup-stats" class="platform-tag"
+                                style="text-decoration: none; color: inherit;">Hero Stats &amp; Drill-Downs</a>
+                            <a href="#popup-search" class="platform-tag"
+                                style="text-decoration: none; color: inherit;">Quick Search &amp; Tags</a>
+                            <a href="#popup-heatmap" class="platform-tag"
+                                style="text-decoration: none; color: inherit;">Activity Heatmap</a>
+                            <a href="#popup-tools" class="platform-tag"
+                                style="text-decoration: none; color: inherit;">Study Tools</a>
+                            <a href="#popup-highlighter" class="platform-tag"
+                                style="text-decoration: none; color: inherit;">Highlighter Settings</a>
+                            <a href="#popup-notifications" class="platform-tag"
+                                style="text-decoration: none; color: inherit;">Notifications &amp; Quiet Hours</a>
+                            <a href="#popup-options" class="platform-tag"
+                                style="text-decoration: none; color: inherit;">Data &amp; Advanced Options</a>
+                            <a href="#popup-feedback" class="platform-tag"
+                                style="text-decoration: none; color: inherit;">Rating &amp; Feedback</a>
+                        </div>
+                    </div>
+
+                    <!-- 1. Header & Level Progress -->
+                    <div id="popup-header" class="card card-accent mb-4">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">🏆</span>
+                            <h3 style="margin: 0;">1. Header, Level Badge &amp; XP Progress Bar</h3>
+                        </div>
+                        <p style="font-size: 13px; color: var(--md-text-med); margin-bottom: 12px;">
+                            The top of the popup shows your current rank, XP leveling bar, and primary global controls:
+                        </p>
+                        <ul class="help-bullet-list">
+                            <li><strong>Level Badge (e.g. <code>Lv. 1</code>, <code>Lv. 5</code>):</strong> Shows your
+                                gamification tier (Apprentice &rarr; Specialist &rarr; Expert &rarr; Grandmaster). Every
+                                card review adds XP points to your profile.</li>
+                            <li><strong>XP Progress Bar:</strong> The thin animated bar below the header fills up as you
+                                complete reviews. Once it hits 100%, you level up, and a burst of confetti celebrates
+                                your achievement!</li>
+                            <li><strong>Analytics Dashboard Button (Bar Chart Icon):</strong> Opens the full-page
+                                Analytics suite in a new tab for in-depth memory graphs,
+                                tag breakdowns, and velocity metrics.</li>
+                            <li><strong>Theme Switcher (Sun / Moon Icon):</strong> Toggles between clean Light Mode and
+                                eye-friendly Dark Mode. Your choice is instantly synced across all extension pages.</li>
+                            <li><strong>Help Guide Button (? Icon):</strong> Immediately opens this comprehensive Help
+                                Center.</li>
+                        </ul>
+                    </div>
+
+                    <!-- 2. Hero Stat Boxes (Interactive Drill-Downs) -->
+                    <div id="popup-stats" class="card mb-4">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">📊</span>
+                            <h3 style="margin: 0; color: var(--md-primary);">2. Hero Stat Boxes &amp; Interactive
+                                Drill-Downs</h3>
+                        </div>
+                        <p style="font-size: 13px; color: var(--md-text-med); margin-bottom: 12px;">
+                            The 3 hero metric boxes at the top of the popup give you an immediate snapshot of your study
+                            state. <strong>Each box is an interactive button</strong> that opens a pre-filtered view of
+                            your cards:
+                        </p>
+                        <div class="grid-3 mb-3">
+                            <div class="card" style="padding: 12px; border-top: 3px solid var(--md-primary);">
+                                <h4 style="margin: 0 0 6px 0; font-size: 14px;">📦 Total Patterns</h4>
+                                <p style="font-size: 12px; color: var(--md-text-med); margin-bottom: 8px;">Displays the
+                                    total number of unique algorithmic problems and patterns you have saved.</p>
+                                <p style="font-size: 11.5px; color: var(--md-text-low); margin: 0;"><strong>Click
+                                        action:</strong> Opens the Card Explorer (<code>data.html</code>) showing all
+                                    saved cards for searching, editing, or exporting.</p>
+                            </div>
+                            <div class="card" style="padding: 12px; border-top: 3px solid var(--md-warning);">
+                                <h4 style="margin: 0 0 6px 0; font-size: 14px;">⏰ Due Today</h4>
+                                <p style="font-size: 12px; color: var(--md-text-med); margin-bottom: 8px;">Displays the
+                                    number of cards ready for recall check-in right now.</p>
+                                <p style="font-size: 11.5px; color: var(--md-text-low); margin: 0;"><strong>Color
+                                        status:</strong> 🟢 Green = 0 due (Inbox Zero!); 🟡 Yellow = 1–10 due; 🔴 Red =
+                                    &gt;10 due (Urgent reviews pending). <strong>Click action:</strong> Opens
+                                    <code>data.html?filter=due</code>.
+                                </p>
+                            </div>
+                            <div class="card" style="padding: 12px; border-top: 3px solid var(--md-success);">
+                                <h4 style="margin: 0 0 6px 0; font-size: 14px;">🧠 Memory Retention</h4>
+                                <p style="font-size: 12px; color: var(--md-text-med); margin-bottom: 8px;">Calculates
+                                    your live memory retrievability rate across all cards using the AlgoRecall Engine
+                                    formula.</p>
+                                <p style="font-size: 11.5px; color: var(--md-text-low); margin: 0;">
+                                    <strong>Target:</strong> Aim for &ge; 85–90%. <strong>Click action:</strong> Opens
+                                    lapsed/at-risk cards (<code>data.html?filter=lapsed</code>) so you can strengthen
+                                    weak patterns.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Quick Pattern Search & Tag Filtering -->
+                    <div id="popup-search" class="card card-accent mb-4">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">🔍</span>
+                            <h3 style="margin: 0;">3. Quick Pattern Search &amp; Topic Tag Filtering</h3>
+                        </div>
+                        <p style="font-size: 13px; color: var(--md-text-med); margin-bottom: 12px;">
+                            Need to quickly look up a problem or check when you last reviewed a pattern without leaving
+                            your current tab? Use the built-in quick search inside the popup:
+                        </p>
+                        <ul class="help-bullet-list">
+                            <li><strong>Real-Time Search:</strong> Type any keyword in the <em>Search
+                                    patterns...</em> box. AlgoRecall instantly searches problem titles, problem URLs,
+                                your personal approach notes, and topic tags.</li>
+                            <li><strong>Tag Filter Dropdown:</strong> Automatically populated with all tags from your
+                                cards (e.g. <code>Dynamic Programming</code>, <code>Binary Search</code>,
+                                <code>Graphs</code>). Select a tag to narrow down search results to a specific topic.
+                            </li>
+                            <li><strong>Due vs Safe Status Pills:</strong> Results show a color-coded status badge:
+                                <ul style="margin-top: 4px;">
+                                    <li><span class="state-badge state-badge-learning"
+                                            style="font-size: 11px;">Due</span> (Red pill): This card is currently due
+                                        or overdue for review.</li>
+                                    <li><span class="state-badge state-badge-review"
+                                            style="font-size: 11px;">Safe</span> (Green pill): This card is firmly in
+                                        your memory buffer and not due yet.</li>
+                                </ul>
+                            </li>
+                            <li><strong>One-Click Problem Navigation:</strong> Clicking any result title opens the
+                                problem page directly on LeetCode, AlgoMonster, or your saved URL so you can jump
+                                straight to solving it.</li>
+                        </ul>
+                    </div>
+
+                    <!-- 4. Activity Heatmap & Quick Action Chips -->
+                    <div id="popup-heatmap" class="card mb-4">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">🔥</span>
+                            <h3 style="margin: 0; color: var(--md-primary);">4. Activity Heatmap &amp; Quick Action
+                                Chips</h3>
+                        </div>
+                        <p style="font-size: 13px; color: var(--md-text-med); margin-bottom: 12px;">
+                            Build an unbreakable study habit with visual progress tracking:
+                        </p>
+                        <ul class="help-bullet-list">
+                            <li><strong>Daily Streak Counter:</strong> Displays your active consecutive days of reviews
+                                alongside a motivational message. Missing reviews causes the streak to pause or reset.
+                            </li>
+                            <li><strong>Contribution Heatmap Matrix:</strong> Displays a 365-day grid modeled after
+                                GitHub contribution graphs. Darker green/blue shades indicate higher numbers of reviews
+                                completed on that date.</li>
+                            <li><strong>"Full Screen" Button:</strong> Opens the full-page Heatmap dashboard
+                                (<code>heatmap.html</code>) with yearly filters and detailed daily drill-downs.</li>
+                            <li><strong>"Lifetime" Chip:</strong> Toggles the heatmap between the rolling 365-day
+                                calendar and your entire historical record since day one.</li>
+                            <li><strong>Action Chips:</strong>
+                                <ul>
+                                    <li><code>Analytics</code>: Navigates to the analytics suite.</li>
+                                    <li><code>Forecast</code>: Opens the workload simulation tool
+                                        (<code>forecast.html</code>) to predict upcoming daily review volume.</li>
+                                    <li><code>History</code>: Opens the review audit logs (<code>history.html</code>)
+                                        showing every graded attempt with exact timestamps and interval changes.</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- 5. Study Tools (Exam Mode & Pomodoro) -->
+                    <div id="popup-tools" class="card card-accent mb-4">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">🎓</span>
+                            <h3 style="margin: 0;">5. Study Tools: Exam Mode &amp; Pomodoro Timer</h3>
+                        </div>
+                        <div class="grid-2">
+                            <div class="card" style="padding: 12px;">
+                                <h4 style="margin: 0 0 6px 0; color: var(--md-secondary);">🎯 Exam Mode (Study Plan)
+                                </h4>
+                                <p style="font-size: 12px; color: var(--md-text-med); margin-bottom: 8px;">
+                                    Have an upcoming technical interview or exam in 2–4 weeks? Clicking <strong>Exam
+                                        Mode</strong> opens <code>studyplan.html</code>.
+                                </p>
+                                <p style="font-size: 12px; color: var(--md-text-low); margin: 0;">
+                                    Enter your exam date, and the engine automatically recalculates and compresses
+                                    review intervals so all critical patterns are scheduled for review right before your
+                                    interview day.
+                                </p>
+                            </div>
+                            <div class="card" style="padding: 12px;">
+                                <h4 style="margin: 0 0 6px 0; color: var(--md-secondary);">⏱️ Pomodoro Focus Timer</h4>
+                                <p style="font-size: 12px; color: var(--md-text-med); margin-bottom: 8px;">
+                                    Struggling with attention fatigue during long problem-solving sessions? Clicking
+                                    <strong>Pomodoro</strong> launches <code>pomodoro.html</code>.
+                                </p>
+                                <p style="font-size: 12px; color: var(--md-text-low); margin: 0;">
+                                    Runs standard 25-minute uninterrupted problem-solving intervals followed by 5-minute
+                                    mental breaks, keeping your focus sharp without burnout.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 6. Highlighter Settings -->
+                    <div id="popup-highlighter" class="card mb-4">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">🖍️</span>
+                            <h3 style="margin: 0; color: var(--md-warning);">6. Highlighter Quick Settings</h3>
+                        </div>
+                        <p style="font-size: 13px; color: var(--md-text-med); margin-bottom: 12px;">
+                            Manage the in-page text highlighter directly from the popup:
+                        </p>
+                        <ul class="help-bullet-list">
+                            <li><strong>Floating Marker Menu Switch:</strong> When enabled, selecting text on any
+                                supported coding page brings up a floating marker palette to highlight key paragraphs
+                                and formulas. If you find the popup distracting, toggle this switch off to temporarily
+                                disable the floating popup while keeping existing highlights intact.</li>
+                            <li><strong>Customize Colors Button:</strong> Opens <code>highlightOptions.html</code> to
+                                define custom HEX color palettes and keyboard shortcut combinations.</li>
+                            <li><strong>View All Highlights Button:</strong> Opens <code>highlights.html</code> where
+                                all your saved code snippets, annotations, and notes are organized by URL and date.</li>
+                        </ul>
+                    </div>
+
+                    <!-- 7. Notification & Bedtime Quiet Hours Settings -->
+                    <div id="popup-notifications" class="card card-accent mb-4">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">🔔</span>
+                            <h3 style="margin: 0;">7. Notification Settings &amp; Bedtime Quiet Hours</h3>
+                        </div>
+                        <p style="font-size: 13px; color: var(--md-text-med); margin-bottom: 12px;">
+                            Spaced repetition works best when you review patterns promptly as they become due. The
+                            notification engine runs in the background to keep you on schedule:
+                        </p>
+                        <ul class="help-bullet-list">
+                            <li><strong>Review Reminders Switch:</strong> Master toggle enabling or disabling background
+                                review alarms. When enabled, the extension periodically checks if any cards have become
+                                due.</li>
+                            <li><strong>Check Interval Selector:</strong> Choose how frequently the background alarm
+                                runs: <code>15 mins</code>, <code>30 mins</code>, <code>1 hour</code> (recommended
+                                default), <code>2 hours</code>, <code>6 hours</code>, <code>12 hours</code>, or
+                                <code>Daily</code>.
+                            </li>
+                            <li><strong>Custom Interval (mins):</strong> Selecting <em>Custom...</em> reveals an input
+                                where you can enter any custom checking frequency between 1 and 1440 minutes.</li>
+                            <li><strong>Sticky Notification Switch:</strong> When enabled
+                                , system notification alerts stay visible on your
+                                screen until you explicitly click or dismiss them, preventing missed alerts while away
+                                from your keyboard.</li>
+                            <li><strong>Quiet Hours Switch &amp; Time Window:</strong> Protect your sleep! Toggle on
+                                <em>Quiet Hours</em> and pick your sleep schedule (e.g., <code>23:00 to 07:00</code>).
+                                AlgoRecall will completely suppress review reminder alerts during these hours, resuming
+                                seamlessly in the morning.
+                            </li>
+                            <li><strong>Weekly Digest Switch:</strong> When enabled, delivers an encouraging summary
+                                notification every Sunday reviewing your consistency and mastery gains.</li>
+                            <li><strong>Pinned Icon Due Badge Switch:</strong> Shows a numerical badge counter on the
+                                extension icon in your browser toolbar (e.g. <code>3</code>) showing exactly how many
+                                cards are currently due.</li>
+                            <li><strong>Check Due Reviews Now Button:</strong> Forces an immediate background check of
+                                your review queue without waiting for the next timer tick, refreshing your badge count
+                                and showing an instant status toast.</li>
+                            <li><strong>Summary Button (Header):</strong> Opens the Weekly &amp; Monthly Digest report
+                                to inspect long-term trends and retention stats.</li>
+                        </ul>
+                    </div>
+
+                    <!-- 8. Data & Options (Collapsible Details) -->
+                    <div id="popup-options" class="card mb-4">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">⚙️</span>
+                            <h3 style="margin: 0; color: #9b59b6;">8. Data &amp; Advanced Options (Collapsible Panel)
+                            </h3>
+                        </div>
+                        <p style="font-size: 13px; color: var(--md-text-med); margin-bottom: 12px;">
+                            Click the <strong>Data &amp; Options</strong> expandable section at the bottom of the popup
+                            to access power-user settings and data synchronization tools:
+                        </p>
+                        <ul class="help-bullet-list">
+                            <li><strong>Problem Tracker Launcher Switch:</strong> Controls whether the floating circular
+                                brain widget is injected in the bottom-right corner of LeetCode, AlgoMonster, and
+                                whitelisted pages. If you prefer to review solely using the popup and dashboard, you can
+                                turn this off to keep your web pages completely untouched.</li>
+                            <li><strong>Show Analytics &amp; Charts Switch:</strong> Controls whether the Activity &amp;
+                                Charts card is displayed inside the popup. Disabling this compresses the popup window
+                                into a streamlined, ultra-compact review list.</li>
+                            <li><strong>Developer Mode Switch:</strong> For advanced troubleshooting. Enabling reveals:
+                                <ul style="margin-top: 4px;">
+                                    <li>A <code>1 min (Dev)</code> interval option in notification settings.</li>
+                                    <li>Test notification trigger buttons (<em>Send Test Notification</em>, <em>Send
+                                            Test Summary</em>).</li>
+                                    <li>An <strong>Export Debug Logs</strong> button that downloads internal console
+                                        logs (<code>algorecall_debug_logs_*.json</code>) for debugging.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Manage Active Websites:</strong> Opens <code>websites.html</code> to whitelist
+                                custom coding sites, documentation domains, or personal blogs where you want the
+                                floating logger and highlighter active.</li>
+                            <li><strong>Configure AlgoRecall Engine:</strong> Opens <code>fsrsConfig.html</code> to
+                                fine-tune your desired retention target (0.75 - 0.95) and the 17 algorithmic
+                                stability/difficulty weight parameters.</li>
+                            <li><strong>Backup (JSON Export):</strong> One-click download of
+                                <code>algorecall_backup_YYYY-MM-DD.json</code> containing all cards, review histories,
+                                highlights, and settings.
+                            </li>
+                            <li><strong>Restore (JSON Import):</strong> Safely restore your cards and settings from an
+                                existing backup file.</li>
+                            <li><strong>To Anki (.txt Export):</strong> Exports your cards into standard Anki
+                                tab-delimited format (<code>Front \t Back \t Tags</code>) with
+                                <code>#separator:tab</code> directives for seamless desktop Anki importing.
+                            </li>
+                            <li><strong>From Anki (.txt / .tsv Import):</strong> Imports flashcard decks from Anki.
+                                Existing cards with matching problem titles are automatically detected and skipped to
+                                avoid duplicates.</li>
+                        </ul>
+                    </div>
+
+                    <!-- 9. Store Rating Prompts & Feedback -->
+                    <div id="popup-feedback" class="card card-accent">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 20px;">⭐</span>
+                            <h3 style="margin: 0;">9. Rating Prompts, Feedback &amp; Status Toasts</h3>
+                        </div>
+                        <p style="font-size: 13px; color: var(--md-text-med); margin-bottom: 12px;">
+                            AlgoRecall is built for students and completely free of tracking. Here is how store feedback
+                            and alerts work:
+                        </p>
+                        <ul class="help-bullet-list">
+                            <li><strong>Milestone Rating Card:</strong> After you log your first algorithm pattern, an
+                                optional rating card appears encouraging you to support the project on the Chrome Web
+                                Store, Firefox Add-ons, or Safari App Store.</li>
+                            <li><strong>Snooze (7 days):</strong> Not ready to rate? Click Snooze, and the prompt hides
+                                for 7 days before politely re-checking.</li>
+                            <li><strong>Already Rated:</strong> Permanently hides the rating card and displays a warm
+                                "Thank you for supporting us! ❤️" note with an option to edit your rating state if
+                                needed.</li>
+                            <li><strong>Status Toasts:</strong> Whenever you change a setting, toggle dark mode, trigger
+                                a backup, or check due reviews, a non-intrusive status toast appears at the bottom of
+                                the popup confirming the action.</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
 
             <!-- 2. AlgoRecall Engine Tab -->
@@ -218,14 +566,16 @@
                     <p class="section-intro">
                         Think of the <strong>AlgoRecall Engine</strong> as your personal study
                         superpower! Instead of re-solving hundreds of LeetCode or AlgoMonster problems over and over,
-                        the AlgoRecall Engine learns how fast your brain forgets code patterns. It schedules your reviews right at the
+                        the AlgoRecall Engine learns how fast your brain forgets code patterns. It schedules your
+                        reviews right at the
                         moment you're about to forget them—so you remember more with way less effort!
                     </p>
 
                     <div class="card card-accent mb-4" style="border-left: 4px solid var(--md-success);">
                         <h3 style="color: var(--md-success);">⚡ Study 30% Less, Remember 90% More!</h3>
                         <p style="margin: 0; font-size: 13px; color: var(--md-text-med);">
-                            By skipping problems you already know well and focusing strictly on tricky ones, the AlgoRecall Engine
+                            By skipping problems you already know well and focusing strictly on tricky ones, the
+                            AlgoRecall Engine
                             <strong>cuts your daily review time by 20% to 30%+</strong> compared to old-school flashcard
                             apps. You'll master more interview patterns in significantly fewer total practice sessions!
                         </p>
@@ -272,7 +622,8 @@
                             <div class="lifecycle-card lifecycle-card-review">
                                 <span class="state-badge state-badge-review">Stage 2: Review</span>
                                 <h4>🏆 Mastered</h4>
-                                <p>It's locked in! The card is now in long-term memory. The AlgoRecall Engine will space out reviews (4
+                                <p>It's locked in! The card is now in long-term memory. The AlgoRecall Engine will space
+                                    out reviews (4
                                     days, 12 days, 1 month...) to keep it fresh.</p>
                                 <ul class="lifecycle-meta-list">
                                     <li><strong>Hard / Good / Easy:</strong> Stays in <code>Review</code> (interval
@@ -287,7 +638,8 @@
                             <div class="lifecycle-card lifecycle-card-relearning">
                                 <span class="state-badge state-badge-relearning">Stage 3: Relearning</span>
                                 <h4>🔄 Refresher</h4>
-                                <p>Forgot a mastered problem? No stress! The AlgoRecall Engine gives you a quick refresher round until
+                                <p>Forgot a mastered problem? No stress! The AlgoRecall Engine gives you a quick
+                                    refresher round until
                                     it's safely back in long-term memory.</p>
                                 <ul class="lifecycle-meta-list">
                                     <li><strong>Again:</strong> Resets refresher timer</li>
@@ -302,7 +654,8 @@
                     <div class="card mb-4">
                         <h3>🔄 How Your Ratings Change a Card's Stage</h3>
                         <p style="font-size: 12.5px; color: var(--md-text-med); margin-bottom: 10px;">
-                            Whenever you grade a review, the AlgoRecall Engine automatically updates the card's stage and calculates when
+                            Whenever you grade a review, the AlgoRecall Engine automatically updates the card's stage
+                            and calculates when
                             you should see it next:
                         </p>
 
@@ -324,7 +677,8 @@
                                                 (1)</span>
                                         </td>
                                         <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
-                                        <td>Starts practice mode! The AlgoRecall Engine schedules a quick re-test in ~1 to 5 mins so you
+                                        <td>Starts practice mode! The AlgoRecall Engine schedules a quick re-test in ~1
+                                            to 5 mins so you
                                             can try again.</td>
                                     </tr>
                                     <tr>
@@ -333,7 +687,8 @@
                                                 (2)</span>
                                         </td>
                                         <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
-                                        <td>Starts practice mode. The AlgoRecall Engine schedules a short check-in in ~5 to 10 mins.</td>
+                                        <td>Starts practice mode. The AlgoRecall Engine schedules a short check-in in ~5
+                                            to 10 mins.</td>
                                     </tr>
                                     <tr>
                                         <td><span class="state-badge state-badge-new">🆕 New (0)</span></td>
@@ -372,7 +727,8 @@
                                                 (2)</span>
                                         </td>
                                         <td><span class="state-badge state-badge-learning">📖 Learning</span></td>
-                                        <td>Stays in learning mode. You're building memory, so the AlgoRecall Engine schedules another
+                                        <td>Stays in learning mode. You're building memory, so the AlgoRecall Engine
+                                            schedules another
                                             short check-in soon.</td>
                                     </tr>
                                     <tr>
@@ -413,7 +769,8 @@
                                                 (2)</span>
                                         </td>
                                         <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
-                                        <td>Stays Mastered! Your memory got a bit stronger, so the AlgoRecall Engine extends your next
+                                        <td>Stays Mastered! Your memory got a bit stronger, so the AlgoRecall Engine
+                                            extends your next
                                             review date moderately.</td>
                                     </tr>
                                     <tr>
@@ -422,7 +779,8 @@
                                                 (3)</span>
                                         </td>
                                         <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
-                                        <td>Stays Mastered! Great recall! The AlgoRecall Engine expands your next review interval
+                                        <td>Stays Mastered! Great recall! The AlgoRecall Engine expands your next review
+                                            interval
                                             smoothly (for example, from 10 days to 25 days).</td>
                                     </tr>
                                     <tr>
@@ -431,7 +789,8 @@
                                                 (4)</span>
                                         </td>
                                         <td><span class="state-badge state-badge-review">🏆 Mastered</span></td>
-                                        <td>Stays Mastered! Total recall power! The AlgoRecall Engine gives you a huge break (for
+                                        <td>Stays Mastered! Total recall power! The AlgoRecall Engine gives you a huge
+                                            break (for
                                             example, jumping from 10 days to 45+ days).</td>
                                     </tr>
 
@@ -538,7 +897,8 @@
                                 <div class="flow-node">
                                     <span class="flow-node-step">Step 5</span>
                                     <div class="flow-node-title">Smart Schedule</div>
-                                    <p class="flow-node-desc">The AlgoRecall Engine recalculates your memory curve. Hard cards return
+                                    <p class="flow-node-desc">The AlgoRecall Engine recalculates your memory curve. Hard
+                                        cards return
                                         soon;
                                         easy cards get pushed weeks ahead so you study less!</p>
                                     <span class="flow-node-tag">Automatic</span>
@@ -657,18 +1017,22 @@
                             <h3>⏰ What Happens When a Review Is Overdue?</h3>
                             <p
                                 style="font-size: 12px; color: var(--md-text-med); line-height: 1.5; margin-bottom: 10px;">
-                                The AlgoRecall Engine tracks <code>elapsed days</code> (actual days since last review) separately
+                                The AlgoRecall Engine tracks <code>elapsed days</code> (actual days since last review)
+                                separately
                                 from
                                 <code>scheduled days</code>.
                             </p>
                             <ul class="help-bullet-list" style="font-size: 12px;">
-                                <li><strong>Reviewed On Time:</strong> The AlgoRecall Engine predicts retrievability <i>R</i> &approx;
+                                <li><strong>Reviewed On Time:</strong> The AlgoRecall Engine predicts retrievability
+                                    <i>R</i> &approx;
                                     88%
                                     and
-                                    expands interval normally.</li>
+                                    expands interval normally.
+                                </li>
                                 <li><strong>Overdue + Remembered (Good/Easy):</strong> If you review 5 days late and
                                     still
-                                    recall it, the AlgoRecall Engine realizes your memory is stronger than expected! It awards a
+                                    recall it, the AlgoRecall Engine realizes your memory is stronger than expected! It
+                                    awards a
                                     <strong>higher stability boost</strong> than normal.
                                 </li>
                                 <li><strong>Overdue + Forgotten (Again):</strong> Stability drops sharply and the
@@ -720,7 +1084,8 @@
                     <div class="card mb-4">
                         <h3>📚 Practical Step-by-Step Examples</h3>
                         <p style="font-size: 12.5px; color: var(--md-text-med); margin-bottom: 16px;">
-                            The following realistic scenarios demonstrate how the AlgoRecall Engine manages a card throughout its
+                            The following realistic scenarios demonstrate how the AlgoRecall Engine manages a card
+                            throughout its
                             lifecycle:
                         </p>
 
@@ -794,7 +1159,8 @@
                                     algorithm! Rated 🟢 <strong>Good</strong>.<br>
                                     <strong>Engine Bonus:</strong> Because you overcame forgetting when retrievability
                                     was
-                                    low, the AlgoRecall Engine awards an extra stability multiplier! Stability jumps higher than if
+                                    low, the AlgoRecall Engine awards an extra stability multiplier! Stability jumps
+                                    higher than if
                                     reviewed
                                     on Monday.
                                 </p>
@@ -885,7 +1251,8 @@
                     <div class="card mb-4">
                         <h3>🔬 Core AlgoRecall Engine Concepts in Plain English</h3>
                         <p style="font-size: 12.5px; color: var(--md-text-med); margin-bottom: 14px;">
-                            You don't need a math degree to understand the AlgoRecall Engine. Here is what the core parameters mean
+                            You don't need a math degree to understand the AlgoRecall Engine. Here is what the core
+                            parameters mean
                             in
                             everyday terms:
                         </p>
@@ -913,7 +1280,8 @@
                                 <p style="font-size: 12px; color: var(--md-text-med); margin: 0; line-height: 1.5;">
                                     Ranked from 1 (trivial) to 10 (exceptionally tough). Harder cards gain stability
                                     more
-                                    slowly with each successful review, meaning the AlgoRecall Engine spaces them out more
+                                    slowly with each successful review, meaning the AlgoRecall Engine spaces them out
+                                    more
                                     conservatively
                                     so
                                     they don't slip away.
@@ -931,13 +1299,12 @@
                                     problem
                                     today. Immediately after reviewing, <i>R</i> = 100%. Over time, it follows the
                                     forgetting
-                                    curve:
-                                    <code><i>R</i> = (1 + 0.2346 &middot; <i>t</i> / <i>S</i>)<sup>&minus;0.5</sup></code>.
+                                    curve.
                                 </p>
                             </div>
                             <div class="card card-accent" style="margin-bottom:0;">
-                                <h4 style="margin: 0 0 6px 0; font-size: 13px; color: var(--md-text-high);">4. Rapid
-                                    Debouncing & 1-Minute Misclick Correction</h4>
+                                <h4 style="margin: 0 0 6px 0; font-size: 13px; color: var(--md-text-high);">4.
+                                    Rapid clicking & 1-Minute Misclick Correction</h4>
                                 <p style="font-size: 12px; color: var(--md-text-med); margin: 0; line-height: 1.5;">
                                     If you accidentally click <strong>Good</strong> instead of
                                     <strong>Again</strong>,
@@ -954,7 +1321,8 @@
                     <div class="card mb-4">
                         <h3>🛡️ Your Responsibilities: How to Use the Extension Correctly</h3>
                         <p style="font-size: 12.5px; color: var(--md-text-med); margin-bottom: 14px;">
-                            The AlgoRecall Engine is a powerful mathematical model, but its predictions rely 100% on the accuracy of
+                            The AlgoRecall Engine is a powerful mathematical model, but its predictions rely 100% on the
+                            accuracy of
                             your
                             feedback. To get bulletproof memory:
                         </p>
@@ -1027,7 +1395,8 @@
                                     Over
                                     Syntax
                                     Typos</strong>
-                                <p style="font-size: 11.5px; margin-top: 2px;">The AlgoRecall Engine is testing algorithmic
+                                <p style="font-size: 11.5px; margin-top: 2px;">The AlgoRecall Engine is testing
+                                    algorithmic
                                     intuition,
                                     not
                                     language syntax memorization. If the logic was correct, press Hard.</p>
@@ -1123,8 +1492,9 @@
                                 <p class="faq-a">
                                     When you logged the card in the floating widget, you pressed 🔴
                                     <strong>Again</strong>
-                                    or 🟡 <strong>Hard</strong>. In the AlgoRecall Engine, this immediately initiates Stage 1 (<span
-                                        class="state-badge state-badge-learning">Learning</span> practice mode).
+                                    or 🟡 <strong>Hard</strong>. In the AlgoRecall Engine, this immediately initiates
+                                    Stage 1 (<span class="state-badge state-badge-learning">Learning</span> practice
+                                    mode).
                                     Learning
                                     cards use short-interval steps (~1–5 minutes) to ensure initial memory encoding
                                     before
@@ -1176,7 +1546,8 @@
                                     </ul>
                                     <p
                                         style="font-size: 12px; color: var(--md-text-low); margin: 8px 0 0 0; font-style: italic;">
-                                        Result: Cards do not sit idle in the unstudied "New" stage; the AlgoRecall Engine immediately
+                                        Result: Cards do not sit idle in the unstudied "New" stage; the AlgoRecall
+                                        Engine immediately
                                         schedules your
                                         next review date from your very first click!
                                     </p>
@@ -1203,13 +1574,15 @@
                                     <span>What happens if I take a vacation and miss reviewing for a week?</span>
                                 </div>
                                 <p class="faq-a">
-                                    Don't panic! The AlgoRecall Engine does not delete your cards or wipe out your progress. Due
+                                    Don't panic! The AlgoRecall Engine does not delete your cards or wipe out your
+                                    progress. Due
                                     cards
                                     simply
                                     accumulate in your review queue sorted by due date. When you return, review them
                                     at
                                     your
-                                    own pace. If you still remember an overdue card, the AlgoRecall Engine will actually reward it
+                                    own pace. If you still remember an overdue card, the AlgoRecall Engine will actually
+                                    reward it
                                     with a
                                     higher stability gain!
                                 </p>
@@ -1218,10 +1591,12 @@
                             <div class="faq-card">
                                 <div class="faq-q">
                                     <span class="faq-icon">Q:</span>
-                                    <span>If I answer "Again", does the AlgoRecall Engine reset my card back to zero?</span>
+                                    <span>If I answer "Again", does the AlgoRecall Engine reset my card back to
+                                        zero?</span>
                                 </div>
                                 <p class="faq-a">
-                                    No! Unlike older SM-2 systems that wiped out all historical progress, the AlgoRecall Engine
+                                    No! Unlike older SM-2 systems that wiped out all historical progress, the AlgoRecall
+                                    Engine
                                     remembers
                                     that you previously mastered the problem. It temporarily drops stability and
                                     places
@@ -1243,7 +1618,8 @@
                                         dates?</span>
                                 </div>
                                 <p class="faq-a">
-                                    The AlgoRecall Engine calculates dates independently for every card based on its historical
+                                    The AlgoRecall Engine calculates dates independently for every card based on its
+                                    historical
                                     repetition
                                     count, inherent difficulty rating, topic weights, and past lapses. A simple Hash
                                     Map
@@ -1445,7 +1821,8 @@
                     <div class="grid-2 mb-4">
                         <div class="card">
                             <h3>3️⃣ Memory Retention (<code>memory</code>)</h3>
-                            <p>View interactive AlgoRecall Engine retention decay curves grouped by Tag, Deck, or Difficulty
+                            <p>View interactive AlgoRecall Engine retention decay curves grouped by Tag, Deck, or
+                                Difficulty
                                 with
                                 confidence bands. Compare actual review performance against mathematical
                                 predictions.
@@ -1489,81 +1866,159 @@
             <!-- 5. Gamification & Focus Tools Tab -->
             <div id="tab-gamification" class="tab-pane" role="tabpanel">
                 <div class="card">
-                    <h2>🎮 Gamification & Productivity Tools</h2>
+                    <h2>🎮 Lightweight Habit Formation & Gamification</h2>
                     <p class="section-intro">
-                        Stay motivated and build an unbreakable daily study habit with XP level progression,
-                        contribution heatmaps, and focus tools.
+                        AlgoRecall uses subtle, distraction-free gamification designed to motivate daily spaced
+                        repetition consistency without turning the extension into a video game. Everything runs 100%
+                        privately and locally on your browser.
                     </p>
 
                     <div class="grid-3 mb-4">
                         <div class="gamify-card">
                             <span class="gamify-icon">
                                 <svg class="svg-icon" viewBox="0 0 24 24"
-                                    style="stroke:var(--md-primary); width:26px; height:26px;" aria-hidden="true">
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                    style="stroke:var(--md-warning); width:26px; height:26px;" aria-hidden="true">
+                                    <path
+                                        d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z">
+                                    </path>
                                 </svg>
                             </span>
-                            <h4>Level & XP Ranks</h4>
-                            <p>Earn XP points for every review. Level up your rank from
-                                <strong>Apprentice</strong>
-                                &rarr; <strong>Specialist</strong> &rarr; <strong>Expert</strong> &rarr;
-                                <strong>Grandmaster</strong>.
-                            </p>
+                            <h4>Daily Study Streaks</h4>
+                            <p>Tracks consecutive calendar days with at least one review. Includes a full-day grace
+                                period so your streak never resets prematurely before the day ends.</p>
                         </div>
 
                         <div class="gamify-card">
                             <span class="gamify-icon">
                                 <svg class="svg-icon" viewBox="0 0 24 24"
-                                    style="stroke:var(--md-warning); width:26px; height:26px;" aria-hidden="true">
+                                    style="stroke:var(--md-primary); width:26px; height:26px;" aria-hidden="true">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <circle cx="12" cy="12" r="6"></circle>
                                     <circle cx="12" cy="12" r="2"></circle>
                                 </svg>
                             </span>
-                            <h4>Daily Target Review Goal</h4>
-                            <p>Set custom daily target goals (e.g. 10 reviews/day). Clear your due queue daily
-                                to
-                                hit
-                                your <strong>Inbox Zero</strong> streak award.</p>
+                            <h4>Daily Review Goals</h4>
+                            <p>Set a custom review capacity (e.g. 10 cards/day) via the goal ring in the popup. Clear
+                                your queue to reach your daily milestone.</p>
                         </div>
 
                         <div class="gamify-card">
                             <span class="gamify-icon">
                                 <svg class="svg-icon" viewBox="0 0 24 24"
                                     style="stroke:var(--md-success); width:26px; height:26px;" aria-hidden="true">
-                                    <path
-                                        d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z">
-                                    </path>
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                                 </svg>
                             </span>
-                            <h4>Contribution Activity Heatmap</h4>
-                            <p>Audit your daily coding contributions. Active matrix blocks highlight your study
-                                streak
-                                and review volume.</p>
+                            <h4>7-Day Rolling Momentum</h4>
+                            <p>A compact week-at-a-glance bar right below your daily goal ring. Spot checkmarks on
+                                goal-reached days and maintain weekly study rhythm.</p>
                         </div>
+                    </div>
+
+                    <div class="card card-accent mb-4">
+                        <h3>🏆 Curated Milestones &amp; Personal Records</h3>
+                        <p style="font-size: 13px; color: var(--md-text-med); margin-bottom: 12px;">
+                            Click the <strong>🏆 Milestones</strong> button in the popup to view your unlock status and
+                            personal study records:
+                        </p>
+                        <div class="table-responsive">
+                            <table class="help-table">
+                                <thead>
+                                    <tr>
+                                        <th>Milestone</th>
+                                        <th>Icon</th>
+                                        <th>Criteria</th>
+                                        <th>Focus</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>First Step</strong></td>
+                                        <td>🚀</td>
+                                        <td>Complete your first card review</td>
+                                        <td>Getting started</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Getting Consistent</strong></td>
+                                        <td>⚡</td>
+                                        <td>Maintain a 3-day study streak</td>
+                                        <td>Early consistency</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>One Week Strong</strong></td>
+                                        <td>🔥</td>
+                                        <td>Maintain a 7-day study streak</td>
+                                        <td>Weekly habit formation</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Habit Master</strong></td>
+                                        <td>🌟</td>
+                                        <td>Maintain a 30-day study streak</td>
+                                        <td>Long-term discipline</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Knowledge Builder</strong></td>
+                                        <td>📚</td>
+                                        <td>Save and track 25 coding patterns</td>
+                                        <td>Pattern repository growth</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Century Club</strong></td>
+                                        <td>💯</td>
+                                        <td>Complete 100 card reviews</td>
+                                        <td>Volume milestone</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Review Master</strong></td>
+                                        <td>🎓</td>
+                                        <td>Complete 500 card reviews</td>
+                                        <td>Mastery dedication</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Goal Crusher</strong></td>
+                                        <td>🎯</td>
+                                        <td>Reach your daily goal target for the day</td>
+                                        <td>Daily completion</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p style="font-size: 12px; color: var(--md-text-low); margin-top: 8px;">
+                            <strong>Personal Records Tracked:</strong> Active Streak, Longest All-Time Streak, Most
+                            Reviews in a Single Day, and Total Lifetime Reviews.
+                        </p>
                     </div>
 
                     <div class="grid-2">
                         <div class="card card-accent">
                             <h3>⏱️ Integrated Pomodoro Focus Timer</h3>
                             <ul class="help-bullet-list">
-                                <li>Access Pomodoro timer directly under <strong>Study Tools</strong> in the
-                                    popup
+                                <li>Access Pomodoro timer directly under <strong>Study Tools</strong> in the popup
                                     dashboard.</li>
                                 <li>Standard 25-minute focus session followed by 5-minute break alerts.</li>
-                                <li>Helps maintain intense focus while solving complex algorithmic patterns.
-                                </li>
+                                <li>Helps maintain intense focus while solving complex algorithmic patterns.</li>
                             </ul>
                         </div>
 
-                        <div class="card">
-                            <h3>🎓 Exam Mode</h3>
+                        <div class="card card-accent">
+                            <h3>🎓 Exam Mode (Study Plan &amp; Interval Compression)</h3>
+                            <p style="font-size: 12.5px; color: var(--md-text-med); margin-bottom: 8px;">
+                                Standard spaced repetition spreads reviews out across weeks or months. But what if your
+                                technical interview or university exam is in <strong>14 days</strong>?
+                            </p>
                             <ul class="help-bullet-list">
-                                <li>Quickly launch timed review sessions focusing on your weakest or most urgent
-                                    patterns.</li>
-                                <li>Simulates real exam pressure to test instant recall before technical
-                                    interviews.
-                                </li>
+                                <li><strong>Target Date Countdown:</strong> Open <em>Exam Mode</em> from the popup Study
+                                    Tools or navigate to the Study Plan page (<code>studyplan.html</code>). Set your
+                                    exam date and choose your target daily review capacity.</li>
+                                <li><strong>Intelligent Interval Compression:</strong> The AlgoRecall Engine compresses
+                                    scheduling intervals for cards that would normally fall due <em>after</em> your exam
+                                    date, pulling them forward into your active preparation window.</li>
+                                <li><strong>Weak Pattern Prioritization:</strong> Patterns with lower stability or
+                                    higher difficulty are given scheduling priority so you shore up weak areas before
+                                    walking into the interview.</li>
+                                <li><strong>Seamless Deactivation:</strong> Once your interview is over, simply turn off
+                                    Exam Mode in the Study Plan dashboard. The engine automatically restores standard
+                                    long-term spacing intervals for future reviews!</li>
                             </ul>
                         </div>
                     </div>
@@ -1583,7 +2038,8 @@
                         <h3>🧠 Understanding AlgoRecall Engine Parameters (<i>w</i><sub>0</sub> &ndash;
                             <i>w</i><sub>16</sub>)
                         </h3>
-                        <p>The AlgoRecall Engine uses 17 coefficients to compute memory stability updates upon grading:</p>
+                        <p>The AlgoRecall Engine uses 17 coefficients to compute memory stability updates upon grading:
+                        </p>
                         <ul class="help-bullet-list" style="margin-top: 8px;">
                             <li><strong>Target Retention Slider (0.75 - 0.95):</strong> Sets desired recall
                                 probability.
@@ -1616,31 +2072,84 @@
                         </div>
 
                         <div class="card card-accent">
-                            <h3>📦 Anki Integration (.txt / .tsv)</h3>
+                            <h3>📦 Bi-Directional Anki Integration (.txt / .tsv)</h3>
+                            <p style="font-size: 12.5px; color: var(--md-text-med); margin-bottom: 8px;">
+                                Seamlessly synchronize your algorithmic flashcards between AlgoRecall and desktop Anki:
+                            </p>
                             <ul class="help-bullet-list">
-                                <li><strong>Export to Anki:</strong> Export your cards into Anki-compatible
-                                    format
-                                    for
-                                    offline study.</li>
-                                <li><strong>Import from Anki:</strong> Import Anki deck TSV/txt files directly
-                                    into
-                                    AlgoRecall.</li>
+                                <li><strong>Export to Anki (<code>.txt</code>):</strong> Under <em>Data &amp;
+                                        Options</em>, click <strong>To Anki</strong>. Generates a tab-delimited text
+                                    file containing:
+                                    <ul style="margin-top: 4px;">
+                                        <li><code>Front</code>: Problem Title and embedded Problem URL (e.g.
+                                            <code>[URL: https://leetcode.com/problems/...]</code>).
+                                        </li>
+                                        <li><code>Back</code>: Your saved solution approach, time/space complexity, and
+                                            notes.</li>
+                                        <li><code>Tags</code>: Topic tags formatted as Anki sub-decks (e.g.
+                                            <code>algorecall::Dynamic_Programming</code>).
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li><strong>Import from Anki:</strong> Click <strong>From Anki</strong> to import any
+                                    standard 2-column or 3-column tab-delimited Anki export (<code>.txt</code> or
+                                    <code>.tsv</code>).
+                                </li>
+                                <li><strong>Duplicate Prevention:</strong> The importer checks existing cards by problem
+                                    title. Any cards already present in your collection are safely preserved, and only
+                                    new cards are imported without creating duplicates.</li>
                             </ul>
                         </div>
                     </div>
 
                     <div class="grid-2 mb-4">
                         <div class="card">
-                            <h3>💾 Backup & Restore</h3>
-                            <p>Regularly export full JSON state backups from the popup dashboard under <em>Data
-                                    &
-                                    Options</em>. Import backups instantly to restore cards, highlights, and
-                                custom
-                                settings.</p>
+                            <h3>💾 Full JSON Backup &amp; One-Click Restore</h3>
+                            <p style="font-size: 12.5px; color: var(--md-text-med); margin-bottom: 8px;">
+                                Keep complete ownership of your study history with comprehensive JSON backups:
+                            </p>
+                            <ul class="help-bullet-list">
+                                <li><strong>Exporting a Backup:</strong> In the popup under <em>Data &amp; Options</em>,
+                                    click <strong>Backup</strong>. The extension generates
+                                    <code>algorecall_backup_YYYY-MM-DD.json</code> containing all cards, review logs,
+                                    retrievability histories, text highlights, and custom preferences.
+                                </li>
+                                <li><strong>Restoring from Backup:</strong> Click <strong>Restore</strong> and select
+                                    your previously saved JSON file. AlgoRecall validates the schema, restores all data,
+                                    and automatically updates the popup UI.</li>
+                                <li><strong>Firefox Popup Compatibility:</strong> In Firefox, opening OS file pickers
+                                    can close extension popups. AlgoRecall automatically detects this and opens the
+                                    restore workflow in a full browser tab so your import is never interrupted.</li>
+                            </ul>
                         </div>
 
                         <div class="card card-accent">
-                            <h3>🔒 Privacy & Local-First Guarantee</h3>
+                            <h3>🛠️ Developer Mode &amp; Diagnostic Debug Logs</h3>
+                            <p style="font-size: 12.5px; color: var(--md-text-med); margin-bottom: 8px;">
+                                Built-in diagnostic tools to help troubleshoot scheduling or notification behaviors:
+                            </p>
+                            <ul class="help-bullet-list">
+                                <li><strong>Activating Dev Mode:</strong> Toggle on <em>Developer Mode</em> inside the
+                                    <em>Data &amp; Options</em> section of the popup.
+                                </li>
+                                <li><strong>1-Minute Test Alarms:</strong> Unlocks a <code>1 min (Dev)</code> interval
+                                    in the notification dropdown to test background alarm triggers without waiting
+                                    hours.</li>
+                                <li><strong>Test Notifications:</strong> Click <em>Send Test Notification</em> or
+                                    <em>Send Test Summary Notification</em> to immediately verify desktop alert
+                                    permissions and styling.
+                                </li>
+                                <li><strong>Export Debug Logs:</strong> Downloads
+                                    <code>algorecall_debug_logs_*.json</code> capturing recent internal state
+                                    transitions, alarm dispatches, and storage events.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="grid-2 mb-4">
+                        <div class="card card-accent">
+                            <h3>🔒 Privacy &amp; Local-First Guarantee</h3>
                             <p>AlgoRecall is 100% local-first. All data, cards, and highlights remain strictly
                                 on
                                 your

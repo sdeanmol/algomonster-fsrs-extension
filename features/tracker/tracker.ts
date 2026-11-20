@@ -115,6 +115,8 @@ class Tracker {
     activeCardId: string | null;
     /** Short debounce flag preventing duplicate button clicks during rating animations. */
     isRatingDebounced: boolean;
+    /** Active timeout handle for dismissing inline encouragement feedback banners. */
+    private _feedbackTimeout: ReturnType<typeof setTimeout> | null = null;
 
     /**
      * Initializes default widget state and binds callback handlers.
@@ -246,6 +248,63 @@ class Tracker {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             if (logger) logger.error('Tracker', `Failed to fetch activity storage: ${errorMessage}`, { err });
+        }
+    }
+
+    /**
+     * Displays a subtle, encouraging feedback banner inside the tracking widget upon review completion.
+     * Informs the user of daily progress without interrupting problem-solving workflow.
+     * 
+     * @returns {void}
+     */
+    showReviewFeedback(): void {
+        try {
+            chrome.storage.local.get(['fsrsActivity', 'dailyGoalTarget'], (res: StorageData & { dailyGoalTarget?: number }) => {
+                try {
+                    const activity = (res.fsrsActivity || {}) as Record<string, number>;
+                    const target = typeof res.dailyGoalTarget === 'number' ? res.dailyGoalTarget : 10;
+                    const today = new Date();
+                    const dateString = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                    const todayCount = activity[dateString] || 1;
+
+                    const banner = document.getElementById('fsrs-feedback-banner');
+                    if (!banner) return;
+
+                    let msg = `✨ Review saved • ${todayCount} today`;
+                    if (todayCount === target) {
+                        msg = `🎯 Daily goal reached! (${todayCount}/${target})`;
+                    } else if (todayCount > target) {
+                        msg = `⭐ Goal completed! (${todayCount}/${target} today)`;
+                    } else if (target - todayCount <= 3 && target > todayCount) {
+                        msg = `🎯 Almost there! ${target - todayCount} more to hit daily goal`;
+                    }
+
+                    banner.textContent = msg;
+                    banner.style.display = 'block';
+                    banner.classList.add('fsrs-feedback-visible');
+
+                    if (this._feedbackTimeout) {
+                        clearTimeout(this._feedbackTimeout);
+                    }
+
+                    this._feedbackTimeout = setTimeout(() => {
+                        try {
+                            banner.classList.remove('fsrs-feedback-visible');
+                            setTimeout(() => {
+                                if (!banner.classList.contains('fsrs-feedback-visible')) {
+                                    banner.style.display = 'none';
+                                }
+                            }, 250);
+                        } catch {
+                            // Non-fatal banner timer cleanup catch
+                        }
+                    }, 2500);
+                } catch {
+                    // Non-fatal review feedback storage callback catch
+                }
+            });
+        } catch {
+            // Non-fatal review feedback catch
         }
     }
 
@@ -487,6 +546,7 @@ class Tracker {
                 <div id="fsrs-empty-url-hint" style="display: none; padding: 6px 12px; font-size: 11px; color: var(--md-text-low, #888); background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.06);">
                     No cards tracked for this problem yet. Add your initial approach notes below to start!
                 </div>
+                <div id="fsrs-feedback-banner" class="fsrs-feedback-banner" style="display: none;"></div>
 
                 <div id="fsrs-body">
                     <div class="fsrs-tags-container">
@@ -916,6 +976,7 @@ class Tracker {
                         });
 
                         this.logReviewActivity();
+                        this.showReviewFeedback();
                         this.refreshWidgetState();
 
                         const originalText = target.innerText;
@@ -1401,6 +1462,7 @@ class Tracker {
 
             this.saveCards();
             this.logReviewActivity();
+            this.showReviewFeedback();
         } catch (err) {
             // Comment: Safe recovery handling card rating calculation to avoid corrupting session state
             const errorMessage = err instanceof Error ? err.message : String(err);
