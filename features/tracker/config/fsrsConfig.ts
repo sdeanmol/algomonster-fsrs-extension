@@ -710,7 +710,7 @@ export class FSRSConfigManager {
                         if (chrome.runtime?.lastError) {
                             Logger.error('FSRSConfig', `Storage set error in saveGlobalConfig: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
                         }
-                        this.showToast("FSRS global configurations saved!");
+                        this.showToast("AlgoRecall Engine configurations saved!");
                     });
                 });
             }
@@ -747,7 +747,7 @@ export class FSRSConfigManager {
                         }
 
                         this.loadFSRSConfig();
-                        this.showToast("Restored all FSRS defaults.");
+                        this.showToast("Restored all AlgoRecall Engine defaults.");
                     });
                 }
             }
@@ -821,7 +821,7 @@ export class FSRSConfigManager {
      */
     restoreWeights(): void {
         try {
-            if (confirm("Reset FSRS Coefficients to default weights?")) {
+            if (confirm("Reset AlgoRecall Engine Coefficients to default weights?")) {
                 if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                     chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
                         const params: FSRSParameters = result.fsrsGlobalParams || { w: [...this.defaultWeights], decay: this.defaultDecay, factor: this.defaultFactor, requestRetention: this.defaultRetention };
@@ -830,7 +830,7 @@ export class FSRSConfigManager {
                         params.w = [...this.defaultWeights];
                         chrome.storage.local.set({ fsrsGlobalParams: params }, () => {
                             this.loadFSRSConfig();
-                            this.showToast("FSRS coefficients reset.");
+                            this.showToast("AlgoRecall Engine coefficients reset.");
                         });
                     });
                 }
@@ -903,7 +903,7 @@ export class FSRSConfigManager {
 
                     chrome.storage.local.set({ fsrsTopicWeights: topicWeights }, () => {
                         this.loadFSRSConfig();
-                        this.showToast(`Deleted FSRS profile for tag: ${tag}`);
+                        this.showToast(`Deleted engine profile for tag: ${tag}`);
                     });
                 });
             }

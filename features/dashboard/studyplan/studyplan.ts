@@ -298,7 +298,7 @@ export class StudyPlanController {
      */
     deactivateExamMode(): void {
         try {
-            if (!confirm('Deactivate Exam Mode? This will restore all cards to their original FSRS-computed due dates.')) return;
+            if (!confirm('Deactivate Exam Mode? This will restore all cards to their original AlgoRecall Engine due dates.')) return;
 
             const activatedAt = this.settings?.activatedAt || 0;
             this.allCards.forEach((card: Card & { originalDue?: number; lastReview?: number }) => {

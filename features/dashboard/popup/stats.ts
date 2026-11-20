@@ -251,7 +251,7 @@ export class StatsComponent extends DashboardComponent {
                                 <svg class="svg-icon" style="stroke: var(--md-text-low); margin-right: 4px;" viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                                 Welcome to Spaced Repetitions!
                             </div>
-                            <div class="achievement-subtitle">Highlight text or open FSRS widget on problems to save your first pattern.</div>
+                            <div class="achievement-subtitle">Highlight text or open the review widget on problems to save your first pattern.</div>
                         </div>
                     `;
                 } else if (dueToday === 0 && completedToday >= this.dailyGoalTarget) {

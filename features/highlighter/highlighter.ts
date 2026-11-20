@@ -943,7 +943,7 @@ export class Highlighter {
                                 }
 
                                 if (win.AlgoRecall?.Notifier) {
-                                    win.AlgoRecall.Notifier.showPageNotification('Highlight Linked', 'Highlight appended to active FSRS card approach.', 'test');
+                                    win.AlgoRecall.Notifier.showPageNotification('Highlight Linked', 'Highlight appended to active problem card approach.', 'test');
                                 }
                             } catch (setCbErr) {
                                 const errorMessage = setCbErr instanceof Error ? setCbErr.message : String(setCbErr);

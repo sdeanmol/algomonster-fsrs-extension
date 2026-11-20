@@ -148,11 +148,11 @@ export class EditorManager {
                     if (card) {
                         this.isCardExisting = true;
                         if (!this.cardId && card.id) this.cardId = card.id;
-                        if (titleEl) titleEl.textContent = card.problemTitle || (card as Card & { title?: string }).title || "FSRS Insights";
+                        if (titleEl) titleEl.textContent = card.problemTitle || (card as Card & { title?: string }).title || "Problem Insights";
                         if (textarea) textarea.value = card.approach || "";
                         if (tcInput) tcInput.value = (card as Card & { timeComplexity?: string }).timeComplexity || "";
                         if (scInput) scInput.value = (card as Card & { spaceComplexity?: string }).spaceComplexity || "";
-                        if (statusEl) statusEl.textContent = "Loaded FSRS card";
+                        if (statusEl) statusEl.textContent = "Loaded problem card";
                     } else {
                         this.isCardExisting = false;
                         const bookmark = bookmarks.find((b: BookmarkEntry) => b.url && b.url.split('?')[0].split('#')[0] === this.cleanUrl);

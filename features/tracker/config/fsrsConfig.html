@@ -16,7 +16,7 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
-    <title>Customize FSRS Scheduler — AlgoRecall</title>
+    <title>Customize AlgoRecall Engine — AlgoRecall</title>
     <script src="../../common/theme-sync.js"></script>
     <link rel="stylesheet" href="../../common/base.css">
     <link rel="stylesheet" href="fsrsConfig.css">
@@ -34,8 +34,8 @@
                     </svg>
                     <span class="algorecall-brand-name">AlgoRecall</span>
                 </div>
-                <h1 id="page-title">FSRS Customizer</h1>
-                <p id="page-subtitle" class="subtitle">Fine-tune memory retention, decay constants, and FSRS weights parameters.</p>
+                <h1 id="page-title">AlgoRecall Engine Customizer</h1>
+                <p id="page-subtitle" class="subtitle">Fine-tune memory retention, decay constants, and AlgoRecall Engine parameters.</p>
             </div>
             <div class="header-actions">
                 <!-- Reset All button: Restores all global params, weights, and tag profiles to factory defaults -->
@@ -63,7 +63,7 @@
             <div class="card main-config-card">
                 <h2>⚙️ Global Parameters</h2>
                 <p class="section-intro">
-                    FSRS uses target retention rate to scale review intervals. Lower target retention will lead to longer intervals between reviews.
+                    The AlgoRecall Engine uses target retention rate to scale review intervals. Lower target retention will lead to longer intervals between reviews.
                 </p>
                 
                 <div class="form-group slider-group">
@@ -105,7 +105,7 @@
             <div class="card optimization-card">
                 <h2>🧠 Optimize for Your Personal Memory</h2>
                 <p class="section-intro">
-                    FSRS uses your historical review data to estimate your personal forgetting curve. Continue reviewing normally until you have completed at least <span id="opt-threshold-display">1000</span> reviews. Once enough data has been collected, you can optimize the scheduler so future intervals better match your own memory patterns.
+                    The AlgoRecall Engine uses your historical review data to estimate your personal forgetting curve. Continue reviewing normally until you have completed at least <span id="opt-threshold-display">1000</span> reviews. Once enough data has been collected, you can optimize the scheduler so future intervals better match your own memory patterns.
                 </p>
 
                 <div class="opt-status-container">
@@ -141,16 +141,16 @@
                             </svg>
                             <div style="font-size: 13px;">
                                 <strong style="display: block; margin-bottom: 4px; font-size: 14px;">Warning: Low Review Sample Size</strong>
-                                FSRS relies on statistical confidence. Optimizing with fewer than 1000 reviews can cause the algorithm to overfit to short-term memory anomalies. This may lead to erratic scheduling intervals. Proceed only for testing purposes.
+                                The AlgoRecall Engine relies on statistical confidence. Optimizing with fewer than 1000 reviews can cause the scheduler to overfit to short-term memory anomalies. This may lead to erratic scheduling intervals. Proceed only for testing purposes.
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- FSRS Global Weights Configuration Card: 17 weight coefficients (w0 to w16) injected dynamically -->
+            <!-- Global Weights Configuration Card: 17 weight coefficients (w0 to w16) injected dynamically -->
             <div class="card weights-card advanced-config-only" style="display: none;">
-                <h2>📊 FSRS Coefficients (w0 - w16)</h2>
+                <h2>📊 Engine Coefficients (w0 - w16)</h2>
                 <p class="section-intro">
                     Coefficients that scale memory stability updates. Adjust carefully, or restore defaults if memory scheduling behaves unexpectedly.
                 </p>
@@ -170,7 +170,7 @@
             <div class="card tag-weights-card advanced-config-only" style="display: none;">
                 <h2>🏷️ Tag-Specific Profiles</h2>
                 <p class="section-intro">
-                    Create unique FSRS parameters profiles for specific topics (e.g. review Dynamic Programming cards faster than Arrays).
+                    Create unique AlgoRecall Engine parameter profiles for specific topics (e.g. review Dynamic Programming cards faster than Arrays).
                 </p>
 
                 <div class="tag-input-row">
