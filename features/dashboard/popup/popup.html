@@ -165,150 +165,170 @@
         <div class="popup-cards-layout">
             <div class="popup-column">
                 <!-- Gamification & Heatmap: Daily streak, motivation text, and contribution calendar -->
-                <div id="activity-charts-card" class="card group-card">
-                    <div class="card-header">
-                        <h3 class="card-title">
+                <details id="activity-charts-card" class="card details-card" open>
+                    <summary class="details-summary">
+                        <div class="summary-content">
                             <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
-                                style="stroke: var(--md-primary); margin-right: 6px; width: 16px; height: 16px;"
+                                style="stroke: var(--md-primary); width: 16px; height: 16px;"
                                 aria-hidden="true">
                                 <line x1="18" y1="20" x2="18" y2="10"></line>
                                 <line x1="12" y1="20" x2="12" y2="4"></line>
                                 <line x1="6" y1="20" x2="6" y2="14"></line>
                             </svg>
-                            Activity & Progress
-                        </h3>
-                    </div>
-                    <!-- Gamification container: streak count, next milestone, and motivational badges -->
-                    <div id="gamification-panel" class="gamification-wrapper">
-                        <!-- Progress bar and motivational texts will be injected dynamically -->
-                    </div>
-
-                    <!-- Contribution Heatmap: Year-to-date activity matrix (popup/heatmap.ts) -->
-                    <div class="heatmap-section">
-                        <div class="heatmap-header">
-                            <span class="heatmap-label">Contributions</span>
-                            <button id="open-heatmap-tab-btn" class="btn-icon-text" title="Open full screen heatmap"
-                                aria-label="Open full screen heatmap">
-                                <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                    <polyline points="15 3 21 3 21 9"></polyline>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                </svg>
-                                Full Screen
-                            </button>
+                            <span class="card-title">Activity & Progress</span>
                         </div>
-                        <div class="heatmap-container">
-                            <div id="heatmap-grid" class="heatmap"></div>
+                        <svg class="svg-icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </summary>
+                    <div class="details-body">
+                        <!-- Gamification container: streak count, next milestone, and motivational badges -->
+                        <div id="gamification-panel" class="gamification-wrapper">
+                            <!-- Progress bar and motivational texts will be injected dynamically -->
+                        </div>
+
+                        <!-- Contribution Heatmap: Year-to-date activity matrix (popup/heatmap.ts) -->
+                        <div class="heatmap-section">
+                            <div class="heatmap-header">
+                                <span class="heatmap-label">Contributions</span>
+                                <button id="open-heatmap-tab-btn" class="btn-icon-text" title="Open full screen heatmap"
+                                    aria-label="Open full screen heatmap">
+                                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                        <polyline points="15 3 21 3 21 9"></polyline>
+                                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                                    </svg>
+                                    Full Screen
+                                </button>
+                            </div>
+                            <div class="heatmap-container">
+                                <div id="heatmap-grid" class="heatmap"></div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Action Grid: Navigation shortcuts to sub-dashboards -->
+                        <div class="action-chips">
+                            <button id="toggle-lifetime-btn" class="chip">Lifetime</button>
+                            <button id="achievements-btn" class="chip" title="View unlocked milestones and records">🏆 Milestones</button>
+                            <button id="analytics-btn" class="chip">Analytics</button>
+                            <button id="forecast-btn" class="chip">Forecast</button>
+                            <button id="history-btn" class="chip">History</button>
                         </div>
                     </div>
-
-                    <!-- Quick Action Grid: Navigation shortcuts to sub-dashboards -->
-                    <div class="action-chips">
-                        <button id="toggle-lifetime-btn" class="chip">Lifetime</button>
-                        <button id="achievements-btn" class="chip" title="View unlocked milestones and records">🏆 Milestones</button>
-                        <button id="analytics-btn" class="chip">Analytics</button>
-                        <button id="forecast-btn" class="chip">Forecast</button>
-                        <button id="history-btn" class="chip">History</button>
-                    </div>
-                </div>
+                </details>
 
                 <!-- Study Tools: Exam mode and Pomodoro timer shortcuts -->
-                <div class="card group-card">
-                    <div class="card-header">
-                        <h3 class="card-title" style="color: var(--md-secondary);">
+                <details class="card details-card" open>
+                    <summary class="details-summary">
+                        <div class="summary-content">
                             <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
-                                style="stroke: var(--md-secondary); margin-right: 6px; width: 16px; height: 16px;"
+                                style="stroke: var(--md-secondary); width: 16px; height: 16px;"
                                 aria-hidden="true">
                                 <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                                 <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
                             </svg>
-                            Study Tools
-                        </h3>
+                            <span class="card-title" style="color: var(--md-secondary);">Study Tools</span>
+                        </div>
+                        <svg class="svg-icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </summary>
+                    <div class="details-body">
+                        <div class="action-chips">
+                            <!-- Opens studyplan.html for exam redistribution -->
+                            <button id="studyplan-btn" class="chip">Exam Mode</button>
+                            <!-- Opens pomodoro.html for focus intervals -->
+                            <button id="pomodoro-btn" class="chip">Pomodoro</button>
+                        </div>
                     </div>
-                    <div class="action-chips">
-                        <!-- Opens studyplan.html for exam redistribution -->
-                        <button id="studyplan-btn" class="chip">Exam Mode</button>
-                        <!-- Opens pomodoro.html for focus intervals -->
-                        <button id="pomodoro-btn" class="chip">Pomodoro</button>
-                    </div>
-                </div>
+                </details>
             </div>
 
             <div class="popup-column">
                 <!-- Highlighter Settings: Marker menu toggle and palette manager links -->
-                <div class="card highlighter-card">
-                    <div class="card-header">
-                        <h3 class="card-title" style="color: var(--md-warning);">
+                <details class="card details-card highlighter-card" open>
+                    <summary class="details-summary">
+                        <div class="summary-content">
                             <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
-                                style="stroke: var(--md-warning); margin-right: 6px; width: 16px; height: 16px;"
+                                style="stroke: var(--md-warning); width: 16px; height: 16px;"
                                 aria-hidden="true">
                                 <path d="M12 20h9"></path>
                                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                             </svg>
-                            Highlighter Settings
-                        </h3>
+                            <span class="card-title" style="color: var(--md-warning);">Highlighter Settings</span>
+                        </div>
+                        <svg class="svg-icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </summary>
+                    <div class="details-body">
+                        <div class="setting-row">
+                            <label for="toggle-marker-popup" class="setting-label">Floating Marker Menu</label>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-marker-popup" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="button-row">
+                            <button id="open-options-btn" class="btn btn-secondary flex-1" title="Manage highlighter colors"
+                                aria-label="Manage highlighter colors">
+                                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"
+                                    aria-hidden="true">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                </svg>
+                                Customize Colors
+                            </button>
+                            <button id="manage-highlights-btn" class="btn btn-primary flex-1" title="View all snippets"
+                                aria-label="View all snippets">
+                                <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"
+                                    aria-hidden="true">
+                                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                </svg>
+                                View All Highlights
+                            </button>
+                        </div>
                     </div>
-                    <div class="setting-row">
-                        <label for="toggle-marker-popup" class="setting-label">Floating Marker Menu</label>
-                        <label class="switch">
-                            <input type="checkbox" id="toggle-marker-popup" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="button-row">
-                        <button id="open-options-btn" class="btn btn-secondary flex-1" title="Manage highlighter colors"
-                            aria-label="Manage highlighter colors">
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"
-                                aria-hidden="true">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                            </svg>
-                            Customize Colors
-                        </button>
-                        <button id="manage-highlights-btn" class="btn btn-primary flex-1" title="View all snippets"
-                            aria-label="View all snippets">
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"
-                                aria-hidden="true">
-                                <line x1="8" y1="6" x2="21" y2="6"></line>
-                                <line x1="8" y1="12" x2="21" y2="12"></line>
-                                <line x1="8" y1="18" x2="21" y2="18"></line>
-                                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                                <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                            </svg>
-                            View All Highlights
-                        </button>
-                    </div>
-                </div>
+                </details>
 
                 <!-- Notification Settings: Alarm cadence, quiet hours, sticky alerts, and manual check -->
-                <div class="card notification-card" id="notification-settings-card">
-                    <div class="card-header"
-                        style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3 class="card-title" style="color: var(--md-danger);">
+                <details class="card details-card notification-card" id="notification-settings-card" open>
+                    <summary class="details-summary">
+                        <div class="summary-content">
                             <svg class="svg-icon section-title-icon" viewBox="0 0 24 24"
-                                style="stroke: var(--md-danger); margin-right: 6px; width: 16px; height: 16px;"
+                                style="stroke: var(--md-danger); width: 16px; height: 16px;"
                                 aria-hidden="true">
                                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                             </svg>
-                            Notification Settings
-                        </h3>
-                        <!-- Navigates to summary/summary.html weekly/monthly digest -->
-                        <button id="open-summary-page-btn" class="btn-icon-text"
-                            title="Open Weekly & Monthly Digest Summary"
-                            aria-label="Open Weekly & Monthly Digest Summary">
-                            <svg class="svg-icon" viewBox="0 0 24 24"
-                                style="width: 14px; height: 14px; stroke: var(--md-danger);" aria-hidden="true">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                                <polyline points="10 9 9 9 8 9"></polyline>
+                            <span class="card-title" style="color: var(--md-danger);">Notification Settings</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <!-- Navigates to summary/summary.html weekly/monthly digest -->
+                            <button id="open-summary-page-btn" class="btn-icon-text"
+                                title="Open Weekly & Monthly Digest Summary"
+                                aria-label="Open Weekly & Monthly Digest Summary">
+                                <svg class="svg-icon" viewBox="0 0 24 24"
+                                    style="width: 14px; height: 14px; stroke: var(--md-danger);" aria-hidden="true">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                                Summary
+                            </button>
+                            <svg class="svg-icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                                <polyline points="6 9 12 15 18 9"></polyline>
                             </svg>
-                            Summary
-                        </button>
-                    </div>
+                        </div>
+                    </summary>
+                    <div class="details-body">
                     <!-- Master review reminders toggle switch (popup/notifications.ts) -->
                     <div class="setting-row">
                         <label for="toggle-notifications" class="setting-label">Review Reminders</label>
@@ -408,7 +428,7 @@
                         </button>
                     </div>
                 </div>
-            </div>
+            </details>
         </div>
 
         <!-- Advanced Options (Collapsible): Developer settings, website whitelist, FSRS parameters, backup & restore -->

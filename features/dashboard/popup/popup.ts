@@ -619,7 +619,8 @@ export class AlgoRecallDashboard {
             UIUtils.catchError('Popup', 'Error navigating to pomodoro.html', err);
         }
             });
-            this.dom.openSummaryPageBtn?.addEventListener('click', () => {
+            this.dom.openSummaryPageBtn?.addEventListener('click', (e: MouseEvent) => {
+                e.stopPropagation();
                 try {
                     ActionService.executeAction('open-summary');
                 } catch (err) {
