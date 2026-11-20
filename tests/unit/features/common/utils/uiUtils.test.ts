@@ -82,5 +82,65 @@ describe('UIUtils', () => {
         expect(removeMock).toHaveBeenCalledWith(456, expect.any(Function));
         expect(windowCloseSpy).toHaveBeenCalled();
     });
+
+    describe('formatError', () => {
+        it('formats Error instance correctly', () => {
+            expect(UIUtils.formatError(new Error('Test failure'))).toBe('Test failure');
+        });
+
+        it('formats non-Error values as string', () => {
+            expect(UIUtils.formatError('string error')).toBe('string error');
+            expect(UIUtils.formatError(404)).toBe('404');
+            expect(UIUtils.formatError(null)).toBe('null');
+        });
+    });
+
+    describe('catchError and checkStorageError', () => {
+        it('catchError logs error with context message and metadata', () => {
+            const loggerSpy = jest.spyOn(require('../../../../../features/common/logger').Logger, 'error').mockImplementation(() => {});
+            UIUtils.catchError('TestMod', 'Failed to save', new Error('Disk full'), { cardId: '123' });
+            expect(loggerSpy).toHaveBeenCalledWith('TestMod', 'Failed to save: Disk full', expect.objectContaining({ cardId: '123' }));
+        });
+
+        it('checkStorageError returns true and logs if chrome.runtime.lastError exists', () => {
+            const loggerSpy = jest.spyOn(require('../../../../../features/common/logger').Logger, 'error').mockImplementation(() => {});
+            (chrome.runtime as any).lastError = { message: 'Quota exceeded' };
+            const hasError = UIUtils.checkStorageError('StorageMod', 'Save failed');
+            expect(hasError).toBe(true);
+            expect(loggerSpy).toHaveBeenCalledWith('StorageMod', 'Save failed: Quota exceeded', expect.any(Object));
+        });
+
+        it('checkStorageError returns false if no chrome.runtime.lastError', () => {
+            delete (chrome.runtime as any).lastError;
+            const hasError = UIUtils.checkStorageError('StorageMod', 'Save succeeded');
+            expect(hasError).toBe(false);
+        });
+    });
+
+    describe('trySafe and trySafeAsync', () => {
+        it('trySafe returns result when successful', () => {
+            const result = UIUtils.trySafe(() => 42, 0);
+            expect(result).toBe(42);
+        });
+
+        it('trySafe returns fallback and logs when function throws', () => {
+            const loggerSpy = jest.spyOn(require('../../../../../features/common/logger').Logger, 'error').mockImplementation(() => {});
+            const result = UIUtils.trySafe(() => { throw new Error('Boom'); }, 99, 'Mod', 'Calc failed');
+            expect(result).toBe(99);
+            expect(loggerSpy).toHaveBeenCalledWith('Mod', 'Calc failed: Boom', expect.any(Object));
+        });
+
+        it('trySafeAsync returns result on successful resolution', async () => {
+            const result = await UIUtils.trySafeAsync(async () => 'hello', 'default');
+            expect(result).toBe('hello');
+        });
+
+        it('trySafeAsync returns fallback on rejection', async () => {
+            const loggerSpy = jest.spyOn(require('../../../../../features/common/logger').Logger, 'error').mockImplementation(() => {});
+            const result = await UIUtils.trySafeAsync(async () => { throw new Error('Network error'); }, 'fallback', 'Mod', 'Fetch failed');
+            expect(result).toBe('fallback');
+            expect(loggerSpy).toHaveBeenCalledWith('Mod', 'Fetch failed: Network error', expect.any(Object));
+        });
+    });
 });
 

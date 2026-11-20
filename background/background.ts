@@ -35,6 +35,7 @@ import {
 } from '../features/common/constants';
 import { BROWSER_CONFIG } from '../features/common/browserConfig';
 import { ActionService, CommandActionId } from '../features/common/services/actionService';
+import { UIUtils } from '../features/common/utils/uiUtils';
 
 (self as unknown as { onerror: (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) => boolean }).onerror = function (message: string | Event, source?: string, lineno?: number, colno?: number, error?: Error) {
     try {
@@ -92,8 +93,7 @@ export class AlgoRecallBackground {
             await this.resumePomodoroBackground();
             await this.updateDueCardsBadge();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed background initialization: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Failed background initialization', err);
             // Comment: Recover gracefully so service worker listeners remain attached
         } finally {
             // Comment: Always end startup timer regardless of init outcome
@@ -131,8 +131,7 @@ export class AlgoRecallBackground {
                 chrome.commands.onCommand.addListener(this.handleCommand.bind(this));
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to bind background extension API event listeners: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Failed to bind background extension API event listeners', err);
             // Comment: Catch listener registration error to prevent constructor failure
         }
     }
@@ -163,8 +162,7 @@ export class AlgoRecallBackground {
                 Logger.warn('Background', `Command execution result warning for ${command}: ${result.error}`);
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to execute command ${command}: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', `Failed to execute command ${command}`, err);
         }
     }
 
@@ -181,16 +179,12 @@ export class AlgoRecallBackground {
         try {
             // Initialize default notification settings if they don't exist
             const result = await chrome.storage.local.get(['notificationSettings']);
-            if (chrome.runtime.lastError) {
-                Logger.error('Background', `Storage get error in handleInstalled: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-            }
+            UIUtils.checkStorageError('Background', 'Storage get error in handleInstalled');
             let settings = result.notificationSettings;
             if (!settings) {
                 settings = { ...DEFAULT_NOTIFICATION_SETTINGS };
                 await chrome.storage.local.set({ notificationSettings: settings });
-                if (chrome.runtime.lastError) {
-                    Logger.error('Background', `Storage set error in handleInstalled: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-                }
+                UIUtils.checkStorageError('Background', 'Storage set error in handleInstalled');
             }
 
             await this.setupAlarm();
@@ -213,8 +207,7 @@ export class AlgoRecallBackground {
 
             await this.checkDueCards();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Error in handleInstalled: ${errorMessage}`, { details, err });
+            UIUtils.catchError('Background', 'Error in handleInstalled', err, { details });
             // Comment: Non-fatal error during install setup, background worker remains active
         }
     }
@@ -237,8 +230,7 @@ export class AlgoRecallBackground {
                 this.handlePomodoroEnd();
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Error handling background alarm '${alarm?.name}': ${errorMessage}`, { alarm, err });
+            UIUtils.catchError('Background', `Error handling background alarm '${alarm?.name}'`, err, { alarm });
             // Comment: Recover gracefully on alarm execution failure to maintain service worker longevity
         }
     }
@@ -261,8 +253,7 @@ export class AlgoRecallBackground {
                 Logger.debug('Background', `Failed to send spa_url_changed to tab ${details.tabId}: script not injected or non-whitelisted site.`, { tabId: details.tabId, err });
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Error in handleHistoryStateUpdated: ${errorMessage}`, { details, err });
+            UIUtils.catchError('Background', 'Error in handleHistoryStateUpdated', err, { details });
             // Comment: Recover from history state update routing error
         }
     }
@@ -316,8 +307,7 @@ export class AlgoRecallBackground {
                 Logger.info('Background', `Notifications are disabled, cleared review alarms.`);
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to set up alarms: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Failed to set up alarms', err);
             // Comment: Non-fatal error during alarm scheduling, service worker continues running
         }
     }
@@ -333,9 +323,7 @@ export class AlgoRecallBackground {
         if (!BROWSER_CONFIG.supportsAlarms) return;
         try {
             const result = await chrome.storage.local.get(['weeklySummaryEnabled']);
-            if (chrome.runtime.lastError) {
-                Logger.error('Background', `Storage get error in setupWeeklySummaryAlarm: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-            }
+            UIUtils.checkStorageError('Background', 'Storage get error in setupWeeklySummaryAlarm');
             const enabled = result.weeklySummaryEnabled !== false; // Default true
 
             await chrome.alarms.clear('weeklySummary');
@@ -367,8 +355,7 @@ export class AlgoRecallBackground {
                 });
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to set up weekly summary alarm: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Failed to set up weekly summary alarm', err);
             // Comment: Catch weekly summary alarm configuration error gracefully
         }
     }
@@ -393,8 +380,7 @@ export class AlgoRecallBackground {
             chrome.alarms.create('dailyNudge', { delayInMinutes, periodInMinutes: ALARM_DAILY_PERIOD_MIN });
             Logger.info('Background', `Scheduled dailyNudge alarm at 20:00.`);
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to set up daily nudge alarm: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Failed to set up daily nudge alarm', err);
             // Comment: Non-fatal error in daily nudge alarm setup
         }
     }
@@ -418,8 +404,7 @@ export class AlgoRecallBackground {
                 await this.updateDueCardsBadge();
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Error handling storage change: ${errorMessage}`, { changes, areaName, err });
+            UIUtils.catchError('Background', 'Error handling storage change', err, { changes, areaName });
             // Comment: Recover gracefully from storage change handler failure
         }
     }
@@ -446,8 +431,8 @@ export class AlgoRecallBackground {
                     const dueCount = await this.getDueCardsCount();
                     sendResponse({ success: true, dueCount });
                 } catch (err) {
-                    const errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Background', `Error in check_due_cards_now: ${errorMessage}`, { err });
+                    const errorMessage = UIUtils.formatError(err);
+                    UIUtils.catchError('Background', 'Error in check_due_cards_now', err);
                     sendResponse({ success: false, error: errorMessage });
                 }
             })();
@@ -463,8 +448,8 @@ export class AlgoRecallBackground {
                     await this.showTestNotification();
                     success = true;
                 } catch (err) {
-                    errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Background', `Error processing test_notification: ${errorMessage}`, { message, err });
+                    errorMessage = UIUtils.formatError(err);
+                    UIUtils.catchError('Background', 'Error processing test_notification', err, { message });
                     // Comment: Recover gracefully by returning error response to client tab
                 } finally {
                     // Comment: Guarantee sendResponse call to prevent hanging runtime messaging channel
@@ -483,8 +468,8 @@ export class AlgoRecallBackground {
                 chrome.tabs.create({ url: chrome.runtime.getURL(targetUrl) });
                 sendResponse({ success: true });
             } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                Logger.error('Background', `Error in open_fullscreen_editor: ${errorMessage}`, { message, err });
+                const errorMessage = UIUtils.formatError(err);
+                UIUtils.catchError('Background', 'Error in open_fullscreen_editor', err, { message });
                 sendResponse({ success: false, error: errorMessage });
             }
             return true;
@@ -498,8 +483,8 @@ export class AlgoRecallBackground {
                 }
                 sendResponse({ success: true });
             } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                Logger.error('Background', `Error in snooze_notification: ${errorMessage}`, { message, err });
+                const errorMessage = UIUtils.formatError(err);
+                UIUtils.catchError('Background', 'Error in snooze_notification', err, { message });
                 sendResponse({ success: false, error: errorMessage });
             }
             return true;
@@ -514,8 +499,8 @@ export class AlgoRecallBackground {
                     await this.setupWeeklySummaryAlarm();
                     success = true;
                 } catch (err) {
-                    errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Background', `Error toggling weekly summary: ${errorMessage}`, { message, err });
+                    errorMessage = UIUtils.formatError(err);
+                    UIUtils.catchError('Background', 'Error toggling weekly summary', err, { message });
                     // Comment: Return error payload to caller without failing SW execution
                 } finally {
                     // Comment: Guarantee sendResponse execution in finally block
@@ -533,8 +518,8 @@ export class AlgoRecallBackground {
                     await this.handleWeeklySummary(true);
                     success = true;
                 } catch (err) {
-                    errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Background', `Error processing test_summary_notification: ${errorMessage}`, { message, err });
+                    errorMessage = UIUtils.formatError(err);
+                    UIUtils.catchError('Background', 'Error processing test_summary_notification', err, { message });
                 } finally {
                     sendResponse(success ? { success: true } : { success: false, error: errorMessage });
                 }
@@ -550,8 +535,8 @@ export class AlgoRecallBackground {
                     await this.handlePomodoroAction(message.payload as { command: string; state: PomodoroState });
                     success = true;
                 } catch (err) {
-                    errorMessage = err instanceof Error ? err.message : String(err);
-                    Logger.error('Background', `Error handling pomodoro_action: ${errorMessage}`, { message, err });
+                    errorMessage = UIUtils.formatError(err);
+                    UIUtils.catchError('Background', 'Error handling pomodoro_action', err, { message });
                     // Comment: Return error status to pomodoro UI tab
                 } finally {
                     // Comment: Always reply to caller to close messaging channel
@@ -616,8 +601,7 @@ export class AlgoRecallBackground {
                         }
                     } catch (queryCallbackErr) {
                         // Comment: Safe recovery inside tabs query callback
-                        const errorMessage = queryCallbackErr instanceof Error ? queryCallbackErr.message : String(queryCallbackErr);
-                        Logger.error('Background', `Error in tabs query callback for showTestNotification: ${errorMessage}`, { queryCallbackErr });
+                        UIUtils.catchError('Background', 'Error in tabs query callback for showTestNotification', queryCallbackErr);
                         this.createSystemTestNotification(settings);
                     } finally {
                         // Comment: Resolve promise once tabs query callback completes
@@ -626,8 +610,7 @@ export class AlgoRecallBackground {
                 });
             } catch (err) {
                 // Comment: Safe recovery if chrome.tabs.query throws synchronously
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                Logger.error('Background', `Failed to query tabs for showTestNotification: ${errorMessage}`, { err });
+                UIUtils.catchError('Background', 'Failed to query tabs for showTestNotification', err);
                 this.createSystemTestNotification(settings);
                 resolve();
             }
@@ -690,8 +673,7 @@ export class AlgoRecallBackground {
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to create system notification ${id}: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', `Failed to create system notification ${id}`, err);
         }
     }
 
@@ -813,8 +795,7 @@ export class AlgoRecallBackground {
                 this.dispatchReviewNotification(dueCards.length, groupMessage, settings, whitelistedWebsites);
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Error checking due cards: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Error checking due cards', err);
             // Comment: Non-fatal error during due card check, background worker recovers cleanly
         } finally {
             this.isCheckingDueCards = false;
@@ -870,8 +851,7 @@ export class AlgoRecallBackground {
             }
             return dueCount;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Error updating due cards badge: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Error updating due cards badge', err);
             return 0;
         }
     }
@@ -892,8 +872,7 @@ export class AlgoRecallBackground {
             const now = Date.now();
             return cards.filter((c: Card) => typeof c.due === 'number' && c.due <= now).length;
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Error calculating due cards count: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Error calculating due cards count', err);
             return 0;
         }
     }
@@ -1119,13 +1098,10 @@ export class AlgoRecallBackground {
                 chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/popup/popup.html') });
             }
             chrome.notifications.clear(notificationId, () => {
-                if (chrome.runtime.lastError) {
-                    Logger.error('Background', `Notification clear error in handleNotificationClicked: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-                }
+                UIUtils.checkStorageError('Background', 'Notification clear error in handleNotificationClicked');
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Error in handleNotificationClicked: ${errorMessage}`, { notificationId, err });
+            UIUtils.catchError('Background', 'Error in handleNotificationClicked', err, { notificationId });
             // Comment: Non-fatal notification click handler catch
         }
     }
@@ -1142,9 +1118,7 @@ export class AlgoRecallBackground {
     async resumePomodoroBackground(): Promise<void> {
         try {
             const result = (await chrome.storage.local.get(['pomodoroState'])) as { pomodoroState?: PomodoroState };
-            if (chrome.runtime.lastError) {
-                Logger.error('Background', `Storage get error in resumePomodoroBackground: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-            }
+            UIUtils.checkStorageError('Background', 'Storage get error in resumePomodoroBackground');
             if (result.pomodoroState && result.pomodoroState.state === 'running') {
                 const now = Date.now();
                 if (result.pomodoroState.targetEndTime <= now) {
@@ -1155,8 +1129,7 @@ export class AlgoRecallBackground {
                 }
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Failed to resume pomodoro background state: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Failed to resume pomodoro background state', err);
             // Comment: Catch storage read failure on service worker boot gracefully
         }
     }
@@ -1249,8 +1222,7 @@ export class AlgoRecallBackground {
                     this.stopPomodoroTick();
                 }
             } catch (err) {
-                const errorMessage = err instanceof Error ? err.message : String(err);
-                Logger.error('Background', `Error during pomodoro tick: ${errorMessage}`, { err });
+                UIUtils.catchError('Background', 'Error during pomodoro tick', err);
                 // Comment: Stop tick interval if Chrome Extension action API fails
                 this.stopPomodoroTick();
             }
@@ -1270,8 +1242,7 @@ export class AlgoRecallBackground {
                 this.pomodoroIntervalId = null;
             }
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Error stopping pomodoro tick interval: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Error stopping pomodoro tick interval', err);
             // Comment: Non-fatal timer cleanup error catch
         }
     }
@@ -1292,9 +1263,7 @@ export class AlgoRecallBackground {
                 pomodoroStats?: PomodoroStats;
                 notificationSettings?: NotificationSettings;
             };
-            if (chrome.runtime.lastError) {
-                Logger.error('Background', `Storage get error in handlePomodoroEnd: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-            }
+            UIUtils.checkStorageError('Background', 'Storage get error in handlePomodoroEnd');
             const state: PomodoroState | undefined = result.pomodoroState;
             if (!state || state.state !== 'running') return;
 
@@ -1335,9 +1304,7 @@ export class AlgoRecallBackground {
 
             // Save to storage (UI will pick it up)
             await chrome.storage.local.set({ pomodoroState: state, pomodoroStats: stats });
-            if (chrome.runtime.lastError) {
-                Logger.error('Background', `Storage set error in handlePomodoroEnd: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-            }
+            UIUtils.checkStorageError('Background', 'Storage set error in handlePomodoroEnd');
 
             const settingsNotif: NotificationSettings = result.notificationSettings || {};
 
@@ -1352,8 +1319,7 @@ export class AlgoRecallBackground {
 
             await this.updateDueCardsBadge();
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Background', `Error handling pomodoro end: ${errorMessage}`, { err });
+            UIUtils.catchError('Background', 'Error handling pomodoro end', err);
             // Comment: Non-fatal error on pomodoro completion handler
         }
     }
@@ -1363,6 +1329,5 @@ try {
     new AlgoRecallBackground();
 } catch (err) {
     // Comment: Safe recovery during top-level background worker instantiation
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    Logger.error('Background', `Failed to instantiate AlgoRecallBackground: ${errorMessage}`, { err });
+    UIUtils.catchError('Background', 'Failed to instantiate AlgoRecallBackground', err);
 }

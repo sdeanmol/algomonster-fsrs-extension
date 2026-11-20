@@ -2,8 +2,8 @@ const path = require('path');
 const CopyPlugin = require('copy-webpack-plugin');
 const webpack = require('webpack');
 
-// Standard ignore patterns for static asset copying
-const ignorePatterns = ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts'];
+// Standard ignore patterns for static asset copying (exclude TS, tests, docs, and JS files compiled by webpack)
+const ignorePatterns = ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts', '**/*.js'];
 
 // Browser-specific store configuration injected at build time
 const BROWSER_STORE_CONFIG = {
@@ -137,6 +137,7 @@ module.exports = (env) => {
       patterns: [
         { from: `browser/${targetBrowser}/manifest.json`, to: 'manifest.json' },
         { from: 'icons', to: 'icons', noErrorOnMissing: true },
+        { from: 'features/common/marked.min.js', to: 'features/common/marked.min.js', noErrorOnMissing: true },
         { from: 'background', to: 'background', noErrorOnMissing: true, globOptions: { ignore: ignorePatterns } },
         { from: 'content', to: 'content', noErrorOnMissing: true, globOptions: { ignore: ignorePatterns } },
         { from: 'features', to: 'features', noErrorOnMissing: true, globOptions: { ignore: ignorePatterns } }

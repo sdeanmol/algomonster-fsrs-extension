@@ -16,6 +16,7 @@ import { Card, StorageData, ExtensionSettings } from '../../types/domain';
 import { RATING_UI_DEBOUNCE_MS } from '../common/constants';
 import FsrsScheduler from './scheduler/fsrsScheduler';
 import { Logger } from '@common/logger';
+import { UIUtils } from '../common/utils/uiUtils';
 
 /**
  * Shared in-memory state slice accessed by the tracker.
@@ -65,8 +66,7 @@ function getAlgoRecallGlobal(): AlgoRecallGlobal {
         return win.AlgoRecall;
     } catch (err) {
         // Comment: Safe recovery fallback if window global access fails (e.g., non-DOM test environment)
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.error('Tracker', `Failed to access window in getAlgoRecallGlobal: ${errorMessage}`, { err });
+        UIUtils.catchError('Tracker', 'Failed to access window in getAlgoRecallGlobal', err);
         return {
             state: { cards: [], topicWeights: {}, scheduler: new FsrsScheduler() },
             Utils: { getAutoTags: () => [], getExtractedProblemTitle: () => '' },
@@ -85,8 +85,7 @@ function getRenderMarkdown(): ((text: string) => string) | undefined {
         return (window as unknown as { renderMarkdown?: (text: string) => string }).renderMarkdown;
     } catch (err) {
         // Comment: Safe recovery fallback if window is inaccessible when looking for markdown renderer
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        Logger.warn('Tracker', `Failed to access window in getRenderMarkdown: ${errorMessage}`, { err });
+        UIUtils.catchError('Tracker', 'Failed to access window in getRenderMarkdown', err);
         return undefined;
     }
 }
@@ -139,14 +138,12 @@ class Tracker {
      * @returns {AlgoRecallState}
      */
     get state(): AlgoRecallState {
-        try {
-            return getAlgoRecallGlobal().state;
-        } catch (err) {
-            // Comment: Return safe fallback empty state if global state access fails
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Tracker', `Failed to get AlgoRecall state: ${errorMessage}`, { err });
-            return { cards: [], topicWeights: {}, scheduler: new FsrsScheduler() };
-        }
+        return UIUtils.trySafe(
+            () => getAlgoRecallGlobal().state,
+            { cards: [], topicWeights: {}, scheduler: new FsrsScheduler() },
+            'Tracker',
+            'Failed to get AlgoRecall state'
+        );
     }
 
     /**
@@ -154,14 +151,12 @@ class Tracker {
      * @returns {AppUtils}
      */
     get utils(): AppUtils {
-        try {
-            return getAlgoRecallGlobal().Utils;
-        } catch (err) {
-            // Comment: Return safe fallback empty utils if global utils access fails
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Tracker', `Failed to get AlgoRecall utils: ${errorMessage}`, { err });
-            return { getAutoTags: () => [], getExtractedProblemTitle: () => '' };
-        }
+        return UIUtils.trySafe(
+            () => getAlgoRecallGlobal().Utils,
+            { getAutoTags: () => [], getExtractedProblemTitle: () => '' },
+            'Tracker',
+            'Failed to get AlgoRecall utils'
+        );
     }
 
     /**
@@ -169,14 +164,12 @@ class Tracker {
      * @returns {unknown}
      */
     get notifier(): unknown {
-        try {
-            return getAlgoRecallGlobal().Notifier;
-        } catch (err) {
-            // Comment: Return safe fallback null notifier if global access fails
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Tracker', `Failed to get AlgoRecall notifier: ${errorMessage}`, { err });
-            return null;
-        }
+        return UIUtils.trySafe(
+            () => getAlgoRecallGlobal().Notifier,
+            null,
+            'Tracker',
+            'Failed to get AlgoRecall notifier'
+        );
     }
 
     /**

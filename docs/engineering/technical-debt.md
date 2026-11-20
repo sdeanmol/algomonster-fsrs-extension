@@ -79,3 +79,49 @@ This audit identifies **four root architectural drivers** responsible for techni
   - Adds ~1,500+ LOC of repetitive boilerplate error-handling wrapping simple property lookups.
   - Can mask silent bugs during development by swallowing unexpected null-pointer exceptions.
 * **Suggested Improvement**: Standardize error handling around higher-level boundary decorators or utility wrappers (such as `UIUtils.catchError()`), eliminating manual inline try/catch blocks for routine synchronous operations.
+
+---
+
+## 3. Technical Debt Remediation Checklist
+
+The following checklist tracks all architectural and engineering findings identified across the AlgoRecall codebase. Per architectural review guidelines, targeted fixes have been implemented for **Finding 3** and **Finding 5**, while higher-risk architectural refactorings (Findings 1, 2, and 4) are catalogued for future release cycles.
+
+| Status | Finding | Priority | Target Subsystems | Implementation Summary |
+|---|---|---|---|---|
+| `[ ]` | **Finding 1: Unused 125 MB Firebase SDK Dependency** | High | `package.json`, `features/common/firebase.ts` | **Pending / Deferred**: Retained in codebase pending cloud sync design specifications to avoid premature breaking changes in domain interfaces. |
+| `[ ]` | **Finding 2: Imperative DOM Manipulation Dominance** | High | `features/tracker/`, `features/dashboard/` | **Pending / Deferred**: Architectural migration towards a reactive micro-framework (Preact/Svelte) or unified DOM binders deferred to UI v2 rewrite. |
+| `[x]` | **Finding 3: CopyPlugin JS File Duplication in Build Artifacts** | High | `webpack.config.js` | **Resolved**: Updated `ignorePatterns` to include `'**/*.js'` preventing raw JS copying alongside Webpack bundles, with an explicit rule preserving vendored `marked.min.js`. |
+| `[ ]` | **Finding 4: Over-Fragmented Multi-Page Architecture** | Medium | `features/**/*.html`, `webpack.config.js` | **Pending / Deferred**: Multi-page consolidation into unified dashboard SPA tabs scheduled for future navigation overhaul. |
+| `[x]` | **Finding 5: Pervasive Defensive Try/Catch Blocks** | Medium | `features/common/utils/uiUtils.ts`, `background/`, `features/tracker/` | **Resolved**: Standardized error handling helpers (`UIUtils.formatError`, `UIUtils.catchError`, `UIUtils.checkStorageError`, `UIUtils.trySafe`, `UIUtils.trySafeAsync`) eliminating hundreds of repetitive boilerplate blocks across key background and tracker controllers. |
+
+---
+
+### Detailed Implementation Notes for Resolved Findings
+
+#### Finding 3 Resolution: Webpack CopyPlugin Asset Isolation
+* **Changes**:
+  1. Updated `webpack.config.js`:
+     ```javascript
+     const ignorePatterns = ['**/*.test.js', '**/__tests__/**', '**/*.md', '**/*.ts', '**/*.js'];
+     ```
+  2. Added an explicit CopyPlugin pattern for the non-compiled static markdown parser library:
+     ```javascript
+     { from: 'features/common/marked.min.js', to: 'features/common/marked.min.js', noErrorOnMissing: true },
+     ```
+* **Outcome**:
+  - Eliminated redundant JavaScript duplication in `dist/` where Webpack output files were simultaneously emitted by ts-loader and copied verbatim by CopyPlugin.
+  - Preserved the required vendored `marked.min.js` file specified in extension manifests and HTML `<script>` tags.
+
+#### Finding 5 Resolution: Standardized Error Handling via UIUtils
+* **Changes**:
+  1. Enhanced [`features/common/utils/uiUtils.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/common/utils/uiUtils.ts):
+     - `UIUtils.formatError(err: unknown): string`: Unifies error extraction (`err instanceof Error ? err.message : String(err)`).
+     - `UIUtils.catchError(moduleName, contextMessage, err, metadata)`: Centralized logging with metadata.
+     - `UIUtils.checkStorageError(moduleName, contextMessage, metadata)`: Streamlined `chrome.runtime.lastError` checking.
+     - `UIUtils.trySafe<T>(fn, fallback, moduleName?, contextMessage?)`: Safe synchronous boundary execution with automatic fallback and logging.
+     - `UIUtils.trySafeAsync<T>(fn, fallback, moduleName?, contextMessage?)`: Safe asynchronous boundary execution with automatic fallback and logging.
+  2. Refactored [`background/background.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/background/background.ts) and [`features/tracker/tracker.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/features/tracker/tracker.ts) to utilize `UIUtils.catchError`, `UIUtils.checkStorageError`, and `UIUtils.trySafe`, replacing boilerplate inline try/catch blocks.
+  3. Added comprehensive unit tests in [`tests/unit/features/common/utils/uiUtils.test.ts`](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/tests/unit/features/common/utils/uiUtils.test.ts) covering all new methods and edge cases.
+* **Outcome**:
+  - Substantially reduced repetitive boilerplate across core lifecycle, alarm, navigation, and state handlers without altering runtime behavior or error logging contracts.
+
