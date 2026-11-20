@@ -2098,111 +2098,343 @@ body {
     transform: scale(1.02);
 }
 
-/* Quick Launchpad Section */
-.quick-launchpad-section {
+/* ==========================================================================
+   Modern Bento Command Center (Quick Launchpad Redesign)
+   ========================================================================== */
+.quick-launchpad-card {
     margin-bottom: 12px;
-}
-
-.quick-launch-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-}
-
-.launch-tile {
+    padding: 12px 10px 10px;
     background: var(--md-surface);
     border: 1px solid var(--md-border);
-    border-radius: 12px;
-    padding: 10px 4px 8px 4px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    border-radius: 14px;
     box-shadow: var(--shadow-1);
+    position: relative;
+    overflow: hidden;
+}
+
+.quick-launchpad-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 15%;
+    right: 15%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(138, 180, 248, 0.28), transparent);
+    pointer-events: none;
+}
+
+.launchpad-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 9px;
+    padding: 0 2px 2px;
+}
+
+.launchpad-pill {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--md-primary);
+    background: rgba(138, 180, 248, 0.12);
+    border: 1px solid rgba(138, 180, 248, 0.22);
+    padding: 2px 7px;
+    border-radius: 20px;
+}
+
+/* Bento Grid Rows */
+.bento-row {
+    display: grid;
+    gap: 7px;
+}
+
+.bento-row-hero {
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 9px;
+}
+
+.bento-row-quad {
+    grid-template-columns: repeat(4, 1fr);
+    margin-bottom: 9px;
+}
+
+.bento-row-trio {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.bento-group-label {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--md-text-low);
+    margin-bottom: 5px;
+    padding-left: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bento-group-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* Base Launch Tile */
+.launch-tile {
+    position: relative;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid var(--md-border);
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    outline: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    text-decoration: none;
+    color: inherit;
 }
 
 .launch-tile:hover {
     border-color: var(--md-border-hover);
-    background: var(--md-surface-variant);
-    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.055);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
 }
 
 .launch-tile:active {
     transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
-.tile-icon-wrap {
+.launch-tile:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+
+/* Hero Tiles (Exam Mode & Pomodoro) */
+.launch-tile-hero {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border-radius: 11px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%), var(--md-surface);
+}
+
+.launch-tile-hero:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 100%), var(--md-surface);
+}
+
+.launch-tile-hero .tile-icon-wrap {
     width: 32px;
     height: 32px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.launch-tile-hero:hover .tile-icon-wrap {
+    transform: scale(1.1);
+}
+
+.launch-tile-hero .tile-icon-wrap svg {
+    width: 17px;
+    height: 17px;
+}
+
+.launch-tile-hero .tile-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+.launch-tile-hero .tile-headline {
+    font-size: 0.77rem;
+    font-weight: 700;
+    color: var(--md-text-high);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.launch-tile-hero .tile-subline {
+    font-size: 0.61rem;
+    font-weight: 500;
+    color: var(--md-text-low);
+    line-height: 1.2;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.launch-tile-hero .tile-arrow {
+    width: 13px;
+    height: 13px;
+    color: var(--md-text-low);
+    opacity: 0.45;
+    transition: transform 0.22s ease, opacity 0.22s ease, color 0.22s ease;
+    flex-shrink: 0;
+}
+
+.launch-tile-hero:hover .tile-arrow {
+    transform: translateX(2px);
+    opacity: 0.95;
+    color: var(--md-primary);
+}
+
+/* Compact / Quad & Trio Tiles */
+.launch-tile-compact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 8px 3px 7px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.launch-tile-compact .tile-icon-wrap {
+    width: 28px;
+    height: 28px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.launch-tile:hover .tile-icon-wrap {
-    transform: scale(1.08);
+.launch-tile-compact:hover .tile-icon-wrap {
+    transform: scale(1.12);
 }
 
-.tile-icon-wrap svg {
-    width: 16px;
-    height: 16px;
+.launch-tile-compact .tile-icon-wrap svg {
+    width: 15px;
+    height: 15px;
 }
 
+.launch-tile-compact .tile-title {
+    font-size: 0.67rem;
+    font-weight: 600;
+    color: var(--md-text-med);
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    padding: 0 2px;
+    transition: color 0.2s ease;
+}
+
+.launch-tile-compact:hover .tile-title {
+    color: var(--md-text-high);
+}
+
+/* Semantic Accent Colors & Hover Lighting */
 .tile-icon-wrap.exam-color {
     background: rgba(196, 198, 208, 0.12);
     color: var(--md-secondary);
 }
 
+.launch-tile:has(.exam-color):hover {
+    border-color: rgba(196, 198, 208, 0.35);
+}
+
 .tile-icon-wrap.pomodoro-color {
-    background: rgba(242, 139, 130, 0.15);
+    background: rgba(242, 139, 130, 0.14);
     color: #f28b82;
+}
+
+.launch-tile:has(.pomodoro-color):hover {
+    border-color: rgba(242, 139, 130, 0.35);
 }
 
 .tile-icon-wrap.analytics-color {
-    background: rgba(168, 199, 250, 0.15);
+    background: rgba(168, 199, 250, 0.14);
     color: var(--md-primary);
 }
 
-.tile-icon-wrap.highlights-color {
-    background: rgba(129, 201, 149, 0.15);
-    color: var(--md-success);
-}
-
-.tile-icon-wrap.summary-color {
-    background: rgba(197, 138, 249, 0.15);
-    color: #c58af9;
+.launch-tile:has(.analytics-color):hover {
+    border-color: rgba(168, 199, 250, 0.35);
 }
 
 .tile-icon-wrap.forecast-color {
-    background: rgba(138, 180, 248, 0.15);
+    background: rgba(138, 180, 248, 0.14);
     color: #8ab4f8;
 }
 
+.launch-tile:has(.forecast-color):hover {
+    border-color: rgba(138, 180, 248, 0.35);
+}
+
+.tile-icon-wrap.summary-color {
+    background: rgba(197, 138, 249, 0.14);
+    color: #c58af9;
+}
+
+.launch-tile:has(.summary-color):hover {
+    border-color: rgba(197, 138, 249, 0.35);
+}
+
 .tile-icon-wrap.history-color {
-    background: rgba(251, 188, 4, 0.15);
+    background: rgba(251, 188, 4, 0.14);
     color: #fbbc04;
 }
 
+.launch-tile:has(.history-color):hover {
+    border-color: rgba(251, 188, 4, 0.35);
+}
+
+.tile-icon-wrap.highlights-color {
+    background: rgba(129, 201, 149, 0.14);
+    color: var(--md-success);
+}
+
+.launch-tile:has(.highlights-color):hover {
+    border-color: rgba(129, 201, 149, 0.35);
+}
+
 .tile-icon-wrap.colors-color {
-    background: rgba(242, 139, 130, 0.15);
+    background: rgba(242, 139, 130, 0.14);
     color: #f28b82;
 }
 
+.launch-tile:has(.colors-color):hover {
+    border-color: rgba(242, 139, 130, 0.35);
+}
+
 .tile-icon-wrap.settings-color {
-    background: rgba(253, 214, 99, 0.15);
+    background: rgba(253, 214, 99, 0.14);
     color: #fdd663;
 }
 
-.tile-title {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--md-text-med);
-    text-align: center;
+.launch-tile:has(.settings-color):hover {
+    border-color: rgba(253, 214, 99, 0.35);
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+    .launch-tile,
+    .launch-tile-hero,
+    .launch-tile-compact,
+    .tile-icon-wrap,
+    .tile-arrow {
+        transition: none !important;
+        transform: none !important;
+    }
 }
 
 /* Heatmap Card (Placed above In-Page Assistive Quick Toggles) */

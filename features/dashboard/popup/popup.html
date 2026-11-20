@@ -197,33 +197,61 @@
             </div>
         </div>
 
-        <!-- Study Tools & Dedicated Dashboards Quick Launchpad -->
-        <div class="quick-launchpad-section">
-            <div class="quick-launch-grid">
+        <!-- Study Tools & Dedicated Dashboards Quick Launchpad (Modern Bento Command Center) -->
+        <div class="card quick-launchpad-card">
+            <div class="card-header-clean launchpad-header">
+                <div class="header-label-group">
+                    <svg class="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    <span class="card-title">Command Center</span>
+                </div>
+                <!-- <span class="launchpad-pill">9 Tools</span> -->
+            </div>
+
+            <!-- Bento Tier 1: Primary Focus Engines -->
+            <div class="bento-row bento-row-hero">
                 <!-- Exam Mode / Study Plan Launcher -->
-                <button id="studyplan-btn" class="launch-tile" title="Open Exam Mode & Study Plan">
+                <button id="studyplan-btn" class="launch-tile launch-tile-hero" title="Open Exam Mode & Study Plan">
                     <div class="tile-icon-wrap exam-color">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                             <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
                         </svg>
                     </div>
-                    <span class="tile-title">Exam Mode</span>
+                    <div class="tile-content">
+                        <span class="tile-headline">Exam Mode</span>
+                        <span class="tile-subline">Study Plan</span>
+                    </div>
+                    <svg class="svg-icon tile-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
                 </button>
 
                 <!-- Pomodoro Timer Launcher -->
-                <button id="pomodoro-btn" class="launch-tile" title="Open Pomodoro Focus Timer">
+                <button id="pomodoro-btn" class="launch-tile launch-tile-hero" title="Open Pomodoro Focus Timer">
                     <div class="tile-icon-wrap pomodoro-color">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"></circle>
                             <polyline points="12 6 12 12 16 14"></polyline>
                         </svg>
                     </div>
-                    <span class="tile-title">Pomodoro</span>
+                    <div class="tile-content">
+                        <span class="tile-headline">Pomodoro</span>
+                        <span class="tile-subline">Focus Timer</span>
+                    </div>
+                    <svg class="svg-icon tile-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
                 </button>
+            </div>
 
+            <!-- Bento Tier 2: Review Intelligence & Insights -->
+            <div class="bento-group-label">INSIGHTS & REVIEW</div>
+            <div class="bento-row bento-row-quad">
                 <!-- Analytics Dashboard Launcher -->
-                <button id="analytics-btn" class="launch-tile" title="Open Full Analytics Dashboard">
+                <button id="analytics-btn" class="launch-tile launch-tile-compact"
+                    title="Open Full Analytics Dashboard">
                     <div class="tile-icon-wrap analytics-color">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -234,33 +262,8 @@
                     <span class="tile-title">Analytics</span>
                 </button>
 
-                <!-- Highlights Manager Launcher -->
-                <button id="manage-highlights-btn" class="launch-tile" title="Open Highlights Manager">
-                    <div class="tile-icon-wrap highlights-color">
-                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12 20h9"></path>
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
-                    </div>
-                    <span class="tile-title">Highlights</span>
-                </button>
-
-                <!-- Digest Summary Page Launcher -->
-                <button id="open-summary-page-btn" class="launch-tile" title="Open Weekly & Monthly Digest Summary">
-                    <div class="tile-icon-wrap summary-color">
-                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <polyline points="10 9 9 9 8 9"></polyline>
-                        </svg>
-                    </div>
-                    <span class="tile-title">Summary</span>
-                </button>
-
                 <!-- Forecast Launcher -->
-                <button id="forecast-btn" class="launch-tile" title="Open Review Forecast">
+                <button id="forecast-btn" class="launch-tile launch-tile-compact" title="Open Review Forecast">
                     <div class="tile-icon-wrap forecast-color">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
@@ -270,8 +273,22 @@
                     <span class="tile-title">Forecast</span>
                 </button>
 
+                <!-- Digest Summary Page Launcher -->
+                <button id="open-summary-page-btn" class="launch-tile launch-tile-compact"
+                    title="Open Weekly & Monthly Digest Summary">
+                    <div class="tile-icon-wrap summary-color">
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                    </div>
+                    <span class="tile-title">Summary</span>
+                </button>
+
                 <!-- Review History Launcher -->
-                <button id="history-btn" class="launch-tile" title="Open Review History">
+                <button id="history-btn" class="launch-tile launch-tile-compact" title="Open Review History">
                     <div class="tile-icon-wrap history-color">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -281,9 +298,25 @@
                     </div>
                     <span class="tile-title">History</span>
                 </button>
+            </div>
+
+            <!-- Bento Tier 3: Workspace & Customization -->
+            <div class="bento-group-label">WORKSPACE & TOOLS</div>
+            <div class="bento-row bento-row-trio">
+                <!-- Highlights Manager Launcher -->
+                <button id="manage-highlights-btn" class="launch-tile launch-tile-compact"
+                    title="Open Highlights Manager">
+                    <div class="tile-icon-wrap highlights-color">
+                        <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                    </div>
+                    <span class="tile-title">Highlights</span>
+                </button>
 
                 <!-- Marker Colors Launcher -->
-                <button id="open-options-btn" class="launch-tile" title="Customize Marker Colors">
+                <button id="open-options-btn" class="launch-tile launch-tile-compact" title="Customize Marker Colors">
                     <div class="tile-icon-wrap colors-color">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle>
@@ -299,7 +332,8 @@
                 </button>
 
                 <!-- Dedicated Settings Hub Launcher -->
-                <button id="settings-hub-btn" class="launch-tile" title="Open Settings & Preferences Hub">
+                <button id="settings-hub-btn" class="launch-tile launch-tile-compact"
+                    title="Open Settings & Preferences Hub">
                     <div class="tile-icon-wrap settings-color">
                         <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="12" r="3"></circle>
