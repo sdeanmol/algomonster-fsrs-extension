@@ -1,6 +1,6 @@
 # AlgoRecall Architecture & Technical Documentation Index
 
-Welcome to the comprehensive technical documentation for **AlgoRecall: Coding Interview Spaced Repetition Extension**. This documentation suite provides an exhaustive analysis of the codebase, Manifest V3 architecture, FSRS-4.5 scheduling engine, WASM optimization runtime, content injection pipelines, state management, and test suites.
+Welcome to the authoritative technical documentation for **AlgoRecall: Coding Interview Spaced Repetition Extension**. This documentation suite provides an exhaustive analysis of the codebase, Manifest V3 architecture, FSRS-4.5 scheduling engine, WASM optimization runtime, content injection pipelines, state management, and test suites.
 
 ---
 
@@ -8,12 +8,60 @@ Welcome to the comprehensive technical documentation for **AlgoRecall: Coding In
 
 ```text
 docs/
-├── architecture/          # High-level MV3 system design, data pipelines, & state distribution
-├── features/              # UI feature modules (Tracker, Dashboard, Analytics, Highlighter, Common, Customization, Requirements)
-├── scheduler-wasm/        # FSRS algorithm theory, Rating selection guide, WASM optimizer, and performance benchmarks
-├── runtime-core/          # Content script orchestrator, background service worker, & types
-├── testing/               # Jest, Playwright E2E, and mock test infrastructure
-└── index.md               # Root Table of Contents (This file)
+├── README.md                                   # Root Documentation Overview & Hub
+├── index.md                                    # Master Technical Topic Sitemap (This file)
+│
+├── architecture/                               # System Architecture & Design
+│   ├── overview.md                             # High-Level Architecture Overview
+│   ├── system-architecture.md                  # 3-Tier Extension System Design
+│   ├── browser-extension-architecture.md       # Manifest V3 Runtime & Multi-Browser Support
+│   ├── module-architecture.md                  # Module Decomposition & Dependency Graph
+│   ├── data-architecture.md                    # Data Architecture & Entity Modeling
+│   ├── state-management.md                     # Distributed State & Storage Reactivity
+│   ├── communication-architecture.md           # Message Passing & Command Dispatching
+│   └── diagrams/                               # Formal Mermaid Architecture Diagrams
+│       ├── system-overview.md                  # System & Module Architecture Diagrams
+│       ├── runtime-architecture.md             # Extension Runtime & Lifecycle Diagrams
+│       ├── module-dependencies.md              # Cross-Module Dependency Diagram
+│       ├── data-flow.md                        # End-to-End Data Flow & State Diagrams
+│       └── notification-flow.md                # Background Alarms & Push Notification Flow
+│
+├── features/                                   # Feature-by-Feature Deep Dives
+│   ├── README.md                               # Complete Feature Inventory & Capability Matrix
+│   ├── review-system.md                        # In-Page Problem Tracker & Fullscreen Editor
+│   ├── spaced-repetition-engine.md             # FSRS-4.5 Engine, Math & WASM Optimizer
+│   ├── exam-mode.md                            # Exam Countdown Mode & Workload Redistribution
+│   ├── pomodoro.md                             # Persistent Pomodoro Study Timer
+│   ├── analytics.md                            # 7-Tab Statistical Analytics SPA
+│   ├── highlights.md                           # CSS Custom Highlights & Text Annotation
+│   ├── notifications.md                        # Desktop Notifications, Quiet Hours & Digests
+│   ├── backup-restore.md                       # Streaming Gzip NDJSON Backup & Checksums
+│   ├── anki-integration.md                     # Bi-Directional Anki Deck Interchange
+│   ├── dashboard.md                            # Dashboard Views & Popup Architecture
+│   ├── common.md                               # Shared Utilities, Help SPA & Settings
+│   └── requirements.md                         # Feature Backlog & Requirements Matrix
+│
+├── data/                                       # Data Models & Storage Subsystem
+│   ├── data-models.md                          # Domain Entities & TypeScript Interfaces
+│   ├── storage.md                              # chrome.storage.local Architecture & Access
+│   └── data-migrations.md                      # Schema Versioning & Backward Compatibility
+│
+├── development/                                # Engineering & Development Lifecycle
+│   ├── getting-started.md                      # Developer Setup & Local Browser Loading
+│   ├── project-structure.md                    # Annotated Directory Structure
+│   ├── build-process.md                        # Webpack 5, TypeScript & CopyPlugin Pipeline
+│   ├── testing.md                              # Jest Unit, Integration & Playwright E2E Tests
+│   └── deployment.md                           # Packaging & Multi-Store Release Process
+│
+├── engineering/                                # Architecture & Quality Review
+│   ├── technical-debt.md                       # Technical Debt Findings (P0-P3) & Evidence
+│   ├── performance.md                          # Bundle Size, WASM Benchmarks & Profiling
+│   └── security-review.md                      # Manifest V3 CSP, DOMPurify & Permissions
+│
+└── reference/                                  # Reference & Appendices
+    ├── glossary.md                             # Domain Glossary (FSRS, MV3, WASI, etc.)
+    ├── key-files.md                            # Quick-Reference Guide to Critical Source Files
+    └── dependencies.md                         # Dependency Audit & License Verification
 ```
 
 ---
@@ -22,86 +70,53 @@ docs/
 
 ### 1. Architecture & System Design
 * 📘 [Architecture Overview](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/overview.md) — High-level MV3 Chrome Extension architecture, background service worker lifecycle, and runtime message routing.
+* 🏗️ [System Architecture](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/system-architecture.md) — Detailed 3-tier extension architecture, host page content injection, service worker orchestration, and standalone extension views.
+* 🌐 [Browser Extension Architecture](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/browser-extension-architecture.md) — Manifest V3 implementation, Chrome vs Firefox vs Safari cross-browser nuances, CSP declarations, permissions, and service worker lifecycles.
+* 🧩 [Module Architecture](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/module-architecture.md) — Module hierarchy, entry points, dependency couplings, and architectural boundaries.
+* 💾 [Data Architecture](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/data-architecture.md) — Core entities, relational models, local persistence strategy, and storage indexing.
 * 🔄 [End-to-End Data Flow](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/data-flow.md) — Data pipelines connecting Chrome Storage, Background Service Worker, Content Scripts, and WASM runtime.
 * 📦 [State Management](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/state-management.md) — Distributed state architecture, `StorageData` schema, and reactive `chrome.storage.onChanged` synchronization.
+* 📡 [Communication Architecture](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/communication-architecture.md) — Cross-context message passing, `MessageType` action routing, and `chrome.commands` shortcut dispatching.
 
-### 2. Feature Modules & Customization
-* 🎯 [Tracker & Editor](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/tracker.md) — In-page overlay widget, full-screen card editor, rating controls, launcher button toggle, DOMPurify markdown sanitization, rapid re-review debouncing, and preState snapshots.
-* 📊 [Dashboard & Views](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/dashboard.md) — Dashboard views: Popup, Heatmap, Forecast, Pomodoro timer, Study Plan, Summary generator, History, Action Service, and dynamic due badge counter.
-* ⌨️ [Keyboard Shortcuts Audit Patch](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/keyboard-shortcuts-audit.patch) — Authoritative audit and cross-browser mapping of all 53 popup functionalities to 24 browser Commands API shortcuts.
-* 📈 [Analytics Engine](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/analytics.md) — Algorithmic memory health, retention curves, exam readiness, review velocity, confidence bands, and future memory simulation.
-* 🖍️ [Highlighter & Options](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/highlighter.md) — In-page text selection highlighter, CSS Custom Highlights API integration, pure underline rendering, selection preservation across native color pickers, DOM metadata range recovery, and card linking.
-* 🛠️ [Common Utilities, Help & Privacy Hub](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/common.md) — Centralized domain constants (`constants.ts`), DOMPurify markdown security wrapper, Gzip JSONL streaming `BackupManager`, FNV-1a checksum validation, domain whitelisting, interactive Help Center SPA with dedicated Privacy Policy & Data tab, smooth tablist centering scroll, deep-linking / hash navigation, Firebase integration, logger, brand identity pill, and theme sync.
-* ⚙️ [Developer & Customization Guide](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/customization.md) — Step-by-step recipes for registering new coding platforms, modifying highlighter palettes, adjusting FSRS parameters, and editing CSS variables.
-* 📋 [Feature Enhancements Requirements](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/requirements.md) — Comprehensive feature backlog, requirements matrix (P0–P3), and open design questions.
+### 2. Architecture Diagrams
+* 🗺️ [System Overview Diagrams](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/diagrams/system-overview.md) — High-level system architecture and repository module decomposition diagrams.
+* ⚙️ [Runtime Architecture Diagrams](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/diagrams/runtime-architecture.md) — Runtime lifecycles, contexts, and review sequence flows.
+* 🔗 [Module Dependency Diagram](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/diagrams/module-dependencies.md) — Detailed cross-module dependency visualization.
+* 🔁 [Data Flow Diagrams](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/diagrams/data-flow.md) — Storage architecture and state propagation flows.
+* 🔔 [Notification Flow Diagram](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/architecture/diagrams/notification-flow.md) — Background alarm scheduling, quiet hours evaluation, and desktop push routing.
 
-### 3. FSRS Scheduler & WASM Engine
-* 🧮 [FSRS Algorithm & Math](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/fsrs-algorithm.md) — Mathematical foundations of FSRS-4.5, initial stability/difficulty formulas, retrievability decay, and state transitions.
-* 📖 [FSRS Rating & State Transition Guide](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/rating-guide.md) — User and algorithmic guide for rating selection (`Again`, `Hard`, `Good`, `Easy`), state transition matrix, and partial recall strategies.
-* ⚡ [WASM & Fast Optimizer](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/optimizer-wasm.md) — `@open-spaced-repetition/binding` WASM binding, WASI worker execution, parameter training, and `FsrsOptimizerFast` SGD fallback.
-* 🚀 [Performance & Memory](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/scheduler-wasm/performance.md) — WASM memory safety bounds, main-thread yielding heuristics, debouncing performance, and benchmark comparisons.
+### 3. Feature Deep Dives
+* 📋 [Feature Inventory & Matrix](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/README.md) — Comprehensive inventory of all 18+ application features with technical attributes.
+* 🎯 [Review System & Tracker](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/review-system.md) — In-page overlay widget, fullscreen card editor, rating controls, debounced submission, and preState rollbacks.
+* 🧮 [Spaced Repetition Engine](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/spaced-repetition-engine.md) — FSRS-4.5 mathematics, ts-fsrs integration, WASM optimizer, and heuristic SGD fallback.
+* 📅 [Exam Countdown Mode](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/exam-mode.md) — Target date workload redistribution algorithm, SVG countdown ring, and non-destructive schedule backup/restore.
+* ⏱️ [Pomodoro Study Timer](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/pomodoro.md) — Work/break cycle state machine, toolbar badge ticking, background alarm resilience, and productivity metrics.
+* 📈 [Analytics Engine](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/analytics.md) — 7-tab SPA dashboard: retention curves, velocity sparklines, exam readiness forecasting, and time-of-day insights.
+* 🖍️ [Highlighter & Annotations](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/highlights.md) — CSS Custom Highlights API integration, DOM metadata range serialization, and card approach linking.
+* 🔔 [Notifications & Reminders](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/notifications.md) — Due card alerts, smart study hour (17:00), daily streak nudge (20:00), quiet hours, and weekly summaries.
+* 💾 [Backup & Restore](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/backup-restore.md) — Streaming Gzip NDJSON export/import, 32-bit FNV-1a checksums, URL deduplication, and legacy JSON migration.
+* 📦 [Anki Integration](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/anki-integration.md) — Bi-directional TSV/TXT deck export and import with header directives and tag mapping.
+* 📊 [Dashboard Views](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/dashboard.md) — Popup dashboard, full-screen contribution heatmap, 30-day review forecast, and review history.
+* 🛠️ [Common Utilities & Help Hub](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/features/common.md) — Centralized constants, DOMPurify markdown sanitization, whitelist management, and Help Center SPA.
 
-### 4. Runtime Core
-* 🖥️ [Content Scripts](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/runtime-core/content-scripts.md) — `AlgoRecallOrchestrator`, DOM MutationObserver, SPA client-side history navigation, and `Notifier` alerts.
-* ⚙️ [Background Service Worker](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/runtime-core/background-service.md) — `AlgoRecallBackground` service worker, `chrome.alarms` setup, quiet hours, push notifications, and background Pomodoro ticker.
-* 📐 [Global Types & Utilities](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/runtime-core/utils-and-types.md) — Core domain types (`domain.ts`), backup types (`backup.ts`), WASM declarations (`wasm-runtime.d.ts`), and Chrome extension types.
+### 4. Data Subsystem
+* 🗂️ [Data Models](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/data/data-models.md) — Full TypeScript entity specifications (`Card`, `ReviewLog`, `FSRSCardState`, `PomodoroState`, `StorageData`).
+* 💽 [Storage Architecture](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/data/storage.md) — `chrome.storage.local` schema, access patterns, serialization limits, and concurrency control.
+* 🧬 [Data Migrations](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/data/data-migrations.md) — Backward compatibility strategies, legacy record migrations, and backup archive evolution.
 
-### 5. Testing & Verification
-* 🧪 [Test Suite Overview](./testing/test-suite-overview.md) — Jest configuration, Playwright setup, `chromeMock.js` mock environment, and coverage reporters.
-* 🔬 [Unit Test Suite](./testing/unit-tests.md) — Comprehensive breakdown of unit test modules covering FSRS, `dataUtils`, analytics, optimizer, and `backupManager`.
-* 🎭 [E2E & Integration Tests](./testing/e2e-integration.md) — Integration test scenarios (`tracker.test.js`, `multiCard.test.js`) and Playwright end-to-end browser extension loading specs.
+### 5. Engineering & Development Lifecycle
+* 🚀 [Getting Started](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/development/getting-started.md) — Environment setup, package installation, and browser developer mode loading.
+* 📂 [Project Structure](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/development/project-structure.md) — Complete annotated directory tree of all meaningful codebase files.
+* 🛠️ [Build Process](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/development/build-process.md) — Webpack 5 pipeline, TypeScript compilation, CopyPlugin rules, and release packaging.
+* 🧪 [Testing Architecture](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/development/testing.md) — Jest unit & integration testing, mock Chrome APIs, and Playwright E2E browser tests.
+* 🚢 [Deployment & Packaging](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/development/deployment.md) — Multi-browser builds, zip packaging, store submission guides, and isolation checks.
 
----
+### 6. Architecture & Technical Debt Review
+* 🔍 [Technical Debt Analysis](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/engineering/technical-debt.md) — Categorized audit of architectural debt, DOM boilerplate, unused dependencies, and risks.
+* ⚡ [Performance Analysis](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/engineering/performance.md) — Bundle size analysis, memory footprint, WASM execution benchmarks, and debounce metrics.
+* 🔒 [Security & Permissions Review](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/engineering/security-review.md) — Content Security Policy (`'wasm-unsafe-eval'`), DOMPurify sanitization, and permission justifications.
 
-## 🔗 Project Meta Documentation & Store Listings
-
-* 🏪 [Chrome Web Store Listing & Privacy Guide](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/CHROMEWEBSTORE.md) — Production store description, permissions justifications, and privacy overview.
-* 🤖 [Migration Rules & Guidelines](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/Agents.md) — Rules for TypeScript migration, Webpack `CopyPlugin` safety, and build gates.
-* 📜 [Third Party Licenses](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/THIRD_PARTY_LICENSES.md) — License declarations for bundled third-party libraries (ts-fsrs, marked, etc.).
-
----
-
-## 🧩 High-Level Module Relationship Diagram
-
-```mermaid
-graph TD
-    subgraph Browser Context
-        CS[Content Script: AlgoRecallOrchestrator]
-        HL[Highlighter Manager]
-        TR[Tracker Widget UI]
-    end
-
-    subgraph Background Service Worker
-        BG[AlgoRecallBackground SW]
-        AL[Chrome Alarms Manager]
-        NOTIF[Chrome Notifications]
-    end
-
-    subgraph Extension Storage & WASM
-        ST[(chrome.storage.local)]
-        FSRS[ts-fsrs Scheduler]
-        OPT[WASM / Fast Optimizer Engine]
-    end
-
-    subgraph Extension Pages & Documentation
-        POP[Popup Dashboard View]
-        AN[Analytics Dashboard View]
-        ED[Fullscreen Editor]
-        CG[Customization Guide]
-        RG[FSRS Rating Guide]
-    end
-
-    CS -->|Message Passing| BG
-    CS --> HL
-    CS --> TR
-    TR -->|Calculates Review| FSRS
-    FSRS --> RG
-    OPT -->|Train Weights| ST
-    BG -->|Alarms Trigger| NOTIF
-    BG -->|Read/Write| ST
-    CS -->|Read/Write| ST
-    POP -->|Read State| ST
-    AN -->|Compute Insights| ST
-    ED -->|Edit Cards| ST
-    CG -->|Configures Platform Rules| CS
-```
+### 7. Reference & Appendices
+* 📖 [Glossary](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/reference/glossary.md) — Definition of key terms (FSRS, Stability, Retrievability, Difficulty, MV3, NDJSON, etc.).
+* 🔑 [Key Files Directory](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/reference/key-files.md) — Directory of the 25 most critical source files and their responsibilities.
+* 📦 [Dependencies Audit](file:///Users/anmolrastogi/Documents/GitHub/algomonster-fsrs-extension/docs/reference/dependencies.md) — Direct and development dependency audit with licensing compliance.
