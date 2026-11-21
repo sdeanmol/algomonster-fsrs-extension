@@ -1,10 +1,10 @@
 /**
  * @file features/common/help/help.css
- * @context Standalone Options Page UI | Help & Documentation Center
+ * @context Standalone Options Page UI (features/common/help/help.html)
  * @description Stylesheet for the interactive Help Center and manual pages.
  * Controls sticky tab navigation, search bar input, card layouts, callout boxes,
  * search highlight markers, and responsive multi-column guides.
- * @associated-components features/common/help/help.tsx (HelpApp, HelpTabBar, HelpContactCard), helpContent.tsx
+ * @isolation Global (Page-scoped to help.html)
  * @custom-properties Inherits theme tokens from features/common/base.css (--md-bg, --md-surface, --md-primary, etc.)
  */
 body {
@@ -37,6 +37,17 @@ body {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+}
+
+.header-emoji {
+    display: none;
+}
+
+.main-logo-icon {
+    width: 44px;
+    height: 44px;
+    stroke: var(--md-primary);
+    filter: drop-shadow(0 4px 12px rgba(168, 199, 250, 0.3));
 }
 
 .header h1 {
@@ -539,6 +550,14 @@ body {
     margin: 14px 0;
 }
 
+.callout-box-warning {
+    border-left-color: var(--md-warning);
+}
+
+.callout-box-danger {
+    border-left-color: var(--md-danger);
+}
+
 .callout-box h4 {
     margin: 0 0 6px 0;
     font-size: 13px;
@@ -551,6 +570,254 @@ body {
     font-size: 12px;
     color: var(--md-text-med);
     line-height: 1.5;
+}
+
+/* ==========================================================================
+   Enhanced Visual Diagrams, Flowcharts & Timeline Components
+   ========================================================================== */
+
+.diagram-box {
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    padding: 18px;
+    margin: 16px 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+:root.light-theme .diagram-box {
+    background: #fdfdfd;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.diagram-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--md-text-high);
+    margin: 0 0 14px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.diagram-title .svg-icon {
+    width: 16px;
+    height: 16px;
+    stroke: var(--md-primary);
+}
+
+/* Directional Flow Nodes */
+.flow-diagram-row {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 8px 0;
+}
+
+@media (max-width: 768px) {
+    .flow-diagram-row {
+        flex-direction: column;
+        gap: 14px;
+    }
+}
+
+.flow-node {
+    flex: 1;
+    min-width: 170px;
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    position: relative;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.flow-node:hover {
+    border-color: var(--md-primary);
+    transform: translateY(-2px);
+}
+
+.flow-node-step {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--md-primary);
+    margin-bottom: 4px;
+}
+
+.flow-node-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--md-text-high);
+    margin-bottom: 6px;
+}
+
+.flow-node-desc {
+    font-size: 11.5px;
+    color: var(--md-text-med);
+    line-height: 1.4;
+    margin: 0;
+}
+
+.flow-node-tag {
+    margin-top: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 6px;
+    display: inline-block;
+    align-self: flex-start;
+    background: rgba(168, 199, 250, 0.15);
+    color: var(--md-primary);
+}
+
+.flow-arrow-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--md-text-low);
+    font-size: 18px;
+    font-weight: bold;
+    flex-shrink: 0;
+    padding: 0 4px;
+}
+
+@media (max-width: 768px) {
+    .flow-arrow-cell {
+        transform: rotate(90deg);
+        margin: -4px 0;
+    }
+}
+
+/* Lifecycle State Map Grid */
+.lifecycle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.lifecycle-card {
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    padding: 16px;
+    background: var(--md-surface-variant);
+    position: relative;
+    border-top: 4px solid var(--md-border);
+}
+
+.lifecycle-card-new {
+    border-top-color: var(--md-primary);
+}
+
+.lifecycle-card-learning {
+    border-top-color: var(--md-warning);
+}
+
+.lifecycle-card-review {
+    border-top-color: var(--md-success);
+}
+
+.lifecycle-card-relearning {
+    border-top-color: var(--md-danger);
+}
+
+.lifecycle-card h4 {
+    margin: 6px 0 8px 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--md-text-high);
+}
+
+.lifecycle-card p {
+    font-size: 12px;
+    color: var(--md-text-med);
+    margin: 0 0 10px 0;
+    line-height: 1.5;
+}
+
+.lifecycle-meta-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 11px;
+    border-top: 1px solid var(--md-border);
+    padding-top: 8px;
+}
+
+.lifecycle-meta-list li {
+    margin-bottom: 4px;
+    color: var(--md-text-low);
+}
+
+.lifecycle-meta-list strong {
+    color: var(--md-text-high);
+}
+
+/* FAQ Accordion Styling */
+.faq-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.faq-card {
+    background: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 10px;
+    padding: 16px;
+    transition: border-color 0.2s ease;
+}
+
+.faq-card:hover {
+    border-color: var(--md-border-hover);
+}
+
+.faq-q {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--md-text-high);
+    margin: 0 0 8px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.faq-q .faq-icon {
+    color: var(--md-primary);
+    font-weight: 900;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.faq-a {
+    font-size: 12px;
+    color: var(--md-text-med);
+    margin: 0;
+    line-height: 1.6;
+    padding-left: 20px;
+}
+
+/* Chronological Timeline Table Highlight */
+.timeline-pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.timeline-pill-day {
+    background: var(--md-surface);
+    border: 1px solid var(--md-border);
+    color: var(--md-text-high);
 }
 
 @media (prefers-reduced-motion: reduce) {

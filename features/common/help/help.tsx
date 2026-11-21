@@ -87,7 +87,7 @@ export interface HelpAppProps {
  */
 export const DEFAULT_HELP_TABS: HelpTabItem[] = [
     { id: 'overview', label: '🚀 Getting Started & Strategy' },
-    { id: 'fsrs', label: '🧠 FSRS & Review Engine' },
+    { id: 'fsrs', label: '🧠 AlgoRecall Engine' },
     { id: 'highlighter', label: '🖍️ Highlighter & Notes' },
     { id: 'analytics', label: '📊 Analytics & Science' },
     { id: 'gamification', label: '🎮 Gamification & Focus' },

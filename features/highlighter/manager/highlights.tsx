@@ -78,6 +78,8 @@ export interface HighlightCardViewProps {
     mark: HighlightMark;
     /** Title or URL of the host problem page */
     pageTitle: string;
+    /** Optional favicon URL of the problem page */
+    favIconUrl?: string;
     /** Current active search query for keyword highlighting */
     searchQuery: string;
     /** Callback to copy snippet text to clipboard */
@@ -95,6 +97,7 @@ export interface HighlightCardViewProps {
 export function HighlightCardView({
     mark,
     pageTitle,
+    favIconUrl,
     searchQuery,
     onCopy,
     onDelete
@@ -105,6 +108,8 @@ export function HighlightCardView({
     });
     const markType = mark.type || 'highlight';
     const formattedSnippet = HighlightsHelpers.highlightSearchMatch(mark.text, searchQuery);
+    const [faviconFailed, setFaviconFailed] = useState(false);
+    const showFavicon = Boolean(favIconUrl && !faviconFailed);
 
     return (
         <div className="highlight-card" style={{ borderLeftColor: mark.color }}>
@@ -144,11 +149,21 @@ export function HighlightCardView({
                     </div>
                 )}
                 <div className="highlight-meta">
-                    <a href={mark.url} target="_blank" rel="noreferrer" className="highlight-url">
-                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '13px', height: '13px' }}>
-                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                        </svg>
+                    <a href={mark.url} target="_blank" rel="noreferrer" className="highlight-url" title={pageTitle}>
+                        {showFavicon ? (
+                            <img
+                                src={favIconUrl}
+                                className="highlight-favicon"
+                                style={{ width: '14px', height: '14px', borderRadius: '2px', verticalAlign: 'middle', display: 'inline-block' }}
+                                alt=""
+                                onError={() => setFaviconFailed(true)}
+                            />
+                        ) : (
+                            <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '13px', height: '13px' }}>
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                        )}
                         <span>{pageTitle}</span>
                     </a>
                     <span className="highlight-date">
@@ -229,12 +244,16 @@ export function HighlightsListView({
             {marks.map((mark) => {
                 const bookmark = bookmarks.find(b => b.url === mark.url);
                 const title = bookmark && bookmark.title ? bookmark.title : mark.url;
+                const favIconUrl = (bookmark && bookmark.meta && (bookmark.meta as { favIconUrl?: string }).favIconUrl)
+                    ? (bookmark.meta as { favIconUrl?: string }).favIconUrl
+                    : undefined;
                 const markId = mark.id || mark.createdAt.toString();
                 return (
                     <HighlightCardView
                         key={markId}
                         mark={mark}
                         pageTitle={title}
+                        favIconUrl={favIconUrl}
                         searchQuery={searchQuery}
                         onCopy={onCopy}
                         onDelete={onDelete}

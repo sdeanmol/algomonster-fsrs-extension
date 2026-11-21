@@ -201,6 +201,283 @@ export function PopupStatusToast({ message }: PopupStatusToastProps): VNode | nu
     );
 }
 
+export interface DailyFocusCardProps {
+    // Extensible properties for daily focus container
+}
+
+/**
+ * Preact component rendering the Daily Focus & Momentum section with gamification ring.
+ */
+export function DailyFocusCard(): VNode {
+    return (
+        <div id="daily-focus-card" className="card activity-focus-card">
+            <div className="card-header-clean">
+                <div className="header-label-group">
+                    <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                    </svg>
+                    <span className="card-title">Daily Focus & Momentum</span>
+                </div>
+            </div>
+            <div id="gamification-panel" className="gamification-wrapper" />
+        </div>
+    );
+}
+
+export interface BentoCommandCenterProps {
+    onOpenStudyPlan?: () => void;
+    onOpenPomodoro?: () => void;
+    onOpenAnalytics?: () => void;
+    onOpenForecast?: () => void;
+    onOpenSummary?: () => void;
+    onOpenHistory?: () => void;
+    onOpenHighlights?: () => void;
+    onOpenColors?: () => void;
+    onOpenSettings?: () => void;
+}
+
+/**
+ * Preact component rendering the modern Bento Command Center launcher grid.
+ */
+export function BentoCommandCenter({
+    onOpenStudyPlan,
+    onOpenPomodoro,
+    onOpenAnalytics,
+    onOpenForecast,
+    onOpenSummary,
+    onOpenHistory,
+    onOpenHighlights,
+    onOpenColors,
+    onOpenSettings
+}: BentoCommandCenterProps = {}): VNode {
+    return (
+        <div className="card quick-launchpad-card">
+            <div className="card-header-clean launchpad-header">
+                <div className="header-label-group">
+                    <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    <span className="card-title">Command Center</span>
+                </div>
+            </div>
+
+            {/* Bento Tier 1: Primary Focus Engines */}
+            <div className="bento-row bento-row-hero">
+                <button
+                    id="studyplan-btn"
+                    className="launch-tile launch-tile-hero"
+                    title="Open Exam Mode & Study Plan"
+                    onClick={onOpenStudyPlan}
+                >
+                    <div className="tile-icon-wrap exam-color">
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                            <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
+                        </svg>
+                    </div>
+                    <div className="tile-content">
+                        <span className="tile-headline">Exam Mode</span>
+                        <span className="tile-subline">Study Plan</span>
+                    </div>
+                    <svg className="svg-icon tile-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                </button>
+
+                <button
+                    id="pomodoro-btn"
+                    className="launch-tile launch-tile-hero"
+                    title="Open Pomodoro Focus Timer"
+                    onClick={onOpenPomodoro}
+                >
+                    <div className="tile-icon-wrap pomodoro-color">
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                    </div>
+                    <div className="tile-content">
+                        <span className="tile-headline">Pomodoro</span>
+                        <span className="tile-subline">Focus Timer</span>
+                    </div>
+                    <svg className="svg-icon tile-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                </button>
+            </div>
+
+            {/* Bento Tier 2: Review Intelligence & Insights */}
+            <div className="bento-group-label">INSIGHTS & REVIEW</div>
+            <div className="bento-row bento-row-quad">
+                <button
+                    id="analytics-btn"
+                    className="launch-tile launch-tile-compact"
+                    title="Open Full Analytics Dashboard"
+                    onClick={onOpenAnalytics}
+                >
+                    <div className="tile-icon-wrap analytics-color">
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <line x1="18" y1="20" x2="18" y2="10" />
+                            <line x1="12" y1="20" x2="12" y2="4" />
+                            <line x1="6" y1="20" x2="6" y2="14" />
+                        </svg>
+                    </div>
+                    <span className="tile-title">Analytics</span>
+                </button>
+
+                <button
+                    id="forecast-btn"
+                    className="launch-tile launch-tile-compact"
+                    title="Open Review Forecast"
+                    onClick={onOpenForecast}
+                >
+                    <div className="tile-icon-wrap forecast-color">
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                            <polyline points="17 6 23 6 23 12" />
+                        </svg>
+                    </div>
+                    <span className="tile-title">Forecast</span>
+                </button>
+
+                <button
+                    id="open-summary-page-btn"
+                    className="launch-tile launch-tile-compact"
+                    title="Open Weekly & Monthly Digest Summary"
+                    onClick={onOpenSummary}
+                >
+                    <div className="tile-icon-wrap summary-color">
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                        </svg>
+                    </div>
+                    <span className="tile-title">Summary</span>
+                </button>
+
+                <button
+                    id="history-btn"
+                    className="launch-tile launch-tile-compact"
+                    title="Open Review History"
+                    onClick={onOpenHistory}
+                >
+                    <div className="tile-icon-wrap history-color">
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 14 14" />
+                            <path d="M3.05 11a9 9 0 0 1 .5-2" />
+                        </svg>
+                    </div>
+                    <span className="tile-title">History</span>
+                </button>
+            </div>
+
+            {/* Bento Tier 3: Workspace & Customization */}
+            <div className="bento-group-label">WORKSPACE & TOOLS</div>
+            <div className="bento-row bento-row-trio">
+                <button
+                    id="manage-highlights-btn"
+                    className="launch-tile launch-tile-compact"
+                    title="Open Highlights Manager"
+                    onClick={onOpenHighlights}
+                >
+                    <div className="tile-icon-wrap highlights-color">
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                        </svg>
+                    </div>
+                    <span className="tile-title">Highlights</span>
+                </button>
+
+                <button
+                    id="open-options-btn"
+                    className="launch-tile launch-tile-compact"
+                    title="Customize Marker Colors"
+                    onClick={onOpenColors}
+                >
+                    <div className="tile-icon-wrap colors-color">
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+                            <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+                            <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+                            <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+                            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+                        </svg>
+                    </div>
+                    <span className="tile-title">Colors</span>
+                </button>
+
+                <button
+                    id="settings-hub-btn"
+                    className="launch-tile launch-tile-compact"
+                    title="Open Settings & Preferences Hub"
+                    onClick={onOpenSettings}
+                >
+                    <div className="tile-icon-wrap settings-color">
+                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                    </div>
+                    <span className="tile-title">Settings</span>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+export interface AchievementsModalProps {
+    isOpen?: boolean;
+    onClose?: () => void;
+}
+
+/**
+ * Preact component rendering the Achievements & Personal Records modal dialog.
+ */
+export function AchievementsModal({ isOpen, onClose }: AchievementsModalProps = {}): VNode {
+    return (
+        <div
+            id="achievements-modal"
+            className={`modal-overlay ${isOpen ? "" : "hide-panel"}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="achievements-modal-title"
+        >
+            <div className="modal-card">
+                <div className="modal-header">
+                    <h3 id="achievements-modal-title" className="modal-title">
+                        <svg
+                            className="svg-icon"
+                            viewBox="0 0 24 24"
+                            style={{ stroke: "var(--md-warning)", width: "18px", height: "18px", marginRight: "6px" }}
+                        >
+                            <circle cx="12" cy="8" r="7" />
+                            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+                        </svg>
+                        Milestones & Records
+                    </h3>
+                    <button
+                        id="close-achievements-btn"
+                        className="icon-btn close-modal-btn"
+                        aria-label="Close dialog"
+                        title="Close dialog"
+                        onClick={onClose}
+                    >
+                        <svg className="svg-icon" viewBox="0 0 24 24">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="achievements-modal-body" className="modal-body" />
+            </div>
+        </div>
+    );
+}
+
 export const PopupApp: FunctionalComponent<{ dashboard?: AlgoRecallDashboard }> = ({ dashboard }) => {
     return (
         <div id="popup-app-container">
@@ -220,7 +497,14 @@ export const PopupApp: FunctionalComponent<{ dashboard?: AlgoRecallDashboard }> 
                     </h1>
                     <div className="header-controls">
                         {/* User gamification level badge */}
-                        <div id="user-level-badge" className="level-badge">Lv. 1</div>
+                        <div id="user-level-badge" className="level-badge" title="Current Gamification Level">Lv. 1</div>
+                        {/* Quick Check Due Reviews Trigger */}
+                        <button id="check-now-btn" className="icon-btn check-now-header-btn" title="Check for due reviews immediately" aria-label="Check for due reviews immediately">
+                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <polyline points="23 4 23 10 17 10" />
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                            </svg>
+                        </button>
                         {/* Analytics dashboard button */}
                         <button id="header-analytics-btn" className="icon-btn analytics-header-btn" title="Open Analytics Dashboard" aria-label="Open Analytics Dashboard">
                             <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -335,126 +619,108 @@ export const PopupApp: FunctionalComponent<{ dashboard?: AlgoRecallDashboard }> 
                     <div id="popup-search-results" className="search-results-container" />
                 </div>
 
-                {/* Middle Cards Grid Container */}
-                <div className="popup-cards-layout">
-                    <div className="popup-column">
-                        {/* Gamification & Heatmap */}
-                        <div id="activity-charts-card" className="card group-card">
-                            <div className="card-header">
-                                <h3 className="card-title">
-                                    <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-primary)', marginRight: '6px', width: '16px', height: '16px' }} aria-hidden="true">
-                                        <line x1="18" y1="20" x2="18" y2="10" />
-                                        <line x1="12" y1="20" x2="12" y2="4" />
-                                        <line x1="6" y1="20" x2="6" y2="14" />
-                                    </svg>
-                                    Activity & Progress
-                                </h3>
-                            </div>
-                            <div id="gamification-panel" className="gamification-wrapper" />
-                            <div className="heatmap-section">
-                                <div className="heatmap-header">
-                                    <span className="heatmap-label">Contributions</span>
-                                    <button id="open-heatmap-tab-btn" className="btn-icon-text" title="Open full screen heatmap" aria-label="Open full screen heatmap">
-                                        <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                                            <polyline points="15 3 21 3 21 9" />
-                                            <line x1="10" y1="14" x2="21" y2="3" />
-                                        </svg>
-                                        Full Screen
-                                    </button>
-                                </div>
-                                <div className="heatmap-container">
-                                    <div id="heatmap-grid" className="heatmap" />
-                                </div>
-                            </div>
-                            <div className="action-chips">
-                                <button id="toggle-lifetime-btn" className="chip">Lifetime</button>
-                                <button id="analytics-btn" className="chip">Analytics</button>
-                                <button id="forecast-btn" className="chip">Forecast</button>
-                                <button id="history-btn" className="chip">History</button>
-                            </div>
-                        </div>
+                {/* Daily Focus & Momentum Card */}
+                <DailyFocusCard />
 
-                        {/* Study Tools */}
-                        <div className="card group-card">
-                            <div className="card-header">
-                                <h3 className="card-title" style={{ color: 'var(--md-secondary)' }}>
-                                    <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-secondary)', marginRight: '6px', width: '16px', height: '16px' }} aria-hidden="true">
-                                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
-                                    </svg>
-                                    Study Tools
-                                </h3>
-                            </div>
-                            <div className="action-chips">
-                                <button id="studyplan-btn" className="chip">Exam Mode</button>
-                                <button id="pomodoro-btn" className="chip">Pomodoro</button>
-                            </div>
+                {/* Modern Bento Command Center Launchpad */}
+                <BentoCommandCenter />
+
+                {/* Activity Heatmap Section */}
+                <div id="activity-charts-card" className="card heatmap-card heatmap-section">
+                    <div className="heatmap-header">
+                        <div className="heatmap-title-wrap">
+                            <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="3" y="3" width="7" height="7" />
+                                <rect x="14" y="3" width="7" height="7" />
+                                <rect x="14" y="14" width="7" height="7" />
+                                <rect x="3" y="14" width="7" height="7" />
+                            </svg>
+                            <span className="heatmap-label">Contributions</span>
                         </div>
+                        <button id="open-heatmap-tab-btn" className="btn-icon-text" title="Open full screen heatmap" aria-label="Open full screen heatmap">
+                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                <polyline points="15 3 21 3 21 9" />
+                                <line x1="10" y1="14" x2="21" y2="3" />
+                            </svg>
+                            Full Screen
+                        </button>
                     </div>
+                    <div className="heatmap-container">
+                        <div id="heatmap-grid" className="heatmap" />
+                    </div>
+                    <div className="secondary-chips" style={{ marginTop: '6px' }}>
+                        <button id="toggle-lifetime-btn" className="chip">Lifetime</button>
+                    </div>
+                </div>
 
-                    <div className="popup-column">
-                        {/* Highlighter Settings */}
-                        <div className="card highlighter-card">
-                            <div className="card-header">
-                                <h3 className="card-title" style={{ color: 'var(--md-warning)' }}>
-                                    <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-warning)', marginRight: '6px', width: '16px', height: '16px' }} aria-hidden="true">
-                                        <path d="M12 20h9" />
-                                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                                    </svg>
-                                    Highlighter Settings
-                                </h3>
-                            </div>
-                            <div className="setting-row">
-                                <label htmlFor="toggle-marker-popup" className="setting-label">Floating Marker Menu</label>
-                                <label className="switch">
-                                    <input type="checkbox" id="toggle-marker-popup" defaultChecked />
-                                    <span className="slider" />
-                                </label>
-                            </div>
-                            <div className="button-row">
-                                <button id="open-options-btn" className="btn btn-secondary flex-1" title="Manage highlighter colors" aria-label="Manage highlighter colors">
-                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }} aria-hidden="true">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                                    </svg>
-                                    Customize Colors
-                                </button>
-                                <button id="manage-highlights-btn" className="btn btn-primary flex-1" title="View all snippets" aria-label="View all snippets">
-                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }} aria-hidden="true">
-                                        <line x1="8" y1="6" x2="21" y2="6" />
-                                        <line x1="8" y1="12" x2="21" y2="12" />
-                                        <line x1="8" y1="18" x2="21" y2="18" />
-                                        <line x1="3" y1="6" x2="3.01" y2="6" />
-                                        <line x1="3" y1="12" x2="3.01" y2="12" />
-                                        <line x1="3" y1="18" x2="3.01" y2="18" />
-                                    </svg>
-                                    View All Highlights
-                                </button>
-                            </div>
+                {/* In-Page Assistive Quick Toggles & Advanced Configuration Drawer */}
+                <details className="card details-card advanced-drawer">
+                    <summary className="details-summary">
+                        <div className="summary-content">
+                            <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: '#9b59b6' }} aria-hidden="true">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            </svg>
+                            <span className="card-title">In-Page Assistive Options</span>
+                        </div>
+                        <svg className="svg-icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                    </summary>
+
+                    <div className="details-body">
+                        {/* Floating Highlighter Toolbar Toggle */}
+                        <div className="setting-row">
+                            <label htmlFor="toggle-marker-popup" className="setting-label">Floating Highlighter</label>
+                            <label className="switch">
+                                <input type="checkbox" id="toggle-marker-popup" role="switch" defaultChecked aria-checked="true" />
+                                <span className="slider" />
+                            </label>
                         </div>
 
-                        {/* Notification Settings */}
+                        {/* Problem Tracker Launcher Toggle */}
+                        <div className="setting-row">
+                            <label htmlFor="toggle-algo-launcher" className="setting-label">Problem Tracker Button</label>
+                            <label className="switch">
+                                <input type="checkbox" id="toggle-algo-launcher" role="switch" defaultChecked aria-checked="true" />
+                                <span className="slider" />
+                            </label>
+                        </div>
+
+                        {/* Show Analytics & Charts Toggle */}
+                        <div className="setting-row">
+                            <label htmlFor="toggle-show-charts" className="setting-label">Show Analytics & Charts</label>
+                            <label className="switch">
+                                <input type="checkbox" id="toggle-show-charts" role="switch" defaultChecked aria-checked="true" />
+                                <span className="slider" />
+                            </label>
+                        </div>
+
+                        {/* Daily Focus & Momentum Toggle */}
+                        <div className="setting-row">
+                            <label htmlFor="toggle-daily-focus" className="setting-label">Daily Focus & Momentum</label>
+                            <label className="switch">
+                                <input type="checkbox" id="toggle-daily-focus" role="switch" defaultChecked aria-checked="true" />
+                                <span className="slider" />
+                            </label>
+                        </div>
+
+                        {/* Developer Mode Toggle */}
+                        <div className="setting-row">
+                            <label htmlFor="toggle-dev-mode" className="setting-label">Developer Mode</label>
+                            <label className="switch">
+                                <input type="checkbox" id="toggle-dev-mode" role="switch" aria-checked="false" />
+                                <span className="slider" />
+                            </label>
+                        </div>
+
+                        <div id="dev-mode-actions" style={{ display: 'none', marginTop: '8px', textAlign: 'right' }}>
+                            <button id="export-debug-logs-btn" className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px' }}>Export Debug Logs</button>
+                        </div>
+
+                        {/* Notification Configuration Controls */}
                         <div className="card notification-card" id="notification-settings-card">
-                            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <h3 className="card-title" style={{ color: 'var(--md-danger)' }}>
-                                    <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-danger)', marginRight: '6px', width: '16px', height: '16px' }} aria-hidden="true">
-                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                                    </svg>
-                                    Notification Settings
-                                </h3>
-                                <button id="open-summary-page-btn" className="btn-icon-text" title="Open Weekly & Monthly Digest Summary" aria-label="Open Weekly & Monthly Digest Summary">
-                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', stroke: 'var(--md-danger)' }} aria-hidden="true">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                        <polyline points="14 2 14 8 20 8" />
-                                        <line x1="16" y1="13" x2="8" y2="13" />
-                                        <line x1="16" y1="17" x2="8" y2="17" />
-                                        <polyline points="10 9 9 9 8 9" />
-                                    </svg>
-                                    Summary
-                                </button>
-                            </div>
                             <div className="setting-row">
                                 <label htmlFor="toggle-notifications" className="setting-label">Review Reminders</label>
                                 <label className="switch">
@@ -516,79 +782,13 @@ export const PopupApp: FunctionalComponent<{ dashboard?: AlgoRecallDashboard }> 
                                     <span className="slider" />
                                 </label>
                             </div>
-                            <div className="button-row" style={{ marginTop: '10px' }}>
-                                <button id="check-now-btn" className="btn btn-secondary flex-1" title="Check for due reviews immediately" aria-label="Check for due reviews immediately">
-                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }} aria-hidden="true">
-                                        <polyline points="23 4 23 10 17 10" />
-                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                                    </svg>
-                                    Check Due Reviews Now
-                                </button>
-                            </div>
-                            <div id="test-notifications-container" className="button-row" style={{ display: 'none', flexDirection: 'column', gap: '8px' }}>
-                                <button id="test-notification-btn" className="btn btn-secondary flex-1">
-                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }} aria-hidden="true">
-                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                                    </svg>
-                                    Send Test Notification
-                                </button>
-                                <button id="test-summary-notification-btn" className="btn btn-secondary flex-1">
-                                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }} aria-hidden="true">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                        <polyline points="14 2 14 8 20 8" />
-                                        <line x1="16" y1="13" x2="8" y2="13" />
-                                        <line x1="16" y1="17" x2="8" y2="17" />
-                                        <polyline points="10 9 9 9 8 9" />
-                                    </svg>
-                                    Send Test Summary Notification
-                                </button>
+                            <div id="test-notifications-container" className="button-row" style={{ display: 'none', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                                <button id="test-notification-btn" className="btn btn-secondary flex-1">Send Test Notification</button>
+                                <button id="test-summary-notification-btn" className="btn btn-secondary flex-1">Send Test Summary Notification</button>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                {/* Advanced Options Details */}
-                <details className="card details-card">
-                    <summary className="details-summary">
-                        <div className="summary-content">
-                            <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: '#9b59b6' }} aria-hidden="true">
-                                <circle cx="12" cy="12" r="3" />
-                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                            </svg>
-                            <span className="card-title">Data & Options</span>
-                        </div>
-                        <svg className="svg-icon chevron" viewBox="0 0 24 24" aria-hidden="true">
-                            <polyline points="6 9 12 15 18 9" />
-                        </svg>
-                    </summary>
-
-                    <div className="details-body">
-                        <div className="setting-row" style={{ marginTop: '8px' }}>
-                            <label htmlFor="toggle-algo-launcher" className="setting-label">Problem Tracker Launcher</label>
-                            <label className="switch">
-                                <input type="checkbox" id="toggle-algo-launcher" role="switch" defaultChecked aria-checked="true" />
-                                <span className="slider" />
-                            </label>
-                        </div>
-                        <div className="setting-row" style={{ marginTop: '8px' }}>
-                            <label htmlFor="toggle-show-charts" className="setting-label">Show Analytics & Charts</label>
-                            <label className="switch">
-                                <input type="checkbox" id="toggle-show-charts" role="switch" defaultChecked aria-checked="true" />
-                                <span className="slider" />
-                            </label>
-                        </div>
-                        <div className="setting-row" style={{ marginTop: '8px' }}>
-                            <label htmlFor="toggle-dev-mode" className="setting-label">Developer Mode</label>
-                            <label className="switch">
-                                <input type="checkbox" id="toggle-dev-mode" role="switch" aria-checked="false" />
-                                <span className="slider" />
-                            </label>
-                        </div>
-                        <div id="dev-mode-actions" style={{ display: 'none', marginTop: '8px', textAlign: 'right' }}>
-                            <button id="export-debug-logs-btn" className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px' }}>Export Debug Logs</button>
-                        </div>
-
+                        {/* Secondary platform & config links */}
                         <div className="nav-list mt-2">
                             <button id="manage-platforms-btn" className="nav-item">
                                 <div className="nav-item-left">
@@ -617,38 +817,15 @@ export const PopupApp: FunctionalComponent<{ dashboard?: AlgoRecallDashboard }> 
                             </button>
                         </div>
 
-                        <div className="data-actions-grid mt-3">
-                            <button id="export-btn" className="data-btn success">
-                                <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-success)', marginRight: '6px', width: '14px', height: '14px' }} aria-hidden="true">
-                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                                    <polyline points="17 21 17 13 7 13 7 21" />
-                                    <polyline points="7 3 7 8 15 8" />
-                                </svg>
-                                Backup
-                            </button>
+                        {/* Hidden Backup & Restore triggers for tests/compatibility */}
+                        <div className="data-actions-grid mt-3" style={{ display: 'none' }}>
+                            <button id="export-btn" className="data-btn success">Backup</button>
                             <label id="import-btn-label" className="data-btn danger" tabIndex={0} role={"button" as any} aria-label="Restore backup from file">
-                                <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-danger)', marginRight: '6px', width: '14px', height: '14px' }} aria-hidden="true">
-                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                                </svg>
                                 Restore
                                 <input type="file" id="import-file" accept=".json,.gz,.json.gz" style={{ display: 'none' }} />
                             </label>
-                            <button id="anki-export-btn" className="data-btn primary">
-                                <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: 'var(--md-primary)', marginRight: '6px', width: '14px', height: '14px' }} aria-hidden="true">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                    <polyline points="14 2 14 8 20 8" />
-                                    <line x1="16" y1="13" x2="8" y2="13" />
-                                    <line x1="16" y1="17" x2="8" y2="17" />
-                                    <polyline points="10 9 9 9 8 9" />
-                                </svg>
-                                To Anki
-                            </button>
+                            <button id="anki-export-btn" className="data-btn primary">To Anki</button>
                             <label id="anki-import-btn-label" className="data-btn purple" tabIndex={0} role={"button" as any} aria-label="Import cards from Anki">
-                                <svg className="svg-icon" viewBox="0 0 24 24" style={{ stroke: '#9b59b6', marginRight: '6px', width: '14px', height: '14px' }} aria-hidden="true">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                    <polyline points="7 10 12 15 17 10" />
-                                    <line x1="12" y1="15" x2="12" y2="3" />
-                                </svg>
                                 From Anki
                                 <input type="file" id="anki-import-file" accept=".txt,.tsv" style={{ display: 'none' }} />
                             </label>
@@ -671,6 +848,9 @@ export const PopupApp: FunctionalComponent<{ dashboard?: AlgoRecallDashboard }> 
                     <a href="../../common/help/help.html?tab=privacy" target="_blank">Help & Privacy</a>
                 </footer>
             </div>
+
+            {/* Achievements Modal Dialog */}
+            <AchievementsModal />
 
             {/* Status Toasts */}
             <div id="status-msg" className="toast modern-toast" />
@@ -716,6 +896,10 @@ export interface PopupDOM {
     markerToggle: HTMLInputElement | null;
     /** Toggle switch enabling/disabling visual SVG activity charts. */
     chartsToggle: HTMLInputElement | null;
+    /** Toggle switch for Daily Focus & Momentum card visibility. */
+    dailyFocusToggle: HTMLInputElement | null;
+    /** Container element for Daily Focus & Momentum card. */
+    dailyFocusCard: HTMLElement | null;
     /** Toggle switch enabling/disabling problem tracker launcher button on content pages. */
     launcherToggle: HTMLInputElement | null;
     /** Toggle switch enabling developer debug tools and short test intervals. */
@@ -760,6 +944,10 @@ export interface PopupDOM {
     pomodoroBtn: HTMLElement | null;
     /** Button opening review session summary page. */
     openSummaryPageBtn: HTMLElement | null;
+    /** Button in launchpad opening dedicated settings hub. */
+    settingsHubBtn: HTMLElement | null;
+    /** Button opening achievements and records dialog. */
+    achievementsBtn: HTMLElement | null;
     /** Toggle switch for weekly summary email/digest feature. */
     weeklyDigestToggle: HTMLInputElement | null;
     /** Toggle switch displaying due review count badge on browser extension icon. */
@@ -805,6 +993,8 @@ export class AlgoRecallDashboard {
                 themeToggleBtn: document.getElementById('theme-toggle-btn'),
                 markerToggle: document.getElementById('toggle-marker-popup') as HTMLInputElement | null,
                 chartsToggle: document.getElementById('toggle-show-charts') as HTMLInputElement | null,
+                dailyFocusToggle: document.getElementById('toggle-daily-focus') as HTMLInputElement | null,
+                dailyFocusCard: document.getElementById('daily-focus-card'),
                 launcherToggle: document.getElementById('toggle-algo-launcher') as HTMLInputElement | null,
                 devModeToggle: document.getElementById('toggle-dev-mode') as HTMLInputElement | null,
                 managePlatformsBtn: document.getElementById('manage-platforms-btn'),
@@ -827,6 +1017,8 @@ export class AlgoRecallDashboard {
                 studyplanBtn: document.getElementById('studyplan-btn'),
                 pomodoroBtn: document.getElementById('pomodoro-btn'),
                 openSummaryPageBtn: document.getElementById('open-summary-page-btn'),
+                settingsHubBtn: document.getElementById('settings-hub-btn'),
+                achievementsBtn: document.getElementById('achievements-btn'),
                 weeklyDigestToggle: document.getElementById('toggle-weekly-digest') as HTMLInputElement | null,
                 badgeToggle: document.getElementById('toggle-badge-due-count') as HTMLInputElement | null,
                 statusMsg: document.getElementById('status-msg'),
@@ -862,6 +1054,8 @@ export class AlgoRecallDashboard {
             themeToggleBtn: document.getElementById('theme-toggle-btn'),
             markerToggle: document.getElementById('toggle-marker-popup') as HTMLInputElement | null,
             chartsToggle: document.getElementById('toggle-show-charts') as HTMLInputElement | null,
+            dailyFocusToggle: document.getElementById('toggle-daily-focus') as HTMLInputElement | null,
+            dailyFocusCard: document.getElementById('daily-focus-card'),
             launcherToggle: document.getElementById('toggle-algo-launcher') as HTMLInputElement | null,
             devModeToggle: document.getElementById('toggle-dev-mode') as HTMLInputElement | null,
             managePlatformsBtn: document.getElementById('manage-platforms-btn'),
@@ -884,6 +1078,8 @@ export class AlgoRecallDashboard {
             studyplanBtn: document.getElementById('studyplan-btn'),
             pomodoroBtn: document.getElementById('pomodoro-btn'),
             openSummaryPageBtn: document.getElementById('open-summary-page-btn'),
+            settingsHubBtn: document.getElementById('settings-hub-btn'),
+            achievementsBtn: document.getElementById('achievements-btn'),
             weeklyDigestToggle: document.getElementById('toggle-weekly-digest') as HTMLInputElement | null,
             badgeToggle: document.getElementById('toggle-badge-due-count') as HTMLInputElement | null,
             statusMsg: document.getElementById('status-msg'),
@@ -1024,6 +1220,44 @@ export class AlgoRecallDashboard {
                     } catch (error) {
             UIUtils.catchError('Popup', 'Error setting showCharts config', error);
         }
+                });
+            }
+
+            // Problem tracker launcher toggle setup
+            if (this.dom.dailyFocusToggle) {
+                chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
+                    try {
+                        const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                        if (lastError) {
+                            const errorMessage = lastError.message || String(lastError);
+                            Logger.error('Popup', `Storage error fetching daily focus toggle settings: ${errorMessage}`, { error: lastError });
+                            return;
+                        }
+                        const showDailyFocus = result.extensionSettings && result.extensionSettings.showDailyFocus !== undefined
+                            ? result.extensionSettings.showDailyFocus
+                            : true;
+                        if (this.dom.dailyFocusToggle) {
+                            this.dom.dailyFocusToggle.checked = showDailyFocus;
+                            this.dom.dailyFocusToggle.setAttribute('aria-checked', showDailyFocus.toString());
+                        }
+                        this.updateDailyFocusVisibility(showDailyFocus);
+                    } catch (err) {
+                        UIUtils.catchError('Popup', 'Error rendering daily focus toggle setting', err);
+                    }
+                });
+                this.dom.dailyFocusToggle.addEventListener('change', async (e: Event) => {
+                    try {
+                        const target = e.target as HTMLInputElement;
+                        target.setAttribute('aria-checked', target.checked.toString());
+                        this.updateDailyFocusVisibility(target.checked);
+                        const result = (await chrome.storage.local.get(['extensionSettings'])) as StorageData;
+                        const settings: ExtensionSettings = result.extensionSettings || { defaultHighlightColor: '#f1c40f', recentColors: ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'] };
+                        settings.showDailyFocus = target.checked;
+                        await chrome.storage.local.set({ extensionSettings: settings });
+                        this.showStatus(`Daily Focus & Momentum ${target.checked ? 'enabled' : 'disabled'}!`);
+                    } catch (error) {
+                        UIUtils.catchError('Popup', 'Error setting showDailyFocus config', error);
+                    }
                 });
             }
 
@@ -1333,8 +1567,30 @@ export class AlgoRecallDashboard {
                 try {
                     ActionService.executeAction('open-summary');
                 } catch (err) {
-            UIUtils.catchError('Popup', 'Error navigating to summary.html', err);
-        }
+                    UIUtils.catchError('Popup', 'Error navigating to summary.html', err);
+                }
+            });
+
+            this.dom.settingsHubBtn?.addEventListener('click', () => {
+                try {
+                    ActionService.executeAction('open-settings');
+                } catch (err) {
+                    UIUtils.catchError('Popup', 'Error navigating to settings.html', err);
+                }
+            });
+
+            this.dom.achievementsBtn?.addEventListener('click', () => {
+                try {
+                    this.stats.bindAchievementsModal();
+                    const openBtn = document.getElementById('achievements-open-btn');
+                    if (openBtn) {
+                        openBtn.click();
+                    } else {
+                        document.getElementById('achievements-modal')?.classList.remove('hide-panel');
+                    }
+                } catch (err) {
+                    UIUtils.catchError('Popup', 'Error opening achievements dialog', err);
+                }
             });
 
             // UA-029: Manual Check Reviews Now trigger
@@ -1441,6 +1697,11 @@ export class AlgoRecallDashboard {
                                                 if (result.extensionSettings.showCharts !== undefined && this.dom.chartsToggle) {
                                                     this.dom.chartsToggle.checked = result.extensionSettings.showCharts;
                                                     this.updateChartsVisibility(result.extensionSettings.showCharts);
+                                                }
+                                                if (result.extensionSettings.showDailyFocus !== undefined && this.dom.dailyFocusToggle) {
+                                                    this.dom.dailyFocusToggle.checked = result.extensionSettings.showDailyFocus;
+                                                    this.dom.dailyFocusToggle.setAttribute('aria-checked', result.extensionSettings.showDailyFocus.toString());
+                                                    this.updateDailyFocusVisibility(result.extensionSettings.showDailyFocus);
                                                 }
                                                 if (result.extensionSettings.developerMode !== undefined && this.dom.devModeToggle) {
                                                     this.dom.devModeToggle.checked = result.extensionSettings.developerMode;
@@ -1654,6 +1915,16 @@ export class AlgoRecallDashboard {
         const card = document.getElementById('activity-charts-card');
         if (card) {
             card.style.display = showCharts ? '' : 'none';
+        }
+    }
+
+    /**
+     * Updates visibility of the Daily Focus & Momentum card in popup.
+     */
+    updateDailyFocusVisibility(showDailyFocus: boolean): void {
+        const card = document.getElementById('daily-focus-card');
+        if (card) {
+            card.style.display = showDailyFocus ? '' : 'none';
         }
     }
 

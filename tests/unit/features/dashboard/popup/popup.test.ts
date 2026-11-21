@@ -38,6 +38,8 @@ describe('AlgoRecallDashboard (Popup)', () => {
       <input id="toggle-marker-popup" type="checkbox" />
       <input id="toggle-algo-launcher" type="checkbox" />
       <input id="toggle-show-charts" type="checkbox" />
+      <input id="toggle-daily-focus" type="checkbox" />
+      <div id="daily-focus-card"></div>
       <div id="activity-charts-card"></div>
       <input id="toggle-dev-mode" type="checkbox" />
       <button id="manage-platforms-btn"></button>
@@ -45,9 +47,9 @@ describe('AlgoRecallDashboard (Popup)', () => {
       <button id="help-btn"></button>
       <button id="history-btn"></button>
       <button id="open-heatmap-tab-btn"></button>
-      <div id="box-total"></div>
-      <div id="box-due"></div>
-      <div id="box-retention"></div>
+      <div id="box-total" tabindex="0"></div>
+      <div id="box-due" tabindex="0"></div>
+      <div id="box-retention" tabindex="0"></div>
       <button id="manage-highlights-btn"></button>
       <button id="open-options-btn"></button>
       <button id="analytics-btn"></button>
@@ -60,6 +62,9 @@ describe('AlgoRecallDashboard (Popup)', () => {
       <button id="studyplan-btn"></button>
       <button id="pomodoro-btn"></button>
       <button id="open-summary-page-btn"></button>
+      <button id="settings-hub-btn"></button>
+      <button id="achievements-btn"></button>
+      <div id="achievements-modal" class="hide-panel"></div>
       <input id="toggle-weekly-digest" type="checkbox" />
       <input id="toggle-badge-due-count" type="checkbox" />
       <button id="check-now-btn"></button>
@@ -109,7 +114,7 @@ describe('AlgoRecallDashboard (Popup)', () => {
     (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
       const result = {
         fsrsCards: getFreshCards(),
-        extensionSettings: { showMarkerPopup: true, showCharts: true, developerMode: true },
+        extensionSettings: { showMarkerPopup: true, showCharts: true, showDailyFocus: true, developerMode: true },
         fsrsActivity: { '2026-08-03': 5 },
         dailyGoalTarget: 10,
         notificationSettings: { enabled: true, frequency: '60' },
@@ -218,6 +223,12 @@ describe('AlgoRecallDashboard (Popup)', () => {
 
       const summaryBtn = document.getElementById('open-summary-page-btn');
       summaryBtn?.click();
+
+      const settingsHubBtn = document.getElementById('settings-hub-btn');
+      settingsHubBtn?.click();
+
+      const achievementsBtn = document.getElementById('achievements-btn');
+      achievementsBtn?.click();
 
       const managePlatformsBtn = document.getElementById('manage-platforms-btn');
       managePlatformsBtn?.click();
@@ -403,6 +414,8 @@ describe('AlgoRecallDashboard (Popup)', () => {
         'studyplan-btn',
         'pomodoro-btn',
         'open-summary-page-btn',
+        'settings-hub-btn',
+        'achievements-btn',
         'help-btn',
         'history-btn'
       ];
@@ -676,7 +689,7 @@ describe('AlgoRecallDashboard (Popup)', () => {
       BROWSER_CONFIG.supportsNotifications = origSupports;
     });
 
-    it('UX-003: enables keyboard activation for backup restore and Anki import labels', async () => {
+    it('UX-003: enables keyboard activation for backup restore, Anki import labels, and metric stat boxes', async () => {
       await dashboard.init();
       const importFile = document.getElementById('import-file') as HTMLInputElement;
       const ankiImportFile = document.getElementById('anki-import-file') as HTMLInputElement;
@@ -697,26 +710,66 @@ describe('AlgoRecallDashboard (Popup)', () => {
       // Other keys do nothing
       importLabel.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
       expect(importClickSpy).toHaveBeenCalledTimes(1);
+
+      // Stat boxes accessible keyboard navigation
+      const boxTotal = document.getElementById('box-total') as HTMLElement;
+      const boxDue = document.getElementById('box-due') as HTMLElement;
+      const boxRetention = document.getElementById('box-retention') as HTMLElement;
+
+      const tabsCreateSpy = jest.spyOn(chrome.tabs, 'create');
+
+      boxTotal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      expect(tabsCreateSpy).toHaveBeenCalled();
+
+      boxDue.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+      expect(tabsCreateSpy).toHaveBeenCalled();
+
+      boxRetention.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      expect(tabsCreateSpy).toHaveBeenCalled();
     });
 
-    it('UX-009: toggle-show-charts dynamically updates activity-charts-card visibility', async () => {
+    it('UX-009: toggle-show-charts updates activity-charts-card while daily-focus-card remains visible', async () => {
       await dashboard.init();
       const chartsToggle = document.getElementById('toggle-show-charts') as HTMLInputElement;
       const activityCard = document.getElementById('activity-charts-card') as HTMLElement;
+      const dailyFocusCard = document.getElementById('daily-focus-card') as HTMLElement;
 
       expect(activityCard.style.display).not.toBe('none');
+      expect(dailyFocusCard.style.display).not.toBe('none');
 
-      // Toggle off
+      // Toggle off - activity charts (heatmap) hidden, daily focus stays visible
       chartsToggle.checked = false;
       chartsToggle.dispatchEvent(new Event('change'));
       await Promise.resolve();
       expect(activityCard.style.display).toBe('none');
+      expect(dailyFocusCard.style.display).not.toBe('none');
 
-      // Toggle on
+      // Toggle on - activity charts restored
       chartsToggle.checked = true;
       chartsToggle.dispatchEvent(new Event('change'));
       await Promise.resolve();
       expect(activityCard.style.display).not.toBe('none');
+      expect(dailyFocusCard.style.display).not.toBe('none');
+    });
+
+    it('UX-010: toggle-daily-focus updates daily-focus-card visibility', async () => {
+      await dashboard.init();
+      const dailyFocusToggle = document.getElementById('toggle-daily-focus') as HTMLInputElement;
+      const dailyFocusCard = document.getElementById('daily-focus-card') as HTMLElement;
+
+      expect(dailyFocusCard.style.display).not.toBe('none');
+
+      // Toggle off - daily focus hidden
+      dailyFocusToggle.checked = false;
+      dailyFocusToggle.dispatchEvent(new Event('change'));
+      await Promise.resolve();
+      expect(dailyFocusCard.style.display).toBe('none');
+
+      // Toggle on - daily focus restored
+      dailyFocusToggle.checked = true;
+      dailyFocusToggle.dispatchEvent(new Event('change'));
+      await Promise.resolve();
+      expect(dailyFocusCard.style.display).not.toBe('none');
     });
   });
 });

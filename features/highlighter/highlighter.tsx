@@ -69,6 +69,8 @@ export interface HighlighterUtils {
     ensureHighlightStyle?: (color: string, type: string) => string;
     /** Parses document title and DOM structure for clean problem titles. */
     getExtractedProblemTitle?: () => string;
+    /** Resolves active page favicon URL. */
+    getFaviconUrl?: () => string;
     [key: string]: unknown;
 }
 
@@ -1260,10 +1262,13 @@ export class Highlighter {
             if (!this.state.bookmarks) this.state.bookmarks = [];
             if (!this.state.bookmarks.find((b: BookmarkItem) => b.url === cleanUrl)) {
                 const problemTitle = this.utils.getExtractedProblemTitle ? this.utils.getExtractedProblemTitle() : document.title;
+                const favIconUrl = (this.utils && typeof this.utils.getFaviconUrl === 'function')
+                    ? this.utils.getFaviconUrl()
+                    : (document.querySelector('link[rel~="icon"], link[rel="shortcut icon"]') as HTMLLinkElement | null)?.href || (window.location.origin ? `${window.location.origin}/favicon.ico` : '');
                 this.state.bookmarks.push({
                     url: cleanUrl,
                     title: problemTitle,
-                    meta: { favIconUrl: 'https://algo.monster/favicon.ico' }
+                    meta: favIconUrl ? { favIconUrl } : undefined
                 });
             }
 

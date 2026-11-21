@@ -401,7 +401,15 @@ export function ForecastApp({ initialCards, initialSettings }: ForecastAppProps)
                         </svg>
                         <span className="algorecall-brand-name">AlgoRecall</span>
                     </div>
-                    <h1>Review Forecast</h1>
+                    <h1>
+                        <svg className="svg-icon page-header-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                            <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        Review Forecast
+                    </h1>
                     <p className="subtitle" id="forecast-subtitle">{`${cards.length} total cards tracked`}</p>
                 </div>
                 <div className="header-actions">

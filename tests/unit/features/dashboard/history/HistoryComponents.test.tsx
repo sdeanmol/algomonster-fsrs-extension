@@ -95,14 +95,24 @@ describe('History Preact Components', () => {
             expect(container.querySelector('.card-value')?.textContent).toBe('120');
             expect(container.querySelector('.card-subtitle')?.textContent).toContain('Active Days: 25');
 
-            (container.querySelector('.card-year') as HTMLElement).click();
-            expect(onCardClick).toHaveBeenCalled();
+            const yearCard = container.querySelector('.card-year') as HTMLElement;
+            expect(yearCard.getAttribute('tabindex')).toBe('0');
+            expect(yearCard.getAttribute('role')).toBe('button');
+
+            yearCard.click();
+            expect(onCardClick).toHaveBeenCalledTimes(1);
+
+            yearCard.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+            expect(onCardClick).toHaveBeenCalledTimes(2);
+
+            yearCard.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+            expect(onCardClick).toHaveBeenCalledTimes(3);
 
             (container.querySelector('.btn-year') as HTMLElement).click();
             expect(onViewCards).toHaveBeenCalled();
         });
 
-        it('renders day card with date title and link', () => {
+        it('renders day card with date title and link and handles keyboard navigation', () => {
             const onCardClick = jest.fn();
 
             render(
@@ -110,7 +120,7 @@ describe('History Preact Components', () => {
                     type="day"
                     title="Sat, Aug 1"
                     value={15}
-                    subtitle="Cards Reviewed"
+                    subtitle="Patterns Reviewed"
                     date="2026-08-01"
                     onCardClick={onCardClick}
                 />,
@@ -120,6 +130,17 @@ describe('History Preact Components', () => {
             expect(container.querySelector('.card-title')?.textContent).toBe('Sat, Aug 1');
             expect(container.querySelector('.card-value')?.textContent).toBe('15');
             expect(container.querySelector('.card-day-link')).not.toBeNull();
+
+            const dayCard = container.querySelector('.card-day') as HTMLElement;
+            expect(dayCard.getAttribute('tabindex')).toBe('0');
+            expect(dayCard.getAttribute('role')).toBe('button');
+            expect(dayCard.getAttribute('aria-label')).toBe('View cards reviewed on Sat, Aug 1');
+
+            dayCard.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+            expect(onCardClick).toHaveBeenCalledTimes(1);
+
+            dayCard.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+            expect(onCardClick).toHaveBeenCalledTimes(2);
         });
     });
 

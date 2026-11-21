@@ -64,6 +64,16 @@ export class UIUtils {
     }
 
     /**
+     * Formats an unknown error or thrown value into a clean error string message.
+     * Eliminates repetitive `err instanceof Error ? err.message : String(err)` patterns.
+     * @param err - Unknown error object or thrown value.
+     * @returns Extracted error message string.
+     */
+    static formatError(err: unknown): string {
+        return err instanceof Error ? err.message : String(err);
+    }
+
+    /**
      * Centralized error logger reducing boilerplate in try-catch blocks.
      * Extracts error messages, merges metadata, and logs to `Logger.error`.
      * @param moduleName - Originating subsystem or module name.
@@ -72,7 +82,7 @@ export class UIUtils {
      * @param metadata - Optional key-value object containing contextual arguments.
      */
     static catchError(moduleName: string, contextMessage: string, err: unknown, metadata?: Record<string, unknown>): void {
-        const errorMessage = err instanceof Error ? err.message : String(err);
+        const errorMessage = this.formatError(err);
         const logData = metadata ? { err, ...metadata } : { err };
         Logger.error(moduleName, `${contextMessage}: ${errorMessage}`, logData);
     }
@@ -92,5 +102,43 @@ export class UIUtils {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Safely executes a synchronous function with standardized exception handling.
+     * Returns the fallback value if the operation throws.
+     * @param fn - Synchronous function to execute.
+     * @param fallback - Fallback value returned upon error.
+     * @param moduleName - Optional module name for centralized error logging.
+     * @param contextMessage - Optional contextual description of the operation.
+     */
+    static trySafe<T>(fn: () => T, fallback: T, moduleName?: string, contextMessage?: string): T {
+        try {
+            return fn();
+        } catch (err) {
+            if (moduleName && contextMessage) {
+                this.catchError(moduleName, contextMessage, err);
+            }
+            return fallback;
+        }
+    }
+
+    /**
+     * Safely executes an asynchronous function with standardized exception handling.
+     * Returns the fallback value if the promise rejects or throws.
+     * @param fn - Asynchronous function returning a Promise.
+     * @param fallback - Fallback value returned upon error.
+     * @param moduleName - Optional module name for centralized error logging.
+     * @param contextMessage - Optional contextual description of the operation.
+     */
+    static async trySafeAsync<T>(fn: () => Promise<T>, fallback: T, moduleName?: string, contextMessage?: string): Promise<T> {
+        try {
+            return await fn();
+        } catch (err) {
+            if (moduleName && contextMessage) {
+                this.catchError(moduleName, contextMessage, err);
+            }
+            return fallback;
+        }
     }
 }

@@ -159,7 +159,7 @@
       "description": "Open Active Websites Manager"
     },
     "open-fsrs-config": {
-      "description": "Open FSRS Algorithm Configuration"
+      "description": "Open AlgoRecall Engine Configuration"
     },
     "export-backup": {
       "description": "Export data backup"

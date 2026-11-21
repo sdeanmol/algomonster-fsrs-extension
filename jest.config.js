@@ -9,6 +9,7 @@ module.exports = {
     'features/**/*.{ts,js}',
     'content/**/*.{ts,js}',
     'background/**/*.{ts,js}',
+    'decorators/**/*.{ts,js}',
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!features/common/marked.min.js'

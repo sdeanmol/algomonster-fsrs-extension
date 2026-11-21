@@ -183,6 +183,7 @@ export const ACTION_URL_MAP: Record<string, string> = {
     'open-websites-manager': 'features/common/websites/websites.html',
     'open-fsrs-config': 'features/tracker/config/fsrsConfig.html',
     'open-help': 'features/common/help/help.html',
+    'open-settings': 'features/common/settings/settings.html',
 };
 
 /** Abbreviated calendar day names starting with Sunday */

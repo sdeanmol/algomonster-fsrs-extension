@@ -45,6 +45,7 @@ export type CommandActionId =
     | 'export-backup'
     | 'export-anki'
     | 'open-help'
+    | 'open-settings'
     | 'rate-extension';
 
 /**

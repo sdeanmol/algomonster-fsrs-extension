@@ -216,4 +216,41 @@ describe('Content Utils', () => {
       });
     });
   });
+
+  describe('getFaviconUrl', () => {
+    it('returns href from link[rel~="icon"] if present in DOM', () => {
+      const link = document.createElement('link');
+      link.rel = 'icon';
+      link.href = 'https://leetcode.com/favicon-32x32.png';
+      document.head.appendChild(link);
+
+      expect(Utils.getFaviconUrl()).toBe('https://leetcode.com/favicon-32x32.png');
+      document.head.removeChild(link);
+    });
+
+    it('returns href from link[rel="shortcut icon"] if present', () => {
+      const link = document.createElement('link');
+      link.rel = 'shortcut icon';
+      link.href = 'https://leetcode.com/shortcut-favicon.ico';
+      document.head.appendChild(link);
+
+      expect(Utils.getFaviconUrl()).toBe('https://leetcode.com/shortcut-favicon.ico');
+      document.head.removeChild(link);
+    });
+
+    it('falls back to origin/favicon.ico when no link element exists', () => {
+      setWindowUrl('https://algo.monster/problems/two-sum');
+      expect(Utils.getFaviconUrl()).toBe('https://algo.monster/favicon.ico');
+    });
+
+    it('handles querySelector errors gracefully and returns origin fallback', () => {
+      setWindowUrl('https://example.com/page');
+      const querySpy = jest.spyOn(document, 'querySelector').mockImplementation(() => {
+        throw new Error('DOM access security exception');
+      });
+
+      expect(Utils.getFaviconUrl()).toBe('https://example.com/favicon.ico');
+      querySpy.mockRestore();
+    });
+  });
 });

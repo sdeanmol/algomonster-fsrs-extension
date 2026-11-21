@@ -45,6 +45,7 @@ module.exports = (env) => {
     'features/common/data/data': './features/common/data/data.tsx',
     'features/common/help/help': './features/common/help/help.tsx',
     'features/common/welcome/welcome': './features/common/welcome/welcome.tsx',
+    'features/common/settings/settings': './features/common/settings/settings.tsx',
 
     // Feature UIs
     'features/highlighter/manager/highlights': './features/highlighter/manager/highlights.tsx',

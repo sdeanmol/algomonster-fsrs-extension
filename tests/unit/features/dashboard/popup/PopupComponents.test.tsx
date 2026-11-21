@@ -9,6 +9,9 @@ import {
     PopupNavigationGrid,
     PopupSettingsToggles,
     PopupStatusToast,
+    DailyFocusCard,
+    BentoCommandCenter,
+    AchievementsModal,
     PopupApp
 } from '../../../../../features/dashboard/popup/popup';
 import {
@@ -252,6 +255,106 @@ describe('Popup Preact Components', () => {
         });
     });
 
+    describe('DailyFocusCard', () => {
+        it('renders daily focus card with flame SVG icon and gamification wrapper', () => {
+            render(<DailyFocusCard />, container);
+
+            const card = container.querySelector('#daily-focus-card');
+            expect(card).not.toBeNull();
+            expect(card?.classList.contains('activity-focus-card')).toBe(true);
+
+            expect(container.querySelector('.card-title')?.textContent).toBe('Daily Focus & Momentum');
+
+            const flamePath = container.querySelector('#daily-focus-card svg path');
+            expect(flamePath?.getAttribute('d')).toContain('M8.5 14.5A2.5 2.5 0 0 0 11 12');
+
+            expect(container.querySelector('#gamification-panel')?.classList.contains('gamification-wrapper')).toBe(true);
+        });
+    });
+
+    describe('BentoCommandCenter', () => {
+        it('renders Hero, Quad, and Trio tiles and handles action callbacks', () => {
+            const onOpenStudyPlan = jest.fn();
+            const onOpenPomodoro = jest.fn();
+            const onOpenAnalytics = jest.fn();
+            const onOpenForecast = jest.fn();
+            const onOpenSummary = jest.fn();
+            const onOpenHistory = jest.fn();
+            const onOpenHighlights = jest.fn();
+            const onOpenColors = jest.fn();
+            const onOpenSettings = jest.fn();
+
+            render(
+                <BentoCommandCenter
+                    onOpenStudyPlan={onOpenStudyPlan}
+                    onOpenPomodoro={onOpenPomodoro}
+                    onOpenAnalytics={onOpenAnalytics}
+                    onOpenForecast={onOpenForecast}
+                    onOpenSummary={onOpenSummary}
+                    onOpenHistory={onOpenHistory}
+                    onOpenHighlights={onOpenHighlights}
+                    onOpenColors={onOpenColors}
+                    onOpenSettings={onOpenSettings}
+                />,
+                container
+            );
+
+            expect(container.querySelector('.quick-launchpad-card')).not.toBeNull();
+            expect(container.querySelector('.card-title')?.textContent).toBe('Command Center');
+
+            // Hero tier buttons
+            (container.querySelector('#studyplan-btn') as HTMLElement).click();
+            expect(onOpenStudyPlan).toHaveBeenCalledTimes(1);
+
+            (container.querySelector('#pomodoro-btn') as HTMLElement).click();
+            expect(onOpenPomodoro).toHaveBeenCalledTimes(1);
+
+            // Quad tier buttons
+            (container.querySelector('#analytics-btn') as HTMLElement).click();
+            expect(onOpenAnalytics).toHaveBeenCalledTimes(1);
+
+            (container.querySelector('#forecast-btn') as HTMLElement).click();
+            expect(onOpenForecast).toHaveBeenCalledTimes(1);
+
+            (container.querySelector('#open-summary-page-btn') as HTMLElement).click();
+            expect(onOpenSummary).toHaveBeenCalledTimes(1);
+
+            (container.querySelector('#history-btn') as HTMLElement).click();
+            expect(onOpenHistory).toHaveBeenCalledTimes(1);
+
+            // Trio tier buttons
+            (container.querySelector('#manage-highlights-btn') as HTMLElement).click();
+            expect(onOpenHighlights).toHaveBeenCalledTimes(1);
+
+            (container.querySelector('#open-options-btn') as HTMLElement).click();
+            expect(onOpenColors).toHaveBeenCalledTimes(1);
+
+            (container.querySelector('#settings-hub-btn') as HTMLElement).click();
+            expect(onOpenSettings).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('AchievementsModal', () => {
+        it('renders modal hidden by default and visible when isOpen=true', () => {
+            render(<AchievementsModal isOpen={false} />, container);
+            const modal = container.querySelector('#achievements-modal');
+            expect(modal?.classList.contains('hide-panel')).toBe(true);
+
+            render(<AchievementsModal isOpen={true} />, container);
+            expect(container.querySelector('#achievements-modal')?.classList.contains('hide-panel')).toBe(false);
+            expect(container.querySelector('#achievements-modal-title')?.textContent).toContain('Milestones & Records');
+            expect(container.querySelector('#achievements-modal-body')).not.toBeNull();
+        });
+
+        it('handles close button callback', () => {
+            const onClose = jest.fn();
+            render(<AchievementsModal isOpen={true} onClose={onClose} />, container);
+
+            (container.querySelector('#close-achievements-btn') as HTMLElement).click();
+            expect(onClose).toHaveBeenCalledTimes(1);
+        });
+    });
+
     describe('PopupApp Root View', () => {
         it('renders full PopupApp layout with all sections and controls', () => {
             render(<PopupApp />, container);
@@ -271,8 +374,12 @@ describe('Popup Preact Components', () => {
             expect(container.querySelector('#box-due')).not.toBeNull();
             expect(container.querySelector('#box-retention')).not.toBeNull();
             expect(container.querySelector('#popup-search-input')).not.toBeNull();
+            expect(container.querySelector('#daily-focus-card')).not.toBeNull();
             expect(container.querySelector('#activity-charts-card')).not.toBeNull();
             expect(container.querySelector('.heatmap-section')).not.toBeNull();
+            expect(container.querySelector('.quick-launchpad-card')).not.toBeNull();
+            expect(container.querySelector('#settings-hub-btn')).not.toBeNull();
+            expect(container.querySelector('#achievements-modal')).not.toBeNull();
             expect(container.querySelector('.notification-card')).not.toBeNull();
             expect(container.querySelector('.details-card')).not.toBeNull();
             expect(container.querySelector('.static-review-banner')).not.toBeNull();
