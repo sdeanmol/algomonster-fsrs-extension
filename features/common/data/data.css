@@ -11,6 +11,8 @@ body {
     background-color: var(--md-bg);
     color: var(--md-text-high);
     padding: 20px 10px;
+    font-family: var(--font-family);
+    line-height: 1.5;
 }
 
 @media (min-width: 768px) {
@@ -36,7 +38,7 @@ body {
     gap: 12px;
 }
 
-h1 {
+.header-main h1 {
     color: var(--md-text-high);
     margin: 0 0 6px 0;
     font-size: 24px;
@@ -54,6 +56,10 @@ h1 {
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
+}
+
+.header-actions .btn {
+    text-decoration: none;
 }
 
 /* Search Box wrapper */
@@ -96,6 +102,19 @@ h1 {
     font-size: 13px;
     min-width: 120px;
     flex: 1;
+    border: 1px solid var(--md-border);
+    color: var(--md-text-high);
+    outline: none;
+}
+
+.select-field:focus {
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 2px rgba(168, 199, 250, 0.2);
+}
+
+.select-field option {
+    background-color: var(--md-surface);
+    color: var(--md-text-high);
 }
 
 .filters-row {
@@ -120,13 +139,6 @@ h1 {
 
 .reset-group {
     margin-left: auto;
-    align-self: center;
-}
-.btn-text {
-    color: var(--md-danger);
-}
-.btn-text:hover {
-    background-color: rgba(242, 139, 130, 0.08);
 }
 
 /**
@@ -138,28 +150,24 @@ h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(135deg, var(--md-primary-container), rgba(168, 199, 250, 0.15));
-    border: 1px solid rgba(168, 199, 250, 0.3);
+    background-color: var(--md-surface-variant);
+    border: 1px solid var(--md-primary);
     border-radius: 12px;
     padding: 12px 20px;
     margin-bottom: 16px;
-    animation: slideDown 0.2s ease-out;
-}
-
-@keyframes slideDown {
-    from { opacity: 0; transform: translateY(-8px); }
-    to { opacity: 1; transform: translateY(0); }
+    box-shadow: var(--shadow-2);
 }
 
 .bulk-info {
     font-size: 13px;
-    font-weight: 700;
-    color: var(--md-on-primary-container);
+    font-weight: 600;
+    color: var(--md-text-high);
 }
 
 .bulk-info span {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 800;
+    color: var(--md-primary);
 }
 
 .bulk-buttons {
@@ -169,35 +177,29 @@ h1 {
 }
 
 .btn-sm {
-    padding: 6px 14px !important;
+    padding: 6px 12px !important;
     font-size: 12px !important;
-    border-radius: 10px !important;
 }
 
-/* Modern Data Table */
+/* Data Table container */
 .data-table-container {
-    background: var(--md-surface);
+    background-color: var(--md-surface);
     border: 1px solid var(--md-border);
     border-radius: 14px;
     overflow: hidden;
-    margin-bottom: 40px;
     box-shadow: var(--shadow-1);
+    margin-bottom: 40px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    width: 100%;
 }
 
 .table-responsive table {
     width: 100%;
-    min-width: 100%;
-}
-
-h3 {
-    color: var(--md-text-high);
-    font-size: 16px;
-    font-weight: 700;
-    padding: 20px 24px 10px 24px;
-    background: var(--md-surface);
-    margin: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    min-width: 860px;
+    border-collapse: collapse;
 }
 
 table {
@@ -207,7 +209,7 @@ table {
 }
 
 th, td {
-    padding: 10px 10px;
+    padding: 12px 14px;
     text-align: left;
     border-bottom: 1px solid var(--md-border);
     font-size: 13px;
@@ -215,7 +217,7 @@ th, td {
 
 th {
     background: var(--md-surface-variant);
-    color: var(--md-text-med);
+    color: var(--md-text-low);
     font-size: 11px;
     text-transform: uppercase;
     font-weight: 700;
@@ -381,168 +383,132 @@ td a:hover {
     border: 1px solid rgba(242, 139, 130, 0.25);
 }
 
-.warning {
-    color: var(--md-danger);
-    font-weight: bold;
-}
-
-.badge-lapsed {
-    background: rgba(253, 226, 147, 0.15);
-    color: var(--md-warning);
-    border: 1px solid rgba(253, 226, 147, 0.3);
-    font-weight: 700;
-    padding: 2px 6px;
-    margin: 0;
-    border-radius: 10px;
-    font-size: 10.5px;
-    display: inline-block;
-}
-
-.badge-leech {
-    background: rgba(242, 139, 130, 0.18);
-    color: var(--md-danger);
-    border: 1px solid rgba(242, 139, 130, 0.4);
-    font-weight: 800;
-    padding: 2px 6px;
-    margin: 0;
-    border-radius: 10px;
-    font-size: 10.5px;
-    letter-spacing: 0.2px;
-    display: inline-block;
-    box-shadow: 0 1px 4px rgba(242, 139, 130, 0.2);
-}
-
-.row-leech {
-    background-color: rgba(242, 139, 130, 0.04) !important;
-}
-
-.empty-state {
-    text-align: center;
-    color: var(--md-text-low);
-    padding: 50px 40px;
-    font-size: 14px;
-}
-
-/* Card Delete Action Button */
+.btn-icon,
 .delete-card-btn,
 .edit-card-btn {
     background: transparent;
     border: none;
     cursor: pointer;
-    color: var(--md-text-low);
+    padding: 0;
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    transition: background-color 0.2s, transform 0.1s, color 0.2s;
+    color: var(--md-text-low);
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    transition: background-color 0.2s, transform 0.1s, color 0.2s;
 }
 
+.btn-icon:hover {
+    color: var(--md-text-high);
+    background-color: var(--md-surface-variant);
+}
+
+.btn-icon-danger:hover,
 .delete-card-btn:hover {
-    background-color: var(--md-danger-container);
     color: var(--md-danger);
+    background-color: var(--md-danger-container);
     transform: scale(1.1) rotate(-10deg);
 }
 
 .edit-card-btn:hover {
-    background-color: var(--md-primary-container);
     color: var(--md-primary);
+    background-color: var(--md-primary-container);
     transform: scale(1.1);
 }
 
-/**
- * Inline Card Edit Modal Overlay (R2.9)
- * Display toggled (flex/none) by features/common/data/data.ts (openEditModal / closeEditModal).
- * High z-index (10000) with backdrop blur to capture focus while updating metadata.
- */
+.row-leech {
+    border-left: 3px solid var(--md-danger);
+}
+
+/* Empty State Placeholder */
+.empty-state {
+    text-align: center;
+    color: var(--md-text-low);
+    padding: 60px 20px;
+    font-size: 14px;
+}
+
+.empty-icon {
+    width: 48px;
+    height: 48px;
+    stroke: var(--md-text-low);
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+/* Inline Edit Card Modal Overlay */
 .edit-overlay {
     position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: 10000;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: fadeIn 0.15s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    z-index: 1000;
+    backdrop-filter: blur(2px);
 }
 
 .edit-modal {
-    background: var(--md-surface);
+    background-color: var(--md-surface);
     border: 1px solid var(--md-border);
-    border-radius: 16px;
-    width: 100%;
-    max-width: 560px;
-    position: relative;
-    overflow: visible;
+    border-radius: 14px;
+    width: 90%;
+    max-width: 550px;
+    max-height: 90vh;
+    overflow-y: auto;
     box-shadow: var(--shadow-3);
-    animation: modalSlideUp 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes modalSlideUp {
-    from { opacity: 0; transform: translateY(20px) scale(0.96); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    display: flex;
+    flex-direction: column;
 }
 
 .edit-modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 24px 12px;
+    padding: 16px 20px;
     border-bottom: 1px solid var(--md-border);
 }
 
 .edit-modal-header h3 {
-    font-size: 18px;
-    font-weight: 700;
     color: var(--md-text-high);
-    text-transform: none;
-    letter-spacing: normal;
+    font-size: 16px;
+    font-weight: 700;
 }
 
 .edit-close-btn {
-    background: var(--md-surface-variant);
-    border: 1px solid var(--md-border);
+    background: transparent;
+    border: none;
     color: var(--md-text-low);
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
     cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s, color 0.2s;
+    transition: color 0.15s, background-color 0.15s;
 }
 
 .edit-close-btn:hover {
-    background: var(--md-danger-container);
-    color: var(--md-danger);
+    color: var(--md-text-high);
+    background-color: var(--md-surface-variant);
 }
 
 .edit-modal-body {
-    padding: 20px 24px;
+    padding: 20px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    position: relative;
-    overflow: visible;
+    gap: 14px;
 }
 
 .edit-field {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    position: relative;
-    overflow: visible;
 }
 
 .edit-field label {
@@ -554,39 +520,103 @@ td a:hover {
 }
 
 .edit-field-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    display: flex;
     gap: 12px;
+}
+
+.edit-field-row .edit-field {
+    flex: 1;
 }
 
 .edit-textarea {
     resize: vertical;
-    min-height: 120px;
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 12.5px;
-    line-height: 1.6;
+    min-height: 80px;
+    font-family: inherit;
 }
 
 .edit-modal-footer {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    padding: 16px 24px;
+    padding: 16px 20px;
     border-top: 1px solid var(--md-border);
 }
 
-/* ========== Analytics Panels & Graphs Grid ========== */
+/* Toast Notifications */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background-color: var(--md-surface);
+    color: var(--md-text-high);
+    border: 1px solid var(--md-border);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: var(--shadow-2);
+    z-index: 1000;
+    display: none;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.undo-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--md-surface-variant);
+    color: var(--md-text-high);
+    border: 1px solid var(--md-border);
+    border-radius: 12px;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--shadow-2);
+    z-index: 100;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.btn-undo {
+    background-color: var(--md-primary-container);
+    color: var(--md-primary);
+    border: 1px solid rgba(168, 199, 250, 0.3);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 12px;
+    transition: background-color 0.15s;
+}
+
+.btn-undo:hover {
+    background-color: var(--md-primary);
+    color: var(--md-on-primary);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Dynamic Analytics Cards Panel (R2.8) */
 .analytics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 20px;
     margin-bottom: 24px;
+}
+
+@media (max-width: 680px) {
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .analytics-card {
     background: linear-gradient(135deg, var(--md-surface), #1b1e24);
     border: 1px solid var(--md-border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 20px;
     box-shadow: var(--shadow-1);
     display: flex;
@@ -634,7 +664,7 @@ td a:hover {
 /* Legend List */
 .analytics-legend {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px 16px;
 }
 
@@ -720,25 +750,7 @@ td a:hover {
     padding: 20px 0;
 }
 
-/* ========== Light Theme Overrides ========== */
-:root.light-theme .bulk-actions-bar {
-    background: linear-gradient(135deg, var(--md-primary-container), rgba(26, 115, 232, 0.08));
-    border-color: rgba(26, 115, 232, 0.2);
-}
-
-:root.light-theme tr.row-selected td {
-    background: rgba(26, 115, 232, 0.04);
-}
-
-:root.light-theme tr:hover td {
-    background: rgba(0, 0, 0, 0.015);
-}
-
-:root.light-theme .edit-overlay {
-    background: rgba(0, 0, 0, 0.4);
-}
-
-/* R10.4 Reduced Motion Mode */
+/* R10.4: Reduced Motion Mode */
 @media (prefers-reduced-motion: reduce) {
     *, ::before, ::after {
         animation-duration: 0.01ms !important;
@@ -746,181 +758,4 @@ td a:hover {
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
     }
-}
-
-/* ========== Mobile Responsiveness ========== */
-@media (max-width: 768px) {
-    .filters-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 12px;
-    }
-    .select-field {
-        width: 100%;
-    }
-    .reset-group {
-        margin-left: 0;
-        align-self: flex-start;
-    }
-    .bulk-actions-bar {
-        flex-direction: column;
-        gap: 10px;
-        text-align: center;
-    }
-    .bulk-buttons {
-        justify-content: center;
-    }
-    .edit-field-row {
-        grid-template-columns: 1fr;
-    }
-    .table-responsive table {
-        min-width: max-content;
-    }
-    .data-table-container {
-        overflow: visible;
-    }
-}
-
-/* Dashboard Edit Modal Tag Chips Styling */
-.edit-modal-body .tag-input-wrapper,
-.edit-field .tag-input-wrapper {
-    background: var(--md-surface-variant);
-    border: 1px solid var(--md-border);
-    border-radius: 8px;
-    padding: 6px 12px;
-    min-height: 42px;
-    width: 100%;
-    box-sizing: border-box;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.edit-modal-body .tag-input-wrapper:focus-within,
-.edit-field .tag-input-wrapper:focus-within {
-    border-color: var(--md-primary);
-    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
-}
-
-.edit-modal-body .tag-chip,
-.edit-field .tag-chip {
-    background: var(--md-primary-container, rgba(26, 115, 232, 0.15));
-    color: var(--md-primary, #1a73e8);
-    border: 1px solid rgba(26, 115, 232, 0.3);
-    font-size: 12.5px;
-    font-weight: 500;
-    padding: 3px 10px;
-    border-radius: 14px;
-}
-
-.edit-modal-body .tag-chip-remove,
-.edit-field .tag-chip-remove {
-    font-size: 14px;
-    color: var(--md-primary, #1a73e8);
-}
-
-.edit-modal-body input.tag-inline-input,
-.edit-field input.tag-inline-input {
-    color: var(--md-text-high) !important;
-    font-size: 13px !important;
-    padding: 4px 0 !important;
-    min-width: 100px !important;
-    background: transparent !important;
-    background-color: transparent !important;
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-    appearance: none !important;
-    -webkit-appearance: none !important;
-}
-
-.edit-modal-body input.tag-inline-input::placeholder,
-.edit-field input.tag-inline-input::placeholder {
-    color: var(--md-text-low) !important;
-}
-
-.edit-modal-body .tag-autocomplete-dropdown,
-.edit-field .tag-autocomplete-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    max-height: 140px;
-    overflow-y: auto;
-    margin-top: 4px;
-    background: var(--md-surface);
-    border: 1px solid var(--md-border);
-    border-radius: 8px;
-    box-shadow: var(--shadow-2, 0 8px 24px rgba(0,0,0,0.3));
-    z-index: 1050;
-}
-
-.edit-modal-body .tag-suggestion-item,
-.edit-field .tag-suggestion-item {
-    color: var(--md-text-high);
-    font-size: 13px;
-    padding: 8px 14px;
-}
-
-.edit-modal-body .tag-suggestion-item:hover,
-.edit-modal-body .tag-suggestion-item.highlighted,
-.edit-field .tag-suggestion-item:hover,
-.edit-field .tag-suggestion-item.highlighted {
-    background: rgba(26, 115, 232, 0.15);
-    color: var(--md-primary);
-}
-
-:root.light-theme .edit-modal-body .tag-chip,
-:root.light-theme .edit-field .tag-chip {
-    background: rgba(26, 115, 232, 0.1) !important;
-    color: #1a73e8 !important;
-    border-color: rgba(26, 115, 232, 0.3) !important;
-}
-
-:root.light-theme .edit-modal-body .tag-autocomplete-dropdown,
-:root.light-theme .edit-field .tag-autocomplete-dropdown {
-    background: #ffffff !important;
-    border-color: #dadce0 !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
-}
-
-:root.light-theme .edit-modal-body .tag-suggestion-item,
-:root.light-theme .edit-field .tag-suggestion-item {
-    color: #202124 !important;
-}
-
-/* Undo Toast */
-.undo-toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: var(--md-surface);
-    color: var(--md-text-high);
-    border: 1px solid var(--md-border);
-    border-radius: 8px;
-    padding: 12px 18px;
-    box-shadow: var(--shadow-3, 0 8px 24px rgba(0,0,0,0.3));
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    z-index: 1100;
-    font-size: 13px;
-}
-
-.undo-toast .btn-undo {
-    background: var(--md-primary);
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 5px 12px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: filter 0.2s;
-}
-
-.undo-toast .btn-undo:hover {
-    filter: brightness(1.15);
-}
-
-.empty-state-card {
-    transition: all 0.2s ease;
 }

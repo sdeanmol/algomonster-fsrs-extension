@@ -9,6 +9,8 @@ body {
     background-color: var(--md-bg);
     color: var(--md-text-high);
     padding: 40px 20px;
+    font-family: var(--font-family);
+    line-height: 1.5;
 }
 
 .container {
@@ -28,6 +30,12 @@ body {
     gap: 20px;
 }
 
+.header-brand-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
 h1 {
     color: var(--md-text-high);
     margin: 0 0 6px 0;
@@ -37,6 +45,7 @@ h1 {
     align-items: center;
     gap: 10px;
 }
+
 .page-header-icon {
     width: 28px;
     height: 28px;
@@ -133,6 +142,12 @@ h1 {
     border-color: var(--md-primary);
     background: var(--md-surface-variant);
     box-shadow: var(--shadow-2);
+}
+
+.card:focus-visible {
+    outline: none;
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 3px rgba(168, 199, 250, 0.25);
 }
 
 .card.no-click {
@@ -363,24 +378,25 @@ h1 {
     visibility: visible;
     transform: translateX(-50%) translateY(0);
 }
+
 /* Responsive Layout for History */
-@media (max-width: 600px) {
+@media (max-width: 680px) {
     body {
-        padding: 16px 12px;
-    }
-    .controls {
-        flex-wrap: wrap;
-    }
-    .controls button {
-        flex: 1;
-        text-align: center;
-        padding: 6px 10px;
-        font-size: 12px;
+        padding: 20px 12px;
     }
     .header {
         flex-direction: column;
         align-items: flex-start;
-        gap: 12px;
+        gap: 16px;
+    }
+    .controls {
+        width: 100%;
+    }
+    .controls button {
+        flex: 1;
+        text-align: center;
+        padding: 7px 10px;
+        font-size: 12px;
     }
 }
 

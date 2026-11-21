@@ -6,7 +6,11 @@
  * @custom-properties Consumes Material Design 3 tokens from base.css (--md-bg, --md-surface, --md-surface-variant, --md-border, --md-primary, --md-danger, --md-warning, --md-success, --md-text-high, --md-text-med, --md-text-low, --shadow-1, --shadow-2).
  */
 body {
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
     padding: 24px;
+    font-family: var(--font-family);
+    line-height: 1.5;
 }
 
 .container {
@@ -31,6 +35,15 @@ body {
     margin: 0 0 4px 0;
     font-size: 22px;
     font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.page-header-icon {
+    width: 28px;
+    height: 28px;
+    stroke: var(--md-primary);
 }
 
 .subtitle {
@@ -58,6 +71,7 @@ body {
     border-radius: 12px;
     padding: 14px 12px;
     text-align: center;
+    box-shadow: var(--shadow-1);
     transition: border-color 0.2s, transform 0.15s;
 }
 
@@ -369,7 +383,6 @@ body {
     visibility: visible;
     transform: translateX(-50%) translateY(0);
 }
-
 
 /* Responsive Layout for Forecast */
 @media (max-width: 600px) {
