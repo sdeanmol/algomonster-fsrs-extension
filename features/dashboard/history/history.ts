@@ -24,6 +24,8 @@ import { MONTH_NAMES } from '../../common/constants';
 export class FSRSHistoryDashboard {
     /** Map of ISO date strings (`YYYY-MM-DD`) to count of reviews completed on that date. */
     activityData: Record<string, number>;
+    /** Cached collection of all cards used to calculate accurate unique pattern counts matching data page. */
+    allCards: Card[];
     /** Cached extension settings including chart display preferences. */
     extensionSettings: ExtensionSettings;
     /** Current calendar hierarchy zoom level: 'year', 'month', or 'day'. */
@@ -40,6 +42,7 @@ export class FSRSHistoryDashboard {
      */
     constructor() {
         this.activityData = {};
+        this.allCards = [];
         this.extensionSettings = {};
         this.currentView = 'year';
         this.selectedYear = null;
@@ -101,6 +104,7 @@ export class FSRSHistoryDashboard {
                     }
 
                     this.activityData = activityData;
+                    this.allCards = allCards;
                     this.extensionSettings = result.extensionSettings || {};
                     this.attachListeners();
                     this.renderView();
@@ -180,20 +184,19 @@ export class FSRSHistoryDashboard {
     }
 
     /**
-     * Opens a new browser tab navigating to `data.html` filtered to cards reviewed in `dateRange`.
+     * Navigates the current browser tab to `data.html` filtered to cards reviewed in `dateRange`.
      * @param dateRange - ISO date string or year/month prefix to query.
      * @param event - Optional click event to prevent propagation.
      */
     @CatchAndLog('FSRSHistoryDashboard', 'Error opening data tab')
     openDataTab(dateRange: string, event?: Event): void {
         if (event) event.stopPropagation();
-        chrome.tabs.create({ url: `features/common/data/data.html?view=history&date=${dateRange}` }, () => {
-            const tabError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-            if (tabError) {
-                const errorMessage = tabError.message || String(tabError);
-                Logger.error('FSRSHistoryDashboard', `Error creating tab in openDataTab: ${errorMessage}`, { dateRange, error: tabError });
-            }
-        });
+        const targetUrl = typeof chrome !== 'undefined' && chrome.runtime?.getURL
+            ? chrome.runtime.getURL(`features/common/data/data.html?view=history&date=${encodeURIComponent(dateRange)}`)
+            : `../../common/data/data.html?view=history&date=${encodeURIComponent(dateRange)}`;
+        if (typeof window !== 'undefined' && window.location) {
+            window.location.href = targetUrl;
+        }
     }
 
     /**
@@ -274,10 +277,10 @@ export class FSRSHistoryDashboard {
                     const displayDate = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
                     container.innerHTML += `
-                        <div class="card card-day" data-date="${dateString}" title="View cards reviewed on this day">
+                        <div class="card card-day" data-date="${dateString}" tabindex="0" role="button" aria-label="View cards reviewed on ${displayDate}" title="View cards reviewed on this day">
                             <div class="card-title">${displayDate}</div>
                             <div class="card-value">${dayData[dateString]}</div>
-                            <div class="card-subtitle">Cards Reviewed</div>
+                            <div class="card-subtitle">Patterns Reviewed</div>
                             <div class="card-day-link">
                                 <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; margin-right:4px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
                                 View Cards
@@ -482,15 +485,57 @@ export class FSRSHistoryDashboard {
             el.addEventListener('click', withErrorHandling((e: Event) => {
                 this.openDataTab(el.getAttribute('data-date') || '', e);
             }, 'FSRSHistoryDashboard', 'Error in card day click handler'));
+
+            el.addEventListener('keydown', withErrorHandling((e: Event) => {
+                const keyEvent = e as KeyboardEvent;
+                if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+                    keyEvent.preventDefault();
+                    this.openDataTab(el.getAttribute('data-date') || '', e);
+                }
+            }, 'FSRSHistoryDashboard', 'Error in card day keydown handler'));
         });
     }
 
     /**
-     * Aggregates activity counts by 4-digit year, tallying total reviews and unique active days.
-     * @returns Map of year strings to total reviews and active day counts.
+     * Aggregates activity counts by 4-digit year, tallying unique patterns reviewed and unique active days.
+     * @returns Map of year strings to total unique patterns and active day counts.
      */
     @CatchAndReturn({}, 'FSRSHistoryDashboard', 'Error aggregating history by year')
     aggregateByYear(): Record<string, { total: number; activeDays: number }> {
+        if (this.allCards && this.allCards.length > 0) {
+            const yearCardSets: Record<string, Set<string>> = {};
+            const yearActiveDates: Record<string, Set<string>> = {};
+
+            this.allCards.forEach((c: Card) => {
+                if (!c.historyLog || !Array.isArray(c.historyLog)) return;
+                const cardId = c.id || c.problemTitle || Math.random().toString();
+                c.historyLog.forEach((log: ReviewLog | number) => {
+                    const timestamp = (typeof log === 'object' && log !== null) ? log.date : log;
+                    if (!timestamp) return;
+                    const dateObj = new Date(timestamp);
+                    if (isNaN(dateObj.getTime())) return;
+                    const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                    const year = localDateStr.split('-')[0];
+
+                    if (!yearCardSets[year]) {
+                        yearCardSets[year] = new Set<string>();
+                        yearActiveDates[year] = new Set<string>();
+                    }
+                    yearCardSets[year].add(cardId);
+                    yearActiveDates[year].add(localDateStr);
+                });
+            });
+
+            const years: Record<string, { total: number; activeDays: number }> = {};
+            for (const [year, cardSet] of Object.entries(yearCardSets)) {
+                years[year] = {
+                    total: cardSet.size,
+                    activeDays: yearActiveDates[year].size
+                };
+            }
+            return years;
+        }
+
         const years: Record<string, { total: number; activeDays: number }> = {};
         for (const [dateString, count] of Object.entries(this.activityData)) {
             const year = dateString.split('-')[0];
@@ -502,12 +547,41 @@ export class FSRSHistoryDashboard {
     }
 
     /**
-     * Aggregates activity counts for each month in a specific year.
+     * Aggregates activity counts for each month in a specific year, tallying unique patterns reviewed.
      * @param targetYear - 4-digit year string.
-     * @returns Map of `YYYY-MM` month strings to total review counts.
+     * @returns Map of `YYYY-MM` month strings to total unique pattern counts.
      */
     @CatchAndReturn({}, 'FSRSHistoryDashboard', 'Error aggregating history by month')
     aggregateByMonth(targetYear: string): Record<string, { total: number }> {
+        if (this.allCards && this.allCards.length > 0) {
+            const monthCardSets: Record<string, Set<string>> = {};
+
+            this.allCards.forEach((c: Card) => {
+                if (!c.historyLog || !Array.isArray(c.historyLog)) return;
+                const cardId = c.id || c.problemTitle || Math.random().toString();
+                c.historyLog.forEach((log: ReviewLog | number) => {
+                    const timestamp = (typeof log === 'object' && log !== null) ? log.date : log;
+                    if (!timestamp) return;
+                    const dateObj = new Date(timestamp);
+                    if (isNaN(dateObj.getTime())) return;
+                    const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                    if (localDateStr.startsWith(targetYear)) {
+                        const monthKey = localDateStr.substring(0, 7);
+                        if (!monthCardSets[monthKey]) {
+                            monthCardSets[monthKey] = new Set<string>();
+                        }
+                        monthCardSets[monthKey].add(cardId);
+                    }
+                });
+            });
+
+            const months: Record<string, { total: number }> = {};
+            for (const [monthKey, cardSet] of Object.entries(monthCardSets)) {
+                months[monthKey] = { total: cardSet.size };
+            }
+            return months;
+        }
+
         const months: Record<string, { total: number }> = {};
         for (const [dateString, count] of Object.entries(this.activityData)) {
             if (dateString.startsWith(targetYear)) {
@@ -520,12 +594,40 @@ export class FSRSHistoryDashboard {
     }
 
     /**
-     * Aggregates activity counts for each day in a specific month.
+     * Aggregates activity counts for each day in a specific month, tallying unique patterns reviewed.
      * @param targetMonth - `YYYY-MM` month string.
-     * @returns Map of `YYYY-MM-DD` date strings to review counts.
+     * @returns Map of `YYYY-MM-DD` date strings to unique pattern counts.
      */
     @CatchAndReturn({}, 'FSRSHistoryDashboard', 'Error aggregating history by day')
     aggregateByDay(targetMonth: string): Record<string, number> {
+        if (this.allCards && this.allCards.length > 0) {
+            const dayCardSets: Record<string, Set<string>> = {};
+
+            this.allCards.forEach((c: Card) => {
+                if (!c.historyLog || !Array.isArray(c.historyLog)) return;
+                const cardId = c.id || c.problemTitle || Math.random().toString();
+                c.historyLog.forEach((log: ReviewLog | number) => {
+                    const timestamp = (typeof log === 'object' && log !== null) ? log.date : log;
+                    if (!timestamp) return;
+                    const dateObj = new Date(timestamp);
+                    if (isNaN(dateObj.getTime())) return;
+                    const localDateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                    if (localDateStr.startsWith(targetMonth)) {
+                        if (!dayCardSets[localDateStr]) {
+                            dayCardSets[localDateStr] = new Set<string>();
+                        }
+                        dayCardSets[localDateStr].add(cardId);
+                    }
+                });
+            });
+
+            const days: Record<string, number> = {};
+            for (const [dateString, cardSet] of Object.entries(dayCardSets)) {
+                days[dateString] = cardSet.size;
+            }
+            return days;
+        }
+
         const days: Record<string, number> = {};
         for (const [dateString, count] of Object.entries(this.activityData)) {
             if (dateString.startsWith(targetMonth)) {

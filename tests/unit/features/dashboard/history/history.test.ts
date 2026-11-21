@@ -25,6 +25,8 @@ describe('FSRSHistoryDashboard', () => {
 
   beforeEach(() => {
     delete (chrome.runtime as any).lastError;
+    delete (window as any).location;
+    (window as any).location = { href: '' };
 
     document.body.innerHTML = `
       <button id="view-year"></button>
@@ -172,30 +174,20 @@ describe('FSRSHistoryDashboard', () => {
     });
   });
 
-  describe('openDataTab and chrome tab creation', () => {
-    it('opens data tab for a specified date range string', () => {
+  describe('openDataTab and same tab navigation', () => {
+    it('navigates the current tab to data.html for a specified date range string', () => {
       const mockEvent = { stopPropagation: jest.fn() } as any;
       dashboard.openDataTab('2026-05-10', mockEvent);
 
       expect(mockEvent.stopPropagation).toHaveBeenCalled();
-      expect(chrome.tabs.create).toHaveBeenCalledWith(
-        expect.objectContaining({ url: expect.stringContaining('date=2026-05-10') }),
-        expect.any(Function)
-      );
+      expect(window.location.href).toContain('data.html?view=history&date=2026-05-10');
     });
 
-    it('handles chrome.runtime.lastError in tab creation callback', () => {
-      (chrome.tabs.create as jest.Mock).mockImplementation((options: any, cb?: any) => {
-        (chrome.runtime as any).lastError = { message: 'Tab open error' };
-        if (cb) cb(null);
-      });
-
-      expect(() => dashboard.openDataTab('2026-05')).not.toThrow();
-    });
-
-    it('handles exception inside openDataTab catch block', () => {
-      (chrome.tabs.create as jest.Mock).mockImplementation(() => {
-        throw new Error('Tab create throw');
+    it('handles exception inside openDataTab gracefully', () => {
+      delete (window as any).location;
+      Object.defineProperty(window, 'location', {
+        get: () => { throw new Error('Location access error'); },
+        configurable: true
       });
 
       expect(() => dashboard.openDataTab('2026-05')).not.toThrow();
@@ -239,7 +231,7 @@ describe('FSRSHistoryDashboard', () => {
       barCol = document.querySelector('.chart-bar-col.has-value');
       if (barCol) {
         barCol.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
-        expect(chrome.tabs.create).toHaveBeenCalled();
+        expect(window.location.href).toContain('data.html?view=history');
       }
     });
 
@@ -289,7 +281,7 @@ describe('FSRSHistoryDashboard', () => {
       dashboard.setView('day', '2026', '2026-05');
       const dayCard = document.querySelector('.card-day') as HTMLElement;
       if (dayCard) dayCard.click();
-      expect(chrome.tabs.create).toHaveBeenCalled();
+      expect(window.location.href).toContain('data.html?view=history');
     });
 
     it('handles callback exceptions inside dynamic click listeners gracefully', () => {
@@ -319,6 +311,66 @@ describe('FSRSHistoryDashboard', () => {
       // Trigger exception handlers
       dashboard.setView = () => { throw new Error('SetView error'); };
       expect(() => document.getElementById('view-month')?.click()).not.toThrow();
+    });
+  });
+
+  describe('accurate pattern counts matching data page', () => {
+    it('aggregates unique pattern counts accurately when cards have multiple reviews across days', () => {
+      // Card 1 reviewed on 3 different days in Nov 2026, Card 2 reviewed on 2 different days in Nov 2026
+      const multiReviewCards = [
+        {
+          id: 'card-1',
+          problemTitle: 'Two Sum',
+          historyLog: [
+            { date: new Date('2026-11-01T10:00:00Z').getTime(), rating: 3 },
+            { date: new Date('2026-11-05T10:00:00Z').getTime(), rating: 4 },
+            { date: new Date('2026-11-10T10:00:00Z').getTime(), rating: 3 }
+          ]
+        },
+        {
+          id: 'card-2',
+          problemTitle: '3Sum',
+          historyLog: [
+            { date: new Date('2026-11-01T12:00:00Z').getTime(), rating: 2 },
+            { date: new Date('2026-11-08T14:00:00Z').getTime(), rating: 3 }
+          ]
+        },
+        {
+          id: 'card-3',
+          problemTitle: '4Sum',
+          historyLog: [
+            { date: new Date('2026-07-15T09:00:00Z').getTime(), rating: 3 }
+          ]
+        }
+      ] as unknown as Card[];
+
+      dashboard.allCards = multiReviewCards;
+      dashboard.activityData = {
+        '2026-11-01': 2,
+        '2026-11-05': 1,
+        '2026-11-08': 1,
+        '2026-11-10': 1,
+        '2026-07-15': 1
+      };
+
+      // Year aggregation: should have 3 unique patterns in 2026, and 5 active days
+      const yearAgg = dashboard.aggregateByYear();
+      expect(yearAgg['2026']).toBeDefined();
+      expect(yearAgg['2026'].total).toBe(3); // 3 unique cards, not 6 total reviews
+      expect(yearAgg['2026'].activeDays).toBe(5);
+
+      // Month aggregation: Nov 2026 has 2 unique patterns (card-1, card-2), not 5 reviews
+      const monthAgg = dashboard.aggregateByMonth('2026');
+      expect(monthAgg['2026-11']).toBeDefined();
+      expect(monthAgg['2026-11'].total).toBe(2);
+      expect(monthAgg['2026-07'].total).toBe(1);
+
+      // Day aggregation: Nov 1 has 2 patterns (card-1, card-2), Nov 5 has 1 pattern (card-1)
+      const dayAgg = dashboard.aggregateByDay('2026-11');
+      expect(dayAgg['2026-11-01']).toBe(2);
+      expect(dayAgg['2026-11-05']).toBe(1);
+      expect(dayAgg['2026-11-08']).toBe(1);
+      expect(dayAgg['2026-11-10']).toBe(1);
     });
   });
 

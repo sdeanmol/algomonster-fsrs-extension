@@ -418,7 +418,9 @@ export class FSRSDataDashboard {
                     ? `Showing ${filtered.length} matching pattern(s).`
                     : `Showing all patterns with at least 1 lapse.`;
             } else if (this.currentView === 'history') {
-                subtitleEl.innerText = `Showing ${filtered.length} unique pattern(s) reviewed on this date. (Note: The dashboard activity count includes multiple reviews per pattern).`;
+                subtitleEl.innerText = isFilterActive
+                    ? `Showing ${filtered.length} matching pattern(s) out of ${baseCards.length} reviewed on this date.`
+                    : `Showing ${baseCards.length} unique pattern(s) reviewed on this date.`;
             } else if (this.currentView === 'forecast') {
                 subtitleEl.innerText = isFilterActive
                     ? `Showing ${filtered.length} matching pattern(s) out of ${baseCards.length} due on this date.`
