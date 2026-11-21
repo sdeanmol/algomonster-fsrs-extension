@@ -82,6 +82,12 @@ export function PaletteEditorSlots({
                                 target.value = val.toUpperCase();
                             } else {
                                 target.value = color.toUpperCase();
+                                const toast = document.getElementById('status-toast');
+                                if (toast) {
+                                    toast.textContent = "Invalid hex code";
+                                    toast.classList.add('show');
+                                    setTimeout(() => toast.classList.remove('show'), 3000);
+                                }
                             }
                         }}
                     />
@@ -312,6 +318,23 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
         setSettings({ ...manager.extensionSettings });
     };
 
+    const handleResetPalettes = () => {
+        if (!window.confirm('Are you sure you want to reset all highlighter palettes to defaults? This cannot be undone.')) {
+            return;
+        }
+        manager.extensionSettings.palettes = JSON.parse(JSON.stringify(manager.DEFAULT_PALETTES));
+        manager.extensionSettings.activePaletteIndex = 0;
+        manager.extensionSettings.recentColors = [...manager.extensionSettings.palettes![0].colors];
+        manager.extensionSettings.defaultHighlightColor = '#f1c40f';
+        manager.editingIndex = null;
+        setEditingIndex(null);
+        setPaletteName('');
+        manager.editorColors = [...manager.extensionSettings.recentColors];
+        setEditorColors([...manager.editorColors]);
+        manager.saveSettings('Palettes reset to defaults.');
+        setSettings({ ...manager.extensionSettings });
+    };
+
     return (
         <div className="container">
             {/* Page Header */}
@@ -360,6 +383,9 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
                                         if (!val.startsWith('#')) val = '#' + val;
                                         if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
                                             handleDefaultColorChange(val);
+                                        } else {
+                                            manager.showToast("Invalid hex code");
+                                            (e.target as HTMLInputElement).value = defaultColor.toUpperCase();
                                         }
                                     }}
                                 />
@@ -447,6 +473,15 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
                                 onDelete={handleDeletePalette}
                             />
                         </div>
+                        <hr className="divider" />
+                        <button id="reset-palettes-btn" className="btn btn-secondary w-full" onClick={handleResetPalettes}>
+                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <polyline points="23 4 23 10 17 10" />
+                                <polyline points="1 20 1 14 7 14" />
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                            </svg>
+                            Reset to Defaults
+                        </button>
                     </div>
                 </div>
             </div>

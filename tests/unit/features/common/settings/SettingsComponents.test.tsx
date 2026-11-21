@@ -152,7 +152,7 @@ describe('Settings Hub Preact Functional Components', () => {
         });
 
         it('toggles review reminders switch and triggers onUpdate', () => {
-            const handleUpdate = jest.fn();
+            const handleUpdate: any = jest.fn();
             render(
                 <NotificationsPanel
                     isActive={true}
@@ -171,7 +171,7 @@ describe('Settings Hub Preact Functional Components', () => {
         });
 
         it('handles interval dropdown selection', () => {
-            const handleUpdate = jest.fn();
+            const handleUpdate: any = jest.fn();
             render(
                 <NotificationsPanel
                     isActive={true}
@@ -190,7 +190,7 @@ describe('Settings Hub Preact Functional Components', () => {
         });
 
         it('expands custom interval input when custom is selected and triggers update', () => {
-            const handleUpdate = jest.fn();
+            const handleUpdate: any = jest.fn();
             render(
                 <NotificationsPanel
                     isActive={true}
@@ -210,7 +210,7 @@ describe('Settings Hub Preact Functional Components', () => {
         });
 
         it('toggles sticky notifications switch', () => {
-            const handleUpdate = jest.fn();
+            const handleUpdate: any = jest.fn();
             render(
                 <NotificationsPanel
                     isActive={true}
@@ -230,7 +230,7 @@ describe('Settings Hub Preact Functional Components', () => {
         });
 
         it('toggles quiet hours and triggers time inputs', () => {
-            const handleUpdate = jest.fn();
+            const handleUpdate: any = jest.fn();
             render(
                 <NotificationsPanel
                     isActive={true}
@@ -250,7 +250,7 @@ describe('Settings Hub Preact Functional Components', () => {
         });
 
         it('toggles weekly digest and badge due count', () => {
-            const handleUpdate = jest.fn();
+            const handleUpdate: any = jest.fn();
             render(
                 <NotificationsPanel
                     isActive={true}
@@ -280,7 +280,7 @@ describe('Settings Hub Preact Functional Components', () => {
     // ─────────────────────────────────────────────────────────────────────────
     describe('HighlighterPanel', () => {
         it('toggles floating marker popup and problem tracker launcher', () => {
-            const handleUpdate = jest.fn();
+            const handleUpdate: any = jest.fn();
             render(
                 <HighlighterPanel
                     isActive={true}
@@ -315,8 +315,8 @@ describe('Settings Hub Preact Functional Components', () => {
     // ─────────────────────────────────────────────────────────────────────────
     describe('DataPanel', () => {
         it('triggers onExportBackup and onExportAnki callbacks', () => {
-            const handleExportBackup = jest.fn();
-            const handleExportAnki = jest.fn();
+            const handleExportBackup: any = jest.fn();
+            const handleExportAnki: any = jest.fn();
 
             render(
                 <DataPanel
@@ -337,8 +337,8 @@ describe('Settings Hub Preact Functional Components', () => {
         });
 
         it('handles file inputs for backup restore and Anki import', () => {
-            const handleImportBackup = jest.fn();
-            const handleImportAnki = jest.fn();
+            const handleImportBackup: any = jest.fn();
+            const handleImportAnki: any = jest.fn();
 
             render(
                 <DataPanel
@@ -398,7 +398,7 @@ describe('Settings Hub Preact Functional Components', () => {
     // ─────────────────────────────────────────────────────────────────────────
     describe('DeveloperPanel', () => {
         it('toggles showCharts and showDailyFocus', () => {
-            const handleUpdate = jest.fn();
+            const handleUpdate: any = jest.fn();
             render(
                 <DeveloperPanel
                     isActive={true}
@@ -433,9 +433,9 @@ describe('Settings Hub Preact Functional Components', () => {
         });
 
         it('triggers test notifications and log export buttons', () => {
-            const handleTestNotif = jest.fn();
-            const handleTestSummary = jest.fn();
-            const handleExportLogs = jest.fn();
+            const handleTestNotif: any = jest.fn();
+            const handleTestSummary: any = jest.fn();
+            const handleExportLogs: any = jest.fn();
 
             render(
                 <DeveloperPanel

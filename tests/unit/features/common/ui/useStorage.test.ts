@@ -1,5 +1,4 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { renderHook, act } from '@testing-library/preact-hooks';
 import { useStorage } from '../../../../../features/common/ui/hooks/useStorage';
 
 // Simple mock for hook testing if testing-library is not installed

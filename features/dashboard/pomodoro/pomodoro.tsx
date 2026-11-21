@@ -121,17 +121,27 @@ export interface PomodoroTimerRingProps {
     totalTime: number;
     phaseLabel: string;
     phase: 'focus' | 'shortBreak' | 'longBreak';
+    isRunning?: boolean;
 }
 
 export function PomodoroTimerRing({
     timeRemaining,
     totalTime,
     phaseLabel,
-    phase
+    phase,
+    isRunning = false
 }: PomodoroTimerRingProps): VNode {
     const circumference = 2 * Math.PI * 88;
     const progress = totalTime > 0 ? (totalTime - timeRemaining) / totalTime : 0;
-    const offset = circumference - (progress * circumference);
+    const targetOffset = circumference - (progress * circumference);
+    const [animatedOffset, setAnimatedOffset] = useState<number>(circumference);
+
+    useEffect(() => {
+        const raf = requestAnimationFrame(() => {
+            setAnimatedOffset(targetOffset);
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [targetOffset]);
 
     const minutes = Math.floor(timeRemaining / 60);
     const seconds = timeRemaining % 60;
@@ -139,7 +149,7 @@ export function PomodoroTimerRing({
 
     return (
         <div className="timer-ring-container">
-            <svg className="timer-ring-svg" viewBox="0 0 200 200">
+            <svg className={`timer-ring-svg ${isRunning ? 'running' : ''}`} viewBox="0 0 200 200">
                 <circle
                     className="timer-ring-bg"
                     cx="100"
@@ -153,7 +163,7 @@ export function PomodoroTimerRing({
                     cy="100"
                     r={88}
                     strokeDasharray={String(circumference)}
-                    strokeDashoffset={String(offset)}
+                    strokeDashoffset={String(animatedOffset)}
                 />
             </svg>
             <div className="timer-display-overlay">
@@ -358,6 +368,20 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
     const circumference = 2 * Math.PI * 88;
     const progress = timer.totalTime > 0 ? (timer.totalTime - timer.timeRemaining) / timer.totalTime : 0;
     const offset = circumference * (1 - progress);
+    const [animatedOffset, setAnimatedOffset] = useState<number>(circumference);
+
+    useEffect(() => {
+        const raf = requestAnimationFrame(() => {
+            setAnimatedOffset(offset);
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [offset]);
+
+    useEffect(() => {
+        if (typeof document !== 'undefined') {
+            document.body.className = timer.phase === 'focus' ? 'phase-focus' : 'phase-break';
+        }
+    }, [timer.phase]);
 
     return (
         <div className="container">
@@ -383,14 +407,14 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                 </div>
                 <div
                     id="phase-short-break"
-                    className={`phase-pill ${timer.phase === 'shortBreak' ? 'active' : ''}`}
+                    className={`phase-pill ${timer.phase === 'shortBreak' ? 'active break-active' : ''}`}
                     onClick={() => { timer.phase = 'shortBreak'; timer.reset(); setTick((t) => t + 1); }}
                 >
                     Short Break
                 </div>
                 <div
                     id="phase-long-break"
-                    className={`phase-pill ${timer.phase === 'longBreak' ? 'active' : ''}`}
+                    className={`phase-pill ${timer.phase === 'longBreak' ? 'active break-active' : ''}`}
                     onClick={() => { timer.phase = 'longBreak'; timer.reset(); setTick((t) => t + 1); }}
                 >
                     Long Break
@@ -399,7 +423,7 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
 
             <div className="timer-section">
                 <div className="timer-ring-wrap">
-                    <svg className="timer-ring-svg" viewBox="0 0 200 200">
+                    <svg className={`timer-ring-svg ${timer.state === 'running' ? 'running' : ''}`} viewBox="0 0 200 200">
                         <circle className="timer-ring-bg" cx="100" cy="100" r="88" />
                         <circle
                             className={`timer-ring-fill ${timer.phase !== 'focus' ? 'break-ring' : ''}`}
@@ -408,7 +432,7 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                             cy="100"
                             r="88"
                             strokeDasharray={String(circumference)}
-                            strokeDashoffset={String(offset)}
+                            strokeDashoffset={String(animatedOffset)}
                         />
                     </svg>
                     <div className="timer-display">

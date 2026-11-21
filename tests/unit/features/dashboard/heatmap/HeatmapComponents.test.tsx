@@ -4,6 +4,7 @@
  */
 
 import { h, render } from 'preact';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import {
     StreakStatCard,
     HeatmapStatsDashboard

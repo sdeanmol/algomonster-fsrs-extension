@@ -280,7 +280,7 @@ describe('Analytics Preact Components', () => {
             <AnalyticsHeader
                 title="Exam Readiness Forecast"
                 subtitle="15 patterns tracked"
-                stats={summaryStats}
+                stats={summaryStats as any}
                 examRecall={85}
             />,
             container

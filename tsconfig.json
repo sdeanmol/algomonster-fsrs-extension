@@ -43,10 +43,10 @@
     "node_modules",
     "dist",
     "release",
-    "tests",
     "coverage",
     "backup",
     "*.config.js",
-    "tests/test_opt.js"
+    "tests/test_opt.js",
+    "tests/e2e"
   ]
 }

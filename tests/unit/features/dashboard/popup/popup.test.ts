@@ -1,31 +1,8 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { AlgoRecallDashboard } from '../../../../../features/dashboard/popup/popup';
-import { BackupManager } from '../../../../../features/common/data/backupManager';
-import { Card } from '../../../../../types/domain';
-
-jest.mock('../../../../../features/common/data/backupManager', () => ({
-  BackupManager: {
-    exportBackup: jest.fn().mockImplementation(() => Promise.resolve()),
-    importBackup: jest.fn().mockImplementation((file: any, cb: any) => {
-      if (cb) cb('Imported successfully', false);
-      return Promise.resolve();
-    })
-  }
-}));
 
 describe('AlgoRecallDashboard (Popup)', () => {
   let dashboard: AlgoRecallDashboard;
-
-  const getFreshCards = (): Card[] => [
-    {
-      id: 'c1',
-      problemTitle: 'Two Sum',
-      problemUrl: 'https://leetcode.com/problems/two-sum',
-      due: Date.now() - 1000,
-      stability: 5,
-      historyLog: []
-    }
-  ] as unknown as Card[];
 
   beforeEach(() => {
     delete (chrome.runtime as any).lastError;
@@ -42,8 +19,6 @@ describe('AlgoRecallDashboard (Popup)', () => {
       <div id="daily-focus-card"></div>
       <div id="activity-charts-card"></div>
       <input id="toggle-dev-mode" type="checkbox" />
-      <button id="manage-platforms-btn"></button>
-      <button id="configure-fsrs-btn"></button>
       <button id="help-btn"></button>
       <button id="history-btn"></button>
       <button id="open-heatmap-tab-btn"></button>
@@ -55,18 +30,10 @@ describe('AlgoRecallDashboard (Popup)', () => {
       <button id="analytics-btn"></button>
       <button id="header-analytics-btn"></button>
       <button id="forecast-btn"></button>
-      <button id="export-btn"></button>
-      <label id="import-btn-label" role="button" tabindex="0"><input id="import-file" type="file" /></label>
-      <button id="anki-export-btn"></button>
-      <label id="anki-import-btn-label" role="button" tabindex="0"><input id="anki-import-file" type="file" /></label>
       <button id="studyplan-btn"></button>
       <button id="pomodoro-btn"></button>
       <button id="open-summary-page-btn"></button>
       <button id="settings-hub-btn"></button>
-      <button id="achievements-btn"></button>
-      <div id="achievements-modal" class="hide-panel"></div>
-      <input id="toggle-weekly-digest" type="checkbox" />
-      <input id="toggle-badge-due-count" type="checkbox" />
       <button id="check-now-btn"></button>
       <div id="notification-settings-card"></div>
       <span id="status-msg"></span>
@@ -102,23 +69,19 @@ describe('AlgoRecallDashboard (Popup)', () => {
         <button id="edit-rating-btn"></button>
       </div>
       <div id="permission-warning-banner" class="hide-panel"><span></span><button id="enable-notifications-btn"></button></div>
-      <input id="toggle-notifications" type="checkbox" />
-      <select id="notification-interval"><option value="60"></option></select>
-      <div id="custom-interval-container" class="hide-panel"><input id="custom-interval-input" value="" /></div>
-      <input id="toggle-sticky-notification" type="checkbox" />
-      <input id="toggle-quiet-hours" type="checkbox" />
-      <div id="quiet-hours-container" class="hide-panel"><input id="quiet-hours-start" value="22:00" /><input id="quiet-hours-end" value="07:00" /></div>
-      <button id="test-notification-btn"></button>
     `;
 
     (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
       const result = {
-        fsrsCards: getFreshCards(),
-        extensionSettings: { showMarkerPopup: true, showCharts: true, showDailyFocus: true, developerMode: true },
-        fsrsActivity: { '2026-08-03': 5 },
-        dailyGoalTarget: 10,
-        notificationSettings: { enabled: true, frequency: '60' },
-        debugLogs: [{ msg: 'log 1' }, { msg: 'log 2' }]
+        extensionSettings: {
+          showMarkerPopup: true,
+          showCharts: true,
+          showLauncher: true,
+          developerMode: false
+        },
+        fsrsCards: [],
+        reviewLogs: [],
+        studyStreak: { current: 3, longest: 5, lastActiveDate: '2026-11-20' }
       };
       if (typeof cb === 'function') cb(result);
       return Promise.resolve(result);
@@ -129,71 +92,60 @@ describe('AlgoRecallDashboard (Popup)', () => {
       return Promise.resolve();
     });
 
-    (chrome as any).tabs = {
-      create: jest.fn().mockImplementation((options: any, cb?: any) => {
-        if (cb) cb({ id: 5 });
-      })
-    };
-
-    (chrome as any).downloads = {
-      download: jest.fn()
-    };
-
-    (chrome as any).runtime = {
-      id: 'mock-id',
-      getURL: jest.fn().mockImplementation((path: any) => `chrome-extension://mock-id/${path}`),
-      sendMessage: jest.fn(),
-      lastError: undefined
-    };
+    chrome.tabs.create = jest.fn().mockImplementation(() => Promise.resolve({ id: 1 })) as any;
+    chrome.runtime.getURL = jest.fn().mockImplementation((path: any) => `chrome-extension://mock-id/${path}`) as any;
 
     dashboard = new AlgoRecallDashboard();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
     jest.clearAllMocks();
-    delete (chrome.runtime as any).lastError;
+    jest.useRealTimers();
   });
 
   describe('init and loadComponents', () => {
     it('initializes popup dashboard and loads stored settings and subclass components', async () => {
       await dashboard.init();
-
-      expect(chrome.storage.local.get).toHaveBeenCalled();
+      expect(dashboard.dom.markerToggle?.checked).toBe(true);
+      expect(dashboard.dom.chartsToggle?.checked).toBe(true);
+      expect(dashboard.dom.launcherToggle?.checked).toBe(true);
     });
 
     it('handles status toast notifications and error formatting', () => {
-      dashboard.showStatus('Toast test message');
-
+      dashboard.showStatus('Operation successful!', false);
       const statusMsg = document.getElementById('status-msg');
-      expect(statusMsg?.innerHTML).toContain('Toast test message');
-      expect(statusMsg?.classList.contains('show')).toBe(true);
+      expect(statusMsg?.className).toContain('show success');
+      expect(statusMsg?.textContent).toContain('Operation successful!');
 
-      dashboard.showStatus('Error message', true);
-      expect(statusMsg?.classList.contains('error')).toBe(true);
+      // Error branch
+      dashboard.showStatus('Operation failed!', true);
+      expect(statusMsg?.className).toContain('show error');
+      expect(statusMsg?.textContent).toContain('Operation failed!');
 
-      jest.advanceTimersByTime(3000);
+      // Fast-forward auto-dismiss timer
+      jest.advanceTimersByTime(2600);
       expect(statusMsg?.classList.contains('show')).toBe(false);
     });
 
     it('handles exception in showStatus gracefully', () => {
       dashboard.dom.statusMsg = null;
-      expect(() => dashboard.showStatus('Toast message')).not.toThrow();
+      expect(() => dashboard.showStatus('Ignored status')).not.toThrow();
     });
 
     it('handles constructor exceptions gracefully', () => {
-      const origGEBI = document.getElementById;
-      document.getElementById = () => { throw new Error('GEBI Error'); };
-
+      const origGetElement = document.getElementById;
+      document.getElementById = jest.fn().mockImplementation(() => {
+        throw new Error('DOM Error');
+      }) as any;
       expect(() => new AlgoRecallDashboard()).not.toThrow();
-
-      document.getElementById = origGEBI;
+      document.getElementById = origGetElement;
     });
 
     it('handles init exception gracefully', async () => {
       const localDashboard = new AlgoRecallDashboard();
-      jest.spyOn(localDashboard, 'loadAll').mockRejectedValue(new Error('Load failure'));
-
+      jest.spyOn(localDashboard, 'bindEvents').mockImplementationOnce(() => {
+        throw new Error('bindEvents error');
+      });
       await expect(localDashboard.init()).resolves.not.toThrow();
     });
   });
@@ -227,15 +179,6 @@ describe('AlgoRecallDashboard (Popup)', () => {
       const settingsHubBtn = document.getElementById('settings-hub-btn');
       settingsHubBtn?.click();
 
-      const achievementsBtn = document.getElementById('achievements-btn');
-      achievementsBtn?.click();
-
-      const managePlatformsBtn = document.getElementById('manage-platforms-btn');
-      managePlatformsBtn?.click();
-
-      const configureFsrsBtn = document.getElementById('configure-fsrs-btn');
-      configureFsrsBtn?.click();
-
       const boxTotal = document.getElementById('box-total');
       boxTotal?.click();
 
@@ -256,6 +199,8 @@ describe('AlgoRecallDashboard (Popup)', () => {
 
       const headerAnalyticsBtn = document.getElementById('header-analytics-btn');
       headerAnalyticsBtn?.click();
+
+      expect(chrome.tabs.create).toHaveBeenCalledTimes(15);
     });
 
     it('handles theme, marker, charts, and dev mode toggle changes', async () => {
@@ -269,31 +214,33 @@ describe('AlgoRecallDashboard (Popup)', () => {
       markerToggle.checked = false;
       markerToggle.dispatchEvent(new Event('change'));
       await Promise.resolve();
-
-      const launcherToggle = document.getElementById('toggle-algo-launcher') as HTMLInputElement;
-      launcherToggle.checked = false;
-      launcherToggle.dispatchEvent(new Event('change'));
-      await Promise.resolve();
+      expect(chrome.storage.local.set).toHaveBeenCalled();
 
       const chartsToggle = document.getElementById('toggle-show-charts') as HTMLInputElement;
       chartsToggle.checked = false;
       chartsToggle.dispatchEvent(new Event('change'));
       await Promise.resolve();
+      expect(chrome.storage.local.set).toHaveBeenCalled();
+
+      const launcherToggle = document.getElementById('toggle-algo-launcher') as HTMLInputElement;
+      launcherToggle.checked = false;
+      launcherToggle.dispatchEvent(new Event('change'));
+      await Promise.resolve();
+      expect(chrome.storage.local.set).toHaveBeenCalled();
 
       const devToggle = document.getElementById('toggle-dev-mode') as HTMLInputElement;
       devToggle.checked = true;
       devToggle.dispatchEvent(new Event('change'));
       await Promise.resolve();
-
       expect(chrome.storage.local.set).toHaveBeenCalled();
     });
 
     it('exports debug logs on exportDebugLogsBtn click and handles empty logs branch', async () => {
-      (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
+      chrome.storage.local.get = jest.fn((keys: any, cb?: any) => {
         const result = { debugLogs: [] };
         if (cb) cb(result);
         return Promise.resolve(result);
-      });
+      }) as any;
 
       await dashboard.init();
 
@@ -301,177 +248,52 @@ describe('AlgoRecallDashboard (Popup)', () => {
       exportLogsBtn?.click();
       expect(dashboard.dom.statusMsg?.textContent).toContain('No debug logs found.');
     });
-
-    it('handles JSON backup import file change event', async () => {
-      await dashboard.init();
-
-      const importFileInput = document.getElementById('import-file') as HTMLInputElement;
-      const file = new File(['{"fsrsCards":[]}'], 'backup.json', { type: 'application/json' });
-
-      Object.defineProperty(importFileInput, 'files', { value: [file] });
-      importFileInput.dispatchEvent(new Event('change'));
-      await Promise.resolve();
-
-      expect(BackupManager.importBackup).toHaveBeenCalled();
-    });
-
-    it('handles Anki export button click and downloads file', async () => {
-      await dashboard.init();
-
-      const ankiExportBtn = document.getElementById('anki-export-btn');
-      ankiExportBtn?.click();
-
-      expect(chrome.downloads.download).toHaveBeenCalled();
-    });
-
-    it('handles Anki text export and import helper methods', () => {
-      const exportText = dashboard.exportToAnkiText(getFreshCards());
-      expect(exportText).toContain('#separator:tab');
-
-      const importedCards = dashboard.importFromAnkiText('Two Sum [URL: https://leetcode.com/problems/two-sum]\tSolution Approach\talgorecall::tag_one');
-      expect(importedCards.length).toBe(1);
-      expect(importedCards[0].problemTitle).toBe('Two Sum');
-      expect(importedCards[0].problemUrl).toBe('https://leetcode.com/problems/two-sum');
-
-      const emptyImport = dashboard.importFromAnkiText('#header comment\ninvalid line');
-      expect(emptyImport.length).toBe(0);
-
-      const noUrlImport = dashboard.importFromAnkiText('Just Title No URL\tApproach without url');
-      expect(noUrlImport.length).toBe(1);
-      expect(noUrlImport[0].problemUrl).toContain('#imported-Just%20Title');
-
-      // Test error catch block for importFromAnkiText
-      const originalSplit = String.prototype.split;
-      String.prototype.split = function() {
-        throw new Error('Split error');
-      } as any;
-      expect(() => dashboard.importFromAnkiText('dummy')).not.toThrow();
-      String.prototype.split = originalSplit;
-    });
-
-    it('handles Anki import file input change event', async () => {
-      await dashboard.init();
-
-      const ankiFileInput = document.getElementById('anki-import-file') as HTMLInputElement;
-      const file = new File(['Two Sum\tApproach Text\ttag'], 'anki.txt', { type: 'text/plain' });
-
-      Object.defineProperty(ankiFileInput, 'files', { value: [file] });
-
-      // Mock FileReader
-      const mockFileReader = {
-        readAsText: jest.fn().mockImplementation(function (this: any) {
-          if (this.onload) {
-            this.onload({ target: { result: 'New Anki Card\tApproach\ttag' } } as any);
-          }
-        })
-      };
-      (global as any).FileReader = jest.fn().mockImplementation(() => mockFileReader);
-
-      ankiFileInput.dispatchEvent(new Event('change'));
-      await Promise.resolve();
-
-      expect(chrome.storage.local.set).toHaveBeenCalled();
-    });
   });
 
   describe('Global Init function', () => {
     it('initializes popup safely', () => {
-      // the script evaluates top level when imported, but we can trigger DOMContentLoaded manually
-      const evt = document.createEvent('Event');
-      evt.initEvent('DOMContentLoaded', true, true);
-      
-      // We can also trigger the readyState fallback by mocking it
-      const originalState = document.readyState;
-      Object.defineProperty(document, 'readyState', { value: 'complete', configurable: true });
-      
-      // Need a clean isolated scope or require() to hit lines 813-818, 
-      // but testing the try/catch in initPopupDashboard directly
-      try {
-         // This is a rough simulation since we can't easily re-evaluate the module
-         document.dispatchEvent(evt);
-      } catch (err) {}
-      
-      Object.defineProperty(document, 'readyState', { value: originalState, configurable: true });
+      expect(dashboard).toBeDefined();
     });
   });
 
   describe('Popup Button Error Handlers', () => {
     it('safely catches errors when chrome.tabs.create fails on buttons', async () => {
       await dashboard.init();
-      
       chrome.tabs.create = jest.fn().mockImplementation(() => {
-        throw new Error('Tab creation failed');
+        throw new Error('Tabs create failed');
       }) as any;
 
       const buttons = [
-        'manage-platforms-btn',
-        'configure-fsrs-btn',
+        'help-btn',
+        'history-btn',
         'open-heatmap-tab-btn',
-        'analytics-btn',
-        'header-analytics-btn',
         'forecast-btn',
-        'open-options-btn',
         'studyplan-btn',
         'pomodoro-btn',
         'open-summary-page-btn',
         'settings-hub-btn',
-        'achievements-btn',
-        'help-btn',
-        'history-btn'
+        'manage-highlights-btn',
+        'open-options-btn',
+        'analytics-btn',
+        'header-analytics-btn'
       ];
 
       buttons.forEach(id => {
         const btn = document.getElementById(id);
-        if (btn) {
-          expect(() => btn.click()).not.toThrow();
-        }
+        expect(() => btn?.click()).not.toThrow();
       });
     });
 
     it('safely catches errors when exporting debug logs fails', async () => {
       await dashboard.init();
-      
-      // 1. Trigger error inside chrome.storage callback
-      const exportBtn = document.getElementById('export-debug-logs-btn') || document.createElement('button');
-      exportBtn.id = 'export-debug-logs-btn';
-      if (!exportBtn.parentElement) document.body.appendChild(exportBtn);
-      
-      // Re-init to attach listener to this newly created button if missing
-      await dashboard.init();
-      
+      const exportBtn = document.getElementById('export-debug-logs-btn') as HTMLElement;
+
       chrome.storage.local.get = jest.fn((keys: any, cb?: any) => {
-        if (cb) cb(null); // passing null causes TypeError when checking result.debugLogs
+        if (cb) cb(null);
         return Promise.resolve(null);
       }) as any;
-      
+
       expect(() => exportBtn.click()).not.toThrow();
-    });
-
-    it('safely catches errors when exporting backup fails', async () => {
-      await dashboard.init();
-      const exportBtn = document.getElementById('export-btn');
-      
-      // Make backup manager throw
-      jest.spyOn(BackupManager, 'exportBackup').mockImplementationOnce(() => {
-        throw new Error('Export broke');
-      });
-      
-      if (exportBtn) {
-        expect(() => exportBtn.click()).not.toThrow();
-      }
-    });
-
-    it('safely catches errors when anki import fails', async () => {
-      await dashboard.init();
-      const ankiFileInput = document.getElementById('anki-import-file') as HTMLInputElement;
-      const file = new File(['New Anki Card'], 'anki.txt', { type: 'text/plain' });
-      Object.defineProperty(ankiFileInput, 'files', { value: [file] });
-
-      (global as any).FileReader = jest.fn().mockImplementation(() => ({
-        readAsText: () => { throw new Error('FileReader failed'); }
-      }));
-
-      expect(() => ankiFileInput.dispatchEvent(new Event('change'))).not.toThrow();
     });
   });
 
@@ -479,7 +301,7 @@ describe('AlgoRecallDashboard (Popup)', () => {
     it('successfully exports debug logs when supportsDownloads is true', async () => {
       await dashboard.init();
       const exportBtn = document.getElementById('export-debug-logs-btn');
-      
+
       const BROWSER_CONFIG = require('../../../../../features/common/browserConfig').BROWSER_CONFIG;
       BROWSER_CONFIG.supportsDownloads = true;
 
@@ -501,7 +323,7 @@ describe('AlgoRecallDashboard (Popup)', () => {
     it('successfully exports debug logs when supportsDownloads is false', async () => {
       await dashboard.init();
       const exportBtn = document.getElementById('export-debug-logs-btn');
-      
+
       const BROWSER_CONFIG = require('../../../../../features/common/browserConfig').BROWSER_CONFIG;
       BROWSER_CONFIG.supportsDownloads = false;
 
@@ -513,143 +335,17 @@ describe('AlgoRecallDashboard (Popup)', () => {
 
       expect(() => exportBtn?.click()).not.toThrow();
     });
-
-    it('successfully exports backup', async () => {
-      await dashboard.init();
-      const exportBtn = document.getElementById('export-btn');
-      
-      jest.spyOn(BackupManager, 'exportBackup').mockImplementationOnce(() => Promise.resolve());
-      
-      expect(() => exportBtn?.click()).not.toThrow();
-    });
-
-    it('successfully imports backup file', async () => {
-      await dashboard.init();
-      const importFileInput = document.getElementById('import-file') as HTMLInputElement;
-      
-      const file = new File(['{"backup": true}'], 'backup.json', { type: 'application/json' });
-      Object.defineProperty(importFileInput, 'files', { value: [file] });
-
-      jest.spyOn(BackupManager, 'importBackup').mockImplementationOnce((f, cb) => {
-        if (cb) cb('Success!', false);
-        return Promise.resolve();
-      });
-
-      expect(() => importFileInput.dispatchEvent(new Event('change'))).not.toThrow();
-    });
-  });
-
-  describe('Anki Export and Import Actions', () => {
-    it('successfully exports Anki cards when supportsDownloads is true', async () => {
-      await dashboard.init();
-      const BROWSER_CONFIG = require('../../../../../features/common/browserConfig').BROWSER_CONFIG;
-      BROWSER_CONFIG.supportsDownloads = true;
-
-      const exportBtn = document.getElementById('anki-export-btn');
-
-      chrome.storage.local.get = jest.fn((keys: any, cb?: any) => {
-        const result = { fsrsCards: [{ problemTitle: 'Test Card' }] };
-        if (cb) cb(result);
-        return Promise.resolve(result);
-      }) as any;
-
-      chrome.downloads = {
-        download: jest.fn((options: any, cb: any) => {
-          if (cb) cb();
-        })
-      } as any;
-
-      expect(() => exportBtn?.click()).not.toThrow();
-    });
-
-    it('successfully exports Anki cards when supportsDownloads is false', async () => {
-      await dashboard.init();
-      const BROWSER_CONFIG = require('../../../../../features/common/browserConfig').BROWSER_CONFIG;
-      BROWSER_CONFIG.supportsDownloads = false;
-
-      const exportBtn = document.getElementById('anki-export-btn');
-
-      chrome.storage.local.get = jest.fn((keys: any, cb?: any) => {
-        const result = { fsrsCards: [{ problemTitle: 'Test Card' }] };
-        if (cb) cb(result);
-        return Promise.resolve(result);
-      }) as any;
-
-      expect(() => exportBtn?.click()).not.toThrow();
-    });
-
-    it('safely handles Anki export with no cards', async () => {
-      await dashboard.init();
-      const exportBtn = document.getElementById('anki-export-btn');
-
-      chrome.storage.local.get = jest.fn((keys: any, cb?: any) => {
-        const result = { fsrsCards: [] };
-        if (cb) cb(result);
-        return Promise.resolve(result);
-      }) as any;
-
-      expect(() => exportBtn?.click()).not.toThrow();
-    });
-
-    it('safely handles Anki import with duplicate and new cards', async () => {
-      await dashboard.init();
-      const ankiFileInput = document.getElementById('anki-import-file') as HTMLInputElement;
-      
-      const file = new File(['Two Sum\tApproach Text\ttag\nNew Card\tApproach Text\ttag'], 'anki.txt', { type: 'text/plain' });
-      Object.defineProperty(ankiFileInput, 'files', { value: [file] });
-
-      (global as any).FileReader = jest.fn().mockImplementation(() => ({
-        readAsText: function(this: any) {
-          if (this.onload) {
-            this.onload({ target: { result: 'Two Sum\tApproach Text\ttag\nNew Card\tApproach Text\ttag' } } as any);
-          }
-        }
-      }));
-
-      chrome.storage.local.get = jest.fn((keys: any, cb?: any) => {
-        const result = { fsrsCards: [{ problemTitle: 'Two Sum' }] };
-        if (cb) cb(result);
-        return Promise.resolve(result);
-      }) as any;
-
-      chrome.storage.local.set = jest.fn((data: any, cb?: any) => {
-        if (cb) cb();
-      }) as any;
-
-      expect(() => ankiFileInput.dispatchEvent(new Event('change'))).not.toThrow();
-    });
-
-    it('safely handles Anki import with no valid cards', async () => {
-      await dashboard.init();
-      const ankiFileInput = document.getElementById('anki-import-file') as HTMLInputElement;
-      
-      const file = new File(['invalid line without tabs'], 'anki.txt', { type: 'text/plain' });
-      Object.defineProperty(ankiFileInput, 'files', { value: [file] });
-
-      (global as any).FileReader = jest.fn().mockImplementation(() => ({
-        readAsText: function(this: any) {
-          if (this.onload) {
-            this.onload({ target: { result: 'invalid line without tabs' } } as any);
-          }
-        }
-      }));
-
-      expect(() => ankiFileInput.dispatchEvent(new Event('change'))).not.toThrow();
-    });
   });
 
   describe('Usability Audit Fixes (UA-002, UA-010, UA-029)', () => {
     it('UA-029: triggers manual review check via check-now-btn and shows status', async () => {
       await dashboard.init();
+
+      chrome.runtime.sendMessage = jest.fn((msg: any, cb?: any) => {
+        if (cb) cb({ success: true, dueCount: 3 });
+      }) as any;
+
       const checkNowBtn = document.getElementById('check-now-btn') as HTMLElement;
-      expect(checkNowBtn).not.toBeNull();
-
-      (chrome.runtime.sendMessage as jest.Mock).mockImplementation((msg: any, cb?: any) => {
-        if (msg.action === 'check_due_cards_now' && cb) {
-          cb({ success: true, dueCount: 3 });
-        }
-      });
-
       checkNowBtn.click();
       const statusMsg = document.getElementById('status-msg');
       expect(statusMsg?.textContent).toContain('Checked! 3 reviews due.');
@@ -670,11 +366,10 @@ describe('AlgoRecallDashboard (Popup)', () => {
       launcherToggle.dispatchEvent(new Event('change'));
       expect(launcherToggle.getAttribute('aria-checked')).toBe('false');
 
-      const weeklyToggle = document.getElementById('toggle-weekly-digest') as HTMLInputElement;
-      expect(weeklyToggle.getAttribute('aria-checked')).toBe('true');
-      weeklyToggle.checked = false;
-      weeklyToggle.dispatchEvent(new Event('change'));
-      expect(weeklyToggle.getAttribute('aria-checked')).toBe('false');
+      const devToggle = document.getElementById('toggle-dev-mode') as HTMLInputElement;
+      devToggle.checked = true;
+      devToggle.dispatchEvent(new Event('change'));
+      expect(devToggle.getAttribute('aria-checked')).toBe('true');
     });
 
     it('UA-010: hides notification settings card on Safari builds', async () => {
@@ -689,43 +384,29 @@ describe('AlgoRecallDashboard (Popup)', () => {
       BROWSER_CONFIG.supportsNotifications = origSupports;
     });
 
-    it('UX-003: enables keyboard activation for backup restore, Anki import labels, and metric stat boxes', async () => {
+    it('UX-003: enables accessible keyboard activation on metric stat boxes', async () => {
       await dashboard.init();
-      const importFile = document.getElementById('import-file') as HTMLInputElement;
-      const ankiImportFile = document.getElementById('anki-import-file') as HTMLInputElement;
-      const importLabel = document.getElementById('import-btn-label') as HTMLElement;
-      const ankiLabel = document.getElementById('anki-import-btn-label') as HTMLElement;
-
-      const importClickSpy = jest.spyOn(importFile, 'click').mockImplementation(() => {});
-      const ankiClickSpy = jest.spyOn(ankiImportFile, 'click').mockImplementation(() => {});
-
-      // Enter key on import label triggers file input click
-      importLabel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-      expect(importClickSpy).toHaveBeenCalledTimes(1);
-
-      // Space key on anki import label triggers file input click
-      ankiLabel.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
-      expect(ankiClickSpy).toHaveBeenCalledTimes(1);
-
-      // Other keys do nothing
-      importLabel.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-      expect(importClickSpy).toHaveBeenCalledTimes(1);
-
-      // Stat boxes accessible keyboard navigation
       const boxTotal = document.getElementById('box-total') as HTMLElement;
       const boxDue = document.getElementById('box-due') as HTMLElement;
       const boxRetention = document.getElementById('box-retention') as HTMLElement;
 
       const tabsCreateSpy = jest.spyOn(chrome.tabs, 'create');
 
+      // Enter key on boxTotal triggers navigation
       boxTotal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
       expect(tabsCreateSpy).toHaveBeenCalled();
 
+      // Space key on boxDue triggers navigation
       boxDue.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
-      expect(tabsCreateSpy).toHaveBeenCalled();
+      expect(tabsCreateSpy).toHaveBeenCalledTimes(2);
 
+      // Enter key on boxRetention triggers navigation
       boxRetention.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-      expect(tabsCreateSpy).toHaveBeenCalled();
+      expect(tabsCreateSpy).toHaveBeenCalledTimes(3);
+
+      // Other keys do nothing
+      boxTotal.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+      expect(tabsCreateSpy).toHaveBeenCalledTimes(3);
     });
 
     it('UX-009: toggle-show-charts updates activity-charts-card while daily-focus-card remains visible', async () => {
@@ -773,5 +454,3 @@ describe('AlgoRecallDashboard (Popup)', () => {
     });
   });
 });
-
-

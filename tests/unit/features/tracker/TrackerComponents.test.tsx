@@ -7,7 +7,7 @@ import {
     TrackerRatingBar,
     TrackerCardReviewView
 } from '../../../../features/tracker/tracker';
-import { Card } from '../../../../features/tracker/types';
+import { Card } from '../../../../types/domain';
 
 describe('Tracker Preact Components', () => {
     let container: HTMLElement;

@@ -507,6 +507,7 @@ describe('SettingsController', () => {
 
     it('triggers ActionService.exportAnki on anki export click', async () => {
       const spy = jest.spyOn(ActionService, 'executeAction').mockResolvedValue({
+        action: 'export-anki',
         success: true,
         data: 5
       });
