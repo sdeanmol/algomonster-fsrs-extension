@@ -1,5 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { h, render } from 'preact';
+import { act } from 'preact/test-utils';
 import { HelpCenterSPA, HelpApp, DEFAULT_HELP_TABS } from '../../../../../features/common/help/help';
 import { BROWSER_CONFIG } from '../../../../../features/common/browserConfig';
 import { UIUtils } from '../../../../../features/common/utils/uiUtils';
@@ -35,26 +36,30 @@ describe('HelpCenterSPA & HelpApp', () => {
     });
 
     it('switches tab on tab button click', async () => {
-      render(h(HelpApp, { spa: helpCenter }), container);
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await act(async () => {
+        render(h(HelpApp, { spa: helpCenter }), container);
+      });
 
       const tabBtn = container.querySelector('.tab-btn[data-tab="fsrs"]') as HTMLElement;
       expect(tabBtn).not.toBeNull();
-      tabBtn.click();
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await act(async () => {
+        tabBtn.click();
+      });
 
       expect(helpCenter.currentTab).toBe('fsrs');
       expect(container.querySelector('.tab-btn[data-tab="fsrs"]')?.classList.contains('active')).toBe(true);
     });
 
     it('switches to privacy tab on privacy tab button click', async () => {
-      render(h(HelpApp, { spa: helpCenter }), container);
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await act(async () => {
+        render(h(HelpApp, { spa: helpCenter }), container);
+      });
 
       const privacyBtn = container.querySelector('.tab-btn[data-tab="privacy"]') as HTMLElement;
       expect(privacyBtn).not.toBeNull();
-      privacyBtn.click();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await act(async () => {
+        privacyBtn.click();
+      });
 
       expect(helpCenter.currentTab).toBe('privacy');
       expect(container.querySelector('.tab-btn[data-tab="privacy"]')?.classList.contains('active')).toBe(true);
@@ -115,12 +120,14 @@ describe('HelpCenterSPA & HelpApp', () => {
     });
 
     it('handles hashchange event to navigate to new tab', async () => {
-      render(h(HelpApp, { spa: helpCenter }), container);
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await act(async () => {
+        render(h(HelpApp, { spa: helpCenter }), container);
+      });
 
       (window as any).location = new URL('https://algo.monster/help/help.html#tab-privacy');
-      window.dispatchEvent(new Event('hashchange'));
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await act(async () => {
+        window.dispatchEvent(new Event('hashchange'));
+      });
 
       expect(helpCenter.currentTab).toBe('privacy');
       expect(container.querySelector('.tab-btn[data-tab="privacy"]')?.classList.contains('active')).toBe(true);

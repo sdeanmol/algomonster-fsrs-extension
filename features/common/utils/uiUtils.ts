@@ -29,6 +29,13 @@ export class UIUtils {
     }
 
     /**
+     * Alias for `showToast` to display status notifications.
+     */
+    static showStatus(msg: string, durationMs: number = 2500): void {
+        this.showToast(msg, durationMs);
+    }
+
+    /**
      * Safely closes the active extension tab or window.
      * Attempts to query `chrome.tabs.getCurrent` and close the tab via `chrome.tabs.remove`,
      * falling back to standard `window.close()`.

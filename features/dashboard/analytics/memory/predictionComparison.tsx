@@ -5,7 +5,8 @@
  * @context Popup / Analytics SPA Dashboard
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render } from 'preact';
+import { useMemo } from 'preact/hooks';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
@@ -54,6 +55,85 @@ export const PredictionComparisonLegend: FunctionalComponent<PredictionCompariso
     );
 };
 
+export interface PredictionComparisonChartProps {
+    dataUtils: DataUtils;
+}
+
+export const PredictionComparisonChart: FunctionalComponent<PredictionComparisonChartProps> = ({ dataUtils }) => {
+    const timePoints = RETENTION_TIME_POINTS;
+    const svgW = 900, svgH = 200;
+    const padL = 50, padR = 20, padT = 20, padB = 40;
+    const chartW = svgW - padL - padR;
+    const chartH = svgH - padT - padB;
+
+    const xScale = (t: number) => padL + (t / 30) * chartW;
+    const yScale = (r: number) => padT + (1 - r) * chartH;
+
+    const data = useMemo(() => {
+        const stats = dataUtils ? dataUtils.getSummaryStats() : null;
+        const avgStability = (stats && stats.avgStability > 0) ? stats.avgStability : 10;
+        const decay = DEFAULT_FSRS_DECAY;
+        const factor = DEFAULT_FSRS_FACTOR;
+
+        const sched = dataUtils ? (dataUtils.scheduler as (AbstractScheduler & { getProjectedRetrievability?: (stability: number, days: number) => number }) | null) : null;
+
+        const predPoints = timePoints.map(t => {
+            let R = 0;
+            if (sched && typeof sched.getProjectedRetrievability === 'function') {
+                R = sched.getProjectedRetrievability(avgStability, t);
+            } else {
+                R = Math.pow(1 + (factor * t) / avgStability, decay);
+            }
+            return { t, R, x: xScale(t), y: yScale(R) };
+        });
+
+        const actPoints = timePoints.map(t => {
+            let R = 0;
+            if (sched && typeof sched.getProjectedRetrievability === 'function') {
+                R = sched.getProjectedRetrievability(avgStability * 0.85, t);
+            } else {
+                R = Math.pow(1 + (factor * t) / (avgStability * 0.85), decay);
+            }
+            return { t, R, x: xScale(t), y: yScale(R) };
+        });
+
+        const lastPred = predPoints[predPoints.length - 1];
+        const lastAct = actPoints[actPoints.length - 1];
+        const diff = (lastPred && lastAct) ? (lastPred.R - lastAct.R) : 0;
+
+        const gapText = diff > 0.05 
+            ? `Actual recall is ${Math.round(diff * 100)}% below expected. Consider reviewing more consistently.`
+            : `Actual recall is tracking closely to predictions!`;
+
+        return { predPoints, actPoints, diff, gapText };
+    }, [dataUtils]);
+
+    return (
+        <Fragment>
+            <svg class="prediction-svg multi-line" viewBox={`0 0 ${svgW} ${svgH}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%', minHeight: '250px' }}>
+                {[0, 0.5, 1.0].map(r => {
+                    const y = yScale(r);
+                    return (
+                        <g key={r}>
+                            <line class="retention-grid-line" x1={padL} y1={y} x2={svgW - padR} y2={y} />
+                            <text class="retention-axis-label" x={padL - 10} y={y + 4} text-anchor="end">{Math.round(r * 100)}%</text>
+                        </g>
+                    );
+                })}
+                {timePoints.map(t => {
+                    const x = xScale(t);
+                    return (
+                        <text key={t} class="retention-axis-label" x={x} y={svgH - 10} text-anchor="middle">{t}d</text>
+                    );
+                })}
+                <polyline points={data.predPoints.map(p => `${p.x},${p.y}`).join(' ')} stroke="#a8c7fa" stroke-dasharray="5,5" fill="none" stroke-width="2" />
+                <polyline points={data.actPoints.map(p => `${p.x},${p.y}`).join(' ')} stroke="#f28b82" fill="none" stroke-width="2" />
+            </svg>
+            <PredictionComparisonLegend gapText={data.gapText} diff={data.diff} />
+        </Fragment>
+    );
+};
+
 /**
  * Visualizes model calibration by comparing expected memory retention (dashed line)
  * against measured or estimated actual recall (solid line), highlighting algorithm divergence.
@@ -86,26 +166,7 @@ export class PredictionComparison {
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            const svgW = 900, svgH = 200;
-            const padL = 50, padR = 20, padT = 20, padB = 40;
-            const chartW = svgW - padL - padR;
-            const chartH = svgH - padT - padB;
-
-            const xScale = (t: number) => padL + (t / 30) * chartW;
-            const yScale = (r: number) => padT + (1 - r) * chartH;
-            
-            const timePoints = RETENTION_TIME_POINTS;
-
-            // 1. Calculate the prediction points and actual recall points
-            const data = this.calculateChartData(timePoints, xScale, yScale);
-
-            // 2. Generate the SVG structure
-            const svgContent = this.generateSvgContent(data.predPoints, data.actPoints, timePoints, xScale, yScale, svgW, svgH, padL, padR);
-            
-            // 3. Generate Legend HTML
-            const legendHtml = this.generateLegendHTML(data.gapText, data.diff);
-
-            container.innerHTML = svgContent + legendHtml;
+            render(<PredictionComparisonChart dataUtils={this.dataUtils} />, container);
         } catch (err) {
             UIUtils.catchError('PredictionComparison', 'Error rendering PredictionComparison', err, { containerId });
         }

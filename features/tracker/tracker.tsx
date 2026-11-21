@@ -11,7 +11,7 @@
  * - Preact components: `TrackerFloatingLauncher`, `TrackerHeader`, `TrackerNavBar`, `TrackerRatingBar`, `TrackerCardReviewView`.
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render } from 'preact';
 import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
 import { TagInputControl } from '../common/utils/tagInput';
 import { Card, StorageData, ExtensionSettings } from '../../types/domain';
@@ -366,6 +366,176 @@ export const TrackerCardReviewView: FunctionalComponent<TrackerCardReviewViewPro
                 </button>
             ) : null}
         </div>
+    );
+};
+
+export interface TrackerOverlayProps {
+    problem?: { title?: string; url?: string } | null;
+    autoTagsStr?: string;
+    onMinimize?: () => void;
+    onClose?: () => void;
+    onFullscreen?: () => void;
+    onDeleteCard?: () => void;
+    onUpdateText?: () => void;
+    onRate?: (rating: number) => void;
+}
+
+export const TrackerOverlay: FunctionalComponent<TrackerOverlayProps> = ({
+    problem,
+    autoTagsStr = '',
+    onMinimize,
+    onClose,
+    onFullscreen,
+    onDeleteCard,
+    onUpdateText,
+    onRate
+}) => {
+    return (
+        <Fragment>
+            <div id="fsrs-header">
+                <div class="fsrs-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                    </svg>
+                    <span>{problem?.title ? `AlgoRecall Tracker - ${problem.title}` : 'AlgoRecall Tracker'}</span>
+                </div>
+                <div class="fsrs-controls">
+                    <button
+                        id="fsrs-min-btn"
+                        class="fsrs-icon-btn"
+                        aria-label="Minimize"
+                        aria-expanded="true"
+                        aria-controls="algo-fsrs-container"
+                        title="Minimize"
+                        onClick={onMinimize}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                    <button
+                        id="fsrs-close-btn"
+                        class="fsrs-icon-btn"
+                        aria-label="Close"
+                        title="Close"
+                        onClick={onClose}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div
+                id="fsrs-nav-bar"
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 12px',
+                    background: 'rgba(0,0,0,0.25)',
+                    borderBottom: '1px solid rgba(255,255,255,0.08)',
+                    overflowX: 'auto'
+                }}
+            />
+            <div
+                id="fsrs-empty-url-hint"
+                style={{
+                    display: 'none',
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    color: 'var(--md-text-low, #888)',
+                    background: 'rgba(255,255,255,0.04)',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)'
+                }}
+            >
+                No cards tracked for this problem yet. Add your initial approach notes below to start!
+            </div>
+
+            <div id="fsrs-body">
+                <div class="fsrs-tags-container">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                        <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                    </svg>
+                    <input
+                        type="text"
+                        id="fsrs-tags-input"
+                        class="fsrs-tags-input"
+                        aria-label="Add tags"
+                        placeholder="Add tags (comma separated)..."
+                        value={autoTagsStr}
+                    />
+                </div>
+
+                <div class="fsrs-approach-header">
+                    <label>Your Approach:</label>
+                    <div class="fsrs-header-buttons" style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                            id="fsrs-fullscreen-btn"
+                            class="fsrs-secondary-btn"
+                            title="Open in fullscreen new tab"
+                            aria-label="Open in fullscreen new tab"
+                            onClick={onFullscreen}
+                        >
+                            <svg class="svg-icon" viewBox="0 0 24 24" style={{ width: '11px', height: '11px', display: 'inline-block', verticalAlign: 'middle', marginRight: '3px' }}>
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                            Fullscreen
+                        </button>
+                        <button
+                            id="fsrs-delete-card-btn"
+                            class="fsrs-danger-btn"
+                            style={{ display: 'none' }}
+                            title="Remove this card from future reviews"
+                            aria-label="Remove this card from future reviews"
+                            onClick={onDeleteCard}
+                        >
+                            <svg class="svg-icon" viewBox="0 0 24 24" style={{ width: '11px', height: '11px', display: 'inline-block', verticalAlign: 'middle', marginRight: '3px', stroke: 'currentColor' }}>
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                            Remove
+                        </button>
+                        <button
+                            id="fsrs-update-text-btn"
+                            class="fsrs-secondary-btn"
+                            style={{ display: 'none' }}
+                            title="Save edits without reviewing"
+                            aria-label="Save edits without reviewing"
+                            onClick={onUpdateText}
+                        >
+                            <svg class="svg-icon" viewBox="0 0 24 24" style={{ width: '11px', height: '11px', display: 'inline-block', verticalAlign: 'middle', marginRight: '3px' }}>
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                            Save Edit
+                        </button>
+                    </div>
+                </div>
+                <textarea
+                    id="fsrs-approach"
+                    class="fsrs-textarea"
+                    placeholder="How did you solve this pattern? Jot down your key insights..."
+                />
+
+                <div class="fsrs-rating-section">
+                    <p id="fsrs-action-label" class="fsrs-rating-label">Save & Rate Initial Difficulty:</p>
+                    <div class="fsrs-rating-buttons" id="fsrs-save-ratings">
+                        <button data-rating="1" class="fsrs-btn-again" title="Hard to remember (Shortcut: 1)" aria-label="Hard to remember (Shortcut: 1)" onClick={() => onRate && onRate(1)}>Again</button>
+                        <button data-rating="2" class="fsrs-btn-hard" title="Remembered with effort (Shortcut: 2)" aria-label="Remembered with effort (Shortcut: 2)" onClick={() => onRate && onRate(2)}>Hard</button>
+                        <button data-rating="3" class="fsrs-btn-good" title="Remembered easily (Shortcut: 3)" aria-label="Remembered easily (Shortcut: 3)" onClick={() => onRate && onRate(3)}>Good</button>
+                        <button data-rating="4" class="fsrs-btn-easy" title="Too easy (Shortcut: 4)" aria-label="Too easy (Shortcut: 4)" onClick={() => onRate && onRate(4)}>Easy</button>
+                    </div>
+                </div>
+            </div>
+            <div id="fsrs-review-ui" style={{ display: 'none' }} />
+        </Fragment>
     );
 };
 
@@ -740,63 +910,16 @@ export class Tracker {
 
             const autoTagsStr = (this.utils && typeof this.utils.getAutoTags === 'function') ? this.utils.getAutoTags().join(', ') : '';
 
-            container.innerHTML = `
-                <div id="fsrs-header">
-                    <div class="fsrs-title">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-                        <span>AlgoRecall Tracker</span>
-                    </div>
-                    <div class="fsrs-controls">
-                        <button id="fsrs-min-btn" class="fsrs-icon-btn" aria-label="Minimize" aria-expanded="true" aria-controls="algo-fsrs-container" title="Minimize">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        </button>
-                        <button id="fsrs-close-btn" class="fsrs-icon-btn" aria-label="Close" title="Close">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                    </div>
-                </div>
-                <div id="fsrs-nav-bar" style="display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: rgba(0,0,0,0.25); border-bottom: 1px solid rgba(255,255,255,0.08); overflow-x: auto;"></div>
-                <div id="fsrs-empty-url-hint" style="display: none; padding: 6px 12px; font-size: 11px; color: var(--md-text-low, #888); background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.06);">
-                    No cards tracked for this problem yet. Add your initial approach notes below to start!
-                </div>
+            const utilsAny = this.utils as any;
+            const problem = utilsAny && typeof utilsAny.extractProblemDetails === 'function' ? utilsAny.extractProblemDetails() : null;
 
-                <div id="fsrs-body">
-                    <div class="fsrs-tags-container">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                        <input type="text" id="fsrs-tags-input" class="fsrs-tags-input" aria-label="Add tags" placeholder="Add tags (comma separated)..." value="${autoTagsStr}">
-                    </div>
-                    
-                    <div class="fsrs-approach-header">
-                        <label>Your Approach:</label>
-                        <div class="fsrs-header-buttons" style="display: flex; gap: 6px;">
-                            <button id="fsrs-fullscreen-btn" class="fsrs-secondary-btn" title="Open in fullscreen new tab" aria-label="Open in fullscreen new tab">
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px; display:inline-block; vertical-align:middle; margin-right:3px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                                Fullscreen
-                            </button>
-                            <button id="fsrs-delete-card-btn" class="fsrs-danger-btn" style="display:none;" title="Remove this card from future reviews" aria-label="Remove this card from future reviews">
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px; display:inline-block; vertical-align:middle; margin-right:3px; stroke:currentColor;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                Remove
-                            </button>
-                            <button id="fsrs-update-text-btn" class="fsrs-secondary-btn" style="display:none;" title="Save edits without reviewing" aria-label="Save edits without reviewing">
-                                <svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px; display:inline-block; vertical-align:middle; margin-right:3px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                                Save Edit
-                            </button>
-                        </div>
-                    </div>
-                    <textarea id="fsrs-approach" class="fsrs-textarea" placeholder="How did you solve this pattern? Jot down your key insights..."></textarea>
-                    
-                    <div class="fsrs-rating-section">
-                        <p id="fsrs-action-label" class="fsrs-rating-label">Save & Rate Initial Difficulty:</p>
-                        <div class="fsrs-rating-buttons" id="fsrs-save-ratings">
-                            <button data-rating="1" class="fsrs-btn-again" title="Hard to remember (Shortcut: 1)" aria-label="Hard to remember (Shortcut: 1)">Again</button>
-                            <button data-rating="2" class="fsrs-btn-hard" title="Remembered with effort (Shortcut: 2)" aria-label="Remembered with effort (Shortcut: 2)">Hard</button>
-                            <button data-rating="3" class="fsrs-btn-good" title="Remembered easily (Shortcut: 3)" aria-label="Remembered easily (Shortcut: 3)">Good</button>
-                            <button data-rating="4" class="fsrs-btn-easy" title="Too easy (Shortcut: 4)" aria-label="Too easy (Shortcut: 4)">Easy</button>
-                        </div>
-                    </div>
-                </div>
-                <div id="fsrs-review-ui" style="display:none;"></div>
-            `;
+            render(
+                <TrackerOverlay
+                    problem={problem}
+                    autoTagsStr={autoTagsStr}
+                />,
+                container
+            );
 
             document.body.appendChild(container);
 
@@ -1685,6 +1808,7 @@ if (typeof module !== 'undefined' && module.exports) {
     (module.exports as any).TrackerNavBar = TrackerNavBar;
     (module.exports as any).TrackerRatingBar = TrackerRatingBar;
     (module.exports as any).TrackerCardReviewView = TrackerCardReviewView;
+    (module.exports as any).TrackerOverlay = TrackerOverlay;
 }
 
 export default Tracker;

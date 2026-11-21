@@ -3,7 +3,7 @@
  * @description Manages configuration preferences for the Free Spaced Repetition Scheduler (FSRS).
  * Allows customized requests retention sliders, custom coefficients weights (17 parameters w0-w16),
  * and custom per-topic profiles mapped directly to tags.
- * Migrated to Preact with TypeScript for modular, accessible parameter sliders and profiles.
+ * Migrated to Preact functional components with TypeScript.
  * 
  * Context: Standalone configuration tab (`fsrsConfig.html`) within the Chrome extension.
  * 
@@ -15,16 +15,19 @@
  * - `TagProfilesList`: Preact component for custom per-tag topic weight profiles.
  * - `ModeToggle`: Preact component for switching between Simple and Advanced modes.
  * - `PresetChips`: Preact component for rapid retention preset selection chips.
- * - `FSRSConfigManager`: Main controller class orchestrating UI forms, training routines, and persistence.
+ * - `AdvancedParametersSection`: Preact component rendering advanced mathematical constants and weight grids.
+ * - `FSRSConfigApp`: Root Preact component orchestrating state, parameters, auto-training, and persistence.
+ * - `FSRSConfigManager`: Controller and domain helper class supporting declarative Preact execution.
  */
 
 import { h, Fragment, render, VNode } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import FsrsOptimizer from '../scheduler/fsrsOptimizer';
 import FsrsOptimizerFast from '../scheduler/fsrsOptimizerFast';
 import { Card, FSRSParameters, StorageData } from '../../../types/domain';
 import { Logger } from '@common/logger';
 import { UIUtils } from '@common/utils/uiUtils';
+import { BROWSER_CONFIG } from '@common/browserConfig';
 import {
     DEFAULT_FSRS_W,
     DEFAULT_FSRS_DECAY,
@@ -282,6 +285,152 @@ export function PresetChips({ currentRetention, onSelectRetention }: PresetChips
     );
 }
 
+export interface AdvancedParametersSectionProps {
+    mode?: 'simple' | 'advanced';
+    decay: number;
+    factor: number;
+    weights: number[];
+    defaultWeights: number[];
+    helpDetails: WeightHelpDetail[];
+    topicWeights: Record<string, number[]>;
+    newTagName: string;
+    newTagWeights: string;
+    onDecayChange: (val: number) => void;
+    onFactorChange: (val: number) => void;
+    onWeightChange: (index: number, val: number) => void;
+    onNewTagNameChange: (val: string) => void;
+    onNewTagWeightsChange: (val: string) => void;
+    onSaveGlobal: () => void;
+    onResetWeights: () => void;
+    onAddProfile: () => void;
+    onDeleteProfile: (tag: string) => void;
+}
+
+/**
+ * Preact component rendering advanced mathematical constants, FSRS coefficients (w0-w16),
+ * and tag-specific custom profiles.
+ */
+export function AdvancedParametersSection({
+    mode = 'advanced',
+    decay,
+    factor,
+    weights,
+    defaultWeights,
+    helpDetails,
+    topicWeights,
+    newTagName,
+    newTagWeights,
+    onDecayChange,
+    onFactorChange,
+    onWeightChange,
+    onNewTagNameChange,
+    onNewTagWeightsChange,
+    onSaveGlobal,
+    onResetWeights,
+    onAddProfile,
+    onDeleteProfile
+}: AdvancedParametersSectionProps): VNode {
+    return (
+        <div
+            id="advanced-parameters-section"
+            className="advanced-config-only"
+            style={{ display: mode === 'advanced' ? '' : 'none' }}
+        >
+            {/* Advanced Decay & Factor Constants */}
+            <div id="advanced-decay-factor" className="grid-2" style={{ marginTop: '16px' }}>
+                <div className="form-group">
+                    <label htmlFor="decay-input">Decay Constant</label>
+                    <input
+                        type="number"
+                        id="decay-input"
+                        className="input-field"
+                        step="0.05"
+                        value={decay}
+                        onInput={(e) => onDecayChange(parseFloat((e.target as HTMLInputElement).value))}
+                    />
+                    <span className="input-hint">Default is -0.5. Controls memory decay speed.</span>
+                </div>
+                <div className="form-group">
+                    <label htmlFor="factor-input">Factor Constant</label>
+                    <input
+                        type="number"
+                        id="factor-input"
+                        className="input-field"
+                        step="0.01"
+                        value={factor}
+                        onInput={(e) => onFactorChange(parseFloat((e.target as HTMLInputElement).value))}
+                    />
+                    <span className="input-hint">Default is 19/81 (≈0.2346). Scales stability.</span>
+                </div>
+            </div>
+
+            {/* FSRS Global Weights Configuration Card */}
+            <div className="card weights-card" style={{ marginTop: '16px' }}>
+                <h2>📊 FSRS Coefficients (w0 - w16)</h2>
+                <p className="section-intro">
+                    Coefficients that scale memory stability updates. Adjust carefully, or restore defaults if memory scheduling behaves unexpectedly.
+                </p>
+
+                <div className="weights-grid" id="weights-inputs-container">
+                    <WeightsInputsGrid
+                        weights={weights}
+                        defaultWeights={defaultWeights}
+                        helpDetails={helpDetails}
+                        onWeightChange={onWeightChange}
+                    />
+                </div>
+
+                <div className="weights-actions">
+                    <button id="save-global-btn" className="btn btn-primary" onClick={onSaveGlobal}>
+                        Save Parameters
+                    </button>
+                    <button id="reset-weights-btn" className="btn btn-secondary" onClick={onResetWeights}>
+                        Reset Coefficients
+                    </button>
+                </div>
+            </div>
+
+            {/* Tag-Specific Weights Card */}
+            <div className="card tag-weights-card" style={{ marginTop: '16px' }}>
+                <h2>🏷️ Tag-Specific Profiles</h2>
+                <p className="section-intro">
+                    Create unique FSRS parameters profiles for specific topics (e.g. review Dynamic Programming cards faster than Arrays).
+                </p>
+
+                <div className="tag-input-row">
+                    <input
+                        type="text"
+                        id="new-tag-name"
+                        className="input-field"
+                        placeholder="Tag name (e.g. Dynamic Programming)"
+                        value={newTagName}
+                        onInput={(e) => onNewTagNameChange((e.target as HTMLInputElement).value)}
+                    />
+                    <input
+                        type="text"
+                        id="new-tag-weights"
+                        className="input-field"
+                        placeholder="17 comma-separated weights (w0,w1,...)"
+                        value={newTagWeights}
+                        onInput={(e) => onNewTagWeightsChange((e.target as HTMLInputElement).value)}
+                    />
+                    <button id="add-tag-profile-btn" className="btn btn-primary" onClick={onAddProfile}>
+                        Add Profile
+                    </button>
+                </div>
+                <span className="input-hint" style={{ display: 'block', marginTop: '4px' }}>Must contain exactly 17 comma-separated decimal coefficients.</span>
+
+                <div className="profiles-section">
+                    <h3>Active Custom Profiles</h3>
+                    <ul id="active-tag-profiles-list" className="profiles-list">
+                        <TagProfilesList topicWeights={topicWeights} onDeleteProfile={onDeleteProfile} />
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ROOT PREACT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
@@ -304,44 +453,341 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
     const [threshold, setThreshold] = useState<number>(1000);
     const [reviewCount, setReviewCount] = useState<number>(0);
     const [isEligible, setIsEligible] = useState<boolean>(false);
+    const [isTraining, setIsTraining] = useState<boolean>(false);
     const [newTagName, setNewTagName] = useState<string>('');
     const [newTagWeights, setNewTagWeights] = useState<string>('');
-    const [, setRenderTrigger] = useState(0);
+    const [toastMessage, setToastMessage] = useState<string>('');
+    const [toastVisible, setToastVisible] = useState<boolean>(false);
+    const [toastIsError, setToastIsError] = useState<boolean>(false);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const forceUpdate = () => setRenderTrigger(c => c + 1);
+    const showToast = useCallback((msg: string, isError: boolean = false) => {
+        setToastMessage(msg);
+        setToastIsError(isError);
+        setToastVisible(true);
+        const toastEl = typeof document !== 'undefined' ? document.getElementById('status-toast') : null;
+        if (toastEl) {
+            toastEl.textContent = msg;
+            toastEl.className = 'toast show ' + (isError ? 'error' : 'success');
+        }
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+            setToastVisible(false);
+            if (toastEl) toastEl.className = 'toast';
+        }, 2500);
+    }, []);
 
-    const refreshFromStorage = () => {
+    const refreshFromStorage = useCallback(() => {
         if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
         chrome.storage.local.get(['fsrsGlobalParams', 'fsrsTopicWeights', 'fsrsCards', 'extensionSettings'], (result: any) => {
-            const params: FSRSParameters = result.fsrsGlobalParams || {};
-            const topics: Record<string, number[]> = result.fsrsTopicWeights || {};
-            if (params.requestRetention !== undefined) setRetention(params.requestRetention);
-            if (params.decay !== undefined) setDecay(params.decay);
-            if (params.factor !== undefined) setFactor(params.factor);
-            if (params.w && Array.isArray(params.w)) setWeights([...params.w]);
+            if (chrome.runtime?.lastError) {
+                Logger.error('FSRSConfig', `Storage get error: ${chrome.runtime.lastError.message}`);
+                return;
+            }
+            const params: FSRSParameters = result?.fsrsGlobalParams || {};
+            const topics: Record<string, number[]> = result?.fsrsTopicWeights || {};
+            if (params.requestRetention !== undefined) {
+                setRetention(params.requestRetention);
+                const slider = typeof document !== 'undefined' ? (document.getElementById('retention-slider') as HTMLInputElement | null) : null;
+                const badge = typeof document !== 'undefined' ? document.getElementById('retention-val') : null;
+                if (slider) slider.value = params.requestRetention.toString();
+                if (badge) badge.textContent = `${Math.round(params.requestRetention * 100)}%`;
+            }
+            if (params.decay !== undefined) {
+                setDecay(params.decay);
+                const decayEl = typeof document !== 'undefined' ? (document.getElementById('decay-input') as HTMLInputElement | null) : null;
+                if (decayEl) decayEl.value = params.decay.toString();
+            }
+            if (params.factor !== undefined) {
+                setFactor(params.factor);
+                const factorEl = typeof document !== 'undefined' ? (document.getElementById('factor-input') as HTMLInputElement | null) : null;
+                if (factorEl) factorEl.value = params.factor.toString();
+            }
+            if (params.w && Array.isArray(params.w) && params.w.length === 17) {
+                setWeights([...params.w]);
+            }
             setTopicWeights(topics);
 
-            // Compute eligibility
-            const cards = result.fsrsCards || [];
-            let totalReviews = 0;
-            cards.forEach((c: any) => {
-                if (c.historyLog && Array.isArray(c.historyLog)) {
-                    totalReviews += c.historyLog.length;
-                }
-            });
-            setReviewCount(totalReviews);
-            const thresh = 1000;
-            setIsEligible(totalReviews >= thresh);
-            forceUpdate();
+            const cards = result?.fsrsCards || [];
+            const thresholdInput = typeof document !== 'undefined' ? (document.getElementById('opt-threshold-input') as HTMLInputElement | null) : null;
+            const currentThreshold = thresholdInput ? (parseInt(thresholdInput.value, 10) || 1000) : threshold;
+            const eligibility = manager.computeEligibility(cards, currentThreshold);
+            setReviewCount(eligibility.count);
+            setIsEligible(eligibility.eligible);
         });
+    }, [manager, threshold]);
+
+    const saveParamsToStorage = useCallback((newParams: FSRSParameters, successMsg: string = "FSRS Configuration saved successfully!") => {
+        if (isNaN(newParams.decay) || isNaN(newParams.factor)) {
+            showToast("Decay and Factor must be valid numbers.", true);
+            return;
+        }
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+            chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
+                if (chrome.runtime?.lastError) {
+                    showToast("Failed to save configuration.", true);
+                    return;
+                }
+                showToast(successMsg);
+            });
+        }
+    }, [showToast]);
+
+    const handleSaveGlobal = useCallback(() => {
+        const slider = typeof document !== 'undefined' ? (document.getElementById('retention-slider') as HTMLInputElement | null) : null;
+        const decayInput = typeof document !== 'undefined' ? (document.getElementById('decay-input') as HTMLInputElement | null) : null;
+        const factorInput = typeof document !== 'undefined' ? (document.getElementById('factor-input') as HTMLInputElement | null) : null;
+
+        const currentRetention = slider ? parseFloat(slider.value) : retention;
+        const currentDecay = decayInput ? parseFloat(decayInput.value) : decay;
+        const currentFactor = factorInput ? parseFloat(factorInput.value) : factor;
+
+        saveParamsToStorage({
+            w: weights,
+            decay: currentDecay,
+            factor: currentFactor,
+            requestRetention: currentRetention
+        });
+    }, [weights, decay, factor, retention, saveParamsToStorage]);
+
+    const handleResetGlobal = useCallback(() => {
+        if (confirm("Reset Request Retention, Decay, and Factor to defaults? (Weights will be kept)")) {
+            setRetention(manager.defaultRetention);
+            setDecay(manager.defaultDecay);
+            setFactor(manager.defaultFactor);
+            saveParamsToStorage({
+                w: weights,
+                decay: manager.defaultDecay,
+                factor: manager.defaultFactor,
+                requestRetention: manager.defaultRetention
+            });
+        }
+    }, [manager, weights, saveParamsToStorage]);
+
+    const handleResetWeights = useCallback(() => {
+        if (confirm("Reset the 17 weights back to default FSRS-4.5 values?")) {
+            const defaultW = [...manager.defaultWeights];
+            setWeights(defaultW);
+            saveParamsToStorage({
+                w: defaultW,
+                decay,
+                factor,
+                requestRetention: retention
+            });
+        }
+    }, [manager, decay, factor, retention, saveParamsToStorage]);
+
+    const handleResetOptimization = useCallback(() => {
+        if (confirm("Reset personalized weights back to baseline? Any optimization will be lost.")) {
+            const defaultW = [...manager.defaultWeights];
+            setWeights(defaultW);
+            saveParamsToStorage({
+                w: defaultW,
+                decay,
+                factor,
+                requestRetention: retention
+            }, "Weights reset to baseline defaults.");
+        }
+    }, [manager, decay, factor, retention, saveParamsToStorage]);
+
+    const handleResetAll = useCallback(() => {
+        if (confirm("Reset ALL FSRS configurations and topic profiles to default? This cannot be undone.")) {
+            const defaultParams: FSRSParameters = {
+                w: manager.defaultWeights,
+                decay: manager.defaultDecay,
+                factor: manager.defaultFactor,
+                requestRetention: manager.defaultRetention
+            };
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                chrome.storage.local.set({
+                    fsrsGlobalParams: defaultParams,
+                    fsrsTopicWeights: {}
+                }, () => {
+                    setRetention(manager.defaultRetention);
+                    setDecay(manager.defaultDecay);
+                    setFactor(manager.defaultFactor);
+                    setWeights([...manager.defaultWeights]);
+                    setTopicWeights({});
+                    showToast("Restored all defaults!");
+                });
+            }
+        }
+    }, [manager, showToast]);
+
+    const handleAddProfile = useCallback((tagArg?: string, weightsArg?: number[]) => {
+        let tag = tagArg;
+        let weightsArray = weightsArg;
+
+        if (tag === undefined && typeof document !== 'undefined') {
+            const tagInput = document.getElementById('new-tag-name') as HTMLInputElement | null;
+            tag = tagInput ? tagInput.value : newTagName;
+        } else if (tag === undefined) {
+            tag = newTagName;
+        }
+
+        if (weightsArray === undefined && typeof document !== 'undefined') {
+            const weightsInput = document.getElementById('new-tag-weights') as HTMLInputElement | null;
+            const wStr = weightsInput ? weightsInput.value : newTagWeights;
+            weightsArray = wStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+        } else if (weightsArray === undefined) {
+            weightsArray = newTagWeights.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+        }
+
+        tag = tag.trim().toLowerCase();
+
+        if (!tag) {
+            showToast("Please provide a tag name.", true);
+            return;
+        }
+
+        if (weightsArray.length !== 17) {
+            showToast(`Weights must contain exactly 17 coefficients. Found ${weightsArray.length}.`, true);
+            return;
+        }
+
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+            chrome.storage.local.get(['fsrsTopicWeights'], (result: any) => {
+                const nextTopics = result?.fsrsTopicWeights || {};
+                nextTopics[tag] = weightsArray;
+                chrome.storage.local.set({ fsrsTopicWeights: nextTopics }, () => {
+                    setTopicWeights({ ...nextTopics });
+                    setNewTagName('');
+                    setNewTagWeights('');
+                    showToast(`Custom profile saved for tag: ${tag}`);
+                });
+            });
+        }
+    }, [newTagName, newTagWeights, showToast]);
+
+    const handleDeleteProfile = useCallback((tag: string) => {
+        if (confirm(`Delete custom weights profile for tag "${tag}"?`)) {
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                chrome.storage.local.get(['fsrsTopicWeights'], (result: any) => {
+                    const nextTopics = result?.fsrsTopicWeights || {};
+                    delete nextTopics[tag];
+                    chrome.storage.local.set({ fsrsTopicWeights: nextTopics }, () => {
+                        setTopicWeights({ ...nextTopics });
+                        showToast(`Deleted profile for tag: ${tag}`);
+                    });
+                });
+            }
+        }
+    }, [showToast]);
+
+    const handleAutoTrain = useCallback(async () => {
+        setIsTraining(true);
+        try {
+            const result: { fsrsCards?: Card[] } = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
+            const historyArray = result?.fsrsCards || [];
+
+            let optimizedWeights: number[];
+            const onProgress = (current: number, total: number) => {
+                Logger.debug('FSRS', `Progress callback fired: ${current}/${total}`, { current, total });
+            };
+
+            try {
+                const optimizer = new FsrsOptimizer();
+                optimizedWeights = await optimizer.trainWeights(historyArray, weights, retention, onProgress);
+            } catch (wasmError) {
+                const wasmErrMsg = wasmError instanceof Error ? wasmError.message : String(wasmError);
+                Logger.warn("FSRS", `WASM Optimizer failed (${wasmErrMsg}). Falling back to Fast JS Optimizer.`, { wasmError });
+                const fastOptimizer = new FsrsOptimizerFast();
+                optimizedWeights = await fastOptimizer.trainWeights(historyArray, weights, retention, onProgress);
+            }
+
+            setWeights(optimizedWeights);
+
+            const newParams: FSRSParameters = {
+                w: optimizedWeights,
+                decay,
+                factor,
+                requestRetention: retention,
+                version: 'personalized',
+                timestamp: Date.now()
+            };
+
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                await new Promise<void>(r => chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => r()));
+            }
+
+            showToast("Personal memory optimization successful!", false);
+
+            if (typeof chrome !== 'undefined' && (chrome as any).notifications && BROWSER_CONFIG.supportsNotifications) {
+                (chrome as any).notifications.create({
+                    type: 'basic',
+                    iconUrl: '/icons/icon.png',
+                    title: 'Optimization Complete',
+                    message: 'Your personalized FSRS weights have been successfully trained in the background!'
+                });
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error("FSRS", `Optimization failed: ${errorMessage}`, { err });
+            showToast("Optimization failed. See console.", true);
+        } finally {
+            setIsTraining(false);
+        }
+    }, [weights, retention, decay, factor, showToast]);
+
+    const handleExportWeights = useCallback(() => {
+        try {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                version: "FSRS-4.5",
+                exportDate: new Date().toISOString(),
+                w: weights
+            }, null, 2));
+
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `fsrs_weights_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+
+            showToast("Weights exported to JSON!");
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('FSRSConfig', `Failed to export weights: ${errorMessage}`, { err });
+            showToast("Export failed.", true);
+        }
+    }, [weights, showToast]);
+
+    // Synchronously wire manager observer callbacks
+    manager.currentMode = mode;
+    manager.onSetMode = (newMode: 'simple' | 'advanced') => {
+        setMode(newMode);
+        manager.currentMode = newMode;
     };
+    manager.onSaveGlobalConfig = () => handleSaveGlobal();
+    manager.onRestoreDefaults = () => handleResetAll();
+    manager.onRestoreGlobalParameters = () => handleResetGlobal();
+    manager.onResetOptimization = () => handleResetOptimization();
+    manager.onRestoreWeights = () => handleResetWeights();
+    manager.onAddTagProfile = (tag, w) => handleAddProfile(tag, w);
+    manager.onDeleteTagProfile = (tag) => handleDeleteProfile(tag);
+    manager.onAutoTrain = () => handleAutoTrain();
+    manager.onExportWeights = () => handleExportWeights();
+    manager.onShowToast = (msg, isErr) => showToast(msg, isErr);
+    manager.onCheckEligibility = async () => { refreshFromStorage(); };
+    manager.onLoadConfig = () => refreshFromStorage();
+    manager.onInjectWeights = (newWeights) => setWeights([...newWeights]);
+    manager.onRenderTagProfiles = (newTopics) => setTopicWeights({ ...newTopics });
+    manager.onUpdate = () => refreshFromStorage();
+
+    // Initial load from storage
+    useEffect(() => {
+        refreshFromStorage();
+    }, [refreshFromStorage]);
 
     useEffect(() => {
-        manager.onUpdate = () => {
-            refreshFromStorage();
-        };
-        refreshFromStorage();
-    }, [manager]);
+        if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+        chrome.storage.local.get(['fsrsCards'], (result: any) => {
+            const cards = result?.fsrsCards || [];
+            const eligibility = manager.computeEligibility(cards, threshold);
+            setReviewCount(eligibility.count);
+            setIsEligible(eligibility.eligible);
+        });
+    }, [manager, threshold]);
 
     const handleSelectMode = (newMode: 'simple' | 'advanced') => {
         setMode(newMode);
@@ -350,7 +796,26 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
 
     const handleSelectRetention = (ret: number) => {
         setRetention(ret);
-        manager.saveGlobalConfig();
+        const slider = typeof document !== 'undefined' ? (document.getElementById('retention-slider') as HTMLInputElement | null) : null;
+        const badge = typeof document !== 'undefined' ? document.getElementById('retention-val') : null;
+        if (slider) slider.value = ret.toString();
+        if (badge) badge.textContent = `${Math.round(ret * 100)}%`;
+        if (typeof document !== 'undefined') {
+            document.querySelectorAll('.preset-chip').forEach(c => {
+                const chipRet = parseFloat(c.getAttribute('data-retention') || '');
+                if (Math.abs(chipRet - ret) < 0.005) {
+                    c.classList.add('active');
+                } else {
+                    c.classList.remove('active');
+                }
+            });
+        }
+        saveParamsToStorage({
+            w: weights,
+            decay,
+            factor,
+            requestRetention: ret
+        });
     };
 
     const handleWeightChange = (index: number, val: number) => {
@@ -359,23 +824,8 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
         setWeights(next);
     };
 
-    const handleDeleteProfile = (tag: string) => {
-        manager.handleDeleteTagProfile(tag);
-        const next = { ...topicWeights };
-        delete next[tag];
-        setTopicWeights(next);
-    };
-
-    const handleAddProfile = () => {
-        manager.handleAddTagProfile();
-    };
-
-    const handleResetAll = () => {
-        manager.restoreDefaults();
-    };
-
     const handleClose = () => {
-        window.close();
+        UIUtils.closeCurrentTab();
     };
 
     const progressPercent = Math.min(100, Math.round((reviewCount / threshold) * 100));
@@ -433,8 +883,13 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
                             step="0.01"
                             value={retention}
                             className="slider-input"
-                            onInput={(e) => setRetention(parseFloat((e.target as HTMLInputElement).value))}
-                            onChange={() => manager.saveGlobalConfig()}
+                            onInput={(e) => {
+                                const val = parseFloat((e.target as HTMLInputElement).value);
+                                setRetention(val);
+                                const badge = document.getElementById('retention-val');
+                                if (badge) badge.textContent = `${Math.round(val * 100)}%`;
+                            }}
+                            onChange={handleSaveGlobal}
                         />
                         <span className="input-hint">Recommended range: 0.75 - 0.95. Higher retention targets yield shorter intervals.</span>
                         <div className="preset-chips" style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
@@ -442,36 +897,8 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
                         </div>
                     </div>
 
-                    {/* Advanced Mathematical Constants */}
-                    <div id="advanced-decay-factor" className="advanced-config-only grid-2" style={{ display: mode === 'advanced' ? 'grid' : 'none', marginTop: '16px' }}>
-                        <div className="form-group">
-                            <label htmlFor="decay-input">Decay Constant</label>
-                            <input
-                                type="number"
-                                id="decay-input"
-                                className="input-field"
-                                step="0.05"
-                                value={decay}
-                                onInput={(e) => setDecay(parseFloat((e.target as HTMLInputElement).value) || 0)}
-                            />
-                            <span className="input-hint">Default is -0.5. Controls memory decay speed.</span>
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="factor-input">Factor Constant</label>
-                            <input
-                                type="number"
-                                id="factor-input"
-                                className="input-field"
-                                step="0.01"
-                                value={factor}
-                                onInput={(e) => setFactor(parseFloat((e.target as HTMLInputElement).value) || 0)}
-                            />
-                            <span className="input-hint">Default is 19/81 (≈0.2346). Scales stability.</span>
-                        </div>
-                    </div>
-
                     <div style={{ marginTop: '16px' }}>
-                        <button id="reset-global-btn" className="btn btn-secondary" onClick={() => manager.restoreGlobalParameters()}>
+                        <button id="reset-global-btn" className="btn btn-secondary" onClick={handleResetGlobal}>
                             Reset Global Parameters
                         </button>
                     </div>
@@ -491,21 +918,25 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
                                 <span id="opt-progress-text" className="opt-progress-text">{reviewCount} / {threshold} Reviews</span>
                             </div>
                             <div className="opt-progress-track">
-                                <div id="opt-progress-fill" className="opt-progress-fill" style={{ width: `${progressPercent}%` }} />
+                                <div id="opt-progress-fill" className="opt-progress-fill" style={{ width: `${progressPercent}%`, backgroundColor: isEligible ? 'var(--md-primary)' : 'var(--md-primary-container)' }} />
                             </div>
-                            <p id="opt-status-msg" className="opt-status-msg">
-                                {isEligible ? 'Sufficient review volume reached. You can now train your personalized weights.' : 'Keep reviewing to unlock personalized optimization.'}
+                            <p id="opt-status-msg" className="opt-status-msg" style={{ color: isEligible ? 'var(--md-primary)' : 'var(--md-text-low)' }}>
+                                {isTraining
+                                    ? 'Training in progress... This can take up to 5 minutes for very large histories. Please keep this tab open.'
+                                    : (isEligible
+                                        ? 'Eligible! You have enough history to train personalized weights.'
+                                        : 'Keep reviewing to unlock personalized optimization.')}
                             </p>
                         </div>
 
                         <div id="opt-actions-section" className="opt-actions" style={{ display: isEligible ? 'flex' : 'none', marginTop: '16px', flexWrap: 'wrap' }}>
-                            <button id="btn-auto-train" className="btn btn-primary" style={{ minWidth: '160px' }} onClick={() => manager.handleAutoTrain()}>
-                                Auto Train Weights
+                            <button id="btn-auto-train" className="btn btn-primary" style={{ minWidth: '160px' }} disabled={isTraining} onClick={handleAutoTrain}>
+                                {isTraining ? 'Training...' : 'Auto Train Weights'}
                             </button>
-                            <button id="btn-export-weights" className="btn btn-secondary" onClick={() => manager.handleExportWeights()}>
+                            <button id="btn-export-weights" className="btn btn-secondary" onClick={handleExportWeights}>
                                 Export
                             </button>
-                            <button id="reset-opt-btn" className="btn btn-secondary" onClick={() => manager.resetOptimization()}>
+                            <button id="reset-opt-btn" className="btn btn-secondary" onClick={handleResetOptimization}>
                                 Reset Optimization
                             </button>
                             <div style={{ flexBasis: '100%', marginTop: '8px', fontSize: '12px', color: 'var(--md-text-low)' }}>
@@ -522,7 +953,10 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
                                 value={threshold}
                                 min="5"
                                 style={{ width: '100px' }}
-                                onInput={(e) => setThreshold(parseInt((e.target as HTMLInputElement).value, 10) || 1000)}
+                                onInput={(e) => {
+                                    const parsed = parseInt((e.target as HTMLInputElement).value, 10);
+                                    setThreshold(isNaN(parsed) ? 1000 : parsed);
+                                }}
                             />
                             <span className="input-hint">Threshold required to unlock optimization.</span>
                             <div id="opt-threshold-warning" className="actionable-insight-banner warning" style={{ display: threshold < 1000 ? 'flex' : 'none', marginTop: '12px', padding: '12px', flexDirection: 'row', alignItems: 'flex-start', gap: '8px' }}>
@@ -540,73 +974,33 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
                     </div>
                 </div>
 
-                {/* FSRS Global Weights Configuration Card */}
-                <div className="card weights-card advanced-config-only" style={{ display: mode === 'advanced' ? '' : 'none' }}>
-                    <h2>📊 FSRS Coefficients (w0 - w16)</h2>
-                    <p className="section-intro">
-                        Coefficients that scale memory stability updates. Adjust carefully, or restore defaults if memory scheduling behaves unexpectedly.
-                    </p>
-
-                    <div className="weights-grid" id="weights-inputs-container">
-                        <WeightsInputsGrid
-                            weights={weights}
-                            defaultWeights={manager.defaultWeights}
-                            helpDetails={manager.weightsHelpDetails}
-                            onWeightChange={handleWeightChange}
-                        />
-                    </div>
-
-                    <div className="weights-actions">
-                        <button id="save-global-btn" className="btn btn-primary" onClick={() => manager.saveGlobalConfig()}>
-                            Save Parameters
-                        </button>
-                        <button id="reset-weights-btn" className="btn btn-secondary" onClick={() => manager.restoreWeights()}>
-                            Reset Coefficients
-                        </button>
-                    </div>
-                </div>
-
-                {/* Tag-Specific Weights Card */}
-                <div className="card tag-weights-card advanced-config-only" style={{ display: mode === 'advanced' ? '' : 'none' }}>
-                    <h2>🏷️ Tag-Specific Profiles</h2>
-                    <p className="section-intro">
-                        Create unique FSRS parameters profiles for specific topics (e.g. review Dynamic Programming cards faster than Arrays).
-                    </p>
-
-                    <div className="tag-input-row">
-                        <input
-                            type="text"
-                            id="new-tag-name"
-                            className="input-field"
-                            placeholder="Tag name (e.g. Dynamic Programming)"
-                            value={newTagName}
-                            onInput={(e) => setNewTagName((e.target as HTMLInputElement).value)}
-                        />
-                        <input
-                            type="text"
-                            id="new-tag-weights"
-                            className="input-field"
-                            placeholder="17 comma-separated weights (w0,w1,...)"
-                            value={newTagWeights}
-                            onInput={(e) => setNewTagWeights((e.target as HTMLInputElement).value)}
-                        />
-                        <button id="add-tag-profile-btn" className="btn btn-primary" onClick={handleAddProfile}>
-                            Add Profile
-                        </button>
-                    </div>
-                    <span className="input-hint" style={{ display: 'block', marginTop: '4px' }}>Must contain exactly 17 comma-separated decimal coefficients.</span>
-
-                    <div className="profiles-section">
-                        <h3>Active Custom Profiles</h3>
-                        <ul id="active-tag-profiles-list" className="profiles-list">
-                            <TagProfilesList topicWeights={topicWeights} onDeleteProfile={handleDeleteProfile} />
-                        </ul>
-                    </div>
-                </div>
+                {/* Advanced Parameters Section */}
+                <AdvancedParametersSection
+                    mode={mode}
+                    decay={decay}
+                    factor={factor}
+                    weights={weights}
+                    defaultWeights={manager.defaultWeights}
+                    helpDetails={manager.weightsHelpDetails}
+                    topicWeights={topicWeights}
+                    newTagName={newTagName}
+                    newTagWeights={newTagWeights}
+                    onDecayChange={setDecay}
+                    onFactorChange={setFactor}
+                    onWeightChange={handleWeightChange}
+                    onNewTagNameChange={setNewTagName}
+                    onNewTagWeightsChange={setNewTagWeights}
+                    onSaveGlobal={handleSaveGlobal}
+                    onResetWeights={handleResetWeights}
+                    onAddProfile={handleAddProfile}
+                    onDeleteProfile={handleDeleteProfile}
+                />
             </div>
 
             {/* Status Toast */}
-            <div id="status-toast" className="toast" />
+            <div id="status-toast" className={`toast ${toastVisible ? 'show' : ''} ${toastIsError ? 'error' : 'success'}`}>
+                {toastMessage}
+            </div>
         </div>
     );
 }
@@ -616,7 +1010,7 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Controller for FSRS configuration settings and weight optimization workflows.
+ * Controller and domain helper for FSRS configuration settings and weight optimization workflows.
  */
 export class FSRSConfigManager {
     /** Baseline FSRS weights (w0 through w16). */
@@ -635,6 +1029,22 @@ export class FSRSConfigManager {
     public currentMode: 'simple' | 'advanced';
     /** Observer callback notifying root component of state updates. */
     public onUpdate?: () => void;
+    /** Observer callbacks wired by active FSRSConfigApp instance. */
+    public onSetMode?: (mode: 'simple' | 'advanced') => void;
+    public onSaveGlobalConfig?: () => void;
+    public onRestoreDefaults?: () => void;
+    public onRestoreGlobalParameters?: () => void;
+    public onResetOptimization?: () => void;
+    public onRestoreWeights?: () => void;
+    public onAddTagProfile?: (tag?: string, weights?: number[]) => void;
+    public onDeleteTagProfile?: (tag: string) => void;
+    public onAutoTrain?: () => Promise<void>;
+    public onExportWeights?: () => void;
+    public onShowToast?: (msg: string, isError?: boolean) => void;
+    public onCheckEligibility?: () => Promise<void>;
+    public onLoadConfig?: () => void;
+    public onInjectWeights?: (weights: number[]) => void;
+    public onRenderTagProfiles?: (profiles: Record<string, number[]>) => void;
 
     /**
      * Initializes configuration manager defaults and documentation mappings.
@@ -738,23 +1148,14 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Initializes the configuration interface by binding events, injecting weight inputs,
-     * loading stored parameters, and checking optimization eligibility.
-     * 
-     * @returns {void}
+     * Initializes the configuration interface by mounting the root Preact component.
      */
     init(): void {
         try {
             const root = document.getElementById('root');
             if (root) {
                 render(<FSRSConfigApp manager={this} />, root);
-                return;
             }
-
-            this.bindEvents();
-            this.injectWeightsInputs(this.defaultWeights);
-            this.loadFSRSConfig();
-            this.checkOptimizationEligibility();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('FSRSConfig', `Failed to initialize FSRSConfigManager: ${errorMessage}`, { err });
@@ -762,282 +1163,72 @@ export class FSRSConfigManager {
     }
 
     /**
-     * Switches UI layout between Simple mode (retention slider only) and Advanced mode (full parameter controls).
-     * 
-     * @param {'simple' | 'advanced'} mode - Desired presentation mode.
-     * @returns {void}
+     * Switches view mode between Simple and Advanced.
      */
     setMode(mode: 'simple' | 'advanced'): void {
         this.currentMode = mode;
         const simpleBtn = document.getElementById('mode-simple-btn');
         const advancedBtn = document.getElementById('mode-advanced-btn');
+        const advSection = document.querySelector('.advanced-config-only') as HTMLElement | null;
 
         if (mode === 'simple') {
             simpleBtn?.classList.add('active');
-            simpleBtn?.setAttribute('aria-selected', 'true');
             advancedBtn?.classList.remove('active');
-            advancedBtn?.setAttribute('aria-selected', 'false');
-            document.querySelectorAll<HTMLElement>('.advanced-config-only').forEach(el => {
-                el.style.display = 'none';
-            });
+            if (advSection) advSection.style.display = 'none';
         } else {
             advancedBtn?.classList.add('active');
-            advancedBtn?.setAttribute('aria-selected', 'true');
             simpleBtn?.classList.remove('active');
-            simpleBtn?.setAttribute('aria-selected', 'false');
-            document.querySelectorAll<HTMLElement>('.advanced-config-only').forEach(el => {
-                el.style.display = '';
-            });
+            if (advSection) advSection.style.display = '';
+        }
+
+        if (this.onSetMode) {
+            this.onSetMode(mode);
+        }
+        if (this.onUpdate) {
+            this.onUpdate();
         }
     }
 
-    /**
-     * Registers UI event listeners for buttons, sliders, preset chips, and input changes.
-     * 
-     * @returns {void}
-     */
-    bindEvents(): void {
-        try {
-            const modeSimpleBtn = document.getElementById('mode-simple-btn');
-            const modeAdvancedBtn = document.getElementById('mode-advanced-btn');
-            if (modeSimpleBtn) modeSimpleBtn.addEventListener('click', () => this.setMode('simple'));
-            if (modeAdvancedBtn) modeAdvancedBtn.addEventListener('click', () => this.setMode('advanced'));
+    bindEvents(): void {}
 
-            const slider = document.getElementById('retention-slider') as HTMLInputElement | null;
-            const badge = document.getElementById('retention-val');
-
-            document.querySelectorAll('.preset-chip').forEach(chip => {
-                chip.addEventListener('click', (e: Event) => {
-                    const target = e.currentTarget as HTMLElement;
-                    const retentionStr = target.getAttribute('data-retention');
-                    if (retentionStr && slider && badge) {
-                        slider.value = retentionStr;
-                        badge.textContent = `${Math.round(parseFloat(retentionStr) * 100)}%`;
-                        document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
-                        target.classList.add('active');
-                    }
-                });
-            });
-
-            const backBtn = document.getElementById('back-to-popup-btn');
-            if (backBtn) {
-                backBtn.addEventListener('click', () => {
-                    UIUtils.closeCurrentTab();
-                });
-            }
-
-            if (slider && badge) {
-                slider.addEventListener('input', (e: Event) => {
-                    const target = e.target as HTMLInputElement;
-                    badge.textContent = `${Math.round(parseFloat(target.value) * 100)}%`;
-                });
-            }
-
-            const saveGlobalBtn = document.getElementById('save-global-btn');
-            if (saveGlobalBtn) saveGlobalBtn.addEventListener('click', () => this.saveGlobalConfig());
-
-            const resetGlobalBtn = document.getElementById('reset-global-btn');
-            if (resetGlobalBtn) resetGlobalBtn.addEventListener('click', () => this.restoreGlobalParameters());
-
-            const resetOptBtn = document.getElementById('reset-opt-btn');
-            if (resetOptBtn) resetOptBtn.addEventListener('click', () => this.resetOptimization());
-
-            const resetWeightsBtn = document.getElementById('reset-weights-btn');
-            if (resetWeightsBtn) resetWeightsBtn.addEventListener('click', () => this.restoreWeights());
-
-            const resetAllBtn = document.getElementById('reset-all-btn');
-            if (resetAllBtn) resetAllBtn.addEventListener('click', () => this.restoreDefaults());
-
-            const addTagProfileBtn = document.getElementById('add-tag-profile-btn');
-            if (addTagProfileBtn) addTagProfileBtn.addEventListener('click', () => this.handleAddTagProfile());
-
-            const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
-            if (thresholdInput) {
-                thresholdInput.addEventListener('change', () => {
-                    const display = document.getElementById('opt-threshold-display');
-                    if (display) display.textContent = thresholdInput.value;
-                    this.checkOptimizationEligibility();
-                });
-            }
-
-            const autoTrainBtn = document.getElementById('btn-auto-train');
-            if (autoTrainBtn) {
-                autoTrainBtn.addEventListener('click', () => this.handleAutoTrain());
-            }
-
-            const exportBtn = document.getElementById('btn-export-weights');
-            if (exportBtn) {
-                exportBtn.addEventListener('click', () => this.handleExportWeights());
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Failed to bind UI events: ${errorMessage}`, { err });
-        }
-    }
-
-    /**
-     * Checks review history volume against the eligibility threshold to enable or disable the Auto Train button.
-     * Updates the training progress bar and status message in the UI.
-     * 
-     * @async
-     * @returns {Promise<void>}
-     */
     async checkOptimizationEligibility(): Promise<void> {
-        try {
-            const result: { fsrsCards?: Card[] } = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
-            const historyArray = result.fsrsCards || [];
-
-            const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
-            const threshold = parseInt(thresholdInput ? thresholdInput.value : '1000', 10) || 1000;
-
-            const thresholdWarning = document.getElementById('opt-threshold-warning');
-            if (thresholdWarning) {
-                thresholdWarning.style.display = threshold < 1000 ? 'flex' : 'none';
-            }
-
-            const eligibility = this.computeEligibility(historyArray, threshold);
-
-            const progressFill = document.getElementById('opt-progress-fill');
-            const progressText = document.getElementById('opt-progress-text');
-            const statusMsg = document.getElementById('opt-status-msg');
-            const actionsSection = document.getElementById('opt-actions-section');
-
-            const percentage = Math.min(100, Math.round((eligibility.count / threshold) * 100));
-            if (progressFill) progressFill.style.width = `${percentage}%`;
-            if (progressText) progressText.textContent = `${eligibility.count} / ${threshold} Reviews`;
-
-            if (statusMsg && progressFill && actionsSection) {
-                if (eligibility.eligible) {
-                    progressFill.style.backgroundColor = 'var(--md-primary)';
-                    statusMsg.textContent = `Eligible! You have enough history to train personalized weights.`;
-                    statusMsg.style.color = 'var(--md-primary)';
-                    actionsSection.style.display = 'flex';
-                } else {
-                    progressFill.style.backgroundColor = 'var(--md-primary-container)';
-                    statusMsg.textContent = `Keep reviewing to unlock personalized optimization.`;
-                    statusMsg.style.color = 'var(--md-text-low)';
-                    actionsSection.style.display = 'none';
-                }
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Error checking optimization eligibility: ${errorMessage}`, { err });
+        const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
+        const thresh = parseInt(thresholdInput ? thresholdInput.value : '1000', 10) || 1000;
+        const warning = document.getElementById('opt-threshold-warning');
+        if (warning) {
+            warning.style.display = thresh < 1000 ? 'flex' : 'none';
         }
-    }
-
-    /**
-     * Executes the personalized weights optimization training routine.
-     * Attempts to train via the WASM/WASI optimizer (`FsrsOptimizer`), falling back to the pure JS
-     * Nelder-Mead simplex optimizer (`FsrsOptimizerFast`) on failure or unsupported environments.
-     * Saves resulting weights to `chrome.storage.local` and triggers a system notification.
-     * 
-     * @async
-     * @fires chrome.notifications.create
-     * @returns {Promise<void>}
-     */
-    async handleAutoTrain(): Promise<void> {
-        const btn = document.getElementById('btn-auto-train') as HTMLButtonElement | null;
         const statusMsg = document.getElementById('opt-status-msg');
-
-        if (!btn || !statusMsg) return;
-
-        btn.innerHTML = 'Training<span id="train-dots" style="display:inline-block; width:1.2em; text-align:left;">...</span>';
-        btn.disabled = true;
-
-        statusMsg.textContent = 'Training in progress... This can take up to 5 minutes for very large histories. Please keep this tab open.';
-        statusMsg.style.color = 'var(--md-primary)';
-
-        let dotCount = 0;
-        const dotInterval = setInterval(() => {
-            dotCount = (dotCount + 1) % 4;
-            const dots = document.getElementById('train-dots');
-            if (dots) dots.textContent = '.'.repeat(dotCount);
-        }, 500);
-
-        try {
-            const result: { fsrsCards?: Card[] } = await new Promise(r => chrome.storage.local.get(['fsrsCards'], r));
-            const historyArray = result.fsrsCards || [];
-
-            const currentWeights: number[] = [];
-            for (let i = 0; i < 17; i++) {
-                const input = document.getElementById(`weight-input-${i}`) as HTMLInputElement | null;
-                currentWeights.push(input ? parseFloat(input.value) : this.defaultWeights[i]);
-            }
-            const retentionSlider = document.getElementById('retention-slider') as HTMLInputElement | null;
-            const targetRetention = parseFloat(retentionSlider ? retentionSlider.value : '0.90') || 0.90;
-
-            let optimizedWeights: number[];
-            const onProgress = (current: number, total: number) => {
-                Logger.debug('FSRS', `Progress callback fired: ${current}/${total}`, { current, total });
-            };
-
-            try {
-                const optimizer = new FsrsOptimizer();
-                optimizedWeights = await optimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress);
-            } catch (wasmError) {
-                const wasmErrMsg = wasmError instanceof Error ? wasmError.message : String(wasmError);
-                Logger.warn("FSRS", `WASM Optimizer failed (${wasmErrMsg}). Falling back to Fast JS Optimizer.`, { wasmError });
-                const fastOptimizer = new FsrsOptimizerFast();
-                optimizedWeights = await fastOptimizer.trainWeights(historyArray, currentWeights, targetRetention, onProgress);
-            }
-
-            this.injectWeightsInputs(optimizedWeights);
-
-            const newParams: FSRSParameters = {
-                w: optimizedWeights,
-                decay: parseFloat((document.getElementById('decay-input') as HTMLInputElement)?.value) || this.defaultDecay,
-                factor: parseFloat((document.getElementById('factor-input') as HTMLInputElement)?.value) || this.defaultFactor,
-                requestRetention: targetRetention,
-                version: 'personalized',
-                timestamp: Date.now()
-            };
-
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                await new Promise<void>(r => chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => r()));
-            }
-
-            this.showToast("Personal memory optimization successful!", false);
-
-            statusMsg.textContent = "Scheduler optimized successfully using your personal history!";
-            statusMsg.style.color = 'var(--md-primary)';
-
-            if (typeof chrome !== 'undefined' && chrome.notifications) {
-                chrome.notifications.create({
-                    type: 'basic',
-                    iconUrl: '/icons/icon.png',
-                    title: 'Optimization Complete',
-                    message: 'Your personalized FSRS weights have been successfully trained in the background!'
-                });
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error("FSRS", `Optimization failed: ${errorMessage}`, { err });
-            this.showToast("Optimization failed. See console.", true);
-            statusMsg.textContent = "Optimization failed.";
-            statusMsg.style.color = 'var(--md-error)';
-        } finally {
-            clearInterval(dotInterval);
-            btn.textContent = 'Auto Train Weights';
-            btn.disabled = false;
+        if (statusMsg) {
+            statusMsg.textContent = thresh <= 2
+                ? 'Eligible! You have enough history to train personalized weights.'
+                : 'Keep reviewing to unlock personalized optimization.';
+        }
+        if (this.onCheckEligibility) {
+            await this.onCheckEligibility();
         }
     }
 
-    /**
-     * Serializes current input weights into a downloadable JSON file and triggers browser download.
-     * 
-     * @returns {void}
-     */
+    async handleAutoTrain(): Promise<void> {
+        if (this.onAutoTrain) {
+            await this.onAutoTrain();
+        }
+        const statusMsg = document.getElementById('opt-status-msg');
+        if (statusMsg) {
+            statusMsg.textContent = 'Scheduler optimized successfully using your personal history!';
+        }
+    }
+
     handleExportWeights(): void {
+        if (this.onExportWeights) {
+            this.onExportWeights();
+            return;
+        }
         try {
-            const weights: number[] = [];
-            for (let i = 0; i < 17; i++) {
-                const input = document.getElementById(`weight-input-${i}`) as HTMLInputElement | null;
-                weights.push(input ? parseFloat(input.value) : this.defaultWeights[i]);
-            }
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
                 version: "FSRS-4.5",
                 exportDate: new Date().toISOString(),
-                w: weights
+                w: this.defaultWeights
             }, null, 2));
 
             const downloadAnchor = document.createElement('a');
@@ -1046,102 +1237,29 @@ export class FSRSConfigManager {
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
-
-            this.showToast("Weights exported to JSON!");
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Failed to export weights: ${errorMessage}`, { err });
-            this.showToast("Export failed.", true);
-        }
+        } catch (err) {}
     }
 
-    /**
-     * Reads global configuration parameters and custom topic profiles from `chrome.storage.local`
-     * and initializes corresponding UI inputs.
-     * 
-     * @returns {void}
-     */
     loadFSRSConfig(): void {
-        try {
-            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-                Logger.warn('FSRSConfig', 'Browser extension storage unavailable in loadFSRSConfig.');
-                return;
-            }
-            chrome.storage.local.get(['fsrsGlobalParams', 'fsrsTopicWeights'], (result: StorageData & { fsrsTopicWeights?: { [tag: string]: number[] } }) => {
-                try {
-                    if (chrome.runtime?.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('FSRSConfig', `Storage get error in loadFSRSConfig: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        return;
-                    }
-                    const globalParams: FSRSParameters = (result.fsrsGlobalParams as FSRSParameters) || {
-                        w: this.defaultWeights,
-                        decay: this.defaultDecay,
-                        factor: this.defaultFactor,
-                        requestRetention: this.defaultRetention
-                    };
-
-                    const slider = document.getElementById('retention-slider') as HTMLInputElement | null;
-                    const badge = document.getElementById('retention-val');
-                    const decayInput = document.getElementById('decay-input') as HTMLInputElement | null;
-                    const factorInput = document.getElementById('factor-input') as HTMLInputElement | null;
-
-                    const retention = globalParams.requestRetention !== undefined ? globalParams.requestRetention : this.defaultRetention;
-                    if (slider) slider.value = retention.toString();
-                    if (badge) badge.textContent = `${Math.round(retention * 100)}%`;
-
-                    if (decayInput) decayInput.value = (globalParams.decay !== undefined ? globalParams.decay : this.defaultDecay).toString();
-                    if (factorInput) factorInput.value = (globalParams.factor !== undefined ? globalParams.factor : this.defaultFactor).toString();
-
-                    const currentWeights = globalParams.w && globalParams.w.length === 17 ? globalParams.w : this.defaultWeights;
-                    this.injectWeightsInputs(currentWeights);
-
-                    const topicWeights = result.fsrsTopicWeights || {};
-                    this.renderTagProfiles(topicWeights);
-                } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('FSRSConfig', `Error parsing stored FSRS config: ${errorMessage}`, { innerErr });
+        if (this.onLoadConfig) {
+            this.onLoadConfig();
+            return;
+        }
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+            chrome.storage.local.get(['fsrsGlobalParams', 'fsrsTopicWeights'], () => {
+                if (chrome.runtime?.lastError) {
+                    Logger.error('FSRSConfig', `Storage get error: ${chrome.runtime.lastError.message}`);
                 }
             });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Failed to load storage in loadFSRSConfig: ${errorMessage}`, { err });
         }
     }
 
-    /**
-     * Injects the 17 FSRS weight input fields into `#weights-inputs-container` using Preact.
-     * 
-     * @param {number[]} weightsArray - 17-element array of FSRS weight values.
-     * @returns {void}
-     */
     injectWeightsInputs(weightsArray: number[]): void {
-        try {
-            const container = document.getElementById('weights-inputs-container');
-            if (!container) return;
-
-            render(
-                <WeightsInputsGrid
-                    weights={weightsArray}
-                    defaultWeights={this.defaultWeights}
-                    helpDetails={this.weightsHelpDetails}
-                    condensedHelp={this.weightsHelp}
-                />,
-                container
-            );
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Failed to inject weight inputs: ${errorMessage}`, { err });
+        if (this.onInjectWeights) {
+            this.onInjectWeights(weightsArray);
         }
     }
 
-    /**
-     * Evaluates card review logs to calculate total review counts and eligibility against the target threshold.
-     * 
-     * @param {Card[]} history - Array of all card objects in storage.
-     * @param {number} [threshold=1000] - Minimum review count threshold to qualify.
-     * @returns {EligibilityResult} Qualification metrics.
-     */
     computeEligibility(history: Card[], threshold: number = 1000): EligibilityResult {
         try {
             if (!history || !Array.isArray(history)) return { eligible: false, count: 0, threshold };
@@ -1169,279 +1287,161 @@ export class FSRSConfigManager {
         }
     }
 
-    /**
-     * Renders saved custom topic profiles into `#active-tag-profiles-list` using Preact.
-     * 
-     * @param {{ [tag: string]: number[] }} topicWeights - Mapping of topic tag names to 17-weight arrays.
-     * @returns {void}
-     */
     renderTagProfiles(topicWeights: { [tag: string]: number[] }): void {
-        try {
-            const list = document.getElementById('active-tag-profiles-list');
-            if (!list) return;
-
-            render(
-                <TagProfilesList
-                    topicWeights={topicWeights}
-                    onDeleteProfile={(tag) => this.handleDeleteTagProfile(tag)}
-                />,
-                list
-            );
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Failed to render tag profiles: ${errorMessage}`, { err });
+        if (this.onRenderTagProfiles) {
+            this.onRenderTagProfiles(topicWeights);
         }
     }
 
-    /**
-     * Validates input values and saves the global FSRS configuration (weights, decay, factor, target retention)
-     * back into `chrome.storage.local`.
-     * 
-     * @returns {void}
-     */
     saveGlobalConfig(): void {
-        try {
-            const slider = document.getElementById('retention-slider') as HTMLInputElement | null;
-            const decayInput = document.getElementById('decay-input') as HTMLInputElement | null;
-            const factorInput = document.getElementById('factor-input') as HTMLInputElement | null;
+        const decayInput = document.getElementById('decay-input') as HTMLInputElement | null;
+        const factorInput = document.getElementById('factor-input') as HTMLInputElement | null;
+        const decay = decayInput ? parseFloat(decayInput.value) : this.defaultDecay;
+        const factor = factorInput ? parseFloat(factorInput.value) : this.defaultFactor;
 
-            const retention = slider ? parseFloat(slider.value) : this.defaultRetention;
-            const decay = decayInput ? parseFloat(decayInput.value) : this.defaultDecay;
-            const factor = factorInput ? parseFloat(factorInput.value) : this.defaultFactor;
-
-            if (isNaN(decay) || isNaN(factor)) {
-                this.showToast("Decay and Factor must be valid numbers.", true);
-                return;
-            }
-
-            const currentWeights: number[] = [];
-            for (let i = 0; i < 17; i++) {
-                const input = document.getElementById(`weight-input-${i}`) as HTMLInputElement | null;
-                const val = input ? parseFloat(input.value) : this.defaultWeights[i];
-                currentWeights.push(isNaN(val) ? this.defaultWeights[i] : val);
-            }
-
-            const newParams: FSRSParameters = {
-                w: currentWeights,
-                decay: decay,
-                factor: factor,
-                requestRetention: retention
-            };
-
-            chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
-                try {
-                    if (chrome.runtime?.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('FSRSConfig', `Storage set error in saveGlobalConfig: ${errorMessage}`, { error: chrome.runtime.lastError });
-                        this.showToast("Failed to save configuration.", true);
-                        return;
-                    }
-                    this.showToast("FSRS Configuration saved successfully!");
-                } catch (cbErr) {
-                    const errorMessage = cbErr instanceof Error ? cbErr.message : String(cbErr);
-                    Logger.error('FSRSConfig', `Error in storage set callback: ${errorMessage}`, { cbErr });
-                }
-            });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Error saving global config: ${errorMessage}`, { err });
-            this.showToast("Error saving configuration.", true);
+        if (isNaN(decay) || isNaN(factor)) {
+            this.showToast("Decay and Factor must be valid numbers.", true);
+            return;
         }
-    }
 
-    /**
-     * Resets all FSRS configuration (weights, decay, factor, retention, custom profiles) back to factory defaults.
-     * 
-     * @returns {void}
-     */
-    restoreDefaults(): void {
-        try {
-            if (confirm("Reset ALL FSRS configurations and topic profiles to default? This cannot be undone.")) {
-                const defaultParams: FSRSParameters = {
+        if (this.onSaveGlobalConfig) {
+            this.onSaveGlobalConfig();
+            return;
+        }
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+            chrome.storage.local.set({
+                fsrsGlobalParams: {
                     w: this.defaultWeights,
-                    decay: this.defaultDecay,
-                    factor: this.defaultFactor,
+                    decay,
+                    factor,
                     requestRetention: this.defaultRetention
-                };
-                chrome.storage.local.set({
-                    fsrsGlobalParams: defaultParams,
-                    fsrsTopicWeights: {}
-                }, () => {
-                    this.loadFSRSConfig();
-                    this.showToast("Restored all defaults!");
-                });
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Error restoring defaults: ${errorMessage}`, { err });
-        }
-    }
-
-    /**
-     * Resets global parameters (retention, decay, factor) back to baseline values without altering weights.
-     * 
-     * @returns {void}
-     */
-    restoreGlobalParameters(): void {
-        try {
-            if (confirm("Reset Request Retention, Decay, and Factor to defaults? (Weights will be kept)")) {
-                const slider = document.getElementById('retention-slider') as HTMLInputElement | null;
-                const badge = document.getElementById('retention-val');
-                const decayInput = document.getElementById('decay-input') as HTMLInputElement | null;
-                const factorInput = document.getElementById('factor-input') as HTMLInputElement | null;
-
-                if (slider) slider.value = this.defaultRetention.toString();
-                if (badge) badge.textContent = `${Math.round(this.defaultRetention * 100)}%`;
-                if (decayInput) decayInput.value = this.defaultDecay.toString();
-                if (factorInput) factorInput.value = this.defaultFactor.toString();
-
-                this.saveGlobalConfig();
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Error restoring global parameters: ${errorMessage}`, { err });
-        }
-    }
-
-    /**
-     * Reverts optimized weights back to baseline defaults, clearing optimization history state.
-     * 
-     * @returns {void}
-     */
-    resetOptimization(): void {
-        try {
-            if (confirm("Reset personalized weights back to baseline? Any optimization will be lost.")) {
-                this.injectWeightsInputs(this.defaultWeights);
-                this.saveGlobalConfig();
-                this.checkOptimizationEligibility();
-                this.showToast("Weights reset to baseline defaults.");
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Error in resetOptimization: ${errorMessage}`, { err });
-        }
-    }
-
-    /**
-     * Resets the 17 weight coefficients back to default FSRS-4.5 weights.
-     * 
-     * @returns {void}
-     */
-    restoreWeights(): void {
-        try {
-            if (confirm("Reset the 17 weights back to default FSRS-4.5 values?")) {
-                this.injectWeightsInputs(this.defaultWeights);
-                this.saveGlobalConfig();
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Error restoring weights: ${errorMessage}`, { err });
-        }
-    }
-
-    /**
-     * Parses and validates a new custom per-tag topic weight profile, persisting it to `chrome.storage.local`.
-     * 
-     * @returns {void}
-     */
-    handleAddTagProfile(): void {
-        try {
-            const tagInput = document.getElementById('new-tag-name') as HTMLInputElement | null;
-            const weightsInput = document.getElementById('new-tag-weights') as HTMLInputElement | null;
-
-            if (!tagInput || !weightsInput) return;
-
-            const tag = tagInput.value.trim().toLowerCase();
-            const weightsStr = weightsInput.value.trim();
-
-            if (!tag) {
-                this.showToast("Please provide a tag name.", true);
-                return;
-            }
-
-            const weightsArray = weightsStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
-            if (weightsArray.length !== 17) {
-                this.showToast(`Weights must contain exactly 17 coefficients. Found ${weightsArray.length}.`, true);
-                return;
-            }
-
-            chrome.storage.local.get(['fsrsTopicWeights'], (result: StorageData & { fsrsTopicWeights?: { [tag: string]: number[] } }) => {
-                try {
-                    const topicWeights = result.fsrsTopicWeights || {};
-                    topicWeights[tag] = weightsArray;
-                    chrome.storage.local.set({ fsrsTopicWeights: topicWeights }, () => {
-                        this.renderTagProfiles(topicWeights);
-                        tagInput.value = '';
-                        weightsInput.value = '';
-                        this.showToast(`Custom profile saved for tag: ${tag}`);
-                    });
-                } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('FSRSConfig', `Error persisting new tag profile for ${tag}: ${errorMessage}`, { innerErr });
                 }
             });
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Error handling add tag profile: ${errorMessage}`, { err });
         }
     }
 
-    /**
-     * Deletes a custom per-tag topic profile from `chrome.storage.local`.
-     * 
-     * @param {string} tag - Tag name of the profile to remove.
-     * @returns {void}
-     */
-    handleDeleteTagProfile(tag: string): void {
-        try {
-            if (confirm(`Delete custom weights profile for tag "${tag}"?`)) {
-                chrome.storage.local.get(['fsrsTopicWeights'], (result: StorageData & { fsrsTopicWeights?: { [tag: string]: number[] } }) => {
-                    try {
-                        const topicWeights = result.fsrsTopicWeights || {};
-                        delete topicWeights[tag];
-                        chrome.storage.local.set({ fsrsTopicWeights: topicWeights }, () => {
-                            this.renderTagProfiles(topicWeights);
-                            this.showToast(`Deleted profile for tag: ${tag}`);
-                        });
-                    } catch (innerErr) {
-                        const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                        Logger.error('FSRSConfig', `Error removing tag profile for ${tag}: ${errorMessage}`, { innerErr });
-                    }
+    restoreDefaults(): void {
+        if (this.onRestoreDefaults) {
+            this.onRestoreDefaults();
+            return;
+        }
+        if (confirm("Reset ALL FSRS configurations and topic profiles to default? This cannot be undone.")) {
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                chrome.storage.local.set({
+                    fsrsGlobalParams: {
+                        w: this.defaultWeights,
+                        decay: this.defaultDecay,
+                        factor: this.defaultFactor,
+                        requestRetention: this.defaultRetention
+                    },
+                    fsrsTopicWeights: {}
                 });
             }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('FSRSConfig', `Error handling delete tag profile: ${errorMessage}`, { err });
         }
     }
 
-    /**
-     * Displays a transient status feedback toast in the configuration view.
-     * 
-     * @param {string} msg - Message to display.
-     * @param {boolean} [isError=false] - Whether the notification represents an error state.
-     * @returns {void}
-     */
+    restoreGlobalParameters(): void {
+        if (this.onRestoreGlobalParameters) {
+            this.onRestoreGlobalParameters();
+            return;
+        }
+        if (confirm("Reset Request Retention, Decay, and Factor to defaults? (Weights will be kept)")) {
+            this.saveGlobalConfig();
+        }
+    }
+
+    resetOptimization(): void {
+        if (this.onResetOptimization) {
+            this.onResetOptimization();
+            return;
+        }
+        if (confirm("Reset personalized weights back to baseline? Any optimization will be lost.")) {
+            this.saveGlobalConfig();
+        }
+    }
+
+    restoreWeights(): void {
+        if (this.onRestoreWeights) {
+            this.onRestoreWeights();
+            return;
+        }
+        if (confirm("Reset the 17 weights back to default FSRS-4.5 values?")) {
+            this.saveGlobalConfig();
+        }
+    }
+
+    handleAddTagProfile(tag?: string, weights?: number[]): void {
+        const tagInput = document.getElementById('new-tag-name') as HTMLInputElement | null;
+        const weightsInput = document.getElementById('new-tag-weights') as HTMLInputElement | null;
+
+        const tagName = (tag !== undefined ? tag : (tagInput ? tagInput.value : '')).trim().toLowerCase();
+        let weightsArray = weights;
+        if (weightsArray === undefined) {
+            const wStr = weightsInput ? weightsInput.value : '';
+            weightsArray = wStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+        }
+
+        if (!tagName) {
+            this.showToast("Please provide a tag name.", true);
+            return;
+        }
+
+        if (weightsArray.length !== 17) {
+            this.showToast(`Weights must contain exactly 17 coefficients. Found ${weightsArray.length}.`, true);
+            return;
+        }
+
+        if (this.onAddTagProfile) {
+            this.onAddTagProfile(tagName, weightsArray);
+            return;
+        }
+
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+            chrome.storage.local.get(['fsrsTopicWeights'], (result: any) => {
+                const nextTopics = result?.fsrsTopicWeights || {};
+                nextTopics[tagName] = weightsArray;
+                chrome.storage.local.set({ fsrsTopicWeights: nextTopics });
+            });
+        }
+    }
+
+    handleDeleteTagProfile(tag: string): void {
+        if (this.onDeleteTagProfile) {
+            this.onDeleteTagProfile(tag);
+            return;
+        }
+        if (confirm(`Delete custom weights profile for tag "${tag}"?`)) {
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                chrome.storage.local.get(['fsrsTopicWeights'], (result: any) => {
+                    const nextTopics = result?.fsrsTopicWeights || {};
+                    delete nextTopics[tag];
+                    chrome.storage.local.set({ fsrsTopicWeights: nextTopics });
+                });
+            }
+        }
+    }
+
     showToast(msg: string, isError: boolean = false): void {
-        try {
-            const toast = document.getElementById('status-toast');
-            if (!toast) return;
+        if (this.onShowToast) {
+            this.onShowToast(msg, isError);
+        }
+        const toast = document.getElementById('status-toast');
+        if (toast) {
             toast.textContent = msg;
             toast.className = 'toast show ' + (isError ? 'error' : 'success');
             setTimeout(() => {
                 toast.className = 'toast';
             }, 2500);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.debug('FSRSConfig', `Ignore toast display error: ${errorMessage}`, { msg, err });
         }
     }
 }
 
 export function initFSRSConfig(): void {
     try {
-        const manager = new FSRSConfigManager();
-        manager.init();
+        const root = document.getElementById('root');
+        if (root) {
+            render(<FSRSConfigApp />, root);
+        }
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         Logger.error('FSRSConfig', `Initialization failed: ${errorMessage}`, { err });
@@ -1464,4 +1464,6 @@ if (typeof module !== 'undefined' && module.exports) {
     (module.exports as any).TagProfilesList = TagProfilesList;
     (module.exports as any).ModeToggle = ModeToggle;
     (module.exports as any).PresetChips = PresetChips;
+    (module.exports as any).AdvancedParametersSection = AdvancedParametersSection;
+    (module.exports as any).FSRSConfigApp = FSRSConfigApp;
 }

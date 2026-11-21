@@ -6,7 +6,8 @@
  * @context Popup / Analytics SPA Dashboard
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render } from 'preact';
+import { useCallback, useMemo } from 'preact/hooks';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
 import { MS_PER_DAY, DAY_NAMES_SHORT } from '../../../common/constants';
@@ -107,6 +108,115 @@ export const MiniForecastStrip: FunctionalComponent<MiniForecastStripProps> = ({
     );
 };
 
+export interface MiniForecastPanelProps {
+    dataUtils: DataUtils;
+    onFullForecastClick?: () => void;
+    onDayClick?: (dateStr: string, offset: number) => void;
+}
+
+export const MiniForecastPanel: FunctionalComponent<MiniForecastPanelProps> = ({
+    dataUtils,
+    onFullForecastClick,
+    onDayClick
+}) => {
+    const handleFullForecast = useCallback(() => {
+        if (onFullForecastClick) {
+            onFullForecastClick();
+            return;
+        }
+        try {
+            if (typeof chrome !== 'undefined' && chrome.runtime?.getURL && chrome.tabs?.create) {
+                chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/forecast/forecast.html') });
+            }
+        } catch (linkErr) {
+            UIUtils.catchError('MiniForecast', 'Error handling full forecast link click', linkErr);
+        }
+    }, [onFullForecastClick]);
+
+    const handleDayClick = useCallback((dateStr: string, offset: number) => {
+        if (onDayClick) {
+            onDayClick(dateStr, offset);
+            return;
+        }
+        try {
+            if (typeof chrome !== 'undefined' && chrome.runtime?.getURL && chrome.tabs?.create) {
+                const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dateStr}&offset=${offset}`);
+                chrome.tabs.create({ url: dataUrl });
+            }
+        } catch (cardClickErr) {
+            UIUtils.catchError('MiniForecast', 'Error handling day card click', cardClickErr);
+        }
+    }, [onDayClick]);
+
+    const days = useMemo(() => {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const dayNames = DAY_NAMES_SHORT;
+
+        const dueCounts: Record<number, number> = {};
+        let pastDueCount = 0;
+
+        if (dataUtils && dataUtils.cards) {
+            dataUtils.cards.forEach(card => {
+                try {
+                    const dueDate = new Date(card.due);
+                    const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+                    const diffDays = Math.floor((dueDay.getTime() - todayStart.getTime()) / MS_PER_DAY);
+
+                    if (diffDays < 0) pastDueCount++;
+                    else if (diffDays < 7) dueCounts[diffDays] = (dueCounts[diffDays] || 0) + 1;
+                } catch (cardErr) {
+                    UIUtils.catchError('MiniForecast', 'Error calculating card due date offset', cardErr, { card });
+                }
+            });
+        }
+        dueCounts[0] = (dueCounts[0] || 0) + pastDueCount;
+
+        const result: Array<{
+            isToday: boolean;
+            dayName: string;
+            formattedDate: string;
+            count: number;
+            countClass: string;
+            dateStr: string;
+            offset: number;
+        }> = [];
+
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(todayStart);
+            date.setDate(date.getDate() + i);
+            const count = dueCounts[i] || 0;
+            const isToday = i === 0;
+
+            let countClass = 'count-zero';
+            if (count > 0 && count <= 3) countClass = 'count-low';
+            else if (count > 3 && count <= 8) countClass = 'count-med';
+            else if (count > 8) countClass = 'count-high';
+
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+            result.push({
+                isToday,
+                dayName: isToday ? 'Today' : dayNames[date.getDay()],
+                formattedDate: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                count,
+                countClass,
+                dateStr,
+                offset: i
+            });
+        }
+        return result;
+    }, [dataUtils]);
+
+    return (
+        <MiniForecastStrip
+            days={days}
+            onFullForecastClick={handleFullForecast}
+            onDayClick={handleDayClick}
+        />
+    );
+};
+
 /**
  * Visualizes a compact 7-day upcoming review workload forecast.
  * Provides interactive tiles linking to specific date queues and the full 30-day forecast page.
@@ -140,32 +250,7 @@ export class MiniForecast {
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            const now = new Date();
-            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const dayNames = DAY_NAMES_SHORT;
-
-            const dueCounts = this.calculateDueCounts(todayStart);
-            const forecastStrip = this.buildForecastStrip(todayStart, dueCounts, dayNames);
-
-            container.innerHTML = `
-                <div class="ana-panel-wide" style="margin-top: 24px;">
-                    <div class="ana-panel-header">
-                        <span class="ana-panel-title">
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:16px;height:16px;margin-right:6px;stroke:currentColor;fill:none;vertical-align:middle;stroke-width:2;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                            Upcoming Reviews — Next 7 Days
-                        </span>
-                        <a id="full-forecast-link" href="#" class="ana-panel-link" style="color:var(--md-primary);text-decoration:none;font-size:0.9rem;display:flex;align-items:center;gap:4px;">
-                            Full 30-Day Forecast
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                        </a>
-                    </div>
-                    <div class="ana-forecast-strip" style="display:flex;gap:12px;overflow-x:auto;padding:8px 0;">
-                        ${forecastStrip}
-                    </div>
-                </div>
-            `;
-            
-            this.bindEventListeners(container);
+            render(<MiniForecastPanel dataUtils={this.dataUtils} />, container);
         } catch (err) {
             UIUtils.catchError('MiniForecast', 'Error rendering MiniForecast', err, { containerId });
         }

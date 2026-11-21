@@ -1,5 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { h, render } from 'preact';
+import { act } from 'preact/test-utils';
 import { UIUtils } from '../../../../../features/common/utils/uiUtils';
 import { Toast } from '../../../../../features/common/ui/components/Toast';
 
@@ -9,11 +10,14 @@ describe('UIUtils', () => {
     beforeEach(() => {
         container = document.createElement('div');
         document.body.appendChild(container);
-        render(h(Toast, { id: 'status-toast' }), container);
+        act(() => {
+            render(h(Toast, { id: 'status-toast' }), container);
+        });
         delete (chrome.runtime as any).lastError;
     });
 
     afterEach(() => {
+        jest.useRealTimers();
         jest.clearAllMocks();
         render(null, container);
         container.remove();
@@ -21,16 +25,22 @@ describe('UIUtils', () => {
     });
 
     it('shows toast with message and hides after duration', () => {
-        jest.useFakeTimers();
-        UIUtils.showToast('Test Message', 1000);
-        jest.advanceTimersByTime(10);
-        const toast = document.getElementById('status-toast')!;
-        expect(toast.textContent).toBe('Test Message');
-        expect(toast.className).toBe('toast show');
+        try {
+            jest.useFakeTimers();
+            act(() => {
+                UIUtils.showToast('Test Message', 1000);
+            });
+            const toast = document.getElementById('status-toast')!;
+            expect(toast.textContent).toBe('Test Message');
+            expect(toast.className).toBe('toast show');
 
-        jest.advanceTimersByTime(1100);
-        expect(toast.className).toBe('toast');
-        jest.useRealTimers();
+            act(() => {
+                jest.advanceTimersByTime(1100);
+            });
+            expect(toast.className).toBe('toast');
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('UX-008: closeCurrentTab closes tab via chrome.tabs.remove when tab exists', () => {

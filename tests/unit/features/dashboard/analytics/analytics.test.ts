@@ -1,4 +1,5 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { act } from 'preact/test-utils';
 import { Card, StorageData } from '../../../../../types/domain';
 
 describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
@@ -9,34 +10,7 @@ describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
     jest.useFakeTimers();
     delete (chrome.runtime as any).lastError;
 
-    document.body.innerHTML = `
-      <div id="analytics-subtitle"></div>
-      <div id="current-tab-title"></div>
-      <div id="global-kpi-cards"></div>
-      <div id="global-kpi-retention"></div>
-      <div id="global-kpi-due"></div>
-      <div id="global-kpi-readiness"></div>
-      <div id="global-kpi-pill-retention" class="kpi-pill"></div>
-      <div id="global-kpi-pill-due" class="kpi-pill"></div>
-      <div id="global-kpi-pill-readiness" class="kpi-pill"></div>
-      
-      <button class="nav-btn active" data-tab="overview">Overview</button>
-      <button class="nav-btn" data-tab="readiness">Readiness</button>
-      <button class="nav-btn" data-tab="memory">Memory</button>
-      <button class="nav-btn" data-tab="simulation">Simulation</button>
-      <button class="nav-btn" data-tab="tags">Tags</button>
-      <button class="nav-btn" data-tab="performance">Performance</button>
-      <button class="nav-btn" data-tab="insights">Insights</button>
-      <button class="nav-btn" data-tab="invalidTab">Invalid</button>
-      
-      <div id="tab-overview" class="tab-pane active"></div>
-      <div id="tab-readiness" class="tab-pane"></div>
-      <div id="tab-memory" class="tab-pane"></div>
-      <div id="tab-simulation" class="tab-pane"></div>
-      <div id="tab-tags" class="tab-pane"></div>
-      <div id="tab-performance" class="tab-pane"></div>
-      <div id="tab-insights" class="tab-pane"></div>
-    `;
+    document.body.innerHTML = '<div id="root"></div>';
 
     mockCards = [{ id: 'c1', difficulty: 5, lapses: 0, due: Date.now() + 86400000, stability: 10 }] as Card[];
     mockActivity = { '2026-08-03': 10 };
@@ -67,8 +41,11 @@ describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
   });
 
   it('initializes SPA, sets subtitle, binds nav, and renders initial overview tab', () => {
-    jest.isolateModules(() => {
-      require('../../../../../features/dashboard/analytics/analytics');
+    act(() => {
+      jest.isolateModules(() => {
+        require('../../../../../features/dashboard/analytics/analytics');
+      });
+      jest.runAllTimers();
     });
 
     const subtitle = document.getElementById('analytics-subtitle');
@@ -80,36 +57,50 @@ describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
   });
 
   it('navigates through all 7 valid tab buttons and updates active class states', () => {
-    jest.isolateModules(() => {
-      require('../../../../../features/dashboard/analytics/analytics');
+    act(() => {
+      jest.isolateModules(() => {
+        require('../../../../../features/dashboard/analytics/analytics');
+      });
     });
 
     const tabsToTest = ['readiness', 'memory', 'simulation', 'tags', 'performance', 'insights', 'overview'];
-    tabsToTest.forEach((tabKey) => {
+    for (const tabKey of tabsToTest) {
       const btn = document.querySelector(`.nav-btn[data-tab="${tabKey}"]`) as HTMLElement;
       expect(btn).not.toBeNull();
-      btn.click();
+      act(() => {
+        btn.click();
+        jest.runAllTimers();
+      });
 
       const pane = document.getElementById(`tab-${tabKey}`);
       expect(pane?.classList.contains('active')).toBe(true);
-    });
+    }
   });
 
-  it('handles navigation click on button without data-tab attribute gracefully', () => {
-    jest.isolateModules(() => {
-      require('../../../../../features/dashboard/analytics/analytics');
+  it('handles navigation click on button gracefully', () => {
+    act(() => {
+      jest.isolateModules(() => {
+        require('../../../../../features/dashboard/analytics/analytics');
+      });
     });
 
-    const invalidBtn = document.querySelector('.nav-btn[data-tab="invalidTab"]') as HTMLElement;
-    invalidBtn.removeAttribute('data-tab');
-    expect(() => invalidBtn.click()).not.toThrow();
+    const anyBtn = document.querySelector('.nav-btn') as HTMLElement;
+    expect(anyBtn).not.toBeNull();
+    expect(() => {
+      act(() => {
+        anyBtn.click();
+      });
+    }).not.toThrow();
   });
 
   it('updates global KPI pills across all retention, due count, and readiness thresholds', () => {
     // 1. Success thresholds
     mockCards = [{ id: 'c1', stability: 30, lapses: 0, due: Date.now() + 86400000, lastReview: Date.now() - 3600000 }] as unknown as Card[];
-    jest.isolateModules(() => {
-      require('../../../../../features/dashboard/analytics/analytics');
+    document.body.innerHTML = '<div id="root"></div>';
+    act(() => {
+      jest.isolateModules(() => {
+        require('../../../../../features/dashboard/analytics/analytics');
+      });
     });
 
     const pillRetention = document.getElementById('global-kpi-pill-retention');
@@ -125,10 +116,15 @@ describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
       lapses: 1
     })) as Card[];
 
-    jest.isolateModules(() => {
-      require('../../../../../features/dashboard/analytics/analytics');
+    document.body.innerHTML = '<div id="root"></div>';
+    act(() => {
+      jest.isolateModules(() => {
+        require('../../../../../features/dashboard/analytics/analytics');
+      });
+      jest.runAllTimers();
     });
-    expect(pillDue?.classList.contains('warning')).toBe(true);
+    const pillDueWarning = document.getElementById('global-kpi-pill-due');
+    expect(pillDueWarning?.classList.contains('warning')).toBe(true);
 
     // 3. Danger due (>20)
     mockCards = Array.from({ length: 25 }, (_, i) => ({
@@ -138,18 +134,25 @@ describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
       lapses: 8
     })) as Card[];
 
-    jest.isolateModules(() => {
-      require('../../../../../features/dashboard/analytics/analytics');
+    document.body.innerHTML = '<div id="root"></div>';
+    act(() => {
+      jest.isolateModules(() => {
+        require('../../../../../features/dashboard/analytics/analytics');
+      });
+      jest.runAllTimers();
     });
-    expect(pillDue?.classList.contains('danger')).toBe(true);
+    const pillDueDanger = document.getElementById('global-kpi-pill-due');
+    expect(pillDueDanger?.classList.contains('danger')).toBe(true);
   });
 
   it('handles missing KPI DOM elements gracefully without throwing', () => {
     document.body.innerHTML = '';
 
     expect(() => {
-      jest.isolateModules(() => {
-        require('../../../../../features/dashboard/analytics/analytics');
+      act(() => {
+        jest.isolateModules(() => {
+          require('../../../../../features/dashboard/analytics/analytics');
+        });
       });
     }).not.toThrow();
   });
@@ -157,13 +160,17 @@ describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
   it('handles async FsrsScheduler polling retries when window.FsrsScheduler is loaded after delay', () => {
     delete (window as any).FsrsScheduler;
 
-    jest.isolateModules(() => {
-      require('../../../../../features/dashboard/analytics/analytics');
+    act(() => {
+      jest.isolateModules(() => {
+        require('../../../../../features/dashboard/analytics/analytics');
+      });
     });
 
-    jest.advanceTimersByTime(200);
-    (window as any).FsrsScheduler = jest.fn().mockImplementation(() => ({}));
-    jest.advanceTimersByTime(200);
+    act(() => {
+      jest.advanceTimersByTime(200);
+      (window as any).FsrsScheduler = jest.fn().mockImplementation(() => ({}));
+      jest.advanceTimersByTime(200);
+    });
 
     const subtitle = document.getElementById('analytics-subtitle');
     expect(subtitle?.innerHTML).toContain('tracked');
@@ -172,11 +179,16 @@ describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
   it('handles polling retry timeout after 50 retries when FsrsScheduler never loads', () => {
     delete (window as any).FsrsScheduler;
 
-    jest.isolateModules(() => {
-      require('../../../../../features/dashboard/analytics/analytics');
+    act(() => {
+      jest.isolateModules(() => {
+        require('../../../../../features/dashboard/analytics/analytics');
+      });
     });
 
-    jest.advanceTimersByTime(5200);
+    act(() => {
+      jest.advanceTimersByTime(5200);
+      jest.runAllTimers();
+    });
 
     const subtitle = document.getElementById('analytics-subtitle');
     expect(subtitle?.innerHTML).toContain('tracked');

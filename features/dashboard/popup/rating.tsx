@@ -13,6 +13,7 @@
  */
 
 import { h, VNode } from 'preact';
+import { useState } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
@@ -22,6 +23,68 @@ import { BROWSER_CONFIG } from '../../common/browserConfig';
 // ─────────────────────────────────────────────────────────────────────────────
 // PREACT UI COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
+
+export interface QuickRatingSectionProps {
+    status?: 'unrated' | 'snoozed' | 'rated';
+    onStatusChange?: (status: 'unrated' | 'snoozed' | 'rated') => void;
+}
+
+export function QuickRatingSection({
+    status: controlledStatus,
+    onStatusChange
+}: QuickRatingSectionProps = {}): VNode {
+    const [status, setStatus] = useState<'unrated' | 'snoozed' | 'rated'>(controlledStatus || 'unrated');
+    const currentStatus = controlledStatus !== undefined ? controlledStatus : status;
+
+    const handleSnooze = async () => {
+        try {
+            const next = 'snoozed';
+            setStatus(next);
+            if (onStatusChange) onStatusChange(next);
+            const snoozeUntil = Date.now() + 7 * 86400000;
+            await chrome.storage.local.set({ ratingSnoozedUntil: snoozeUntil });
+        } catch (err) {
+            UIUtils.catchError('RatingComponent', 'Error snoozing rating', err);
+        }
+    };
+
+    const handleAlreadyRated = async () => {
+        try {
+            const next = 'rated';
+            setStatus(next);
+            if (onStatusChange) onStatusChange(next);
+            await chrome.storage.local.set({ hasRatedStore: true });
+        } catch (err) {
+            UIUtils.catchError('RatingComponent', 'Error marking already rated', err);
+        }
+    };
+
+    const handleEdit = async () => {
+        try {
+            const next = 'unrated';
+            setStatus(next);
+            if (onStatusChange) onStatusChange(next);
+            await chrome.storage.local.set({ hasRatedStore: false, ratingSnoozedUntil: 0 });
+        } catch (err) {
+            UIUtils.catchError('RatingComponent', 'Error editing rating', err);
+        }
+    };
+
+    const reviewUrl = BROWSER_CONFIG.reviewUrl;
+    const buttonLabel = `Rate on ${BROWSER_CONFIG.storeName}`;
+
+    return (
+        <PopupRatingPromptCard
+            status={currentStatus}
+            promptText="Enjoying AlgoRecall? Rate us 5 stars to help us grow!"
+            buttonLabel={buttonLabel}
+            reviewUrl={reviewUrl}
+            onSnooze={handleSnooze}
+            onAlreadyRated={handleAlreadyRated}
+            onEdit={handleEdit}
+        />
+    );
+}
 
 export interface PopupRatingPromptCardProps {
     status: 'unrated' | 'snoozed' | 'rated';

@@ -20,20 +20,7 @@ describe('HighlightOptionsManager', () => {
     delete (chrome.runtime as any).lastError;
     jest.useFakeTimers();
 
-    document.body.innerHTML = `
-      <input id="default-color" type="color" value="#f1c40f" />
-      <input type="text" id="default-hex" class="color-hex" value="#F1C40F" />
-
-      <input id="palette-name-input" value="" />
-      <button id="add-slot-btn">Add Slot</button>
-      <button id="save-palette-btn" disabled>💾 Save Palette</button>
-      <button id="reset-palettes-btn">Reset Palettes</button>
-
-      <div id="palette-slots-container"></div>
-      <div id="palettes-list-container"></div>
-      <span id="palette-count">0 / 50</span>
-      <div id="status-toast"></div>
-    `;
+    document.body.innerHTML = '<div id="root"><div id="status-toast" class="toast"></div></div>';
 
     (chrome.storage.local.get as jest.Mock).mockImplementation((keys: any, cb?: any) => {
       const result = { extensionSettings: getFreshSettings() };
@@ -232,7 +219,7 @@ describe('HighlightOptionsManager', () => {
 
     it('updates color on color picker input event', () => {
       manager.init();
-      const picker = document.querySelector('.color-picker') as HTMLInputElement;
+      const picker = (document.querySelector('.slot-color-picker') || document.querySelector('.color-picker')) as HTMLInputElement;
       picker.value = '#123456';
       picker.dispatchEvent(new Event('input'));
 
@@ -322,7 +309,7 @@ describe('HighlightOptionsManager', () => {
       manager.init();
 
       // Trigger listener catch block by breaking input target
-      const picker = document.querySelector('.color-picker') as HTMLInputElement;
+      const picker = (document.querySelector('.slot-color-picker') || document.querySelector('.color-picker')) as HTMLInputElement;
       picker.dispatchEvent(new Event('input'));
 
       // Storage save innerErr catch block

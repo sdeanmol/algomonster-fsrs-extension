@@ -21,6 +21,10 @@ export interface TagInputOptions {
     placeholder?: string;
     /** Callback triggered whenever tags are added or removed */
     onTagsChange?: (tags: string[]) => void;
+    /** Maximum number of tags allowed */
+    maxTags?: number;
+    /** Whether the tag input is disabled */
+    disabled?: boolean;
 }
 
 /**
@@ -162,6 +166,7 @@ export function TagInput({
     const suggestionsRef = useRef<string[]>([]);
     const highlightedIndexRef = useRef<number>(-1);
     const isOpenRef = useRef<boolean>(false);
+    const autocompleteSeqRef = useRef<number>(0);
 
     const closeDropdown = useCallback(() => {
         isOpenRef.current = false;
@@ -170,9 +175,6 @@ export function TagInput({
         setIsOpen(false);
         setHighlightedIndex(-1);
         setSuggestions([]);
-        if (dropdownRef.current) {
-            dropdownRef.current.style.display = 'none';
-        }
     }, []);
 
     const addTag = useCallback((tagText: string): boolean => {
@@ -211,15 +213,21 @@ export function TagInput({
             return;
         }
 
+        const seq = ++autocompleteSeqRef.current;
+
         try {
             const rawSuggestions = await Promise.resolve(getSuggestions());
+            if (seq !== autocompleteSeqRef.current) {
+                return;
+            }
+
             const currentTagSet = new Set(tags.map((t) => t.toLowerCase()));
             const filtered = (rawSuggestions || []).filter((tag) => {
                 const trimmed = tag.trim();
                 return (
                     trimmed.length > 0 &&
                     !currentTagSet.has(trimmed.toLowerCase()) &&
-                    trimmed.toLowerCase().includes(query)
+                    (!query || trimmed.toLowerCase().includes(query))
                 );
             }).slice(0, 8);
 
@@ -230,15 +238,14 @@ export function TagInput({
                 setSuggestions(filtered);
                 setHighlightedIndex(0);
                 setIsOpen(true);
-                if (dropdownRef.current) {
-                    dropdownRef.current.style.display = 'block';
-                }
             } else {
                 closeDropdown();
             }
         } catch (err) {
-            UIUtils.catchError('TagInput', 'Error fetching autocomplete suggestions', err);
-            closeDropdown();
+            if (seq === autocompleteSeqRef.current) {
+                UIUtils.catchError('TagInput', 'Error fetching autocomplete suggestions', err);
+                closeDropdown();
+            }
         }
     }, [inputValue, getSuggestions, tags, closeDropdown]);
 
@@ -294,7 +301,11 @@ export function TagInput({
     const handleInput = (e: Event) => {
         const val = (e.currentTarget as HTMLInputElement).value;
         setInputValue(val);
-        triggerAutocomplete(val);
+        if (!val.trim()) {
+            closeDropdown();
+        } else {
+            triggerAutocomplete(val);
+        }
     };
 
     const handlePaste = (e: ClipboardEvent) => {
@@ -305,6 +316,9 @@ export function TagInput({
             const cleaned = [...tags];
             const seen = new Set(tags.map((t) => t.toLowerCase()));
             for (const t of pastedTags) {
+                if (maxTags !== undefined && cleaned.length >= maxTags) {
+                    break;
+                }
                 if (!seen.has(t.toLowerCase())) {
                     seen.add(t.toLowerCase());
                     cleaned.push(t);
@@ -448,6 +462,9 @@ export class TagInputControl {
         const cleaned: string[] = [];
         const seen = new Set<string>();
         for (const t of newTags) {
+            if (this.options.maxTags !== undefined && cleaned.length >= this.options.maxTags) {
+                break;
+            }
             const trimmed = t.trim();
             if (trimmed && !seen.has(trimmed.toLowerCase())) {
                 seen.add(trimmed.toLowerCase());
@@ -483,6 +500,8 @@ export class TagInputControl {
                 onChange={(updated) => this.setTags(updated, true)}
                 getSuggestions={this.options.getSuggestions}
                 placeholder={this.options.placeholder || this.targetInput.placeholder}
+                maxTags={this.options.maxTags}
+                disabled={this.options.disabled}
             />,
             this.container
         );
@@ -490,8 +509,16 @@ export class TagInputControl {
 
     public destroy(): void {
         render(null, this.container);
-        this.container.remove();
+        if (this.container.parentNode) {
+            this.container.parentNode.removeChild(this.container);
+        } else if (typeof this.container.remove === 'function') {
+            this.container.remove();
+        }
         this.targetInput.style.display = '';
         this.targetInput.removeAttribute('tabindex');
+        if (this.originalValueDescriptor) {
+            Object.defineProperty(this.targetInput, 'value', this.originalValueDescriptor);
+        }
+        delete (this.targetInput as unknown as { __tagInputControl?: TagInputControl }).__tagInputControl;
     }
 }

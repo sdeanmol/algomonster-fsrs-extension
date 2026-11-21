@@ -6,10 +6,12 @@
  * @context Popup / Analytics SPA Dashboard
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render as preactRender } from 'preact';
+import { useState } from 'preact/hooks';
 import { Logger } from '@common/logger';
-import { RecoveryTracking } from './recoveryTracking';
-import { ReviewStats } from './reviewStats';
+import { Card } from '../../../../types/domain';
+import { RecoveryTracking, RecoveryTrackingComponent } from './recoveryTracking';
+import { ReviewStats, ReviewStatsComponent } from './reviewStats';
 import { DataUtils } from '../utils/dataUtils';
 
 export interface PerformanceNextActionBannerProps {
@@ -41,6 +43,101 @@ export const PerformanceNextActionBanner: FunctionalComponent<PerformanceNextAct
             <div class="insight-content">
                 <h3>Next Action: Consistent Reviews</h3>
                 <p>You have no major trouble spots right now! Keep up the daily reviews to maintain your high recovery rate.</p>
+            </div>
+        </div>
+    );
+};
+
+export interface PerformanceTabProps {
+    cards?: Card[];
+    dataUtils?: DataUtils;
+}
+
+export const PerformanceTabComponent: FunctionalComponent<PerformanceTabProps> = ({ cards, dataUtils: propDataUtils }) => {
+    const dataUtils = propDataUtils || new DataUtils(cards || [], {}, null);
+    const [period, setPeriod] = useState('daily');
+    const [filterTag, setFilterTag] = useState('all');
+
+    let struggling = 0;
+    if (dataUtils && dataUtils.cards) {
+        dataUtils.cards.forEach(c => {
+            const isHard = dataUtils.scheduler ? dataUtils.scheduler.isHighDifficulty(c) : (c.difficulty || 0) >= 7;
+            if (isHard && (c.lapses || 0) >= 1) {
+                struggling++;
+            }
+        });
+    }
+
+    const { lapsed, recovered } = dataUtils.getPerformanceStats();
+
+    const tagSet = new Set<string>();
+    (dataUtils.cards || []).forEach(c => {
+        if (c.tags) c.tags.forEach(t => tagSet.add(t));
+    });
+    const allTags = Array.from(tagSet).sort();
+
+    const formatDateKey = dataUtils?.formatDateKey ? dataUtils.formatDateKey.bind(dataUtils) : undefined;
+
+    return (
+        <div class="performance-grid">
+            <div id="performance-next-action-container">
+                <PerformanceNextActionBanner strugglingCount={struggling} />
+            </div>
+            <div class="performance-panel ana-panel-wide">
+                <div class="ana-panel-header">
+                    <span class="ana-panel-title">
+                        Review Statistics
+                        <span class="help-icon" data-tooltip="Shows the volume of your review activity over daily, weekly, or monthly periods.">?</span>
+                    </span>
+                    <div class="performance-controls">
+                        <select
+                            id="review-period-select"
+                            class="modern-select"
+                            value={period}
+                            onChange={(e) => setPeriod((e.target as HTMLSelectElement).value)}
+                        >
+                            <option value="daily">Daily (14 days)</option>
+                            <option value="weekly">Weekly (12 weeks)</option>
+                            <option value="monthly">Monthly (12 months)</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="review-stats-container">
+                    <ReviewStatsComponent
+                        activity={dataUtils.activity || {}}
+                        period={period}
+                        formatDateKey={formatDateKey}
+                    />
+                </div>
+            </div>
+
+            <div class="performance-panel ana-panel-wide">
+                <div class="ana-panel-header">
+                    <span class="ana-panel-title">
+                        Trouble Spots & Recovery
+                        <span class="help-icon" data-tooltip="Highlights cards you've forgotten multiple times (Lapses). 'Still Struggling' means the card has not yet graduated to long-term memory again.">?</span>
+                    </span>
+                    <div class="performance-controls">
+                        <select
+                            id="performance-filter-tag"
+                            class="modern-select"
+                            value={filterTag}
+                            onChange={(e) => setFilterTag((e.target as HTMLSelectElement).value)}
+                        >
+                            <option value="all">All Tags</option>
+                            {allTags.map(tag => (
+                                <option key={tag} value={tag}>{tag}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                <div id="recovery-tracking-container">
+                    <RecoveryTrackingComponent
+                        lapsed={lapsed}
+                        recovered={recovered}
+                        tagFilter={filterTag}
+                    />
+                </div>
             </div>
         </div>
     );
@@ -90,7 +187,8 @@ export const PerformanceTabContent: FunctionalComponent = () => {
  * Aggregates study activity volume timelines and tracks recovery progress
  * for flashcards that have experienced memory lapses.
  */
-export class PerformanceTab {
+export class PerformanceTabClass {
+    props?: PerformanceTabProps;
     /** Data utility instance for card statistics and activity queries */
     dataUtils: DataUtils;
     /** Sub-component rendering review activity histograms and period averages */
@@ -232,31 +330,10 @@ export class PerformanceTab {
                 });
             }
 
-            if (struggling > 0) {
-                container.innerHTML = `
-                    <div class="actionable-insight-banner warning" style="margin-bottom:0;">
-                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                        <div class="insight-content">
-                            <h3>Next Action: Reformulate Problem Cards</h3>
-                            <p>The scheduling algorithm has identified <strong>${struggling} cards</strong> with a High Difficulty rating that you have lapsed on. Your next action is to <strong>edit these cards</strong>: simplify the information, add a mnemonic, or break them down into smaller pieces.</p>
-                        </div>
-                    </div>
-                `;
-            } else {
-                container.innerHTML = `
-                    <div class="actionable-insight-banner success" style="margin-bottom:0;">
-                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                        <div class="insight-content">
-                            <h3>Next Action: Consistent Reviews</h3>
-                            <p>You have no major trouble spots right now! Keep up the daily reviews to maintain your high recovery rate.</p>
-                        </div>
-                    </div>
-                `;
-            }
+            preactRender(
+                <PerformanceNextActionBanner strugglingCount={struggling} />,
+                container
+            );
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('PerformanceTab', `Error rendering performance next action: ${errorMessage}`, { containerId, err });
@@ -264,3 +341,13 @@ export class PerformanceTab {
     }
 }
 
+export type PerformanceTab = PerformanceTabClass;
+
+export const PerformanceTab: FunctionalComponent<PerformanceTabProps> & {
+    new (dataUtils: DataUtils): PerformanceTabClass;
+} = function(this: any, propsOrDataUtils: any) {
+    if (new.target) {
+        return new PerformanceTabClass(propsOrDataUtils);
+    }
+    return <PerformanceTabComponent {...propsOrDataUtils} />;
+} as any;

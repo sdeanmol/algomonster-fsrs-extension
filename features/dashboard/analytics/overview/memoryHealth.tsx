@@ -5,7 +5,7 @@
  * @context Popup / Analytics SPA Dashboard
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, SummaryStats } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
@@ -121,6 +121,50 @@ export const MemoryHealthCard: FunctionalComponent<MemoryHealthCardProps> = ({
     );
 };
 
+export interface MemoryHealthPanelProps {
+    dataUtils: DataUtils;
+}
+
+export const MemoryHealthPanel: FunctionalComponent<MemoryHealthPanelProps> = ({ dataUtils }) => {
+    const stats = dataUtils.getSummaryStats();
+    let healthScore = 0;
+    if (stats.trueRetention && stats.trueRetention > 0) healthScore = stats.trueRetention;
+    else if (stats.retention && stats.retention > 0) healthScore = stats.retention;
+
+    const sched = dataUtils.scheduler as (AbstractScheduler & { requestRetention?: number }) | null;
+    const targetRetention = (sched && sched.requestRetention) ? sched.requestRetention * 100 : 90;
+
+    let statusText = 'Excellent';
+    let statusClass = 'health-excellent';
+    if (healthScore === 0) { 
+        statusText = 'Need Data'; 
+        statusClass = 'health-nodata'; 
+    } else if (healthScore < targetRetention - 7) { 
+        statusText = 'Needs Attention'; 
+        statusClass = 'health-warning'; 
+    } else if (healthScore < targetRetention - 2) { 
+        statusText = 'Good'; 
+        statusClass = 'health-good'; 
+    }
+
+    const streakVal = stats.streak || 0;
+    const trend = streakVal >= 3 ? '▲ Consistent' : (streakVal > 0 ? '▶ Active' : '▼ Needs Review');
+    const trendMsg = streakVal >= 3 ? 'You are building strong long-term memory.' : 'Review more consistently to improve memory health.';
+    const trendClass = streakVal >= 3 ? 'trend-up' : (streakVal > 0 ? '' : 'trend-down');
+
+    return (
+        <MemoryHealthCard
+            healthScore={healthScore}
+            statusText={statusText}
+            statusClass={statusClass}
+            trend={trend}
+            trendMsg={trendMsg}
+            trendClass={trendClass}
+            stats={stats}
+        />
+    );
+};
+
 /**
  * Visualizes overall deck memory health using an animated SVG radial progress ring
  * and a summary grid of foundational retention and consistency metrics.
@@ -152,37 +196,7 @@ export class MemoryHealth {
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            const stats = this.dataUtils.getSummaryStats();
-            const healthScore = this.calculateHealthScore(stats);
-            const targetRetention = this.getTargetRetention();
-
-            let statusText = 'Excellent';
-            let statusClass = 'health-excellent';
-            if (healthScore === 0) { 
-                statusText = 'Need Data'; 
-                statusClass = 'health-nodata'; 
-            } else if (healthScore < targetRetention - 7) { 
-                statusText = 'Needs Attention'; 
-                statusClass = 'health-warning'; 
-            } else if (healthScore < targetRetention - 2) { 
-                statusText = 'Good'; 
-                statusClass = 'health-good'; 
-            }
-
-            const trend = stats.streak >= 3 ? '▲ Consistent' : (stats.streak > 0 ? '▶ Active' : '▼ Needs Review');
-            const trendMsg = stats.streak >= 3 ? 'You are building strong long-term memory.' : 'Review more consistently to improve memory health.';
-            const trendClass = stats.streak >= 3 ? 'trend-up' : (stats.streak > 0 ? '' : 'trend-down');
-
-            const svgCircle = `
-                <svg class="health-ring" viewBox="0 0 120 120">
-                    <circle class="ring-bg" cx="60" cy="60" r="50"></circle>
-                    <circle class="ring-progress ${statusClass}" cx="60" cy="60" r="50" 
-                            stroke-dasharray="314" stroke-dashoffset="${314 - (314 * healthScore / 100)}">
-                    </circle>
-                </svg>
-            `;
-
-            container.innerHTML = this.buildHealthCard(healthScore, statusText, statusClass, trend, trendMsg, trendClass, svgCircle, stats);
+            render(<MemoryHealthPanel dataUtils={this.dataUtils} />, container);
         } catch (err) {
             UIUtils.catchError('MemoryHealth', 'Error rendering MemoryHealth', err, { containerId });
         }

@@ -6,7 +6,7 @@
  */
 
 import { h, JSX } from 'preact';
-import { useState, useEffect, useLayoutEffect, useRef } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 
 export interface ToastProps {
     id?: string;
@@ -25,16 +25,33 @@ export function Toast({
 }: ToastProps): JSX.Element {
     const [message, setMessage] = useState<string>(propMessage || '');
     const [visible, setVisible] = useState<boolean>(propVisible || false);
-    const toastRef = useRef<HTMLDivElement>(null);
+    const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const durationRef = useRef(durationMs);
+    durationRef.current = durationMs;
 
     useEffect(() => {
-        if (propMessage !== undefined) setMessage(propMessage);
-        if (propVisible !== undefined) setVisible(propVisible);
-    }, [propMessage, propVisible]);
+        if (propMessage !== undefined) {
+            setMessage(propMessage);
+        }
+    }, [propMessage]);
 
-    useLayoutEffect(() => {
-        let hideTimeout: ReturnType<typeof setTimeout> | undefined;
+    useEffect(() => {
+        if (propVisible !== undefined) {
+            setVisible(propVisible);
+            if (propVisible && durationMs > 0) {
+                if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+                hideTimeoutRef.current = setTimeout(() => {
+                    setVisible(false);
+                    hideTimeoutRef.current = null;
+                }, durationMs);
+            } else if (!propVisible && hideTimeoutRef.current) {
+                clearTimeout(hideTimeoutRef.current);
+                hideTimeoutRef.current = null;
+            }
+        }
+    }, [propVisible, durationMs]);
 
+    useEffect(() => {
         const handleToast = (event: Event) => {
             const customEvent = event as CustomEvent<{ message: string; durationMs?: number }>;
             if (customEvent.detail && typeof customEvent.detail.message === 'string') {
@@ -42,18 +59,11 @@ export function Toast({
                 setMessage(text);
                 setVisible(true);
 
-                if (toastRef.current) {
-                    toastRef.current.textContent = text;
-                    toastRef.current.className = `${className} show`;
-                }
-
-                if (hideTimeout) clearTimeout(hideTimeout);
-                const dur = customEvent.detail.durationMs ?? durationMs;
-                hideTimeout = setTimeout(() => {
+                if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+                const dur = customEvent.detail.durationMs ?? durationRef.current;
+                hideTimeoutRef.current = setTimeout(() => {
                     setVisible(false);
-                    if (toastRef.current) {
-                        toastRef.current.className = className;
-                    }
+                    hideTimeoutRef.current = null;
                 }, dur);
             }
         };
@@ -63,15 +73,18 @@ export function Toast({
         }
 
         return () => {
-            if (hideTimeout) clearTimeout(hideTimeout);
             if (typeof window !== 'undefined') {
                 window.removeEventListener('algorecall-toast', handleToast);
             }
+            if (hideTimeoutRef.current) {
+                clearTimeout(hideTimeoutRef.current);
+                hideTimeoutRef.current = null;
+            }
         };
-    }, [durationMs, className]);
+    }, []);
 
     return (
-        <div ref={toastRef} id={id} className={`${className}${visible ? ' show' : ''}`}>
+        <div id={id} className={`${className}${visible ? ' show' : ''}`}>
             {message}
         </div>
     );

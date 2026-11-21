@@ -6,12 +6,14 @@
  * @context Popup / Analytics SPA Dashboard
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render } from 'preact';
+import { useMemo } from 'preact/hooks';
 import { UIUtils } from '../../../common/utils/uiUtils';
-import { MemoryHealth } from './memoryHealth';
-import { LearningVelocity } from './learningVelocity';
-import { MiniForecast } from './miniForecast';
+import { MemoryHealth, MemoryHealthPanel } from './memoryHealth';
+import { LearningVelocity, LearningVelocityView } from './learningVelocity';
+import { MiniForecast, MiniForecastPanel } from './miniForecast';
 import { DataUtils } from '../utils/dataUtils';
+import { Card } from '../../../../types/domain';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
 export interface OverviewNextActionBannerProps {
@@ -67,6 +69,76 @@ export const OverviewNextActionBanner: FunctionalComponent<OverviewNextActionBan
     );
 };
 
+export interface OverviewTabProps {
+    cards?: Card[];
+    activity?: Record<string, number>;
+    dataUtils?: DataUtils;
+}
+
+const SafeMemoryHealthPanel: FunctionalComponent<{ dataUtils: DataUtils }> = (props) => {
+    if (typeof MemoryHealthPanel === 'function') {
+        return <MemoryHealthPanel {...props} />;
+    }
+    return null;
+};
+
+const SafeLearningVelocityView: FunctionalComponent<{ dataUtils: DataUtils }> = (props) => {
+    if (typeof LearningVelocityView === 'function') {
+        return <LearningVelocityView {...props} />;
+    }
+    return null;
+};
+
+const SafeMiniForecastPanel: FunctionalComponent<{ dataUtils: DataUtils }> = (props) => {
+    if (typeof MiniForecastPanel === 'function') {
+        return <MiniForecastPanel {...props} />;
+    }
+    return null;
+};
+
+export const OverviewTabComponent: FunctionalComponent<OverviewTabProps> = ({ cards, activity, dataUtils: propDataUtils }) => {
+    const dataUtils = useMemo(() => propDataUtils || new DataUtils(cards || [], activity || {}, null), [propDataUtils, cards, activity]);
+    const stats = useMemo(() => dataUtils.getSummaryStats(), [dataUtils]);
+
+    const nextActionType = useMemo<'pending' | 'dropping' | 'caught-up'>(() => {
+        const dueCount = stats.due || 0;
+        let healthScore = 0;
+        if (stats.trueRetention > 0) healthScore = stats.trueRetention;
+        else if (stats.retention > 0) healthScore = stats.retention;
+        const health = healthScore;
+
+        const sched = dataUtils.scheduler as (AbstractScheduler & { requestRetention?: number }) | null;
+        const targetRetention = (sched && sched.requestRetention) ? sched.requestRetention * 100 : 90;
+
+        if (dueCount > 0) return 'pending';
+        if (health < (targetRetention - 7) && (stats.totalCards || 0) > 10) return 'dropping';
+        return 'caught-up';
+    }, [stats, dataUtils]);
+
+    return (
+        <div id="tab-overview" class="tab-pane active">
+            <div id="overview-next-action-container">
+                <OverviewNextActionBanner
+                    type={nextActionType}
+                    dueCount={stats.due || 0}
+                    health={stats.trueRetention > 0 ? stats.trueRetention : (stats.retention || 0)}
+                />
+            </div>
+            <div class="overview-grid">
+                <div id="memory-health-container" class="overview-panel">
+                    <SafeMemoryHealthPanel dataUtils={dataUtils} />
+                </div>
+                <div id="learning-velocity-container" class="overview-panel">
+                    <SafeLearningVelocityView dataUtils={dataUtils} />
+                </div>
+            </div>
+            <div id="mini-forecast-container">
+                <SafeMiniForecastPanel dataUtils={dataUtils} />
+            </div>
+        </div>
+    );
+};
+
 export const OverviewTabContent: FunctionalComponent = () => {
     return (
         <Fragment>
@@ -84,7 +156,8 @@ export const OverviewTabContent: FunctionalComponent = () => {
  * Controller for the Overview tab view in the analytics dashboard.
  * Synthesizes high-level retention health, velocity trends, and review queue status.
  */
-export class OverviewTab {
+export class OverviewTabClass {
+    props?: OverviewTabProps;
     /** Data utility instance for querying card stats and velocity */
     dataUtils: DataUtils;
     /** Sub-component rendering the memory health radial gauge and metric tiles */
@@ -127,22 +200,8 @@ export class OverviewTab {
             const container = document.getElementById(containerId);
             if (!container) return;
             
-            if (!this.rendered) {
-                container.innerHTML = `
-                    <div id="overview-next-action-container"></div>
-                    <div class="overview-grid">
-                        <div id="memory-health-container" class="overview-panel"></div>
-                        <div id="learning-velocity-container" class="overview-panel"></div>
-                    </div>
-                    <div id="mini-forecast-container"></div>
-                `;
-                this.rendered = true;
-            }
-
-            this.renderNextAction('overview-next-action-container');
-            this.memoryHealth.render('memory-health-container');
-            this.learningVelocity.render('learning-velocity-container');
-            this.miniForecast.render('mini-forecast-container');
+            render(<OverviewTabComponent dataUtils={this.dataUtils} />, container);
+            this.rendered = true;
         } catch (err) {
             UIUtils.catchError('OverviewTab', 'Error rendering OverviewTab', err, { containerId });
         }
@@ -175,72 +234,28 @@ export class OverviewTab {
                 ? sched.requestRetention * 100
                 : 90;
 
+            let bannerType: 'pending' | 'dropping' | 'caught-up' = 'caught-up';
             if (dueCount > 0) {
-                container.innerHTML = this.buildPendingReviewsBanner(dueCount);
+                bannerType = 'pending';
             } else if (health < (targetRetention - 7) && stats.totalCards > 10) {
-                container.innerHTML = this.buildMemoryHealthDroppingBanner(health);
-            } else {
-                container.innerHTML = this.buildCaughtUpBanner();
+                bannerType = 'dropping';
             }
+
+            render(<OverviewNextActionBanner type={bannerType} dueCount={dueCount} health={health} />, container);
         } catch (err) {
             UIUtils.catchError('OverviewTab', 'Error rendering overview next action', err, { containerId });
         }
     }
-
-    /**
-     * Generates HTML markup for an all-caught-up success banner.
-     * @returns Rendered HTML banner string.
-     */
-    private buildCaughtUpBanner(): string {
-        return `
-            <div class="actionable-insight-banner success">
-                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <div class="insight-content">
-                    <h3>Next Action: You are all caught up!</h3>
-                    <p>Your next step is to <strong>enjoy the rest of your day</strong>. Alternatively, you can learn some new cards.</p>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * Generates HTML markup for a warning banner indicating pending reviews.
-     * @param dueCount - Number of cards currently due for review.
-     * @returns Rendered HTML banner string.
-     */
-    private buildPendingReviewsBanner(dueCount: number): string {
-        return `
-            <div class="actionable-insight-banner warning">
-                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                <div class="insight-content">
-                    <h3>Next Action: Reviews Pending</h3>
-                    <p>You have <strong>${dueCount} cards due</strong> right now. Your next action is to head back to the dashboard and clear your queue.</p>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * Generates HTML markup for a warning banner indicating declining memory retention.
-     * @param health - Current retention score percentage.
-     * @returns Rendered HTML banner string.
-     */
-    private buildMemoryHealthDroppingBanner(health: number): string {
-        return `
-            <div class="actionable-insight-banner warning">
-                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-                <div class="insight-content">
-                    <h3>Next Action: Memory Health Dropping</h3>
-                    <p>Your memory health is currently at ${health}%. Your next action should be a <strong>custom study session</strong> to review difficult cards before you forget them.</p>
-                </div>
-            </div>
-        `;
-    }
 }
+
+export type OverviewTab = OverviewTabClass;
+
+export const OverviewTab: FunctionalComponent<OverviewTabProps> & {
+    new (dataUtils: DataUtils): OverviewTabClass;
+} = function(this: any, propsOrDataUtils: any) {
+    if (new.target) {
+        return new OverviewTabClass(propsOrDataUtils);
+    }
+    return OverviewTabComponent(propsOrDataUtils);
+} as any;
 

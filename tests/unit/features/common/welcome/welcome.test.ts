@@ -1,5 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { h, render } from 'preact';
+import { act } from 'preact/test-utils';
 import { OnboardingWelcome, WelcomeApp } from '../../../../../features/common/welcome/welcome';
 import { UIUtils } from '../../../../../features/common/utils/uiUtils';
 
@@ -20,11 +21,14 @@ describe('OnboardingWelcome & WelcomeApp', () => {
     });
 
     welcome = new OnboardingWelcome();
-    render(h(WelcomeApp, { controller: welcome }), container);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await act(async () => {
+      render(h(WelcomeApp, { controller: welcome }), container);
+      await Promise.resolve();
+    });
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.clearAllMocks();
     render(null, container);
     container.remove();
@@ -187,12 +191,19 @@ describe('OnboardingWelcome & WelcomeApp', () => {
         requestPermission: requestMock
       };
 
-      welcome.checkNotificationState();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await act(async () => {
+        welcome.checkNotificationState();
+        await Promise.resolve();
+      });
 
       const btn = document.getElementById('welcome-enable-btn') as HTMLElement;
-      if (btn) btn.click();
-      await Promise.resolve();
+      if (btn) {
+        await act(async () => {
+          btn.click();
+          await Promise.resolve();
+          await Promise.resolve();
+        });
+      }
 
       const toast = document.getElementById('status-toast');
       expect(toast?.textContent).toBe('Notifications were disabled at the OS level.');
@@ -201,16 +212,23 @@ describe('OnboardingWelcome & WelcomeApp', () => {
 
   describe('toast and error recovery', () => {
     it('shows and hides toast notification after timer', () => {
-      jest.useFakeTimers();
-      UIUtils.showToast('Test Toast');
+      try {
+        jest.useFakeTimers();
+        act(() => {
+          UIUtils.showToast('Test Toast');
+        });
 
-      const toast = document.getElementById('status-toast');
-      expect(toast?.textContent).toBe('Test Toast');
-      expect(toast?.className).toBe('toast show');
+        const toast = document.getElementById('status-toast');
+        expect(toast?.textContent).toBe('Test Toast');
+        expect(toast?.className).toBe('toast show');
 
-      jest.advanceTimersByTime(2600);
-      expect(toast?.className).toBe('toast');
-      jest.useRealTimers();
+        act(() => {
+          jest.advanceTimersByTime(2600);
+        });
+        expect(toast?.className).toBe('toast');
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('handles DOM exceptions in goToStep and checkNotificationState gracefully', () => {

@@ -6,10 +6,12 @@
  * @context Popup / Analytics SPA Dashboard
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render } from 'preact';
+import { useState, useMemo } from 'preact/hooks';
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, FutureMemorySimulationStats } from '../utils/dataUtils';
+import { Card } from '../../../../types/domain';
 
 export interface SimulationStepCardProps {
     label: string;
@@ -63,6 +65,179 @@ export const SimulationStepsGrid: FunctionalComponent<SimulationStepsGridProps> 
     );
 };
 
+export interface SimulationTabProps {
+    cards?: Card[];
+    dataUtils?: DataUtils;
+    sliderDays?: number;
+    onDaysChange?: (days: number) => void;
+}
+
+export const SimulationTab: FunctionalComponent<SimulationTabProps> = ({
+    cards,
+    dataUtils: propDataUtils,
+    sliderDays: controlledDays,
+    onDaysChange
+}) => {
+    const dataUtils = useMemo(() => propDataUtils || new DataUtils(cards || [], {}, null), [propDataUtils, cards]);
+    const [internalDays, setInternalDays] = useState(controlledDays !== undefined ? controlledDays : 45);
+    const sliderDays = controlledDays !== undefined ? controlledDays : internalDays;
+
+    const handleSliderChange = (days: number) => {
+        setInternalDays(days);
+        try {
+            if (onDaysChange) onDaysChange(days);
+        } catch (err) {
+            UIUtils.catchError('FutureMemorySimulation', 'Error handling slider change', err);
+        }
+    };
+
+    const data = dataUtils.getFutureMemorySimulation(sliderDays);
+
+    const svgW = 900, svgH = 250;
+    const padL = 50, padR = 20, padT = 20, padB = 40;
+    const chartW = svgW - padL - padR;
+    const chartH = svgH - padT - padB;
+    const xScale = (t: number) => padL + (t / 180) * chartW;
+    const yScale = (r: number) => padT + (1 - r) * chartH;
+
+    const { svgPathD, areaPathD, currentX, currentY } = useMemo(() => {
+        const points = data.curvePoints;
+        const currentRetentionVal = data.custom.retention;
+        if (!points || points.length === 0) {
+            return {
+                svgPathD: `M${padL},${yScale(0.9)} L${svgW - padR},${yScale(0.1)}`,
+                areaPathD: `M${padL},${yScale(0.9)} L${svgW - padR},${yScale(0.1)} L${svgW - padR},${padT + chartH} L${padL},${padT + chartH} Z`,
+                currentX: xScale(sliderDays),
+                currentY: yScale(0.5)
+            };
+        }
+        const coords = points.map(p => {
+            const rRatio = Math.max(0, Math.min(100, p.retention)) / 100;
+            return {
+                x: Math.round(xScale(p.day) * 10) / 10,
+                y: Math.round(yScale(rRatio) * 10) / 10
+            };
+        });
+        const pathStr = coords.map(c => `${c.x},${c.y}`).join(' L');
+        const sD = `M${pathStr}`;
+        const aD = `M${pathStr} L${svgW - padR},${padT + chartH} L${padL},${padT + chartH} Z`;
+        const sliderR = Math.max(0, Math.min(100, currentRetentionVal)) / 100;
+        const cX = Math.round(xScale(sliderDays) * 10) / 10;
+        const cY = Math.round(yScale(sliderR) * 10) / 10;
+        return { svgPathD: sD, areaPathD: aD, currentX: cX, currentY: cY };
+    }, [data, sliderDays]);
+
+    const isGood = data.custom.retention >= RECALL_THRESHOLD_GOOD;
+    const isWarning = data.custom.retention >= RECALL_THRESHOLD_WARNING;
+    const retentionClass = isGood ? 'text-success' : (isWarning ? 'text-warning' : 'text-danger');
+
+    return (
+        <div id="tab-simulation" class="tab-pane active">
+            <div class="memory-panel ana-panel-wide future-sim-panel">
+                <div class="ana-panel-header">
+                    <div>
+                        <span class="ana-panel-title">
+                            Future Memory Simulation
+                            <span class="help-icon" data-tooltip="Simulates how your overall retention percentage decays over time if you stop reviewing today.">?</span>
+                        </span>
+                        <p class="sim-subtitle">Predict: <strong>&ldquo;What if I stop studying?&rdquo;</strong></p>
+                    </div>
+                </div>
+
+                <SimulationStepsGrid data={data} />
+
+                <div class="sim-interactive-box">
+                    <div class="sim-slider-row">
+                        <div class="slider-header-wrap">
+                            <span class="slider-title">Simulate zero reviews for:</span>
+                            <span class="slider-days-pill"><strong>{data.custom.days}</strong> days</span>
+                        </div>
+                        <input
+                            type="range"
+                            id="sim-days-range"
+                            class="sim-range-slider"
+                            min="0"
+                            max="180"
+                            step="5"
+                            value={data.custom.days}
+                            aria-label="Simulated days"
+                            onInput={(e) => {
+                                try {
+                                    const val = parseInt((e.target as HTMLInputElement).value, 10);
+                                    if (!isNaN(val)) {
+                                        handleSliderChange(val);
+                                    }
+                                } catch (err) {
+                                    UIUtils.catchError('FutureMemorySimulation', 'Error handling slider input', err);
+                                }
+                            }}
+                        />
+                    </div>
+
+                    <div class="sim-output-row">
+                        <div class="sim-stat-pill">
+                            <span class="stat-lbl">Projected Retention</span>
+                            <span class={`stat-val ${retentionClass}`}>{data.custom.retention}%</span>
+                        </div>
+                        <div class="sim-stat-pill">
+                            <span class="stat-lbl">Patterns at High Risk (&lt;70%)</span>
+                            <span class={`stat-val ${data.custom.forgottenCount > 0 ? 'text-danger' : 'text-success'}`}>
+                                {data.custom.forgottenCount} / {data.totalCards} cards
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sim-chart-section">
+                    <div class="chart-title-wrap">
+                        <span class="chart-heading">FSRS Memory Decay Trajectory</span>
+                        <span class="target-ref-legend"><span class="legend-line"></span> 90% Target Retention Line</span>
+                    </div>
+                    <div class="ana-chart-area sim-svg-wrapper">
+                        <svg class="retention-curve-svg multi-line" viewBox={`0 0 ${svgW} ${svgH}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%', minHeight: '250px' }}>
+                            <defs>
+                                <linearGradient id="simDecayGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#a8c7fa" stop-opacity="0.25" />
+                                    <stop offset="100%" stop-color="#a8c7fa" stop-opacity="0.0" />
+                                </linearGradient>
+                            </defs>
+
+                            <line class="retention-grid-line" x1="50" y1="20" x2="880" y2="20" />
+                            <text class="retention-axis-label" x="40" y="24" text-anchor="end">100%</text>
+
+                            <line class="retention-grid-line" x1="50" y1="67.5" x2="880" y2="67.5" />
+                            <text class="retention-axis-label" x="40" y="71.5" text-anchor="end">75%</text>
+
+                            <line class="retention-grid-line" x1="50" y1="115" x2="880" y2="115" />
+                            <text class="retention-axis-label" x="40" y="119" text-anchor="end">50%</text>
+
+                            <line class="retention-grid-line" x1="50" y1="162.5" x2="880" y2="162.5" />
+                            <text class="retention-axis-label" x="40" y="166.5" text-anchor="end">25%</text>
+
+                            <line class="retention-grid-line" x1="50" y1="210" x2="880" y2="210" />
+                            <text class="retention-axis-label" x="40" y="214" text-anchor="end">0%</text>
+
+                            <line x1="50" y1="39" x2="880" y2="39" stroke="#81c995" stroke-width="1.5" stroke-dasharray="5 5" />
+
+                            <path d={areaPathD} fill="url(#simDecayGrad)" />
+                            <path d={svgPathD} fill="none" stroke="#a8c7fa" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+                            <circle cx={currentX} cy={currentY} r="6" fill="#a8c7fa" class="retention-dot" />
+
+                            <text class="retention-axis-label" x="50" y="240" text-anchor="middle">Now</text>
+                            <text class="retention-axis-label" x="188" y="240" text-anchor="middle">30d</text>
+                            <text class="retention-axis-label" x="326" y="240" text-anchor="middle">60d</text>
+                            <text class="retention-axis-label" x="465" y="240" text-anchor="middle">90d</text>
+                            <text class="retention-axis-label" x="603" y="240" text-anchor="middle">120d</text>
+                            <text class="retention-axis-label" x="741" y="240" text-anchor="middle">150d</text>
+                            <text class="retention-axis-label" x="880" y="240" text-anchor="middle">180d</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 /**
  * Visualizes projected memory decay over time under a zero-review scenario.
  * Allows users to scrub through 0 to 180 simulated days to assess forgetfulness risks.
@@ -104,34 +279,21 @@ export class FutureMemorySimulation {
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            // 1. Fetch simulation data and calculate SVG geometry
-            const data = this.dataUtils.getFutureMemorySimulation(this.sliderDays);
-            const { svgPathD, areaPathD, currentX, currentY } = this.generateCurveSvgPath(data.curvePoints, data.custom.retention);
-
-            // 2. Build UI sections
-            const cardsHtml = this.buildSimulationCardsHTML(data);
-            const sliderHtml = this.buildInteractiveSliderHTML(data);
-            const chartHtml = this.buildChartHTML(svgPathD, areaPathD, currentX, currentY);
-
-            // 3. Assemble and inject HTML
-            container.innerHTML = `
-                <div class="memory-panel ana-panel-wide future-sim-panel">
-                    <div class="ana-panel-header">
-                        <div>
-                            <span class="ana-panel-title">
-                                Future Memory Simulation
-                                <span class="help-icon" data-tooltip="Simulates how your overall retention percentage decays over time if you stop reviewing today.">?</span>
-                            </span>
-                            <p class="sim-subtitle">Predict: <strong>&ldquo;What if I stop studying?&rdquo;</strong></p>
-                        </div>
-                    </div>
-                    ${cardsHtml}
-                    ${sliderHtml}
-                    ${chartHtml}
-                </div>
-            `;
-
-            this.bindEvents();
+            render(
+                <SimulationTab
+                    dataUtils={this.dataUtils}
+                    sliderDays={this.sliderDays}
+                    onDaysChange={(days) => {
+                        try {
+                            this.sliderDays = days;
+                            this.render(this.lastContainerId);
+                        } catch (err) {
+                            UIUtils.catchError('FutureMemorySimulation', 'Error re-rendering on days change', err);
+                        }
+                    }}
+                />,
+                container
+            );
         } catch (err) {
             UIUtils.catchError('FutureMemorySimulation', 'Error rendering FutureMemorySimulation', err, { containerId, sliderDays: this.sliderDays });
         }

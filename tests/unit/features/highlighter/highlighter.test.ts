@@ -399,26 +399,32 @@ describe('Highlighter Component', () => {
   });
 
   // ─── renderTooltipColors (new annotation) ─────────────────────────────
-  it('renders new annotation type selector, swatches, and picker', () => {
+  it('renders new annotation type selector, swatches, and picker', async () => {
     highlighter.createHighlighterUI();
     highlighter.renderTooltipColors(null, null);
 
     const tooltip = document.getElementById('algo-highlight-tooltip')!;
     expect(tooltip.querySelector('.algo-type-selector')).not.toBeNull();
 
-    const typeBtns = tooltip.querySelectorAll('.algo-type-btn');
+    let typeBtns = tooltip.querySelectorAll('.algo-type-btn');
     expect(typeBtns.length).toBe(2);
 
     // mousedown on second type button
     (typeBtns[1] as HTMLElement).dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    typeBtns = tooltip.querySelectorAll('.algo-type-btn');
     expect(typeBtns[1].getAttribute('aria-checked')).toBe('true');
 
     // keydown Enter on first type button
     (typeBtns[0] as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    typeBtns = tooltip.querySelectorAll('.algo-type-btn');
     expect(typeBtns[0].getAttribute('aria-checked')).toBe('true');
 
     // keydown Space on second type button
     (typeBtns[1] as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    typeBtns = tooltip.querySelectorAll('.algo-type-btn');
     expect(typeBtns[1].getAttribute('aria-checked')).toBe('true');
   });
 

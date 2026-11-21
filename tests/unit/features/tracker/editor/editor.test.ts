@@ -1,23 +1,31 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { EditorManager } from '../../../../../features/tracker/editor/editor';
+import { h, render } from 'preact';
+import {
+  EditorManager,
+  EditorApp,
+  MarkdownViewer,
+  MarkdownPreview,
+  initEditor
+} from '../../../../../features/tracker/editor/editor';
 import { Card } from '../../../../../types/domain';
 
 describe('EditorManager', () => {
   let editor: EditorManager;
-
-  const mockCards: Card[] = [
-    {
-      id: 'c1',
-      problemTitle: 'Two Sum',
-      problemUrl: 'https://leetcode.com/problems/two-sum',
-      approach: 'Hash Map Lookup',
-      timeComplexity: 'O(n)',
-      spaceComplexity: 'O(n)'
-    }
-  ] as unknown as Card[];
+  let mockCards: Card[];
 
   beforeEach(() => {
     jest.useFakeTimers();
+
+    mockCards = [
+      {
+        id: 'c1',
+        problemTitle: 'Two Sum',
+        problemUrl: 'https://leetcode.com/problems/two-sum',
+        approach: 'Hash Map Lookup',
+        timeComplexity: 'O(n)',
+        spaceComplexity: 'O(n)'
+      }
+    ] as unknown as Card[];
 
     document.body.innerHTML = `
       <h1 id="problem-title"></h1>
@@ -266,11 +274,12 @@ describe('EditorManager', () => {
       expect(toast?.classList.contains('show')).toBe(false);
 
       const origGEBI = document.getElementById;
-      document.getElementById = () => { throw new Error('DOM Toast error'); };
-
-      expect(() => editor.showToast('Test')).not.toThrow();
-
-      document.getElementById = origGEBI;
+      try {
+        document.getElementById = () => { throw new Error('DOM Toast error'); };
+        expect(() => editor.showToast('Test')).not.toThrow();
+      } finally {
+        document.getElementById = origGEBI;
+      }
     });
 
     it('handles pagehide and beforeunload save triggers', () => {
@@ -424,6 +433,117 @@ Imagine you are playing a tricky maze game. If starting at the beginning gives y
 
       delete (global as any).marked;
       delete (window as any).marked;
+    });
+  });
+
+  describe('EditorApp & Preact Declarative Components', () => {
+    let preactContainer: HTMLDivElement;
+
+    const flush = async () => {
+      await Promise.resolve();
+      jest.advanceTimersByTime(20);
+      await Promise.resolve();
+    };
+
+    beforeEach(() => {
+      document.body.innerHTML = '<div id="root"></div>';
+      preactContainer = document.getElementById('root') as HTMLDivElement;
+    });
+
+    afterEach(() => {
+      render(null, preactContainer);
+      document.body.innerHTML = '';
+    });
+
+    it('mounts EditorApp declaratively and populates form fields from storage', async () => {
+      const appManager = new EditorManager();
+      render(h(EditorApp, { manager: appManager }), preactContainer);
+      await flush();
+
+      const titleEl = preactContainer.querySelector('#problem-title');
+      expect(titleEl?.textContent).toBe('Two Sum');
+
+      const textarea = preactContainer.querySelector('#editor-textarea') as HTMLTextAreaElement;
+      expect(textarea.value).toBe('Hash Map Lookup');
+
+      const tcInput = preactContainer.querySelector('#time-complexity-input') as HTMLInputElement;
+      expect(tcInput.value).toBe('O(n)');
+
+      const scInput = preactContainer.querySelector('#space-complexity-input') as HTMLInputElement;
+      expect(scInput.value).toBe('O(n)');
+    });
+
+    it('handles controlled input changes and auto-save timer in EditorApp', async () => {
+      const appManager = new EditorManager();
+      render(h(EditorApp, { manager: appManager }), preactContainer);
+      await flush();
+
+      const textarea = preactContainer.querySelector('#editor-textarea') as HTMLTextAreaElement;
+      textarea.value = 'New approach via Preact';
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+      const statusEl = preactContainer.querySelector('#save-status');
+      expect(statusEl?.textContent).toBe('Typing...');
+
+      jest.advanceTimersByTime(350);
+      await flush();
+      expect(chrome.storage.local.set).toHaveBeenCalled();
+    });
+
+    it('toggles markdown preview declaratively in EditorApp', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const markedLib = require('../../../../../features/common/marked.min.js');
+      (global as any).marked = markedLib;
+      (window as any).marked = markedLib;
+
+      const appManager = new EditorManager();
+      render(h(EditorApp, { manager: appManager }), preactContainer);
+      await flush();
+
+      const toggleBtn = preactContainer.querySelector('#preview-toggle-btn') as HTMLElement;
+      const previewEl = preactContainer.querySelector('#editor-preview') as HTMLElement;
+      const textarea = preactContainer.querySelector('#editor-textarea') as HTMLTextAreaElement;
+
+      expect(previewEl.style.display).toBe('none');
+      expect(textarea.style.display).toBe('');
+
+      // Toggle to preview
+      toggleBtn.click();
+      await flush();
+
+      expect(previewEl.style.display).toBe('block');
+      expect(textarea.style.display).toBe('none');
+      expect(previewEl.innerHTML).toContain('Hash Map Lookup');
+
+      // Toggle back to edit
+      toggleBtn.click();
+      await flush();
+
+      expect(previewEl.style.display).toBe('none');
+      expect(textarea.style.display).toBe('');
+
+      delete (global as any).marked;
+      delete (window as any).marked;
+    });
+
+    it('renders MarkdownViewer empty state when content is empty or whitespace', () => {
+      const viewerContainer = document.createElement('div');
+      render(h(MarkdownViewer, { content: '   ' }), viewerContainer);
+
+      expect(viewerContainer.querySelector('.editor-preview-empty')).not.toBeNull();
+      expect(viewerContainer.textContent).toContain('No content to preview');
+      render(null, viewerContainer);
+    });
+
+    it('verifies MarkdownPreview alias points to MarkdownViewer', () => {
+      expect(MarkdownPreview).toBe(MarkdownViewer);
+    });
+
+    it('initEditor mounts EditorApp when #root exists', async () => {
+      initEditor();
+      await flush();
+
+      expect(preactContainer.querySelector('.editor-container')).not.toBeNull();
     });
   });
 });

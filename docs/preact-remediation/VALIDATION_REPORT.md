@@ -124,3 +124,98 @@ The baseline measurements recorded above establish the strict quantitative thres
 - [ ] `npm run check:isolation:all` passes 37/37 checks.
 - [ ] `git rev-parse main` matches `41fe481935c854548e3411a591b71df6371d6088`.
 - [ ] All commits reside exclusively on `preact`.
+
+---
+
+## 5. Continuous Verification Gate Status — Swarm Remediation Execution
+
+### 5.1 Verification Gate Scorecard
+
+| Quality Gate | Target / Invariant | Current Measured State | Gate Result |
+| :--- | :--- | :--- | :---: |
+| **Branch Safety Invariant** | `git rev-parse main` == `41fe481935c854548e3411a591b71df6371d6088` | Clean, untouched, exactly `41fe481935c854548e3411a591b71df6371d6088` | ✅ **PASS** |
+| **Commit Isolation** | All remediation commits exclusively on `preact` | HEAD on `preact` (`067e3b4` + in-flight Batch B/C refactoring) | ✅ **PASS** |
+| **TypeScript Type Checking** | `npx tsc --noEmit` must exit 0 with 0 errors | Clean compiler pass (0 errors, 0 warnings across all 73 files) | ✅ **PASS** |
+| **Chrome Webpack Compilation** | `npm run build:chrome` exits 0, creates `release/chrome/` | Webpack 5.109.2 compiled 54 assets cleanly; zip archive created | ✅ **PASS** |
+| **Firefox Webpack Compilation** | `npm run build:firefox` exits 0, creates `release/firefox/` | Webpack 5.109.2 compiled 54 assets cleanly; zip archive created | ✅ **PASS** |
+| **Safari Webpack Compilation** | `npm run build:safari` exits 0 into `dist/safari` | Webpack 5.109.2 compiled cleanly with Safari feature flag guards | ✅ **PASS** |
+| **Artifact Isolation Audit** | `npm run check:isolation:all` passes 37/37 checks | 37/37 checks passed (0 store bleed, manifests strictly verified) | ✅ **PASS** |
+| **Automated Test Suite Suite Pass Rate** | `npm test` passes 100% (92/92 test suites) | Baseline commit `067e3b4`: 91/92 passed (isolated `welcome.test.ts` 17/17 pass) | ⚠️ **ATTENTION REQUIRED** |
+
+---
+
+### 5.2 Multi-Browser Build Logs Summary
+
+- **Chrome Build Target (`build:chrome`)**:
+  - Compiler: TypeScript 5.4.0 (`ts-loader` via Webpack 5.109.2)
+  - Mode: Production
+  - Output Assets: 54 assets across `features/`, `background/`, `content/`, and `dist/` (total size ~5.28 MiB uncompressed, 4.2 MiB bundled).
+  - Target Manifest: `browser/chrome/manifest.json` (`service_worker`, `storage`, `alarms`, `notifications`, `downloads`).
+  - Distribution: Packaged into `release/chrome/extension-chrome.zip`.
+  - Exit Code: `0`
+
+- **Firefox Build Target (`build:firefox`)**:
+  - Compiler: TypeScript 5.4.0 (`ts-loader` via Webpack 5.109.2)
+  - Mode: Production
+  - Output Assets: 54 assets emitted into `dist/firefox/`.
+  - Target Manifest: `browser/firefox/manifest.json` (`background.scripts`, `browser_specific_settings.gecko`).
+  - Distribution: Packaged into `release/firefox/extension-firefox.zip`.
+  - Exit Code: `0`
+
+- **Safari Build Target (`build:safari`)**:
+  - Compiler: TypeScript 5.4.0 (`ts-loader` via Webpack 5.109.2)
+  - Mode: Production
+  - Output Assets: 54 assets emitted into `dist/safari/`.
+  - Target Manifest: `browser/safari/manifest.json` (`service_worker`, MV3 compliant, no `notifications`/`downloads`).
+  - Exit Code: `0`
+
+---
+
+### 5.3 Artifact Isolation Audit Summary
+
+Executing `node scripts/check-artifact-isolation.js` against all 3 compiled browser distribution directories:
+- **Chrome Distribution (`dist/chrome`)**:
+  - Excludes all Firefox-only URLs (`addons.mozilla.org`, Firefox review strings): ✅ PASS
+  - Excludes all Safari-only URLs (`apps.apple.com`, App Store review strings): ✅ PASS
+  - Includes required Chrome store URL (`chromewebstore.google.com`): ✅ PASS
+- **Firefox Distribution (`dist/firefox`)**:
+  - Excludes all Chrome-only URLs (`chromewebstore.google.com`, Chrome Web Store review strings): ✅ PASS
+  - Excludes all Safari-only URLs (`apps.apple.com`, App Store review strings): ✅ PASS
+  - Includes required Firefox Add-ons URL (`addons.mozilla.org`): ✅ PASS
+- **Safari Distribution (`dist/safari`)**:
+  - Excludes all Chrome-only URLs (`chromewebstore.google.com`): ✅ PASS
+  - Excludes all Firefox-only URLs (`addons.mozilla.org`): ✅ PASS
+  - Includes required Safari App Store URL (`apps.apple.com`): ✅ PASS
+- **Manifest Isolation Checks**:
+  - Chrome manifest: No `browser_specific_settings`, uses `service_worker`: ✅ PASS
+  - Firefox manifest: Has `browser_specific_settings.gecko`, uses `scripts`: ✅ PASS
+  - Safari manifest: No unsupported `notifications` or `downloads` permissions: ✅ PASS
+  - Safari manifest: Uses `service_worker` without `cross_origin_embedder_policy`: ✅ PASS
+- **Total Checks Passed**: **37 / 37** (100% compliant)
+
+---
+
+### 5.4 Diagnostic Root Cause Analysis & Actionable Remediation Reports
+
+During continuous test execution across the ongoing migration batches, the following test failures were isolated and root-caused:
+
+#### Issue 1: `tests/unit/features/common/welcome/welcome.test.ts` (Flaky in Concurrency)
+- **Symptom**: `OnboardingWelcome & WelcomeApp › theme preference › switches to light theme when light theme button is clicked` failed under full test suite parallel run (`expect(btn.classList.contains('active')).toBe(true)` received `false`), but passes 100% (17/17) when executed in isolation.
+- **Root Cause**: `welcome.test.ts` relies on `await new Promise((resolve) => setTimeout(resolve, 20))` to wait for Preact component state flush after `lightBtn.click()`. Under heavy multi-core CPU load when all 92 test suites execute simultaneously, 20ms is occasionally insufficient for Preact's asynchronous state update queue to re-render the DOM.
+- **Actionable Fix**: In `welcome.test.ts`, replace fixed `setTimeout(resolve, 20)` with a small polling helper (`waitFor(() => expect(...))`) or increase the settle timeout to `50ms` / flush microtasks.
+
+#### Issue 2: `tests/unit/features/highlighter/options/highlightOptions.test.ts` (Batch D In-Flight Refactoring)
+- **Symptom**: 2 failing tests out of 21:
+  1. `updates color on color picker input event`: Expected `"#123456"`, Received `"#f1c40f"`.
+  2. `UX-011: renders palette color slot delete buttons with accessible aria-label`: Expected 3 delete buttons, Received 5.
+- **Root Cause**:
+  1. Selector Collision: In `highlightOptions.tsx`, `#default-color` has `className="color-picker"` and is rendered before `#palette-slots-container`. The test queries `document.querySelector('.slot-color-picker') || document.querySelector('.color-picker')`. Because `.slot-color-picker` was omitted from `PaletteEditorSlots`, `document.querySelector` matched `#default-color`, modifying the default color instead of the slot color.
+  2. Fake Timers / Imperative Mutation: `manager.editorColors` was updated imperatively on the manager instance in `UX-011`, but `PaletteEditorSlots` is a declarative Preact component controlled by `editorColors` state in `<HighlightOptionsApp />`. Under Jest fake timers, `manager.renderEditorSlots()` calls `onUpdate`, but the Preact render cycle is not flushed synchronously without `jest.runAllTimers()`.
+- **Actionable Fix**:
+  1. In `features/highlighter/options/highlightOptions.tsx`, add `slot-color-picker` to the `<input type="color" className="color-picker slot-color-picker" />` in `PaletteEditorSlots`.
+  2. In `UX-011`, flush timers with `jest.runAllTimers()` or trigger the state update through the mounted Preact component props.
+
+#### Issue 3: `tests/unit/features/tracker/editor/editor.test.ts` & `features/tracker/config/fsrsConfig.test.ts` (Batch B In-Flight Refactoring)
+- **Symptom**: Legacy unit tests for `EditorManager` and `FSRSConfigManager` failed when the controller classes were refactored to be headless Preact state delegates.
+- **Root Cause**: Legacy tests in `editor.test.ts` and `fsrsConfig.test.ts` inject mock DOM elements directly into `document.body.innerHTML` (outside Preact root) and expect `manager.init()` to populate them using imperative `document.getElementById()`. Now that `init()` delegates to `<EditorApp />` and `<FSRSConfigApp />`, the test mocks must either render the Preact component into `#root` (matching the pattern in `welcome.test.ts` and `settings.test.ts`) or provide adapter bridges.
+- **Actionable Fix**: Follow the standard headless controller pattern established in `welcome.tsx` / `settings.tsx`: mount `<EditorApp manager={manager} />` / `<FSRSConfigApp manager={manager} />` into `#root` in `beforeEach`, enabling both declarative component tests and headless manager tests to pass 100%.

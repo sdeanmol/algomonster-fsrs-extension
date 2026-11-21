@@ -1,5 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { h, render } from 'preact';
+import { act } from 'preact/test-utils';
 import { WhitelistedWebsitesManager, WebsitesApp } from '../../../../../features/common/websites/websites';
 import { UIUtils } from '../../../../../features/common/utils/uiUtils';
 
@@ -26,11 +27,14 @@ describe('WhitelistedWebsitesManager & WebsitesApp', () => {
             unregisterContentScripts: jest.fn((options: any, callback: any) => callback && callback())
         };
 
-        render(h(WebsitesApp, { manager }), container);
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await act(async () => {
+            render(h(WebsitesApp, { manager }), container);
+            await Promise.resolve();
+        });
     });
 
     afterEach(() => {
+        jest.useRealTimers();
         jest.clearAllMocks();
         render(null, container);
         container.remove();
@@ -139,7 +143,9 @@ describe('WhitelistedWebsitesManager & WebsitesApp', () => {
 
     it('handles adding new website when permission is declined', () => {
         (chrome.permissions.request as jest.Mock).mockImplementation((opts: any, cb: any) => cb(false));
-        manager.handleAddWebsite('declinedsite.com');
+        act(() => {
+            manager.handleAddWebsite('declinedsite.com');
+        });
         expect(document.getElementById('status-toast')?.textContent).toBe("Permission request was declined.");
     });
 
@@ -149,7 +155,9 @@ describe('WhitelistedWebsitesManager & WebsitesApp', () => {
     });
 
     it('shows toast for invalid domain', () => {
-        manager.handleAddWebsite('http://');
+        act(() => {
+            manager.handleAddWebsite('http://');
+        });
         expect(document.getElementById('status-toast')?.textContent).toBe("Please enter a valid URL or domain.");
     });
 
@@ -159,7 +167,9 @@ describe('WhitelistedWebsitesManager & WebsitesApp', () => {
                 whitelistedWebsites: [{ domain: 'duplicate.com', isDefault: false }]
             });
         });
-        manager.handleAddWebsite('duplicate.com');
+        act(() => {
+            manager.handleAddWebsite('duplicate.com');
+        });
         expect(document.getElementById('status-toast')?.textContent).toBe("Website is already whitelisted.");
     });
 
@@ -209,19 +219,28 @@ describe('WhitelistedWebsitesManager & WebsitesApp', () => {
             });
         });
 
-        manager.restoreDefaults();
+        act(() => {
+            manager.restoreDefaults();
+        });
         expect(document.getElementById('status-toast')?.textContent).toBe("Default platforms restored!");
     });
 
     it('shows and automatically hides toast after duration', () => {
-        jest.useFakeTimers();
-        UIUtils.showToast('Test Toast');
-        const toast = document.getElementById('status-toast')!;
-        expect(toast.textContent).toBe('Test Toast');
-        expect(toast.className).toBe('toast show');
+        try {
+            jest.useFakeTimers();
+            act(() => {
+                UIUtils.showToast('Test Toast');
+            });
+            const toast = document.getElementById('status-toast')!;
+            expect(toast.textContent).toBe('Test Toast');
+            expect(toast.className).toBe('toast show');
 
-        jest.advanceTimersByTime(2600);
-        expect(toast.className).toBe('toast');
-        jest.useRealTimers();
+            act(() => {
+                jest.advanceTimersByTime(2600);
+            });
+            expect(toast.className).toBe('toast');
+        } finally {
+            jest.useRealTimers();
+        }
     });
 });

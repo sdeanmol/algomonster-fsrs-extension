@@ -15,7 +15,7 @@
  */
 
 import { h, render, Fragment, JSX } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { StorageData, ExtensionSettings } from '../../../types/domain';
 import { DEFAULT_PALETTES, DEFAULT_EXTENSION_SETTINGS, DEFAULT_HIGHLIGHT_COLOR } from '../../common/constants';
@@ -42,6 +42,8 @@ export interface PaletteEditorSlotsProps {
     onColorChange: (index: number, newColor: string) => void;
     /** Callback to delete a color slot */
     onDeleteSlot: (index: number) => void;
+    /** Optional callback when an invalid hex string is entered */
+    onInvalidHex?: () => void;
 }
 
 /**
@@ -53,19 +55,45 @@ export interface PaletteEditorSlotsProps {
 export function PaletteEditorSlots({
     colors,
     onColorChange,
-    onDeleteSlot
+    onDeleteSlot,
+    onInvalidHex
 }: PaletteEditorSlotsProps): JSX.Element {
+    const handleHexChange = (idx: number, currentColor: string, e: Event) => {
+        const target = e.target as HTMLInputElement;
+        let val = target.value.trim();
+        if (!val.startsWith('#')) val = '#' + val;
+        if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
+            onColorChange(idx, val);
+            target.value = val.toUpperCase();
+        } else {
+            target.value = currentColor.toUpperCase();
+            if (onInvalidHex) {
+                onInvalidHex();
+            } else {
+                const toast = document.getElementById('status-toast');
+                if (toast) {
+                    toast.textContent = "Invalid hex code";
+                    toast.classList.add('show', 'visible');
+                    setTimeout(() => toast.classList.remove('show', 'visible'), 3000);
+                }
+            }
+        }
+    };
+
     return (
         <Fragment>
             {colors.map((color, idx) => (
                 <div key={idx} className="slot-row">
                     <input
                         type="color"
-                        className="color-picker"
+                        className="color-picker slot-color-picker"
                         value={color}
                         onInput={(e: Event) => {
                             const target = e.target as HTMLInputElement;
                             onColorChange(idx, target.value);
+                            const row = target.closest('.slot-row');
+                            const hex = row?.querySelector('.color-hex') as HTMLInputElement | null;
+                            if (hex) hex.value = target.value.toUpperCase();
                         }}
                     />
                     <input
@@ -73,23 +101,7 @@ export function PaletteEditorSlots({
                         className="color-hex"
                         value={color.toUpperCase()}
                         maxLength={7}
-                        onChange={(e: Event) => {
-                            const target = e.target as HTMLInputElement;
-                            let val = target.value.trim();
-                            if (!val.startsWith('#')) val = '#' + val;
-                            if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
-                                onColorChange(idx, val);
-                                target.value = val.toUpperCase();
-                            } else {
-                                target.value = color.toUpperCase();
-                                const toast = document.getElementById('status-toast');
-                                if (toast) {
-                                    toast.textContent = "Invalid hex code";
-                                    toast.classList.add('show');
-                                    setTimeout(() => toast.classList.remove('show'), 3000);
-                                }
-                            }
-                        }}
+                        onChange={(e: Event) => handleHexChange(idx, color, e)}
                     />
                     {colors.length > 1 && (
                         <button
@@ -203,119 +215,167 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
     const [editorColors, setEditorColors] = useState<string[]>(manager.editorColors || []);
     const [paletteName, setPaletteName] = useState<string>('');
     const [editingIndex, setEditingIndex] = useState<number | null>(manager.editingIndex);
-    const [, setRenderTrigger] = useState(0);
+    const [toastMessage, setToastMessage] = useState<string>('');
+    const [toastVisible, setToastVisible] = useState<boolean>(false);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const forceUpdate = () => setRenderTrigger(c => c + 1);
+    const showToast = useCallback((msg: string) => {
+        setToastMessage(msg);
+        setToastVisible(true);
+        const toastEl = document.getElementById('status-toast');
+        if (toastEl) {
+            toastEl.textContent = msg;
+            toastEl.classList.add('show', 'visible');
+        }
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+            setToastVisible(false);
+            if (toastEl) {
+                toastEl.classList.remove('show', 'visible');
+            }
+        }, 3000);
+    }, []);
+
+    const saveSettingsToStorage = useCallback((newSettings: ExtensionSettings, toastMsg?: string) => {
+        manager.extensionSettings = newSettings;
+        manager.saveSettings(toastMsg);
+    }, [manager]);
 
     useEffect(() => {
+        manager.onToast = showToast;
         manager.onUpdate = () => {
             setSettings({ ...manager.extensionSettings });
             setEditorColors([...manager.editorColors]);
             setEditingIndex(manager.editingIndex);
-            forceUpdate();
         };
-
-        chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
-            if (result.extensionSettings) {
-                manager.extensionSettings = { ...manager.extensionSettings, ...result.extensionSettings };
-                if (!manager.extensionSettings.palettes || manager.extensionSettings.palettes.length === 0) {
-                    manager.extensionSettings.palettes = JSON.parse(JSON.stringify(manager.DEFAULT_PALETTES));
-                    manager.extensionSettings.activePaletteIndex = 0;
-                    manager.extensionSettings.recentColors = [...manager.extensionSettings.palettes![0].colors];
-                }
-                manager.editorColors = [...(manager.extensionSettings.recentColors || [])];
-                setSettings({ ...manager.extensionSettings });
-                setEditorColors([...manager.editorColors]);
-                forceUpdate();
-            }
-        });
-    }, [manager]);
+        manager.renderEditorSlots();
+        manager.renderPalettesList();
+    }, [manager, showToast]);
 
     const defaultColor = settings.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
     const palettes = settings.palettes || [];
 
-    const handleDefaultColorChange = (newColor: string) => {
-        manager.extensionSettings.defaultHighlightColor = newColor;
-        manager.saveSettings("Default highlight color updated!");
-        setSettings({ ...manager.extensionSettings });
+    const handleDefaultColorChange = (newColor: string, isFinal = false) => {
+        const defaultColorEl = document.getElementById('default-color') as HTMLInputElement | null;
+        const defaultHexEl = document.getElementById('default-hex') as HTMLInputElement | null;
+        if (defaultColorEl) defaultColorEl.value = newColor;
+        if (defaultHexEl) defaultHexEl.value = newColor.toUpperCase();
+
+        const nextSettings: ExtensionSettings = {
+            ...settings,
+            defaultHighlightColor: newColor
+        };
+        manager.extensionSettings = nextSettings;
+        setSettings(nextSettings);
+        if (isFinal) {
+            saveSettingsToStorage(nextSettings, "Default highlight color updated!");
+        }
     };
 
     const handleAddSlot = () => {
-        if (editorColors.length >= 5) {
-            manager.showToast("A palette can have a maximum of 5 colors.");
+        if (manager.editorColors.length >= 5) {
+            showToast("A palette can have a maximum of 5 colors.");
             return;
         }
         manager.editorColors.push('#3498db');
         setEditorColors([...manager.editorColors]);
+        manager.renderEditorSlots();
     };
 
     const handleSavePalette = () => {
-        const name = paletteName.trim();
+        const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
+        const name = (nameInput ? nameInput.value : paletteName).trim();
+        const currentEditingIndex = manager.editingIndex !== null ? manager.editingIndex : editingIndex;
+
         if (!name) {
-            manager.showToast("Please enter a palette name.");
+            showToast("Please enter a palette name.");
             return;
         }
-        if (editorColors.length === 0) {
-            manager.showToast("Palette must contain at least 1 color.");
+        if (manager.editorColors.length === 0) {
+            showToast("Palette must contain at least 1 color.");
             return;
         }
 
         const currentPalettes = manager.extensionSettings.palettes || [];
-        if (editingIndex === null) {
+        if (currentEditingIndex === null) {
             if (currentPalettes.length >= 50) {
-                manager.showToast("Maximum limit of 50 palettes reached.");
+                showToast("Maximum limit of 50 palettes reached.");
                 return;
             }
-            currentPalettes.push({ name, colors: [...editorColors] });
-            manager.showToast("Palette created successfully!");
+            currentPalettes.push({ name, colors: [...manager.editorColors] });
+            showToast("Palette created successfully!");
         } else {
-            currentPalettes[editingIndex] = { name, colors: [...editorColors] };
-            manager.showToast("Palette updated successfully!");
-            if (editingIndex === manager.extensionSettings.activePaletteIndex) {
-                manager.extensionSettings.recentColors = [...editorColors];
+            currentPalettes[currentEditingIndex] = { name, colors: [...manager.editorColors] };
+            showToast("Palette updated successfully!");
+            if (currentEditingIndex === manager.extensionSettings.activePaletteIndex) {
+                manager.extensionSettings.recentColors = [...manager.editorColors];
             }
         }
 
         setPaletteName('');
+        if (nameInput) nameInput.value = '';
         manager.editingIndex = null;
         setEditingIndex(null);
-        manager.editorColors = [...(manager.extensionSettings.recentColors || [])];
+        manager.editorColors = [...(manager.extensionSettings.recentColors || ['#f1c40f'])];
         setEditorColors([...manager.editorColors]);
         manager.extensionSettings.palettes = currentPalettes;
-        manager.saveSettings();
         setSettings({ ...manager.extensionSettings });
+        manager.saveSettings();
+        manager.renderPalettesList();
+        manager.renderEditorSlots();
+
+        const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = '💾 Save Palette';
+        }
     };
 
     const handleActivatePalette = (idx: number) => {
         manager.extensionSettings.activePaletteIndex = idx;
-        manager.extensionSettings.recentColors = [...palettes[idx].colors];
-        manager.saveSettings("Palette activated!");
+        manager.extensionSettings.recentColors = [...(manager.extensionSettings.palettes || [])[idx].colors];
         setSettings({ ...manager.extensionSettings });
+        saveSettingsToStorage(manager.extensionSettings, "Palette activated!");
+        manager.renderPalettesList();
     };
 
     const handleEditPalette = (idx: number) => {
         manager.editingIndex = idx;
         setEditingIndex(idx);
-        setPaletteName(palettes[idx].name);
-        manager.editorColors = [...palettes[idx].colors];
+        const palette = (manager.extensionSettings.palettes || [])[idx];
+        setPaletteName(palette.name);
+        const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
+        if (nameInput) nameInput.value = palette.name;
+        manager.editorColors = [...palette.colors];
         setEditorColors([...manager.editorColors]);
+        manager.renderEditorSlots();
+
+        const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 Update Palette';
+        }
     };
 
     const handleDeletePalette = (idx: number) => {
+        const palettes = manager.extensionSettings.palettes || [];
         if (palettes.length <= 1) {
-            manager.showToast("Cannot delete the only remaining palette.");
+            showToast("Cannot delete the only remaining palette.");
             return;
         }
         const isActive = idx === manager.extensionSettings.activePaletteIndex;
-        manager.extensionSettings.palettes!.splice(idx, 1);
+        palettes.splice(idx, 1);
+
         if (isActive) {
             manager.extensionSettings.activePaletteIndex = 0;
-            manager.extensionSettings.recentColors = [...manager.extensionSettings.palettes![0].colors];
+            manager.extensionSettings.recentColors = [...palettes[0].colors];
         } else if (manager.extensionSettings.activePaletteIndex !== undefined && manager.extensionSettings.activePaletteIndex > idx) {
             manager.extensionSettings.activePaletteIndex--;
         }
-        manager.saveSettings("Palette deleted.");
+
         setSettings({ ...manager.extensionSettings });
+        saveSettingsToStorage(manager.extensionSettings, "Palette deleted.");
+        manager.renderPalettesList();
     };
 
     const handleResetPalettes = () => {
@@ -329,10 +389,20 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
         manager.editingIndex = null;
         setEditingIndex(null);
         setPaletteName('');
+        const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
+        if (nameInput) nameInput.value = '';
         manager.editorColors = [...manager.extensionSettings.recentColors];
         setEditorColors([...manager.editorColors]);
-        manager.saveSettings('Palettes reset to defaults.');
         setSettings({ ...manager.extensionSettings });
+        saveSettingsToStorage(manager.extensionSettings, 'Reset to defaults successfully!');
+        manager.renderPalettesList();
+        manager.renderEditorSlots();
+
+        const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = '💾 Save Palette';
+        }
     };
 
     return (
@@ -358,7 +428,7 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
             </div>
 
             <div className="settings-layout">
-                {/* Left Side / General Settings & Editor */}
+                {/* Left Side / General Options & Editor */}
                 <div className="settings-column">
                     <div className="panel">
                         <h3 className="panel-subtitle">General Options</h3>
@@ -368,9 +438,16 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
                                 <input
                                     type="color"
                                     id="default-color"
-                                    className="color-picker"
+                                    className="color-picker default-color-picker"
                                     value={defaultColor}
-                                    onInput={(e) => handleDefaultColorChange((e.target as HTMLInputElement).value)}
+                                    onInput={(e) => {
+                                        const val = (e.target as HTMLInputElement).value;
+                                        handleDefaultColorChange(val, false);
+                                    }}
+                                    onChange={(e) => {
+                                        const val = (e.target as HTMLInputElement).value;
+                                        handleDefaultColorChange(val, true);
+                                    }}
                                 />
                                 <input
                                     type="text"
@@ -382,9 +459,9 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
                                         let val = (e.target as HTMLInputElement).value.trim();
                                         if (!val.startsWith('#')) val = '#' + val;
                                         if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
-                                            handleDefaultColorChange(val);
+                                            handleDefaultColorChange(val, true);
                                         } else {
-                                            manager.showToast("Invalid hex code");
+                                            showToast("Invalid hex code");
                                             (e.target as HTMLInputElement).value = defaultColor.toUpperCase();
                                         }
                                     }}
@@ -412,34 +489,30 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
                                 className="input-field"
                                 placeholder="My Custom Palette..."
                                 value={paletteName}
-                                onInput={(e) => setPaletteName((e.target as HTMLInputElement).value)}
+                                onInput={(e) => {
+                                    const val = (e.target as HTMLInputElement).value;
+                                    setPaletteName(val);
+                                    const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
+                                    if (saveBtn) saveBtn.disabled = !val.trim();
+                                }}
                             />
                         </div>
 
                         <div className="settings-group" style={{ marginTop: '16px' }}>
                             <label>Palette Colors (1 - 5 Slots)</label>
-                            <div id="palette-slots-container" className="slots-list">
-                                <PaletteEditorSlots
-                                    colors={editorColors}
-                                    onColorChange={(idx, newCol) => {
-                                        manager.editorColors[idx] = newCol;
-                                        setEditorColors([...manager.editorColors]);
-                                    }}
-                                    onDeleteSlot={(idx) => {
-                                        manager.editorColors.splice(idx, 1);
-                                        setEditorColors([...manager.editorColors]);
-                                    }}
-                                />
-                            </div>
-                            {editorColors.length < 5 && (
-                                <button id="add-slot-btn" className="btn btn-secondary btn-sm" style={{ marginTop: '8px' }} onClick={handleAddSlot}>
-                                    <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                        <line x1="12" y1="5" x2="12" y2="19" />
-                                        <line x1="5" y1="12" x2="19" y2="12" />
-                                    </svg>
-                                    Add Color Slot
-                                </button>
-                            )}
+                            <div id="palette-slots-container" className="slots-list"></div>
+                            <button
+                                id="add-slot-btn"
+                                className="btn btn-secondary btn-sm"
+                                style={{ marginTop: '8px', display: editorColors.length >= 5 ? 'none' : 'block' }}
+                                onClick={handleAddSlot}
+                            >
+                                <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <line x1="12" y1="5" x2="12" y2="19" />
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                </svg>
+                                Add Color Slot
+                            </button>
                         </div>
 
                         <div className="action-buttons" style={{ marginTop: '20px' }}>
@@ -464,15 +537,7 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
                 <div className="settings-column">
                     <div className="panel">
                         <h3 className="panel-subtitle">Saved Palettes</h3>
-                        <div id="palettes-list-container" className="palettes-list">
-                            <PalettesList
-                                palettes={palettes}
-                                activePaletteIndex={settings.activePaletteIndex}
-                                onActivate={handleActivatePalette}
-                                onEdit={handleEditPalette}
-                                onDelete={handleDeletePalette}
-                            />
-                        </div>
+                        <div id="palettes-list-container" className="palettes-list"></div>
                         <hr className="divider" />
                         <button id="reset-palettes-btn" className="btn btn-secondary w-full" onClick={handleResetPalettes}>
                             <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -487,7 +552,9 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
             </div>
 
             {/* Status toast */}
-            <div id="status-toast" className="toast" />
+            <div id="status-toast" className={`toast${toastVisible ? ' show visible' : ''}`}>
+                {toastMessage}
+            </div>
         </div>
     );
 }
@@ -510,6 +577,8 @@ export class HighlightOptionsManager {
     editingIndex: number | null;
     /** Update observer */
     onUpdate?: () => void;
+    /** Toast trigger callback */
+    onToast?: (msg: string) => void;
 
     /**
      * Initializes default properties and empty editor states.
@@ -518,7 +587,7 @@ export class HighlightOptionsManager {
         this.DEFAULT_PALETTES = DEFAULT_PALETTES;
         this.extensionSettings = JSON.parse(JSON.stringify(DEFAULT_EXTENSION_SETTINGS));
 
-        this.editorColors = [...this.extensionSettings.recentColors!];
+        this.editorColors = [...(this.extensionSettings.recentColors || ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6'])];
         this.editingIndex = null;
     }
 
@@ -527,12 +596,6 @@ export class HighlightOptionsManager {
      */
     init(): void {
         try {
-            const root = document.getElementById('root');
-            if (root) {
-                render(<HighlightOptionsApp manager={this} />, root);
-                return;
-            }
-
             chrome.storage.local.get(['extensionSettings'], (result: StorageData) => {
                 try {
                     if (chrome.runtime?.lastError) {
@@ -545,25 +608,15 @@ export class HighlightOptionsManager {
                         this.extensionSettings = { ...this.extensionSettings, ...result.extensionSettings };
                     }
 
-                    // Ensure default palettes are set up
                     if (!this.extensionSettings.palettes || this.extensionSettings.palettes.length === 0) {
                         this.extensionSettings.palettes = JSON.parse(JSON.stringify(this.DEFAULT_PALETTES));
                         this.extensionSettings.activePaletteIndex = 0;
                         this.extensionSettings.recentColors = [...this.extensionSettings.palettes![0].colors];
+                        this.editorColors = [...this.extensionSettings.recentColors];
                     }
 
-                    // Set up General Options UI
-                    const defaultColor = this.extensionSettings.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
-                    const defaultColorInput = document.getElementById('default-color') as HTMLInputElement | null;
-                    const defaultHexInput = document.getElementById('default-hex') as HTMLInputElement | null;
-
-                    if (defaultColorInput) defaultColorInput.value = defaultColor;
-                    if (defaultHexInput) defaultHexInput.value = defaultColor.toUpperCase();
-
-                    // Bind Event Listeners
-                    this.bindEvents();
-
-                    // Render Lists
+                    const root = document.getElementById('root') || document.body;
+                    render(<HighlightOptionsApp manager={this} />, root);
                     this.renderEditorSlots();
                     this.renderPalettesList();
                 } catch (innerErr) {
@@ -578,254 +631,41 @@ export class HighlightOptionsManager {
     }
 
     /**
-     * Registers control element action listeners for default colors, custom slots, palette saving, and defaults reset.
-     */
-    bindEvents(): void {
-        try {
-            // Default Highlight Color Event Listeners
-            const defaultColorEl = document.getElementById('default-color') as HTMLInputElement | null;
-            if (defaultColorEl) {
-                defaultColorEl.addEventListener('input', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        const hexInput = document.getElementById('default-hex') as HTMLInputElement | null;
-                        if (hexInput) hexInput.value = target.value.toUpperCase();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightOptions', `Error in default color input listener: ${errorMessage}`, { err });
-                    }
-                });
-
-                defaultColorEl.addEventListener('change', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        this.extensionSettings.defaultHighlightColor = target.value;
-                        this.saveSettings("Default highlight color updated!");
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightOptions', `Error in default color change listener: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            const defaultHexEl = document.getElementById('default-hex') as HTMLInputElement | null;
-            if (defaultHexEl) {
-                defaultHexEl.addEventListener('change', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        let val = target.value.trim();
-                        if (!val.startsWith('#')) val = '#' + val;
-                        if (/^#[0-9A-Fa-f]{6}$/i.test(val)) {
-                            if (defaultColorEl) {
-                                defaultColorEl.value = val;
-                                this.extensionSettings.defaultHighlightColor = val;
-                                this.saveSettings("Default highlight color updated!");
-                            }
-                            target.value = val.toUpperCase();
-                        } else {
-                            this.showToast("Invalid hex code");
-                            target.value = (this.extensionSettings.defaultHighlightColor || '#f1c40f').toUpperCase();
-                        }
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightOptions', `Error in hex input listener: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            // Add Slot Action inside Editor
-            const addSlotBtn = document.getElementById('add-slot-btn');
-            if (addSlotBtn) {
-                addSlotBtn.addEventListener('click', () => {
-                    try {
-                        if (this.editorColors.length >= 5) {
-                            this.showToast("A palette can have a maximum of 5 colors.");
-                            return;
-                        }
-                        this.editorColors.push('#3498db');
-                        this.renderEditorSlots();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightOptions', `Error in add slot button listener: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            // Save/Update Palette Action
-            const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
-            const savePaletteBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
-
-            const updateSaveButtonState = () => {
-                if (savePaletteBtn) {
-                    const hasName = !!(nameInput && nameInput.value.trim().length > 0);
-                    savePaletteBtn.disabled = !hasName;
-                }
-            };
-
-            if (nameInput) {
-                nameInput.addEventListener('input', updateSaveButtonState);
-                nameInput.addEventListener('change', updateSaveButtonState);
-            }
-            updateSaveButtonState();
-
-            if (savePaletteBtn) {
-                savePaletteBtn.addEventListener('click', () => {
-                    try {
-                        const name = nameInput?.value.trim() || '';
-                        if (!name) {
-                            this.showToast("Please enter a palette name.");
-                            updateSaveButtonState();
-                            return;
-                        }
-
-                        if (this.editorColors.length === 0) {
-                            this.showToast("Palette must contain at least 1 color.");
-                            return;
-                        }
-
-                        const palettes = this.extensionSettings.palettes || [];
-
-                        if (this.editingIndex === null) {
-                            // Creation validation
-                            if (palettes.length >= 50) {
-                                this.showToast("Maximum limit of 50 palettes reached.");
-                                return;
-                            }
-                            palettes.push({ name, colors: [...this.editorColors] });
-                            this.showToast("Palette created successfully!");
-                        } else {
-                            // Update
-                            palettes[this.editingIndex] = { name, colors: [...this.editorColors] };
-                            this.showToast("Palette updated successfully!");
-
-                            if (this.editingIndex === this.extensionSettings.activePaletteIndex) {
-                                this.extensionSettings.recentColors = [...this.editorColors];
-                            }
-                        }
-
-                        // Reset editor form states
-                        if (nameInput) nameInput.value = '';
-                        this.editingIndex = null;
-                        if (savePaletteBtn) {
-                            savePaletteBtn.textContent = '💾 Save Palette';
-                            savePaletteBtn.disabled = true;
-                        }
-                        this.editorColors = [...this.extensionSettings.recentColors!];
-
-                        this.extensionSettings.palettes = palettes;
-                        this.saveSettings();
-                        this.renderEditorSlots();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightOptions', `Error in save palette button listener: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            // Reset to Defaults button handler
-            const resetBtn = document.getElementById('reset-palettes-btn');
-            if (resetBtn) {
-                resetBtn.addEventListener('click', () => {
-                    if (!window.confirm('Are you sure you want to reset all highlighter palettes to defaults? This cannot be undone.')) {
-                        return;
-                    }
-                    try {
-                        this.extensionSettings.palettes = JSON.parse(JSON.stringify(this.DEFAULT_PALETTES));
-                        this.extensionSettings.activePaletteIndex = 0;
-                        this.extensionSettings.recentColors = [...this.extensionSettings.palettes![0].colors];
-                        this.extensionSettings.defaultHighlightColor = '#f1c40f';
-
-                        const defaultColorEl = document.getElementById('default-color') as HTMLInputElement | null;
-                        const defaultHexEl = document.getElementById('default-hex') as HTMLInputElement | null;
-                        const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
-                        const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
-
-                        if (defaultColorEl) defaultColorEl.value = '#f1c40f';
-                        if (defaultHexEl) defaultHexEl.value = '#F1C40F';
-
-                        // Reset Editor UI
-                        if (nameInput) nameInput.value = '';
-                        this.editingIndex = null;
-                        if (saveBtn) {
-                            saveBtn.textContent = '💾 Save Palette';
-                            saveBtn.disabled = true;
-                        }
-                        this.editorColors = [...this.extensionSettings.recentColors!];
-
-                        this.saveSettings("Reset to defaults successfully!");
-                        this.renderEditorSlots();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightOptions', `Error in reset palettes button listener: ${errorMessage}`, { err });
-                    }
-                });
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HighlightOptions', `Error binding events: ${errorMessage}`, { err });
-        }
-    }
-
-    /**
-     * Dynamically renders color picker input rows via Preact.
+     * Helper to render slots declaratively into slots container.
      */
     renderEditorSlots(): void {
-        try {
-            const root = document.getElementById('root');
-            if (root) {
-                render(<HighlightOptionsApp manager={this} />, root);
-                return;
-            }
-
-            const container = document.getElementById('palette-slots-container');
-            if (!container) return;
-
+        const container = document.getElementById('palette-slots-container');
+        if (container) {
             render(
                 <PaletteEditorSlots
                     colors={this.editorColors}
                     onColorChange={(idx, newColor) => {
                         this.editorColors[idx] = newColor;
+                        this.renderEditorSlots();
                     }}
                     onDeleteSlot={(idx) => {
                         this.editorColors.splice(idx, 1);
                         this.renderEditorSlots();
                     }}
+                    onInvalidHex={() => this.showToast("Invalid hex code")}
                 />,
                 container
             );
-
-            // Toggle button visibility based on slots length
-            const addBtn = document.getElementById('add-slot-btn');
-            if (addBtn) {
-                addBtn.style.display = (this.editorColors.length >= 5) ? 'none' : 'block';
-            }
-            if (this.onUpdate) this.onUpdate();
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HighlightOptions', `Error rendering editor slots: ${errorMessage}`, { err });
         }
+        const addBtn = document.getElementById('add-slot-btn');
+        if (addBtn) {
+            addBtn.style.display = this.editorColors.length >= 5 ? 'none' : 'block';
+        }
+        if (this.onUpdate) this.onUpdate();
     }
 
     /**
-     * Renders saved palette preview cards via Preact.
+     * Helper to render palettes list declaratively into container.
      */
     renderPalettesList(): void {
-        try {
-            const root = document.getElementById('root');
-            if (root) {
-                render(<HighlightOptionsApp manager={this} />, root);
-                return;
-            }
-
-            const container = document.getElementById('palettes-list-container');
-            if (!container) return;
-
-            const palettes = this.extensionSettings.palettes || [];
-            const countEl = document.getElementById('palette-count');
-            if (countEl) {
-                countEl.textContent = `${palettes.length} / 50`;
-            }
-
+        const container = document.getElementById('palettes-list-container');
+        const palettes = this.extensionSettings.palettes || [];
+        if (container) {
             render(
                 <PalettesList
                     palettes={palettes}
@@ -837,14 +677,15 @@ export class HighlightOptionsManager {
                     }}
                     onEdit={(idx) => {
                         this.editingIndex = idx;
+                        const palette = palettes[idx];
                         const nameInput = document.getElementById('palette-name-input') as HTMLInputElement | null;
-                        if (nameInput) nameInput.value = palettes[idx].name;
-                        this.editorColors = [...palettes[idx].colors];
+                        if (nameInput) nameInput.value = palette.name;
+                        this.editorColors = [...palette.colors];
                         this.renderEditorSlots();
                         const saveBtn = document.getElementById('save-palette-btn') as HTMLButtonElement | null;
                         if (saveBtn) {
                             saveBtn.textContent = '💾 Update Palette';
-                            saveBtn.disabled = !palettes[idx].name.trim();
+                            saveBtn.disabled = !palette.name.trim();
                         }
                     }}
                     onDelete={(idx) => {
@@ -853,10 +694,10 @@ export class HighlightOptionsManager {
                             return;
                         }
                         const isActive = idx === this.extensionSettings.activePaletteIndex;
-                        this.extensionSettings.palettes!.splice(idx, 1);
+                        palettes.splice(idx, 1);
                         if (isActive) {
                             this.extensionSettings.activePaletteIndex = 0;
-                            this.extensionSettings.recentColors = [...this.extensionSettings.palettes![0].colors];
+                            this.extensionSettings.recentColors = [...palettes[0].colors];
                         } else if (this.extensionSettings.activePaletteIndex !== undefined && this.extensionSettings.activePaletteIndex > idx) {
                             this.extensionSettings.activePaletteIndex--;
                         }
@@ -865,11 +706,12 @@ export class HighlightOptionsManager {
                 />,
                 container
             );
-            if (this.onUpdate) this.onUpdate();
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HighlightOptions', `Error rendering palettes list: ${errorMessage}`, { err });
         }
+        const countEl = document.getElementById('palette-count');
+        if (countEl) {
+            countEl.textContent = `${palettes.length} / 50`;
+        }
+        if (this.onUpdate) this.onUpdate();
     }
 
     /**
@@ -907,17 +749,21 @@ export class HighlightOptionsManager {
     showToast(message: string): void {
         try {
             const toast = document.getElementById('status-toast');
-            if (!toast) return;
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => {
-                try {
-                    toast.classList.remove('show');
-                } catch (animErr) {
-                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
-                    Logger.error('HighlightOptions', `Error removing toast show class: ${errorMessage}`, { animErr });
-                }
-            }, 3000);
+            if (toast) {
+                toast.textContent = message;
+                toast.classList.add('show', 'visible');
+                setTimeout(() => {
+                    try {
+                        toast.classList.remove('show', 'visible');
+                    } catch (animErr) {
+                        const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
+                        Logger.error('HighlightOptions', `Error removing toast show class: ${errorMessage}`, { animErr });
+                    }
+                }, 3000);
+            }
+            if (this.onToast) {
+                this.onToast(message);
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightOptions', `Error showing toast message '${message}': ${errorMessage}`, { message, err });

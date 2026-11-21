@@ -6,7 +6,7 @@
  * Anki deck exchange, developer diagnostics, and browser theme preferences.
  */
 
-import { h, render, JSX, VNode } from 'preact';
+import { h, render, JSX, VNode, FunctionalComponent } from 'preact';
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { Toast } from '../ui/components/Toast';
@@ -250,7 +250,7 @@ export function NotificationsPanel({
     const standardOptions = ['1', '15', '30', '60', '120', '360', '720', '1440'];
     const isCustom = !standardOptions.includes(rawFreq) || rawFreq === 'custom';
     const selectedFreq = isCustom ? 'custom' : rawFreq;
-    const customValue = settings.customInterval ? String(settings.customInterval) : (isCustom && rawFreq !== 'custom' ? rawFreq : '60');
+    const customValue = settings.customInterval ? String(settings.customInterval) : (isCustom && rawFreq !== 'custom' ? rawFreq : '45');
 
     const handleToggleEnabled = (e: Event) => {
         const checked = (e.target as HTMLInputElement).checked;
@@ -1120,7 +1120,7 @@ export interface SettingsAppProps {
 /**
  * SettingsApp Preact root functional component orchestrating state, sub-components, and storage sync.
  */
-export function SettingsApp({ initialTab }: SettingsAppProps): JSX.Element {
+export const SettingsApp: FunctionalComponent<SettingsAppProps> = ({ initialTab }: SettingsAppProps) => {
     const getHashTab = () => {
         if (typeof window !== 'undefined' && window.location.hash) {
             return window.location.hash.replace('#', '');
@@ -1140,6 +1140,7 @@ export function SettingsApp({ initialTab }: SettingsAppProps): JSX.Element {
     const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const showToast = useCallback((message: string, isError: boolean = false) => {
+        UIUtils.showToast(message);
         if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
         setToast({ message, isError, visible: true });
         toastTimeoutRef.current = setTimeout(() => {
@@ -1413,7 +1414,9 @@ export function SettingsApp({ initialTab }: SettingsAppProps): JSX.Element {
             </div>
             <Toast
                 id="status-toast"
-                className="toast modern-toast"
+                message={toast.message}
+                isVisible={toast.visible}
+                className={`toast modern-toast${toast.isError ? ' error' : ''}`}
             />
         </div>
     );

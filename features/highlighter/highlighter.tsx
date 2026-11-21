@@ -100,20 +100,8 @@ export interface HighlighterTypeSelectorProps {
 export function HighlighterTypeSelector({ activeType = 'highlight', onSelectType }: HighlighterTypeSelectorProps): VNode {
     const [currentType, setCurrentType] = useState<string>(activeType);
 
-    const handleSelect = (t: string, e: Event) => {
+    const handleSelect = (t: string) => {
         setCurrentType(t);
-        const target = e.currentTarget as HTMLElement | null;
-        const container = target?.closest('.algo-type-selector');
-        if (container) {
-            const btns = container.querySelectorAll('.algo-type-btn');
-            btns.forEach((btn) => {
-                const isMatch = (btn.textContent || '').trim().toLowerCase() === t.toLowerCase();
-                btn.setAttribute('aria-checked', isMatch.toString());
-                btn.setAttribute('tabindex', isMatch ? '0' : '-1');
-                (btn as HTMLElement).style.background = isMatch ? 'var(--w-primary-container, #3498db)' : 'var(--w-bg-dark, #333)';
-                (btn as HTMLElement).style.color = isMatch ? 'var(--w-on-primary-container, #fff)' : 'var(--w-text-med, #ccc)';
-            });
-        }
         onSelectType(t);
     };
 
@@ -157,12 +145,12 @@ export function HighlighterTypeSelector({ activeType = 'highlight', onSelectType
                         onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            handleSelect(t, e);
+                            handleSelect(t);
                         }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault();
-                                handleSelect(t, e);
+                                handleSelect(t);
                             }
                         }}
                     >

@@ -14,7 +14,7 @@ import { CoverageTableComponent } from '../../../../../features/dashboard/analyt
 import { RetentionBarRow } from '../../../../../features/dashboard/analytics/tags/retentionBarChart';
 import { ReadinessTopicCard, ReadinessMetricsGrid } from '../../../../../features/dashboard/analytics/readiness/readiness';
 import { ReviewTimeHighlightBanner } from '../../../../../features/dashboard/analytics/insights/reviewTimeAnalytics';
-import { AnalyticsGlobalKpiBar, AnalyticsSidebar, AnalyticsHeader, AnalyticsApp, AnalyticsDashboardSPA } from '../../../../../features/dashboard/analytics/analytics';
+import { AnalyticsGlobalKpiBar, AnalyticsSidebar, AnalyticsHeader, AnalyticsApp } from '../../../../../features/dashboard/analytics/analytics';
 
 describe('Analytics Preact Components', () => {
     let container: HTMLElement;
@@ -291,8 +291,7 @@ describe('Analytics Preact Components', () => {
     });
 
     it('renders AnalyticsApp root layout with all tab panes', () => {
-        const spa = new AnalyticsDashboardSPA();
-        render(<AnalyticsApp spa={spa} />, container);
+        render(<AnalyticsApp />, container);
 
         expect(container.querySelector('.dashboard-layout')).not.toBeNull();
         expect(container.querySelector('.sidebar')).not.toBeNull();

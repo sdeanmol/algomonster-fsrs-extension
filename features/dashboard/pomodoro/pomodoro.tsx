@@ -309,10 +309,10 @@ export function PomodoroSettingsForm({ settings, onSave }: PomodoroSettingsFormP
     const handleSubmit = (e: Event) => {
         e.preventDefault();
         const form = e.target as HTMLFormElement | null;
-        const focusInput = form?.querySelector?.('#focus-duration') as HTMLInputElement | null;
-        const shortInput = form?.querySelector?.('#short-break-duration') as HTMLInputElement | null;
-        const longInput = form?.querySelector?.('#long-break-duration') as HTMLInputElement | null;
-        const sessionsInput = form?.querySelector?.('#sessions-count') as HTMLInputElement | null;
+        const focusInput = form?.elements?.namedItem('focus-duration') as HTMLInputElement | null;
+        const shortInput = form?.elements?.namedItem('short-break-duration') as HTMLInputElement | null;
+        const longInput = form?.elements?.namedItem('long-break-duration') as HTMLInputElement | null;
+        const sessionsInput = form?.elements?.namedItem('sessions-count') as HTMLInputElement | null;
 
         onSave({
             focusDuration: focusInput ? parseInt(focusInput.value, 10) || focusDuration : focusDuration,
@@ -329,9 +329,11 @@ export function PomodoroSettingsForm({ settings, onSave }: PomodoroSettingsFormP
                 <input
                     type="number"
                     id="focus-duration"
+                    name="focus-duration"
                     min={1}
                     max={120}
-                    defaultValue={settings.focusDuration}
+                    value={focusDuration}
+                    onInput={(e) => setFocusDuration(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                     onChange={(e) => setFocusDuration(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                 />
             </div>
@@ -340,9 +342,11 @@ export function PomodoroSettingsForm({ settings, onSave }: PomodoroSettingsFormP
                 <input
                     type="number"
                     id="short-break-duration"
+                    name="short-break-duration"
                     min={1}
                     max={60}
-                    defaultValue={settings.shortBreakDuration}
+                    value={shortBreakDuration}
+                    onInput={(e) => setShortBreakDuration(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                     onChange={(e) => setShortBreakDuration(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                 />
             </div>
@@ -351,9 +355,11 @@ export function PomodoroSettingsForm({ settings, onSave }: PomodoroSettingsFormP
                 <input
                     type="number"
                     id="long-break-duration"
+                    name="long-break-duration"
                     min={1}
                     max={60}
-                    defaultValue={settings.longBreakDuration}
+                    value={longBreakDuration}
+                    onInput={(e) => setLongBreakDuration(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                     onChange={(e) => setLongBreakDuration(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                 />
             </div>
@@ -362,9 +368,11 @@ export function PomodoroSettingsForm({ settings, onSave }: PomodoroSettingsFormP
                 <input
                     type="number"
                     id="sessions-count"
+                    name="sessions-count"
                     min={1}
                     max={12}
-                    defaultValue={settings.sessionsBeforeLongBreak}
+                    value={sessionsBeforeLongBreak}
+                    onInput={(e) => setSessionsBeforeLongBreak(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                     onChange={(e) => setSessionsBeforeLongBreak(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
                 />
             </div>
@@ -401,14 +409,14 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
     }, [timer.settings.focusDuration, timer.settings.shortBreakDuration, timer.settings.longBreakDuration, timer.settings.sessionsBeforeLongBreak]);
 
     useEffect(() => {
-        if (!initialTimer) {
+        if (!timer.initialized) {
             timer.init();
         }
         const interval = setInterval(() => {
             setTick((t) => t + 1);
         }, 500);
         return () => clearInterval(interval);
-    }, [timer, initialTimer]);
+    }, [timer]);
 
     const mins = Math.floor(timer.timeRemaining / 60);
     const secs = timer.timeRemaining % 60;
@@ -429,14 +437,8 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
         return () => cancelAnimationFrame(raf);
     }, [offset]);
 
-    useEffect(() => {
-        if (typeof document !== 'undefined') {
-            document.body.className = timer.phase === 'focus' ? 'phase-focus' : 'phase-break';
-        }
-    }, [timer.phase]);
-
     return (
-        <div className="container">
+        <div className={`container ${timer.phase === 'focus' ? 'phase-focus' : 'phase-break'}`}>
             <header className="pomodoro-header">
                 <div className="algorecall-brand-badge">
                     <svg className="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -683,6 +685,8 @@ export class PomodoroTimer {
     todaySessions: number;
     /** Total focus minutes logged today. */
     todayFocusMinutes: number;
+    /** Flag indicating whether the timer instance has initialized storage. */
+    initialized: boolean;
 
     /**
      * Initializes default Pomodoro timer properties and settings defaults.
@@ -700,6 +704,7 @@ export class PomodoroTimer {
 
         this.todaySessions = 0;
         this.todayFocusMinutes = 0;
+        this.initialized = false;
     }
 
     /**
@@ -718,6 +723,7 @@ export class PomodoroTimer {
      * @listens chrome.storage.onChanged
      */
     init(): void {
+        this.initialized = true;
         try {
             chrome.storage.local.get(['pomodoroSettings', 'pomodoroStats', 'pomodoroState'], (result: StorageData & {
                 pomodoroSettings?: PomodoroSettings;
@@ -1121,6 +1127,7 @@ function initPomodoro(): void {
         if (root) {
             const win = window as unknown as { pomodoro?: PomodoroTimer };
             win.pomodoro = new PomodoroTimer();
+            win.pomodoro.init();
             render(<PomodoroApp timer={win.pomodoro} />, root);
         }
     } catch (err) {

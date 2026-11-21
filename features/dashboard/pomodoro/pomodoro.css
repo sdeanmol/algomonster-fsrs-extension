@@ -12,12 +12,14 @@ body {
     transition: background-color 0.5s ease;
 }
 
-/* Phase-based dynamic background tinting: applied to body by pomodoro.ts */
-body.phase-focus {
+/* Phase-based dynamic background tinting: applied to body or .container by pomodoro.tsx */
+body.phase-focus,
+.container.phase-focus {
     background: linear-gradient(180deg, var(--md-bg), rgba(168, 199, 250, 0.03));
 }
 
-body.phase-break {
+body.phase-break,
+.container.phase-break {
     background: linear-gradient(180deg, var(--md-bg), rgba(129, 201, 149, 0.03));
 }
 
@@ -340,11 +342,13 @@ body.phase-break {
     box-shadow: 0 4px 16px rgba(26, 115, 232, 0.2);
 }
 
-:root.light-theme body.phase-focus {
+:root.light-theme body.phase-focus,
+:root.light-theme .container.phase-focus {
     background: linear-gradient(180deg, var(--md-bg), rgba(26, 115, 232, 0.02));
 }
 
-:root.light-theme body.phase-break {
+:root.light-theme body.phase-break,
+:root.light-theme .container.phase-break {
     background: linear-gradient(180deg, var(--md-bg), rgba(52, 168, 83, 0.02));
 }
 

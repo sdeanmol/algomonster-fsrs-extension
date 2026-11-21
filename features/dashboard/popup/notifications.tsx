@@ -13,6 +13,7 @@
  */
 
 import { h, VNode } from "preact";
+import { BROWSER_CONFIG } from '../../common/browserConfig';
 
 /**
  * Props for the PopupPermissionWarningBanner component.
@@ -147,6 +148,29 @@ export function PopupNotificationSettings({
                     checked={weeklyDigestEnabled}
                     onChange={(e) => onToggleWeeklyDigest && onToggleWeeklyDigest((e.target as HTMLInputElement).checked)}
                 />
+            </div>
+        </div>
+    );
+}
+
+export interface NotificationSettingsSectionProps {
+    permission?: 'default' | 'granted' | 'denied';
+    onEnablePermission?: () => void;
+}
+
+export function NotificationSettingsSection({
+    permission = 'granted',
+    onEnablePermission
+}: NotificationSettingsSectionProps = {}): VNode {
+    return (
+        <div id="notification-settings-card" className="card notification-card" style={{ display: BROWSER_CONFIG.supportsNotifications ? '' : 'none' }}>
+            <PopupPermissionWarningBanner
+                permission={permission}
+                onEnable={onEnablePermission || (() => {})}
+            />
+            <div id="test-notifications-container" className="button-row" style={{ display: 'none', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                <button id="test-notification-btn" className="btn btn-secondary flex-1">Send Test Notification</button>
+                <button id="test-summary-notification-btn" className="btn btn-secondary flex-1">Send Test Summary Notification</button>
             </div>
         </div>
     );

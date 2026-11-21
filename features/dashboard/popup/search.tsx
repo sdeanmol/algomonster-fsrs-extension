@@ -14,6 +14,7 @@
  */
 
 import { h, VNode } from 'preact';
+import { useState, useMemo } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
@@ -23,6 +24,147 @@ import { SEARCH_DEBOUNCE_MS, SEARCH_MAX_RESULTS } from '../../common/constants';
 // ─────────────────────────────────────────────────────────────────────────────
 // PREACT UI COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
+
+export interface SearchFilterBarProps {
+    searchQuery: string;
+    onSearchChange: (query: string) => void;
+    onClear?: () => void;
+    selectedTag: string;
+    onTagSelect: (tag: string) => void;
+    availableTags?: string[];
+}
+
+export function SearchFilterBar({
+    searchQuery,
+    onSearchChange,
+    onClear,
+    selectedTag,
+    onTagSelect,
+    availableTags = []
+}: SearchFilterBarProps): VNode {
+    return (
+        <div className="search-compact">
+            <div className="search-input-wrapper">
+                <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                    type="text"
+                    id="search-input"
+                    className="search-input"
+                    placeholder="Search patterns..."
+                    value={searchQuery}
+                    onInput={(e) => onSearchChange((e.target as HTMLInputElement).value)}
+                />
+                <input
+                    type="hidden"
+                    id="popup-search-input"
+                    value={searchQuery}
+                />
+                {searchQuery && (
+                    <button
+                        id="search-clear-btn"
+                        className="search-clear-btn"
+                        title="Clear search"
+                        onClick={onClear}
+                    >
+                        ×
+                    </button>
+                )}
+            </div>
+            <select
+                id="popup-tag-filter"
+                className="tag-filter-select"
+                aria-label="Filter by tag"
+                value={selectedTag}
+                onChange={(e) => onTagSelect((e.target as HTMLSelectElement).value)}
+            >
+                <option value="all">All Tags</option>
+                {availableTags.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                ))}
+            </select>
+            <div id="tag-pills-container" className="tag-pills-container">
+                {availableTags.slice(0, 5).map((t) => (
+                    <button
+                        key={t}
+                        className={`tag-pill ${selectedTag === t ? 'active' : ''}`}
+                        onClick={() => onTagSelect(selectedTag === t ? 'all' : t)}
+                    >
+                        {t}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+export interface QuickSearchSectionProps {
+    cards: Card[];
+    searchQuery?: string;
+    selectedTag?: string;
+}
+
+export function QuickSearchSection({
+    cards,
+    searchQuery: controlledQuery,
+    selectedTag: controlledTag
+}: QuickSearchSectionProps): VNode {
+    const [query, setQuery] = useState(controlledQuery || '');
+    const [tag, setTag] = useState(controlledTag || 'all');
+
+    const activeQuery = controlledQuery !== undefined ? controlledQuery : query;
+    const activeTag = controlledTag !== undefined ? controlledTag : tag;
+
+    const availableTags = useMemo(() => {
+        const set = new Set<string>();
+        for (const c of cards) {
+            if (c.tags) {
+                for (const t of c.tags) set.add(t);
+            }
+        }
+        return Array.from(set).sort();
+    }, [cards]);
+
+    const filteredCards = useMemo(() => {
+        if (!activeQuery.trim() && activeTag === 'all') return [];
+        return cards.filter((c) => {
+            const matchesQuery = !activeQuery.trim() ||
+                (c.problemTitle && c.problemTitle.toLowerCase().includes(activeQuery.toLowerCase())) ||
+                (c.tags && c.tags.some(t => t.toLowerCase().includes(activeQuery.toLowerCase())));
+            const matchesTag = activeTag === 'all' || (c.tags && c.tags.includes(activeTag));
+            return matchesQuery && matchesTag;
+        });
+    }, [cards, activeQuery, activeTag]);
+
+    return (
+        <div className="quick-search-section">
+            <SearchFilterBar
+                searchQuery={activeQuery}
+                onSearchChange={setQuery}
+                onClear={() => setQuery('')}
+                selectedTag={activeTag}
+                onTagSelect={setTag}
+                availableTags={availableTags}
+            />
+            <div id="search-results">
+                {activeQuery.trim() || activeTag !== 'all' ? (
+                    <PopupSearchResultsList
+                        cards={filteredCards.map(c => ({
+                            id: c.id,
+                            problemTitle: c.problemTitle,
+                            problemUrl: c.problemUrl,
+                            isDue: c.due <= Date.now(),
+                            tags: c.tags || []
+                        }))}
+                        totalMatches={filteredCards.length}
+                    />
+                ) : null}
+            </div>
+        </div>
+    );
+}
 
 export interface PopupSearchResultItemProps {
     problemTitle: string;

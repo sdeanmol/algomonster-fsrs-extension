@@ -269,12 +269,14 @@ export function HighlightsListView({
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Props for the root HighlightsApp component.
+ * Props for the root HighlightsManagerApp component.
  */
-export interface HighlightsAppProps {
+export interface HighlightsManagerAppProps {
     /** Optional controller instance passed during testing or legacy integration */
     manager?: HighlightsManager;
 }
+
+export type HighlightsAppProps = HighlightsManagerAppProps;
 
 /**
  * Root Preact component governing the full Highlights Manager dashboard.
@@ -285,7 +287,7 @@ export interface HighlightsAppProps {
  * @param props - Component configuration containing optional test manager.
  * @returns JSX rendered highlights manager application view.
  */
-export function HighlightsApp({ manager: initialManager }: HighlightsAppProps): JSX.Element {
+export function HighlightsManagerApp({ manager: initialManager }: HighlightsManagerAppProps): JSX.Element {
     const [manager] = useState(() => initialManager || new HighlightsManager());
     const [marks, setMarks] = useState<HighlightMark[]>(manager.loadedMarks || []);
     const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(manager.loadedBookmarks || []);
@@ -543,6 +545,8 @@ export function HighlightsApp({ manager: initialManager }: HighlightsAppProps): 
     );
 }
 
+export const HighlightsApp = HighlightsManagerApp;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HIGHLIGHTS MANAGER CONTROLLER CLASS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -593,7 +597,7 @@ export class HighlightsManager {
         try {
             const root = document.getElementById('root');
             if (root) {
-                render(<HighlightsApp manager={this} />, root);
+                render(<HighlightsManagerApp manager={this} />, root);
                 return;
             }
 

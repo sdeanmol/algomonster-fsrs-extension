@@ -136,9 +136,11 @@ describe('TagInputControl', () => {
     // Arrow down to trigger open if closed
     inlineInput.value = '';
     inlineInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Escape closes dropdown
     inlineInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 10));
     const dropdown = document.querySelector('.tag-autocomplete-dropdown') as HTMLElement;
     expect(dropdown.style.display).toBe('none');
   });
@@ -153,7 +155,69 @@ describe('TagInputControl', () => {
     await new Promise(resolve => setTimeout(resolve, 10));
 
     document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 10));
     const dropdown = document.querySelector('.tag-autocomplete-dropdown') as HTMLElement;
     expect(dropdown.style.display).toBe('none');
+  });
+
+  it('enforces maxTags boundary during paste events', () => {
+    const control = TagInputControl.attach(targetInput, { maxTags: 3 });
+    const inlineInput = document.querySelector('.tag-inline-input') as HTMLInputElement;
+
+    // targetInput starts with 2 tags ('Arrays', 'Dynamic Programming')
+    const clipboardData = {
+      getData: jest.fn(() => 'Sliding Window, Two Pointers, Greedy')
+    };
+    const pasteEvent = new Event('paste', { bubbles: true }) as any;
+    pasteEvent.clipboardData = clipboardData;
+
+    inlineInput.dispatchEvent(pasteEvent);
+    // Only 1 tag should be added to hit maxTags limit of 3
+    expect(control.getTags()).toEqual(['Arrays', 'Dynamic Programming', 'Sliding Window']);
+  });
+
+  it('prevents stale autocomplete responses from overwriting newer queries', async () => {
+    let resolveFirst: (val: string[]) => void = () => {};
+    let resolveSecond: (val: string[]) => void = () => {};
+
+    const getSuggestions: any = jest.fn()
+      .mockReturnValueOnce(new Promise<string[]>(resolve => { resolveFirst = resolve; }))
+      .mockReturnValueOnce(new Promise<string[]>(resolve => { resolveSecond = resolve; }));
+
+    TagInputControl.attach(targetInput, { getSuggestions });
+    const inlineInput = document.querySelector('.tag-inline-input') as HTMLInputElement;
+
+    // First query 'al'
+    inlineInput.value = 'al';
+    inlineInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // Second query 'algo'
+    inlineInput.value = 'algo';
+    inlineInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // Resolve second query first
+    resolveSecond(['Algorithm A', 'Algorithm B']);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    // Resolve first query later (stale response)
+    resolveFirst(['Old Result A', 'Old Result B']);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    const dropdown = document.querySelector('.tag-autocomplete-dropdown') as HTMLElement;
+    const items = dropdown.querySelectorAll('.tag-suggestion-item');
+    expect(items.length).toBe(2);
+    expect(items[0].textContent).toBe('Algorithm A');
+    expect(items[1].textContent).toBe('Algorithm B');
+  });
+
+  it('properly encapsulates and cleans up DOM and property descriptors on destroy', () => {
+    const control = TagInputControl.attach(targetInput);
+    expect(targetInput.style.display).toBe('none');
+    expect(document.querySelector('.tag-inline-input')).not.toBeNull();
+
+    control.destroy();
+    expect(targetInput.style.display).toBe('');
+    expect(document.querySelector('.tag-inline-input')).toBeNull();
+    expect((targetInput as any).__tagInputControl).toBeUndefined();
   });
 });

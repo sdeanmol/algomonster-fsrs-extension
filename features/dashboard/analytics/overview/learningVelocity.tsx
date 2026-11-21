@@ -6,7 +6,7 @@
  * @context Popup / Analytics SPA Dashboard
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, LearningVelocity as LearningVelocityData } from '../utils/dataUtils';
 
@@ -121,6 +121,15 @@ export const LearningVelocityPanel: FunctionalComponent<LearningVelocityPanelPro
     );
 };
 
+export interface LearningVelocityViewProps {
+    dataUtils: DataUtils;
+}
+
+export const LearningVelocityView: FunctionalComponent<LearningVelocityViewProps> = ({ dataUtils }) => {
+    const velocity = dataUtils.getLearningVelocity();
+    return <LearningVelocityPanel velocity={velocity} />;
+};
+
 /**
  * Visualizes the rate of knowledge acquisition and progression into long-term memory.
  * Computes trend percentages and generates lightweight SVG sparklines.
@@ -152,25 +161,7 @@ export class LearningVelocity {
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            const velocity = this.dataUtils.getLearningVelocity();
-            
-            const sparkline1 = this.generateSparkline('#a8c7fa', velocity.sparklineNew);
-            const sparkline2 = this.generateSparkline('#50e3c2', velocity.sparklineGrad);
-            const sparkline3 = this.generateSparkline('#f5a623', velocity.sparklineRev);
-
-            container.innerHTML = `
-                <div class="ana-panel-header" style="margin-bottom:0;">
-                    <span class="ana-panel-title">
-                        Learning Velocity
-                        <span class="help-icon" data-tooltip="How fast you are acquiring new knowledge and moving cards into long-term memory.">?</span>
-                    </span>
-                </div>
-                <div class="velocity-kpi-grid">
-                    ${this.buildKpiCard('New Cards/Day', 'The average number of new cards you learn each day.', velocity.newCardsTrend, velocity.newCardsPerDay, '/day', sparkline1)}
-                    ${this.buildKpiCard('Graduated/Week', 'Cards that have successfully moved out of the learning phase this week.', velocity.graduatedTrend, velocity.graduatedPerWeek, '/week', sparkline2)}
-                    ${this.buildKpiCard('Total Reviews', 'The overall count of reviews you\'ve completed across all time.', velocity.reviewsTrend, velocity.reviewsPerDay, '/day', sparkline3)}
-                </div>
-            `;
+            render(<LearningVelocityView dataUtils={this.dataUtils} />, container);
         } catch (err) {
             UIUtils.catchError('LearningVelocity', 'Error rendering LearningVelocity', err, { containerId });
         }

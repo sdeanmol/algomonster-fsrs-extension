@@ -6,9 +6,10 @@
  * @context Popup / Analytics SPA Dashboard
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render } from 'preact';
+import { useMemo } from 'preact/hooks';
 import { UIUtils } from '../../../common/utils/uiUtils';
-import { ConfidenceBand } from './confidenceBand';
+import { ConfidenceBand, ConfidenceBandPolygon, PointR } from './confidenceBand';
 import { DataUtils } from '../utils/dataUtils';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 import { ANALYTICS_CHART_COLORS, RETENTION_TIME_POINTS } from '../../../common/constants';
@@ -33,6 +34,153 @@ export const RetentionChartLegend: FunctionalComponent<RetentionChartLegendProps
                 </div>
             ))}
         </div>
+    );
+};
+
+export interface RetentionChartViewProps {
+    dataUtils: DataUtils;
+    scheduler?: AbstractScheduler | null;
+    groupBy?: string;
+    filterTag?: string;
+    showConfidence?: boolean;
+}
+
+export const RetentionChartView: FunctionalComponent<RetentionChartViewProps> = ({
+    dataUtils,
+    scheduler: propScheduler,
+    groupBy = 'tag',
+    filterTag = '',
+    showConfidence = false
+}) => {
+    const scheduler = propScheduler !== undefined ? propScheduler : (dataUtils ? dataUtils.scheduler : null);
+    const chartColors = ANALYTICS_CHART_COLORS;
+    const cleanFilterTag = (filterTag || '').trim().toLowerCase();
+
+    const groupAvgs = useMemo(() => {
+        const groups: Record<string, { stabilities: number[]; count: number; difficulties: number[] }> = {};
+        if (!dataUtils || !dataUtils.cards) return [];
+
+        dataUtils.cards.forEach(card => {
+            try {
+                if (cleanFilterTag) {
+                    const hasTag = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(cleanFilterTag));
+                    if (!hasTag) return;
+                }
+
+                if (card.stability > 0) {
+                    let keys: string[] = [];
+                    if (groupBy === 'tag') {
+                        keys = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
+                    } else if (groupBy === 'deck') {
+                        keys = ['Default'];
+                    } else if (groupBy === 'difficulty') {
+                        if (card.difficulty < 3) keys = ['Easy'];
+                        else if (card.difficulty < 7) keys = ['Medium'];
+                        else keys = ['Hard'];
+                    }
+
+                    keys.forEach(key => {
+                        if (!groups[key]) groups[key] = { stabilities: [], count: 0, difficulties: [] };
+                        groups[key].stabilities.push(card.stability);
+                        groups[key].difficulties.push(card.difficulty || 0);
+                        groups[key].count++;
+                    });
+                }
+            } catch (cardErr) {
+                UIUtils.catchError('RetentionChart', 'Error processing card for retention chart', cardErr, { card });
+            }
+        });
+
+        return Object.keys(groups).map(name => {
+            const count = groups[name].count || 1;
+            const avgStability = groups[name].stabilities.reduce((a, b) => a + b, 0) / count;
+            const avgDifficulty = groups[name].difficulties.reduce((a, b) => a + b, 0) / count;
+            return { name, avgStability, avgDifficulty, count };
+        }).sort((a, b) => b.count - a.count).slice(0, 6);
+    }, [dataUtils, cleanFilterTag, groupBy]);
+
+    if (groupAvgs.length === 0) {
+        return <div class="retention-empty">No reviewed cards yet to generate curves.</div>;
+    }
+
+    const timePoints = RETENTION_TIME_POINTS;
+    const svgW = 900, svgH = 250;
+    const padL = 50, padR = 20, padT = 20, padB = 40;
+    const chartW = svgW - padL - padR;
+    const chartH = svgH - padT - padB;
+
+    const xScale = (t: number) => padL + (t / 30) * chartW;
+    const yScale = (r: number) => padT + (1 - r) * chartH;
+
+    const legendGroups = groupAvgs.map((g, idx) => ({
+        name: g.name,
+        count: g.count,
+        color: chartColors[idx % chartColors.length]
+    }));
+
+    return (
+        <Fragment>
+            <svg class="retention-curve-svg multi-line" viewBox={`0 0 ${svgW} ${svgH}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%', minHeight: '250px' }}>
+                {[0, 0.25, 0.5, 0.75, 1.0].map(r => {
+                    const y = yScale(r);
+                    return (
+                        <g key={r}>
+                            <line class="retention-grid-line" x1={padL} y1={y} x2={svgW - padR} y2={y} />
+                            <text class="retention-axis-label" x={padL - 10} y={y + 4} text-anchor="end">{Math.round(r * 100)}%</text>
+                        </g>
+                    );
+                })}
+                {timePoints.map(t => {
+                    const x = xScale(t);
+                    return (
+                        <text key={t} class="retention-axis-label" x={x} y={svgH - 10} text-anchor="middle">{t === 0 ? 'Now' : `${t}d`}</text>
+                    );
+                })}
+                {groupAvgs.map((gData, idx) => {
+                    const color = chartColors[idx % chartColors.length];
+                    const points: PointR[] = timePoints.map(t => {
+                        let R = 0;
+                        const sched = scheduler as (AbstractScheduler & { getProjectedRetrievability?: (stability: number, days: number) => number }) | null;
+                        if (sched && typeof sched.getProjectedRetrievability === 'function') {
+                            R = sched.getProjectedRetrievability(gData.avgStability, t);
+                        } else {
+                            const stability = gData.avgStability;
+                            if (stability > 0) {
+                                R = Math.pow(1 + ((19 / 81) * t) / stability, -0.5);
+                            }
+                        }
+                        return { t, R, x: xScale(t), y: yScale(R) };
+                    });
+
+                    const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
+
+                    return (
+                        <g key={gData.name}>
+                            {showConfidence && (
+                                <ConfidenceBandPolygon points={points} color={color} n={gData.count} />
+                            )}
+                            <polyline class="retention-line" points={polylinePoints} stroke={color} fill="none" stroke-width="2.5" />
+                            {points.map((p, pIdx) => {
+                                const tooltipText = `${gData.name}\nRetention: ${Math.round(p.R * 100)}%\nStability: ${gData.avgStability.toFixed(1)}d\nDifficulty: ${gData.avgDifficulty.toFixed(1)}\nCards: ${gData.count}`;
+                                return (
+                                    <circle
+                                        key={pIdx}
+                                        class="retention-dot interactive-dot"
+                                        cx={p.x}
+                                        cy={p.y}
+                                        fill={color}
+                                        r="4"
+                                    >
+                                        <title>{tooltipText}</title>
+                                    </circle>
+                                );
+                            })}
+                        </g>
+                    );
+                })}
+            </svg>
+            <RetentionChartLegend groups={legendGroups} />
+        </Fragment>
     );
 };
 
@@ -129,42 +277,16 @@ export class RetentionChart {
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            // 1. Process and group card data
-            const groupAvgs = this.calculateGroupStats();
-            if (groupAvgs.length === 0) {
-                container.innerHTML = '<div class="retention-empty">No reviewed cards yet to generate curves.</div>';
-                return;
-            }
-
-            const timePoints = RETENTION_TIME_POINTS;
-            const svgW = 900, svgH = 250;
-            const padL = 50, padR = 20, padT = 20, padB = 40;
-            const chartW = svgW - padL - padR;
-            const chartH = svgH - padT - padB;
-
-            const xScale = (t: number) => padL + (t / 30) * chartW;
-            const yScale = (r: number) => padT + (1 - r) * chartH;
-
-            // 2. Build the SVG Grid and Labels
-            let svgContent = `<svg class="retention-curve-svg multi-line" viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="none" style="width: 100%; height: 100%; min-height: 250px;">`;
-            svgContent += this.generateSvgAxes(svgW, svgH, padL, padR, padT, xScale, yScale, timePoints);
-
-            // 3. Render curves and data points for each group
-            groupAvgs.forEach((gData, idx) => {
-                try {
-                    const color = this.chartColors[idx % this.chartColors.length];
-                    svgContent += this.generateGroupCurve(gData, color, timePoints, xScale, yScale);
-                } catch (groupErr) {
-                    UIUtils.catchError('RetentionChart', 'Error rendering curve for retention group', groupErr, { gData });
-                }
-            });
-
-            svgContent += `</svg>`;
-
-            // 4. Build the Legend HTML
-            const legendHtml = this.generateLegendHTML(groupAvgs);
-
-            container.innerHTML = svgContent + legendHtml;
+            render(
+                <RetentionChartView
+                    dataUtils={this.dataUtils}
+                    scheduler={this.scheduler}
+                    groupBy={this.groupBy}
+                    filterTag={this.filterTag}
+                    showConfidence={this.showConfidence}
+                />,
+                container
+            );
         } catch (err) {
             UIUtils.catchError('RetentionChart', 'Error rendering RetentionChart', err, { containerId, groupBy: this.groupBy, filterTag: this.filterTag });
         }

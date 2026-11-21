@@ -3,7 +3,7 @@
  * @description Manages the markdown notes and problem approach editor panel.
  * Provides real-time Markdown rendering previews, automatic background debounced saving,
  * and synchronizes changes to existing card records or standalone URL draft notes.
- * Migrated to Preact with TypeScript for modular, accessible editor view components.
+ * Migrated to pure declarative Preact functional components with TypeScript.
  * 
  * Context: Standalone editor tab (`editor.html`) within the Chrome extension.
  * 
@@ -12,15 +12,17 @@
  * - `BookmarkEntry`: Minimal interface representing a bookmarked problem entry.
  * - `EditorHeader`: Preact component for the editor header and status indicator.
  * - `ComplexityInputs`: Preact component for Big-O complexity input fields.
- * - `MarkdownPreview`: Preact component for rendered Markdown solution notes.
+ * - `MarkdownViewer`: Preact component for rendered Markdown solution notes.
+ * - `MarkdownPreview`: Backwards-compatible alias for MarkdownViewer.
  * - `EditorFooter`: Preact component for save and save-and-close action buttons.
  * - `EditorToast`: Preact component for transient status toast messages.
  * - `EditorWorkspace`: Preact container component uniting editor UI sections.
- * - `EditorManager`: Main editor controller class handling DOM events, previews, and persistence.
+ * - `EditorApp`: Root Preact component governing the full Problem Note Editor interface.
+ * - `EditorManager`: Controller class with zero DOM manipulation.
  */
 
 import { h, Fragment, render, VNode } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { Markdown } from '@common/markdown';
 import { Logger } from '@common/logger';
 import { UIUtils } from '@common/utils/uiUtils';
@@ -190,14 +192,14 @@ export function ComplexityInputs({
     );
 }
 
-export interface MarkdownPreviewProps {
+export interface MarkdownViewerProps {
     content: string;
 }
 
 /**
- * Preact component for rendering Markdown HTML previews.
+ * Preact component for rendering Markdown HTML previews safely and declaratively.
  */
-export function MarkdownPreview({ content }: MarkdownPreviewProps): VNode {
+export function MarkdownViewer({ content }: MarkdownViewerProps): VNode {
     if (!content || !content.trim()) {
         return (
             <p className="editor-preview-empty">
@@ -212,6 +214,10 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps): VNode {
 
     return <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />;
 }
+
+// Backwards-compatible alias for MarkdownViewer
+export const MarkdownPreview = MarkdownViewer;
+export type MarkdownPreviewProps = MarkdownViewerProps;
 
 export interface EditorFooterProps {
     onSave: () => void;
@@ -317,7 +323,7 @@ Supports Markdown: **bold**, *italic*, `code`, ```code blocks```, ## headings, -
                     className="editor-preview fsrs-markdown"
                     style={{ display: props.isPreviewMode ? 'block' : 'none' }}
                 >
-                    <MarkdownPreview content={props.approach} />
+                    <MarkdownViewer content={props.approach} />
                 </div>
             </div>
 
@@ -343,6 +349,18 @@ export interface EditorAppProps {
 }
 
 /**
+ * Normalizes a raw URL into a concise hostname + pathname string for interface display.
+ */
+function normalizeDisplayUrl(url: string): string {
+    try {
+        const u = new URL(url);
+        return u.hostname + u.pathname;
+    } catch {
+        return url;
+    }
+}
+
+/**
  * Root Preact component governing the full Problem Note Editor interface.
  */
 export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
@@ -356,82 +374,387 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
     const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
     const [toastMessage, setToastMessage] = useState<string>('Progress saved!');
     const [isToastVisible, setIsToastVisible] = useState<boolean>(false);
+    const [isCardExisting, setIsCardExisting] = useState<boolean>(false);
 
-    useEffect(() => {
-        manager.onUpdate = (data?: {
-            title?: string;
-            url?: string;
-            saveStatus?: string;
-            timeComplexity?: string;
-            spaceComplexity?: string;
-            approach?: string;
-            isPreviewMode?: boolean;
-            toastMessage?: string;
-            isToastVisible?: boolean;
-        }) => {
-            if (!data) return;
-            if (data.title !== undefined) setTitle(data.title);
-            if (data.url !== undefined) setUrl(data.url);
-            if (data.saveStatus !== undefined) setSaveStatus(data.saveStatus);
-            if (data.timeComplexity !== undefined) setTimeComplexity(data.timeComplexity);
-            if (data.spaceComplexity !== undefined) setSpaceComplexity(data.spaceComplexity);
-            if (data.approach !== undefined) setApproach(data.approach);
-            if (data.isPreviewMode !== undefined) setIsPreviewMode(data.isPreviewMode);
-            if (data.toastMessage !== undefined) setToastMessage(data.toastMessage);
-            if (data.isToastVisible !== undefined) setIsToastVisible(data.isToastVisible);
-        };
+    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-        const params = new URLSearchParams(window.location.search);
-        manager.problemUrl = params.get('url') || '';
-        manager.cardId = params.get('cardId') || '';
-        manager.cleanUrl = manager.problemUrl.split('?')[0].split('#')[0];
+    const showToast = useCallback((msg: string) => {
+        setToastMessage(msg);
+        setIsToastVisible(true);
+        try {
+            const toastEl = typeof document !== 'undefined' ? document.getElementById('status-toast') : null;
+            if (toastEl) {
+                toastEl.textContent = msg;
+                toastEl.classList.add('show');
+            }
+        } catch {
+            // Ignore DOM access errors
+        }
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+            setIsToastVisible(false);
+            try {
+                const toastEl = typeof document !== 'undefined' ? document.getElementById('status-toast') : null;
+                if (toastEl) toastEl.classList.remove('show');
+            } catch {
+                // Ignore DOM access errors
+            }
+        }, 2000);
+    }, []);
 
-        if (!manager.problemUrl) {
-            setTitle("Error: No URL provided");
-            setSaveStatus("Failed to load");
+    const saveContentToStorage = useCallback((
+        currentApproach: string,
+        currentTc: string,
+        currentSc: string,
+        existingCard: boolean,
+        callback?: () => void
+    ) => {
+        if (typeof chrome === 'undefined' || !chrome.storage?.local) {
+            if (callback) callback();
             return;
         }
 
-        setUrl(manager.problemUrl);
-        manager.loadContent();
+        const clean = manager.cleanUrl;
+        const cId = manager.cardId;
+
+        chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
+            try {
+                if (chrome.runtime?.lastError) {
+                    Logger.error('EditorApp', `Storage get error: ${chrome.runtime.lastError.message}`);
+                    if (callback) callback();
+                    return;
+                }
+
+                if (existingCard) {
+                    const cards: Card[] = result?.fsrsCards || [];
+                    let idx = -1;
+                    if (cId) {
+                        idx = cards.findIndex((c: Card) => c.id === cId);
+                    }
+                    if (idx === -1 && clean) {
+                        idx = cards.findIndex((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === clean);
+                    }
+                    if (idx > -1) {
+                        cards[idx].approach = currentApproach;
+                        cards[idx].timeComplexity = currentTc.trim();
+                        cards[idx].spaceComplexity = currentSc.trim();
+                        chrome.storage.local.set({ fsrsCards: cards }, () => {
+                            if (callback) callback();
+                        });
+                        return;
+                    } else {
+                        if (callback) callback();
+                        return;
+                    }
+                }
+
+                // Save as draft
+                const drafts: Record<string, DraftEntry> = result?.approachDrafts || {};
+                const existingDraft = drafts[clean];
+                if (existingDraft && typeof existingDraft === 'object') {
+                    existingDraft.approach = currentApproach;
+                    existingDraft.timeComplexity = currentTc.trim();
+                    existingDraft.spaceComplexity = currentSc.trim();
+                } else {
+                    drafts[clean] = {
+                        approach: currentApproach,
+                        timeComplexity: currentTc.trim(),
+                        spaceComplexity: currentSc.trim()
+                    };
+                }
+                chrome.storage.local.set({ approachDrafts: drafts }, () => {
+                    if (callback) callback();
+                });
+            } catch (err) {
+                Logger.error('EditorApp', 'Error writing saveContent', { err });
+                if (callback) callback();
+            }
+        });
+    }, [manager.cleanUrl, manager.cardId]);
+
+    const loadContentFromStorage = useCallback(() => {
+        if (typeof window === 'undefined') return;
+
+        const params = new URLSearchParams(window.location.search);
+        const problemUrlParam = params.get('url') || manager.problemUrl || '';
+        const cardIdParam = params.get('cardId') || manager.cardId || '';
+        const clean = problemUrlParam.split('?')[0].split('#')[0];
+
+        manager.problemUrl = problemUrlParam;
+        manager.cardId = cardIdParam;
+        manager.cleanUrl = clean;
+
+        if (!problemUrlParam) {
+            setTitle("Error: No URL provided");
+            setSaveStatus("Failed to load");
+            manager.title = "Error: No URL provided";
+            manager.saveStatus = "Failed to load";
+            const titleEl = typeof document !== 'undefined' ? document.getElementById('problem-title') : null;
+            const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
+            if (titleEl) titleEl.textContent = "Error: No URL provided";
+            if (statusEl) statusEl.textContent = "Failed to load";
+            return;
+        }
+
+        setUrl(problemUrlParam);
+
+        if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+
+        chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: StorageData & { bookmarks?: BookmarkEntry[]; approachDrafts?: Record<string, DraftEntry | string> }) => {
+            try {
+                if (chrome.runtime?.lastError) {
+                    Logger.error('EditorApp', `Storage get error: ${chrome.runtime.lastError.message}`);
+                    return;
+                }
+
+                const cards: Card[] = result?.fsrsCards || [];
+                const bookmarks: BookmarkEntry[] = result?.bookmarks || [];
+                const drafts: Record<string, DraftEntry | string> = result?.approachDrafts || {};
+
+                let card: Card | undefined;
+                if (cardIdParam) {
+                    card = cards.find((c: Card) => c.id === cardIdParam);
+                }
+                if (!card && clean) {
+                    card = cards.find((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === clean);
+                }
+
+                if (card) {
+                    setIsCardExisting(true);
+                    manager.isCardExisting = true;
+                    if (!manager.cardId && card.id) manager.cardId = card.id;
+
+                    const loadedTitle = card.problemTitle || (card as Card & { title?: string }).title || "FSRS Insights";
+                    const loadedApproach = card.approach || "";
+                    const loadedTc = (card as Card & { timeComplexity?: string }).timeComplexity || "";
+                    const loadedSc = (card as Card & { spaceComplexity?: string }).spaceComplexity || "";
+                    const loadedStatus = "Loaded FSRS card";
+
+                    setTitle(loadedTitle);
+                    setApproach(loadedApproach);
+                    setTimeComplexity(loadedTc);
+                    setSpaceComplexity(loadedSc);
+                    setSaveStatus(loadedStatus);
+
+                    manager.title = loadedTitle;
+                    manager.approach = loadedApproach;
+                    manager.timeComplexity = loadedTc;
+                    manager.spaceComplexity = loadedSc;
+                    manager.saveStatus = loadedStatus;
+
+                    const titleEl = typeof document !== 'undefined' ? document.getElementById('problem-title') : null;
+                    const urlEl = typeof document !== 'undefined' ? document.getElementById('problem-url') : null;
+                    const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+                    const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
+                    const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
+                    const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
+
+                    if (titleEl) titleEl.textContent = loadedTitle;
+                    if (urlEl) urlEl.textContent = problemUrlParam;
+                    if (textarea) textarea.value = loadedApproach;
+                    if (tcInput) tcInput.value = loadedTc;
+                    if (scInput) scInput.value = loadedSc;
+                    if (statusEl) statusEl.textContent = loadedStatus;
+                } else {
+                    setIsCardExisting(false);
+                    manager.isCardExisting = false;
+
+                    const bookmark = bookmarks.find((b: BookmarkEntry) => b.url && b.url.split('?')[0].split('#')[0] === clean);
+                    const loadedTitle = (bookmark && bookmark.title) || normalizeDisplayUrl(problemUrlParam);
+
+                    const draftVal = drafts[clean];
+                    let draftText = "";
+                    let tc = "";
+                    let sc = "";
+                    if (draftVal) {
+                        if (typeof draftVal === 'object' && draftVal !== null) {
+                            draftText = draftVal.approach || "";
+                            tc = draftVal.timeComplexity || "";
+                            sc = draftVal.spaceComplexity || "";
+                        } else {
+                            draftText = String(draftVal);
+                        }
+                    }
+                    const loadedStatus = "Loaded draft notes";
+
+                    setTitle(loadedTitle);
+                    setApproach(draftText);
+                    setTimeComplexity(tc);
+                    setSpaceComplexity(sc);
+                    setSaveStatus(loadedStatus);
+
+                    manager.title = loadedTitle;
+                    manager.approach = draftText;
+                    manager.timeComplexity = tc;
+                    manager.spaceComplexity = sc;
+                    manager.saveStatus = loadedStatus;
+
+                    const titleEl = typeof document !== 'undefined' ? document.getElementById('problem-title') : null;
+                    const urlEl = typeof document !== 'undefined' ? document.getElementById('problem-url') : null;
+                    const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+                    const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
+                    const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
+                    const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
+
+                    if (titleEl) titleEl.textContent = loadedTitle;
+                    if (urlEl) urlEl.textContent = problemUrlParam;
+                    if (textarea) textarea.value = draftText;
+                    if (tcInput) tcInput.value = tc;
+                    if (scInput) scInput.value = sc;
+                    if (statusEl) statusEl.textContent = loadedStatus;
+                }
+            } catch (err) {
+                Logger.error('EditorApp', 'Error loading content from storage', { err });
+            }
+        });
     }, [manager]);
 
+    // Initial load and window event listeners
+    useEffect(() => {
+        loadContentFromStorage();
+
+        const handleUnloadSave = () => {
+            saveContentToStorage(approach, timeComplexity, spaceComplexity, isCardExisting);
+        };
+
+        window.addEventListener('pagehide', handleUnloadSave);
+        window.addEventListener('beforeunload', handleUnloadSave);
+
+        return () => {
+            window.removeEventListener('pagehide', handleUnloadSave);
+            window.removeEventListener('beforeunload', handleUnloadSave);
+        };
+    }, [loadContentFromStorage, saveContentToStorage, approach, timeComplexity, spaceComplexity, isCardExisting]);
+
+    const triggerAutoSave = useCallback((
+        currentApproach: string,
+        currentTc: string,
+        currentSc: string
+    ) => {
+        setSaveStatus("Typing...");
+        manager.saveStatus = "Typing...";
+        const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
+        if (statusEl) statusEl.textContent = "Typing...";
+
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = setTimeout(() => {
+            saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting, () => {
+                setSaveStatus("Changes saved automatically");
+                manager.saveStatus = "Changes saved automatically";
+                if (statusEl) statusEl.textContent = "Changes saved automatically";
+            });
+        }, 300);
+    }, [manager, isCardExisting, saveContentToStorage]);
+
     const handleTimeChange = (val: string) => {
-        manager.timeComplexity = val;
         setTimeComplexity(val);
-        manager.triggerAutoSave();
+        manager.timeComplexity = val;
+        triggerAutoSave(approach, val, spaceComplexity);
     };
 
     const handleSpaceChange = (val: string) => {
-        manager.spaceComplexity = val;
         setSpaceComplexity(val);
-        manager.triggerAutoSave();
+        manager.spaceComplexity = val;
+        triggerAutoSave(approach, timeComplexity, val);
     };
 
     const handleApproachChange = (val: string) => {
-        manager.approach = val;
         setApproach(val);
-        manager.triggerAutoSave();
+        manager.approach = val;
+        triggerAutoSave(val, timeComplexity, spaceComplexity);
     };
 
     const handleTogglePreview = () => {
-        manager.togglePreview();
+        const textareaEl = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+        const currentText = textareaEl ? textareaEl.value : approach;
+        if (currentText !== approach) {
+            setApproach(currentText);
+            manager.approach = currentText;
+        }
+        setIsPreviewMode((prev) => {
+            manager.isPreviewMode = !prev;
+            return !prev;
+        });
     };
 
     const handleSave = () => {
-        manager.saveContent(() => {
-            manager.showToast("Progress saved!");
+        const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+        const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
+        const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
+
+        const currentApproach = textarea ? textarea.value : approach;
+        const currentTc = tcInput ? tcInput.value.trim() : timeComplexity.trim();
+        const currentSc = scInput ? scInput.value.trim() : spaceComplexity.trim();
+
+        saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting, () => {
+            showToast("Progress saved!");
         });
     };
 
     const handleSaveAndClose = () => {
-        manager.saveContent(() => {
+        const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+        const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
+        const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
+
+        const currentApproach = textarea ? textarea.value : approach;
+        const currentTc = tcInput ? tcInput.value.trim() : timeComplexity.trim();
+        const currentSc = scInput ? scInput.value.trim() : spaceComplexity.trim();
+
+        saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting, () => {
             UIUtils.closeCurrentTab();
         });
     };
 
     const handleClose = () => {
-        manager.handleClose();
+        const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+        const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
+        const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
+
+        const currentApproach = textarea ? textarea.value : approach;
+        const currentTc = tcInput ? tcInput.value.trim() : timeComplexity.trim();
+        const currentSc = scInput ? scInput.value.trim() : spaceComplexity.trim();
+
+        saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting, () => {
+            UIUtils.closeCurrentTab();
+        });
+    };
+
+    // Connect manager bridge synchronously
+    manager.title = title;
+    manager.url = url;
+    manager.saveStatus = saveStatus;
+    manager.timeComplexity = timeComplexity;
+    manager.spaceComplexity = spaceComplexity;
+    manager.approach = approach;
+    manager.isPreviewMode = isPreviewMode;
+    manager.isCardExisting = isCardExisting;
+
+    manager.onTogglePreview = () => {
+        handleTogglePreview();
+    };
+    manager.onTriggerAutoSave = () => {
+        triggerAutoSave(approach, timeComplexity, spaceComplexity);
+    };
+    manager.onSaveContent = (cb) => {
+        const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+        const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
+        const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
+
+        const currentApproach = textarea ? textarea.value : approach;
+        const currentTc = tcInput ? tcInput.value.trim() : timeComplexity.trim();
+        const currentSc = scInput ? scInput.value.trim() : spaceComplexity.trim();
+
+        saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting, cb);
+    };
+    manager.onClose = () => {
+        handleClose();
+    };
+    manager.onShowToast = (msg) => {
+        showToast(msg);
+    };
+    manager.onLoadContent = () => {
+        loadContentFromStorage();
     };
 
     return (
@@ -461,7 +784,7 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Controller for the Markdown notes and approach editor page.
+ * Controller and domain helper for the Markdown notes and approach editor page.
  */
 export class EditorManager {
     /** Raw problem URL passed via query parameters. */
@@ -486,8 +809,17 @@ export class EditorManager {
     spaceComplexity: string;
     /** Current save status text. */
     saveStatus: string;
+    /** Current displayed url. */
+    url: string;
     /** Observer callback notifying root component of state updates. */
     onUpdate?: (data?: Record<string, unknown>) => void;
+    /** Observer callbacks wired by active EditorApp instance. */
+    onTriggerAutoSave?: () => void;
+    onTogglePreview?: () => void;
+    onSaveContent?: (callback?: () => void) => void;
+    onClose?: () => void;
+    onShowToast?: (message: string) => void;
+    onLoadContent?: () => void;
 
     /**
      * Initializes default properties for the editor controller.
@@ -504,24 +836,25 @@ export class EditorManager {
         this.timeComplexity = '';
         this.spaceComplexity = '';
         this.saveStatus = '';
+        this.url = '';
     }
 
     /**
-     * Triggers debounced auto-save of current editor input.
+     * Triggers auto-save of current editor input.
      */
     triggerAutoSave(): void {
-        const statusEl = document.getElementById('save-status');
+        const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
         if (statusEl) statusEl.textContent = "Typing...";
-        if (this.onUpdate) {
-            this.onUpdate({ saveStatus: "Typing..." });
+        this.saveStatus = "Typing...";
+        if (this.onTriggerAutoSave) {
+            this.onTriggerAutoSave();
+            return;
         }
         if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
         this.autoSaveTimer = setTimeout(() => {
             this.saveContent(() => {
                 if (statusEl) statusEl.textContent = "Changes saved automatically";
-                if (this.onUpdate) {
-                    this.onUpdate({ saveStatus: "Changes saved automatically" });
-                }
+                this.saveStatus = "Changes saved automatically";
             });
         }, 300);
     }
@@ -531,8 +864,32 @@ export class EditorManager {
      */
     togglePreview(): void {
         this.isPreviewMode = !this.isPreviewMode;
-        if (this.onUpdate) {
-            this.onUpdate({ isPreviewMode: this.isPreviewMode });
+        const textareaEl = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+        const editorPreviewEl = typeof document !== 'undefined' ? document.getElementById('editor-preview') : null;
+        const btn = typeof document !== 'undefined' ? document.getElementById('preview-toggle-btn') : null;
+        const currentText = textareaEl ? textareaEl.value : this.approach;
+
+        if (this.isPreviewMode) {
+            if (textareaEl) textareaEl.style.display = 'none';
+            if (editorPreviewEl) {
+                editorPreviewEl.style.display = 'block';
+                render(<MarkdownViewer content={currentText} />, editorPreviewEl);
+            }
+            if (btn) btn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit`;
+        } else {
+            if (editorPreviewEl) {
+                render(null, editorPreviewEl);
+                editorPreviewEl.style.display = 'none';
+            }
+            if (textareaEl) {
+                textareaEl.style.display = '';
+                textareaEl.focus();
+            }
+            if (btn) btn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Preview`;
+        }
+
+        if (this.onTogglePreview) {
+            this.onTogglePreview();
         }
     }
 
@@ -540,16 +897,17 @@ export class EditorManager {
      * Handles closing the editor tab after saving current content.
      */
     handleClose(): void {
-        this.saveContent(() => {
-            UIUtils.closeCurrentTab();
-        });
+        if (this.onClose) {
+            this.onClose();
+        } else {
+            this.saveContent(() => {
+                UIUtils.closeCurrentTab();
+            });
+        }
     }
 
     /**
-     * Initializes editor parameters from URL query arguments, loads content from storage,
-     * and sets up UI event listeners.
-     * 
-     * @returns {void}
+     * Mounts the declarative EditorApp component into `#root`.
      */
     init(): void {
         try {
@@ -559,26 +917,26 @@ export class EditorManager {
                 return;
             }
 
-            // 1. Parse URL Parameter
-            const params = new URLSearchParams(window.location.search);
-            this.problemUrl = params.get('url') || '';
-            this.cardId = params.get('cardId') || '';
-            this.cleanUrl = this.problemUrl.split('?')[0].split('#')[0];
+            // Headless fallback if #root not present
+            if (typeof window !== 'undefined') {
+                const params = new URLSearchParams(window.location.search);
+                this.problemUrl = params.get('url') || '';
+                this.cardId = params.get('cardId') || '';
+                this.cleanUrl = this.problemUrl.split('?')[0].split('#')[0];
 
-            const titleEl = document.getElementById('problem-title');
-            const statusEl = document.getElementById('save-status');
+                const titleEl = document.getElementById('problem-title');
+                const statusEl = document.getElementById('save-status');
 
-            if (!this.problemUrl) {
-                if (titleEl) titleEl.textContent = "Error: No URL provided";
-                if (statusEl) statusEl.textContent = "Failed to load";
-                return;
+                if (!this.problemUrl) {
+                    this.title = "Error: No URL provided";
+                    this.saveStatus = "Failed to load";
+                    if (titleEl) titleEl.textContent = "Error: No URL provided";
+                    if (statusEl) statusEl.textContent = "Failed to load";
+                    return;
+                }
+                this.loadContent();
+                this.bindEvents();
             }
-
-            // 2. Load Content
-            this.loadContent();
-
-            // 3. Register Event Listeners
-            this.bindEvents();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('EditorManager', `Failed to initialize EditorManager: ${errorMessage}`, { err });
@@ -586,27 +944,29 @@ export class EditorManager {
     }
 
     /**
-     * Retrieves stored cards, bookmarks, and drafts from `chrome.storage.local` to populate
-     * the markdown textarea, complexity inputs, and title displays.
-     * 
-     * @returns {void}
+     * Retrieves stored cards, bookmarks, and drafts from storage.
      */
     loadContent(): void {
+        if (this.onLoadContent) {
+            this.onLoadContent();
+            return;
+        }
+
         try {
-            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+            if (typeof chrome === 'undefined' || !chrome.storage?.local) {
                 Logger.warn('EditorManager', 'Browser extension storage unavailable in loadContent.');
                 return;
             }
+
             chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: StorageData & { bookmarks?: BookmarkEntry[]; approachDrafts?: Record<string, DraftEntry | string> }) => {
                 try {
                     if (chrome.runtime?.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('EditorManager', `Storage get error in loadContent: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        Logger.error('EditorManager', `Storage get error in loadContent: ${chrome.runtime.lastError.message}`);
                         return;
                     }
-                    const cards: Card[] = result.fsrsCards || [];
-                    const bookmarks: BookmarkEntry[] = result.bookmarks || [];
-                    const drafts: Record<string, DraftEntry | string> = result.approachDrafts || {};
+                    const cards: Card[] = result?.fsrsCards || [];
+                    const bookmarks: BookmarkEntry[] = result?.bookmarks || [];
+                    const drafts: Record<string, DraftEntry | string> = result?.approachDrafts || {};
 
                     let card: Card | undefined;
                     if (this.cardId) {
@@ -616,14 +976,12 @@ export class EditorManager {
                         card = cards.find((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
                     }
 
-                    const urlEl = document.getElementById('problem-url');
-                    const titleEl = document.getElementById('problem-title');
-                    const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
-                    const tcInput = document.getElementById('time-complexity-input') as HTMLInputElement | null;
-                    const scInput = document.getElementById('space-complexity-input') as HTMLInputElement | null;
-                    const statusEl = document.getElementById('save-status');
-
-                    if (urlEl) urlEl.textContent = this.problemUrl;
+                    const titleEl = typeof document !== 'undefined' ? document.getElementById('problem-title') : null;
+                    const urlEl = typeof document !== 'undefined' ? document.getElementById('problem-url') : null;
+                    const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+                    const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
+                    const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
+                    const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
 
                     if (card) {
                         this.isCardExisting = true;
@@ -633,28 +991,11 @@ export class EditorManager {
                         this.timeComplexity = (card as Card & { timeComplexity?: string }).timeComplexity || "";
                         this.spaceComplexity = (card as Card & { spaceComplexity?: string }).spaceComplexity || "";
                         this.saveStatus = "Loaded FSRS card";
-
-                        if (titleEl) titleEl.textContent = this.title;
-                        if (textarea) textarea.value = this.approach;
-                        if (tcInput) tcInput.value = this.timeComplexity;
-                        if (scInput) scInput.value = this.spaceComplexity;
-                        if (statusEl) statusEl.textContent = this.saveStatus;
-
-                        if (this.onUpdate) {
-                            this.onUpdate({
-                                title: this.title,
-                                approach: this.approach,
-                                timeComplexity: this.timeComplexity,
-                                spaceComplexity: this.spaceComplexity,
-                                saveStatus: this.saveStatus,
-                                url: this.problemUrl
-                            });
-                        }
                     } else {
                         this.isCardExisting = false;
                         const bookmark = bookmarks.find((b: BookmarkEntry) => b.url && b.url.split('?')[0].split('#')[0] === this.cleanUrl);
                         this.title = (bookmark && bookmark.title) || this.getCleanDisplayUrl(this.problemUrl);
-                        
+
                         const draftVal = drafts[this.cleanUrl];
                         let draftText = "";
                         let tc = "";
@@ -672,44 +1013,37 @@ export class EditorManager {
                         this.timeComplexity = tc;
                         this.spaceComplexity = sc;
                         this.saveStatus = "Loaded draft notes";
+                    }
 
-                        if (titleEl) titleEl.textContent = this.title;
-                        if (textarea) textarea.value = draftText;
-                        if (tcInput) tcInput.value = tc;
-                        if (scInput) scInput.value = sc;
-                        if (statusEl) statusEl.textContent = this.saveStatus;
+                    if (titleEl) titleEl.textContent = this.title;
+                    if (urlEl) urlEl.textContent = this.problemUrl;
+                    if (textarea) textarea.value = this.approach;
+                    if (tcInput) tcInput.value = this.timeComplexity;
+                    if (scInput) scInput.value = this.spaceComplexity;
+                    if (statusEl) statusEl.textContent = this.saveStatus;
 
-                        if (this.onUpdate) {
-                            this.onUpdate({
-                                title: this.title,
-                                approach: this.approach,
-                                timeComplexity: this.timeComplexity,
-                                spaceComplexity: this.spaceComplexity,
-                                saveStatus: this.saveStatus,
-                                url: this.problemUrl
-                            });
-                        }
+                    if (this.onUpdate) {
+                        this.onUpdate({
+                            title: this.title,
+                            approach: this.approach,
+                            timeComplexity: this.timeComplexity,
+                            spaceComplexity: this.spaceComplexity,
+                            saveStatus: this.saveStatus,
+                            url: this.problemUrl
+                        });
                     }
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('EditorManager', `Error populating editor content: ${errorMessage}`, { innerErr });
+                    Logger.error('EditorManager', 'Error populating editor content', { innerErr });
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('EditorManager', `Failed to load storage in Editor loadContent: ${errorMessage}`, { err });
+            Logger.error('EditorManager', 'Failed to load storage in Editor loadContent', { err });
         }
     }
 
-    /**
-     * Binds input debounce triggers for auto-saving, button click handlers,
-     * live Markdown preview toggling, and unload save handlers.
-     * 
-     * @returns {void}
-     */
     bindEvents(): void {
         const triggerAutoSave = () => {
-            const statusEl = document.getElementById('save-status');
+            const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
             if (statusEl) statusEl.textContent = "Typing...";
             if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
             this.autoSaveTimer = setTimeout(() => {
@@ -719,29 +1053,26 @@ export class EditorManager {
             }, 300);
         };
 
-        const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
-        const tcInput = document.getElementById('time-complexity-input') as HTMLInputElement | null;
-        const scInput = document.getElementById('space-complexity-input') as HTMLInputElement | null;
+        const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+        const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
+        const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
 
         textarea?.addEventListener('input', triggerAutoSave);
         tcInput?.addEventListener('input', triggerAutoSave);
         scInput?.addEventListener('input', triggerAutoSave);
 
-        // Explicit Save Button
         document.getElementById('save-btn')?.addEventListener('click', () => {
             this.saveContent(() => {
                 this.showToast("Progress saved!");
             });
         });
 
-        // Save & Close Button
         document.getElementById('save-close-btn')?.addEventListener('click', () => {
             this.saveContent(() => {
                 UIUtils.closeCurrentTab();
             });
         });
 
-        // Header Back / Close Button
         const headerBackBtn = document.getElementById('header-back-btn');
         if (headerBackBtn) {
             const closeHandler = () => {
@@ -758,36 +1089,13 @@ export class EditorManager {
             });
         }
 
-        // Markdown Preview Toggle
         const previewToggleBtn = document.getElementById('preview-toggle-btn');
-        const editorPreview = document.getElementById('editor-preview');
-
-        if (previewToggleBtn && editorPreview) {
+        if (previewToggleBtn) {
             previewToggleBtn.addEventListener('click', () => {
-                this.isPreviewMode = !this.isPreviewMode;
-
-                if (this.isPreviewMode) {
-                    // Render preview via Preact MarkdownPreview component
-                    const text = (document.getElementById('editor-textarea') as HTMLTextAreaElement)?.value || '';
-                    render(<MarkdownPreview content={text} />, editorPreview);
-                    
-                    const textareaElement = document.getElementById('editor-textarea');
-                    if (textareaElement) textareaElement.style.display = 'none';
-                    editorPreview.style.display = 'block';
-                    previewToggleBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit`;
-                } else {
-                    // Back to edit mode
-                    render(null, editorPreview);
-                    const textareaElement = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
-                    if (textareaElement) textareaElement.style.display = '';
-                    editorPreview.style.display = 'none';
-                    previewToggleBtn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Preview`;
-                    textareaElement?.focus();
-                }
+                this.togglePreview();
             });
         }
 
-        // Save on tab exit/close
         window.addEventListener('pagehide', () => {
             this.saveContent();
         });
@@ -798,37 +1106,37 @@ export class EditorManager {
 
     /**
      * Persists current markdown text and complexity notes to `chrome.storage.local`.
-     * If editing an existing card, modifies the card entry in `fsrsCards`; otherwise, saves
-     * into the `approachDrafts` dictionary keyed by clean problem URL.
-     * 
-     * @param {() => void} [callback] - Optional completion callback executed after storage write.
-     * @returns {void}
      */
     saveContent(callback?: () => void): void {
+        if (this.onSaveContent) {
+            this.onSaveContent(callback);
+            return;
+        }
+
         try {
-            if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
+            if (typeof chrome === 'undefined' || !chrome.storage?.local) {
                 Logger.warn('EditorManager', 'Browser extension storage unavailable in saveContent.');
                 if (callback) callback();
                 return;
             }
-            const textarea = document.getElementById('editor-textarea') as HTMLTextAreaElement | null;
-            const tcInput = document.getElementById('time-complexity-input') as HTMLInputElement | null;
-            const scInput = document.getElementById('space-complexity-input') as HTMLInputElement | null;
+
+            const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
+            const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
+            const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
 
             const text = textarea ? textarea.value : this.approach;
             const tc = tcInput ? tcInput.value.trim() : this.timeComplexity.trim();
             const sc = scInput ? scInput.value.trim() : this.spaceComplexity.trim();
-            
+
             chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
                 try {
                     if (chrome.runtime?.lastError) {
-                        const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
-                        Logger.error('EditorManager', `Storage get error in saveContent: ${errorMessage}`, { error: chrome.runtime.lastError });
+                        Logger.error('EditorManager', `Storage get error in saveContent: ${chrome.runtime.lastError.message}`);
                         if (callback) callback();
                         return;
                     }
                     if (this.isCardExisting) {
-                        const cards: Card[] = result.fsrsCards || [];
+                        const cards: Card[] = result?.fsrsCards || [];
                         let index = -1;
                         if (this.cardId) {
                             index = cards.findIndex((c: Card) => c.id === this.cardId);
@@ -841,16 +1149,13 @@ export class EditorManager {
                             cards[index].timeComplexity = tc;
                             cards[index].spaceComplexity = sc;
                             chrome.storage.local.set({ fsrsCards: cards }, () => {
-                                if (chrome.runtime?.lastError) {
-                                    Logger.error('EditorManager', `Storage set error in saveContent fsrsCards: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-                                }
                                 if (callback) callback();
                             });
                         } else {
                             if (callback) callback();
                         }
                     } else {
-                        const drafts: Record<string, DraftEntry> = result.approachDrafts || {};
+                        const drafts: Record<string, DraftEntry> = result?.approachDrafts || {};
                         const existingDraft = drafts[this.cleanUrl];
                         if (existingDraft && typeof existingDraft === 'object') {
                             existingDraft.approach = text;
@@ -864,76 +1169,59 @@ export class EditorManager {
                             };
                         }
                         chrome.storage.local.set({ approachDrafts: drafts }, () => {
-                            if (chrome.runtime?.lastError) {
-                                Logger.error('EditorManager', `Storage set error in saveContent approachDrafts: ${chrome.runtime.lastError.message}`, { error: chrome.runtime.lastError });
-                            }
                             if (callback) callback();
                         });
                     }
                 } catch (innerErr) {
-                    const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
-                    Logger.error('EditorManager', `Error writing saveContent payload to storage: ${errorMessage}`, { innerErr });
+                    Logger.error('EditorManager', 'Error writing saveContent payload', { innerErr });
                     if (callback) callback();
                 }
             });
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('EditorManager', `Failed to execute saveContent: ${errorMessage}`, { err });
+            Logger.error('EditorManager', 'Failed to execute saveContent', { err });
             if (callback) callback();
         }
     }
 
     /**
      * Normalizes a raw URL into a concise hostname + pathname string for interface display.
-     * 
-     * @param {string} url - Full URL to format.
-     * @returns {string} Cleaned display string.
      */
     getCleanDisplayUrl(url: string): string {
-        try {
-            const u = new URL(url);
-            return u.hostname + u.pathname;
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.debug('EditorManager', `Fallback clean display URL on invalid URL: ${errorMessage}`, { url, err });
-            return url;
-        }
+        return normalizeDisplayUrl(url);
     }
 
     /**
      * Displays a brief status feedback toast in the editor view.
-     * 
-     * @param {string} message - Toast message text.
-     * @returns {void}
      */
     showToast(message: string): void {
         try {
-            if (this.onUpdate) {
-                this.onUpdate({ toastMessage: message, isToastVisible: true });
+            if (this.onShowToast) {
+                this.onShowToast(message);
+            }
+            const toast = typeof document !== 'undefined' ? document.getElementById('status-toast') : null;
+            if (toast) {
+                toast.textContent = message;
+                toast.classList.add('show');
                 setTimeout(() => {
-                    if (this.onUpdate) {
-                        this.onUpdate({ isToastVisible: false });
+                    try {
+                        toast.classList.remove('show');
+                    } catch {
+                        // Ignore cleanup errors
                     }
                 }, 2000);
             }
-            const toast = document.getElementById('status-toast');
-            if (!toast) return;
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2000);
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.debug('EditorManager', `Ignore toast DOM display error: ${errorMessage}`, { message, err });
+        } catch {
+            // Ignore DOM errors
         }
     }
 }
 
 export function initEditor(): void {
     try {
-        const editor = new EditorManager();
-        editor.init();
+        const root = document.getElementById('root');
+        if (root) {
+            render(<EditorApp />, root);
+        }
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         Logger.error('EditorManager', `Initialization failed: ${errorMessage}`, { err });
@@ -953,9 +1241,10 @@ if (typeof module !== 'undefined' && module.exports) {
     (module.exports as any).EditorManager = EditorManager;
     (module.exports as any).EditorHeader = EditorHeader;
     (module.exports as any).ComplexityInputs = ComplexityInputs;
+    (module.exports as any).MarkdownViewer = MarkdownViewer;
     (module.exports as any).MarkdownPreview = MarkdownPreview;
     (module.exports as any).EditorFooter = EditorFooter;
     (module.exports as any).EditorToast = EditorToast;
     (module.exports as any).EditorWorkspace = EditorWorkspace;
+    (module.exports as any).EditorApp = EditorApp;
 }
-

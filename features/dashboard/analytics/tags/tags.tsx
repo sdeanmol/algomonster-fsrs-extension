@@ -6,10 +6,12 @@
  * @context Popup / Analytics SPA Dashboard
  */
 
-import { h, Fragment, FunctionalComponent } from 'preact';
+import { h, Fragment, FunctionalComponent, render as preactRender } from 'preact';
+import { useState, useCallback } from 'preact/hooks';
 import { Logger } from '@common/logger';
-import { CoverageTable } from './coverageTable';
-import { RetentionBarChart } from './retentionBarChart';
+import { Card } from '../../../../types/domain';
+import { CoverageTable, CoverageTableComponent } from './coverageTable';
+import { RetentionBarChart, RetentionBarChartComponent } from './retentionBarChart';
 import { DataUtils, TagStats } from '../utils/dataUtils';
 
 export interface TagsNextActionBannerProps {
@@ -42,6 +44,94 @@ export const TagsNextActionBanner: FunctionalComponent<TagsNextActionBannerProps
             <div class="insight-content">
                 <h3>Next Action: Maintain Tag Balance</h3>
                 <p>Your tags are looking healthy with no major outliers pulling your retrievability down! Your next action is to <strong>keep learning new cards</strong> across all tags to expand your knowledge base evenly.</p>
+            </div>
+        </div>
+    );
+};
+
+export interface TagsTabProps {
+    cards?: Card[];
+    dataUtils?: DataUtils;
+}
+
+export const TagsTabComponent: FunctionalComponent<TagsTabProps> = ({ cards, dataUtils: propDataUtils }) => {
+    const dataUtils = propDataUtils || new DataUtils(cards || [], {}, null);
+    const [sortBy, setSortBy] = useState('retention');
+
+    const stats = dataUtils.getStatsByTag();
+    const globalStats = dataUtils.getSummaryStats();
+    const globalRetention = globalStats.trueRetention || 90;
+
+    let weakestTag: TagStats | null = null;
+    stats.forEach(s => {
+        if (s.count >= 5 && (!weakestTag || s.trueRetention < weakestTag.trueRetention)) {
+            weakestTag = s;
+        }
+    });
+
+    const handleTagClick = useCallback((tag: string) => {
+        try {
+            const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=total&tag=${encodeURIComponent(tag)}`);
+            chrome.tabs.create({ url: dataUrl }, () => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('TagsTab', `Error creating tab on tag click: ${errorMessage}`, { tag, error: lastError });
+                }
+            });
+        } catch (clickErr) {
+            const errorMessage = clickErr instanceof Error ? clickErr.message : String(clickErr);
+            Logger.error('TagsTab', `Error in tag click event handler: ${errorMessage}`, { clickErr });
+        }
+    }, []);
+
+    const totalCards = cards ? cards.length : (dataUtils.cards ? dataUtils.cards.length : 0);
+
+    return (
+        <div class="tags-grid">
+            <div id="tags-next-action-container">
+                <TagsNextActionBanner weakestTag={weakestTag} globalRetention={globalRetention} />
+            </div>
+            <div class="tags-panel ana-panel-wide">
+                <div class="ana-panel-header">
+                    <span class="ana-panel-title">
+                        Tag Coverage Analysis
+                        <span class="help-icon" data-tooltip="Shows how completely each tag is represented in your total flashcard deck. Click a tag to see those specific cards. 
+
+Tag Colors (Due Cards):
+• Green: 0 due
+• Light Blue: 1-5 due
+• Yellow: 6-10 due
+• Pink: 11-20 due
+• Red: 21+ due">?</span>
+                    </span>
+                </div>
+                <div id="coverage-table-container">
+                    <CoverageTableComponent stats={stats} totalCards={totalCards} onTagClick={handleTagClick} />
+                </div>
+            </div>
+            
+            <div class="tags-panel ana-panel-wide">
+                <div class="ana-panel-header">
+                    <span class="ana-panel-title">
+                        Retention by Tag
+                        <span class="help-icon" data-tooltip="Compares your memory retention and stability across different subjects/tags.">?</span>
+                    </span>
+                    <select
+                        id="tag-sort-by"
+                        class="modern-select"
+                        value={sortBy}
+                        onChange={(e) => setSortBy((e.target as HTMLSelectElement).value)}
+                    >
+                        <option value="retention">Sort by Retention</option>
+                        <option value="stability">Sort by Stability</option>
+                        <option value="cards">Sort by Cards</option>
+                        <option value="lapses">Sort by Lapses</option>
+                    </select>
+                </div>
+                <div id="retention-bar-chart-container" class="ana-chart-area">
+                    <RetentionBarChartComponent stats={stats} sortBy={sortBy} onTagClick={handleTagClick} />
+                </div>
             </div>
         </div>
     );
@@ -92,7 +182,8 @@ Tag Colors (Due Cards):
  * Integrates tabular tag coverage summaries, horizontal comparative bar charts,
  * and automated remediation recommendations based on retrievability deficits.
  */
-export class TagsTab {
+export class TagsTabClass {
+    props?: TagsTabProps;
     /** Data utility instance for card filtering and tag aggregation */
     dataUtils: DataUtils;
     /** Sub-component rendering the tag coverage and due card statistics table */
@@ -222,31 +313,10 @@ Tag Colors (Due Cards):
                 }
             });
 
-            if (weakestTag && (weakestTag as TagStats).trueRetention < (globalRetention - 5)) {
-                container.innerHTML = `
-                    <div class="actionable-insight-banner warning" style="margin-bottom:0;">
-                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line>
-                        </svg>
-                        <div class="insight-content">
-                            <h3>Next Action: Target Weak Tags</h3>
-                            <p>Your <strong>${(weakestTag as TagStats).tag}</strong> tag has a retrievability of ${(weakestTag as TagStats).trueRetention}%, which is significantly below your overall average of ${globalRetention}%. Your next action is to do a <strong>custom study session</strong> focused only on this tag to boost its stability.</p>
-                        </div>
-                    </div>
-                `;
-            } else {
-                container.innerHTML = `
-                    <div class="actionable-insight-banner success" style="margin-bottom:0;">
-                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line>
-                        </svg>
-                        <div class="insight-content">
-                            <h3>Next Action: Maintain Tag Balance</h3>
-                            <p>Your tags are looking healthy with no major outliers pulling your retrievability down! Your next action is to <strong>keep learning new cards</strong> across all tags to expand your knowledge base evenly.</p>
-                        </div>
-                    </div>
-                `;
-            }
+            preactRender(
+                <TagsNextActionBanner weakestTag={weakestTag} globalRetention={globalRetention} />,
+                container
+            );
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('TagsTab', `Error rendering next action for tags: ${errorMessage}`, { containerId, err });
@@ -254,3 +324,13 @@ Tag Colors (Due Cards):
     }
 }
 
+export type TagsTab = TagsTabClass;
+
+export const TagsTab: FunctionalComponent<TagsTabProps> & {
+    new (dataUtils: DataUtils): TagsTabClass;
+} = function(this: any, propsOrDataUtils: any) {
+    if (new.target) {
+        return new TagsTabClass(propsOrDataUtils);
+    }
+    return <TagsTabComponent {...propsOrDataUtils} />;
+} as any;
