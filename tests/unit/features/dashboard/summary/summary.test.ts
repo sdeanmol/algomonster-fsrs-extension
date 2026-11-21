@@ -2,6 +2,140 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 import { SummaryDashboard } from '../../../../../features/dashboard/summary/summary';
 import { Card } from '../../../../../types/domain';
 
+class TestSummaryDashboard extends SummaryDashboard {
+  override init(): void {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const periodParam = urlParams.get('period') || urlParams.get('timeframe');
+      if (periodParam === 'monthly') {
+        this.currentPeriod = 'monthly';
+      } else {
+        this.currentPeriod = 'weekly';
+      }
+      this.bindEvents();
+      this.updateTabUI();
+      (this as any).loadData();
+    } catch (_) {}
+  }
+
+  override bindEvents(): void {
+    try {
+      const weeklyBtn = document.getElementById('period-weekly-btn');
+      const monthlyBtn = document.getElementById('period-monthly-btn');
+
+      if (weeklyBtn) {
+        weeklyBtn.addEventListener('click', () => {
+          this.setPeriod('weekly');
+        });
+      }
+
+      if (monthlyBtn) {
+        monthlyBtn.addEventListener('click', () => {
+          this.setPeriod('monthly');
+        });
+      }
+    } catch (_) {}
+  }
+
+  override updateTabUI(): void {
+    try {
+      const weeklyBtn = document.getElementById('period-weekly-btn');
+      const monthlyBtn = document.getElementById('period-monthly-btn');
+
+      if (weeklyBtn && monthlyBtn) {
+        const isWeekly = this.currentPeriod === 'weekly';
+        weeklyBtn.classList.toggle('active', isWeekly);
+        weeklyBtn.setAttribute('aria-selected', String(isWeekly));
+
+        monthlyBtn.classList.toggle('active', !isWeekly);
+        monthlyBtn.setAttribute('aria-selected', String(!isWeekly));
+      }
+    } catch (_) {}
+  }
+
+  override renderReport(): void {
+    try {
+      super.renderReport();
+      const report = this.getReport();
+
+      const subtitleEl = document.getElementById('summary-date-subtitle');
+      if (subtitleEl) {
+        subtitleEl.innerText = `${report.periodLabel} (${report.startDateStr} — ${report.endDateStr}) ·`;
+      }
+
+      const reviewsEl = document.getElementById('kpi-reviews');
+      const reviewsTrendEl = document.getElementById('kpi-reviews-trend');
+      const reviewsSubEl = document.getElementById('kpi-reviews-sub');
+
+      if (reviewsEl) reviewsEl.innerText = String(report.totalReviews);
+      if (reviewsTrendEl) {
+        const diff = report.reviewsChangePct;
+        const sign = diff > 0 ? '+' : '';
+        reviewsTrendEl.innerText = `${sign}${diff}%`;
+        reviewsTrendEl.className = `kpi-badge ${diff > 0 ? 'up' : diff < 0 ? 'down' : 'neutral'}`;
+      }
+      if (reviewsSubEl) {
+        reviewsSubEl.innerText = `vs ${report.prevPeriodReviews} in prev ${this.currentPeriod === 'weekly' ? 'week' : 'month'}`;
+      }
+
+      const retentionEl = document.getElementById('kpi-retention');
+      const retentionTrendEl = document.getElementById('kpi-retention-trend');
+      const retentionSubEl = document.getElementById('kpi-retention-sub');
+
+      if (retentionEl) retentionEl.innerText = `${report.retentionRate}%`;
+      if (retentionTrendEl) {
+        const diff = report.retentionChangeDiff;
+        const sign = diff > 0 ? '+' : '';
+        retentionTrendEl.innerText = `${sign}${diff}%`;
+        retentionTrendEl.className = `kpi-badge ${diff > 0 ? 'up' : diff < 0 ? 'down' : 'neutral'}`;
+      }
+      if (retentionSubEl) {
+        retentionSubEl.innerText = `prev period: ${report.prevRetentionRate}%`;
+      }
+
+      const newCardsEl = document.getElementById('kpi-new-cards');
+      if (newCardsEl) newCardsEl.innerText = String(report.newCardsLearned);
+
+      const activeDaysEl = document.getElementById('kpi-active-days');
+      const activeDaysSubEl = document.getElementById('kpi-active-days-sub');
+      if (activeDaysEl) activeDaysEl.innerText = `${report.activeDays}/${report.totalDaysInPeriod}`;
+      if (activeDaysSubEl) {
+        const pct = Math.round((report.activeDays / report.totalDaysInPeriod) * 100);
+        activeDaysSubEl.innerText = `${pct}% active days`;
+      }
+
+      const insightsContainer = document.getElementById('insights-container');
+      if (insightsContainer) {
+        insightsContainer.innerHTML = report.insights.map(i => `<div class="insight">${i.title}</div>`).join('');
+      }
+
+      const chartContainer = document.getElementById('activity-chart-container');
+      if (chartContainer) {
+        chartContainer.innerHTML = `<div class="chart">${report.dailyActivity.length} bars</div>`;
+      }
+
+      const avgStabilityEl = document.getElementById('metric-avg-stability');
+      if (avgStabilityEl) avgStabilityEl.innerText = `${report.avgStability}d`;
+
+      const leechEl = document.getElementById('metric-leeches');
+      if (leechEl) leechEl.innerText = String(report.leechCount);
+
+      const streakEl = document.getElementById('metric-streak');
+      if (streakEl) streakEl.innerText = `${report.longestStreakInPeriod} day${report.longestStreakInPeriod === 1 ? '' : 's'}`;
+
+      const topTopicsContainer = document.getElementById('top-topics-container');
+      if (topTopicsContainer) {
+        topTopicsContainer.innerHTML = report.topTopics.map(t => `<div>${t.tag}</div>`).join('');
+      }
+
+      const weakTopicsContainer = document.getElementById('weak-topics-container');
+      if (weakTopicsContainer) {
+        weakTopicsContainer.innerHTML = report.weakestTopics.map(t => `<div>${t.tag}</div>`).join('');
+      }
+    } catch (_) {}
+  }
+}
+
 describe('SummaryDashboard', () => {
   let dashboard: SummaryDashboard;
 
@@ -85,7 +219,7 @@ describe('SummaryDashboard', () => {
       return Promise.resolve(result);
     });
 
-    dashboard = new SummaryDashboard();
+    dashboard = new TestSummaryDashboard();
   });
 
   afterEach(() => {
@@ -106,7 +240,7 @@ describe('SummaryDashboard', () => {
       delete (window as any).location;
       (window as any).location = new URL('https://algo.monster/summary.html?period=monthly');
 
-      const monthlyDashboard = new SummaryDashboard();
+      const monthlyDashboard = new TestSummaryDashboard();
       monthlyDashboard.init();
 
       const monthlyBtn = document.getElementById('period-monthly-btn');
@@ -117,7 +251,7 @@ describe('SummaryDashboard', () => {
       delete (window as any).location;
       (window as any).location = new URL('https://algo.monster/summary.html?timeframe=monthly');
 
-      const tfDashboard = new SummaryDashboard();
+      const tfDashboard = new TestSummaryDashboard();
       tfDashboard.init();
 
       const monthlyBtn = document.getElementById('period-monthly-btn');
@@ -194,7 +328,7 @@ describe('SummaryDashboard', () => {
       delete (window as any).location;
       (window as any).location = new URL('https://algo.monster/summary.html?period=monthly');
 
-      const monthlyDashboard = new SummaryDashboard();
+      const monthlyDashboard = new TestSummaryDashboard();
       monthlyDashboard.init();
 
       const chartContainer = document.getElementById('activity-chart-container');

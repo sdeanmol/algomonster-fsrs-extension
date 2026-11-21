@@ -8,9 +8,9 @@
  */
 
 import { h, render, Fragment, JSX } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
-import { Logger } from '@common/logger';
+import { useState, useEffect, useMemo, useCallback } from 'preact/hooks';
 import { UIUtils } from '../utils/uiUtils';
+import { Toast } from '../ui/components/Toast';
 import { DEFAULT_WHITELISTED_WEBSITES } from '../constants';
 
 /**
@@ -35,9 +35,6 @@ export interface WhitelistedSitesListProps {
 
 /**
  * Preact Component for rendering the whitelisted sites list.
- *
- * @param props - Current sites array and delete callback.
- * @returns JSX rendered list items for whitelisted domains.
  */
 export function WhitelistedSitesList({
     sites,
@@ -99,6 +96,171 @@ export function WhitelistedSitesList({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// WEBSITES MANAGER HEADLESS SERVICE CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Headless service class managing whitelisted website storage and chrome permissions.
+ * Contains ZERO imperative DOM manipulation.
+ */
+export class WhitelistedWebsitesManager {
+    /** Factory default website records */
+    defaultSitesList: WhitelistedSite[];
+    /** State update callback */
+    onUpdate?: (sites: WhitelistedSite[]) => void;
+
+    constructor() {
+        this.defaultSitesList = DEFAULT_WHITELISTED_WEBSITES.map((s) => ({ ...s, isDefault: true }));
+    }
+
+    /**
+     * Loads authorized website structures from storage.
+     */
+    loadAndRenderSites(callback?: (sites: WhitelistedSite[]) => void): void {
+        chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
+            let sites: WhitelistedSite[] = result.whitelistedWebsites || [];
+            if (!result.whitelistedWebsites) {
+                sites = [...this.defaultSitesList.map((s) => ({ ...s }))];
+                chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
+                    UIUtils.checkStorageError('WhitelistedWebsites', 'Error saving default websites to storage');
+                });
+            }
+            if (this.onUpdate) this.onUpdate(sites);
+            if (callback) callback(sites);
+        });
+    }
+
+    /**
+     * Validates domain input strings, requests host permission rules,
+     * and dynamically registers associated content script matches.
+     */
+    handleAddWebsite(domainInput: string = '', callback?: (success: boolean) => void): void {
+        let value = domainInput.trim().toLowerCase();
+        if (!value) return;
+
+        try {
+            if (!value.startsWith('http://') && !value.startsWith('https://')) {
+                value = 'https://' + value;
+            }
+            const url = new URL(value);
+            let hostname = url.hostname;
+            if (hostname.startsWith('www.')) {
+                hostname = hostname.substring(4);
+            }
+
+            if (!hostname) {
+                UIUtils.showToast('Invalid domain name.');
+                callback?.(false);
+                return;
+            }
+
+            chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
+                const sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map((s) => ({ ...s }))];
+                if (sites.some((s) => s.domain === hostname)) {
+                    UIUtils.showToast('Website is already whitelisted.');
+                    callback?.(false);
+                    return;
+                }
+
+                const originPattern = `*://*.${hostname}/*`;
+                UIUtils.showToast(`Requesting permission to run on ${hostname}...`);
+
+                chrome.permissions.request(
+                    {
+                        origins: [originPattern]
+                    },
+                    (granted: boolean) => {
+                        if (granted) {
+                            chrome.scripting.registerContentScripts(
+                                [
+                                    {
+                                        id: `site-${hostname.replace(/[^a-z0-9]/g, '-')}`,
+                                        matches: [originPattern],
+                                        js: [
+                                            'features/common/marked.min.js',
+                                            'dist/fsrsScheduler.bundle.js',
+                                            'content/content.js'
+                                        ],
+                                        css: ['features/highlighter/style.css'],
+                                        runAt: 'document_idle',
+                                        allFrames: true
+                                    }
+                                ],
+                                () => {
+                                    sites.push({ domain: hostname, isDefault: false });
+                                    chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
+                                        if (this.onUpdate) this.onUpdate(sites);
+                                        UIUtils.showToast(`Authorized & Whitelisted: ${hostname}`);
+                                        callback?.(true);
+                                    });
+                                }
+                            );
+                        } else {
+                            UIUtils.showToast('Permission request was declined.');
+                            callback?.(false);
+                        }
+                    }
+                );
+            });
+        } catch (err) {
+            UIUtils.catchError('WhitelistedWebsites', 'Failed to parse domain input', err, { value });
+            UIUtils.showToast('Please enter a valid URL or domain.');
+            callback?.(false);
+        }
+    }
+
+    /**
+     * Revokes host origin permissions and dynamic scripts, then updates storage list.
+     */
+    handleDeleteWebsite(siteDomain: string, callback?: () => void): void {
+        chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
+            let sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map((s) => ({ ...s }))];
+            const site = sites.find((s) => s.domain === siteDomain);
+            if (!site) return;
+
+            const performStorageDelete = () => {
+                sites = sites.filter((s) => s.domain !== siteDomain);
+                chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
+                    if (this.onUpdate) this.onUpdate(sites);
+                    UIUtils.showToast(`Removed access for: ${siteDomain}`);
+                    callback?.();
+                });
+            };
+
+            if (site.isDefault) {
+                performStorageDelete();
+            } else {
+                const originPattern = `*://*.${siteDomain}/*`;
+                const scriptId = `site-${siteDomain.replace(/[^a-z0-9]/g, '-')}`;
+
+                chrome.scripting.unregisterContentScripts({ ids: [scriptId] }, () => {
+                    chrome.permissions.remove({ origins: [originPattern] }, () => {
+                        performStorageDelete();
+                    });
+                });
+            }
+        });
+    }
+
+    /**
+     * Restores initial hardcoded whitelisted platforms.
+     */
+    restoreDefaults(callback?: () => void): void {
+        chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
+            const currentSites: WhitelistedSite[] = result.whitelistedWebsites || [];
+            const customSites = currentSites.filter((s) => !s.isDefault);
+            const restoredList = [...this.defaultSitesList.map((s) => ({ ...s })), ...customSites];
+
+            chrome.storage.local.set({ whitelistedWebsites: restoredList }, () => {
+                if (this.onUpdate) this.onUpdate(restoredList);
+                UIUtils.showToast('Default platforms restored!');
+                callback?.();
+            });
+        });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ROOT PREACT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -106,59 +268,44 @@ export function WhitelistedSitesList({
  * Props for the root WebsitesApp component.
  */
 export interface WebsitesAppProps {
-    /** Optional controller instance passed during testing or legacy integration */
+    /** Optional manager service passed during testing */
     manager?: WhitelistedWebsitesManager;
 }
 
 /**
  * Root Preact component for managing whitelisted coding platform domains.
- *
- * Allows users to add custom hostnames, review default supported sites,
- * trigger dynamic Chrome permissions requests, and register in-page content scripts.
- *
- * @param props - Component configuration containing optional test manager.
- * @returns JSX rendered websites management page.
  */
-export function WebsitesApp({ manager: initialManager }: WebsitesAppProps): JSX.Element {
-    const [manager] = useState(() => initialManager || new WhitelistedWebsitesManager());
+export function WebsitesApp({ manager: injectedManager }: WebsitesAppProps): JSX.Element {
+    const manager = useMemo(() => injectedManager || new WhitelistedWebsitesManager(), [injectedManager]);
     const [sites, setSites] = useState<WhitelistedSite[]>([]);
     const [domainInput, setDomainInput] = useState<string>('');
-    const [, setRenderTrigger] = useState(0);
-
-    const forceUpdate = () => setRenderTrigger(c => c + 1);
 
     useEffect(() => {
-        manager.onUpdate = (newSites) => {
-            setSites([...newSites]);
-            forceUpdate();
+        manager.onUpdate = (updatedSites) => {
+            setSites([...updatedSites]);
         };
-
-        chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
-            let loadedSites = result.whitelistedWebsites;
-            if (!loadedSites) {
-                loadedSites = [...manager.defaultSitesList.map(s => ({ ...s }))];
-                chrome.storage.local.set({ whitelistedWebsites: loadedSites });
-            }
+        manager.loadAndRenderSites((loadedSites) => {
             setSites(loadedSites);
         });
     }, [manager]);
 
-    const handleAdd = () => {
-        manager.handleAddWebsite();
-        setDomainInput('');
-    };
+    const handleAdd = useCallback(() => {
+        manager.handleAddWebsite(domainInput, (success) => {
+            if (success) setDomainInput('');
+        });
+    }, [manager, domainInput]);
 
-    const handleDelete = (domain: string) => {
+    const handleDelete = useCallback((domain: string) => {
         manager.handleDeleteWebsite(domain);
-    };
+    }, [manager]);
 
-    const handleRestoreDefaults = () => {
+    const handleRestoreDefaults = useCallback(() => {
         manager.restoreDefaults();
-    };
+    }, [manager]);
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         UIUtils.closeCurrentTab();
-    };
+    }, []);
 
     return (
         <div className="container">
@@ -200,12 +347,12 @@ export function WebsitesApp({ manager: initialManager }: WebsitesAppProps): JSX.
                                 placeholder="e.g. github.com or https://mycode.io/"
                                 value={domainInput}
                                 onInput={(e) => setDomainInput((e.target as HTMLInputElement).value)}
-                                onKeyPress={(e) => {
+                                onKeyDown={(e) => {
                                     if (e.key === 'Enter') handleAdd();
                                 }}
                             />
                             <button id="add-domain-btn" className="btn btn-primary" onClick={handleAdd}>
-                                Authorize & Add
+                                Authorize &amp; Add
                             </button>
                         </div>
                         <span className="input-hint">We will request domain permission dynamically for your privacy.</span>
@@ -235,364 +382,16 @@ export function WebsitesApp({ manager: initialManager }: WebsitesAppProps): JSX.
             </div>
 
             {/* Status message toast */}
-            <div id="status-toast" className="toast" />
+            <Toast id="status-toast" />
         </div>
     );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WEBSITES MANAGER CONTROLLER CLASS
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Controller class managing the Whitelisted Websites options page.
- */
-export class WhitelistedWebsitesManager {
-    /** Factory default website records */
-    defaultSitesList: WhitelistedSite[];
-    /** State update callback */
-    onUpdate?: (sites: WhitelistedSite[]) => void;
-
-    /**
-     * Initializes default platforms list from constants.
-     */
-    constructor() {
-        this.defaultSitesList = DEFAULT_WHITELISTED_WEBSITES.map(s => ({ ...s, isDefault: true }));
-    }
-
-    /**
-     * Initializes whitelist displays and registers default clicks.
-     * @fires chrome.storage.local.get
-     */
-    init(): void {
-        try {
-            const root = document.getElementById('root');
-            if (root) {
-                render(<WebsitesApp manager={this} />, root);
-                return;
-            }
-
-            // Initial Render
-            this.loadAndRenderSites();
-
-            // Register static event listeners
-            this.bindEvents();
-        } catch (err) {
-            UIUtils.catchError('WhitelistedWebsites', 'Error initializing WhitelistedWebsitesManager', err);
-        }
-    }
-
-    /**
-     * Registers control listeners for inputs and configuration triggers.
-     */
-    bindEvents(): void {
-        try {
-            // Close button
-            document.getElementById('back-to-popup-btn')?.addEventListener('click', () => {
-                try {
-                    UIUtils.closeCurrentTab();
-                } catch (err) {
-                    UIUtils.catchError('WhitelistedWebsites', 'Error closing window', err);
-                }
-            });
-
-            // Add website domain
-            document.getElementById('add-domain-btn')?.addEventListener('click', () => {
-                try {
-                    this.handleAddWebsite();
-                } catch (err) {
-                    UIUtils.catchError('WhitelistedWebsites', 'Error in add domain button handler', err);
-                }
-            });
-
-            // Allow pressing Enter key in text input
-            document.getElementById('domain-input')?.addEventListener('keypress', (e: KeyboardEvent) => {
-                try {
-                    if (e.key === 'Enter') this.handleAddWebsite();
-                } catch (err) {
-                    UIUtils.catchError('WhitelistedWebsites', 'Error in domain input keypress handler', err);
-                }
-            });
-
-            // Restore Defaults button
-            document.getElementById('restore-defaults-btn')?.addEventListener('click', () => {
-                try {
-                    this.restoreDefaults();
-                } catch (err) {
-                    UIUtils.catchError('WhitelistedWebsites', 'Error in restore defaults button handler', err);
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('WhitelistedWebsites', 'Error binding events', err);
-        }
-    }
-
-    /**
-     * Loads authorized website structures from storage and renders via Preact.
-     * @fires chrome.storage.local.get
-     * @fires chrome.storage.local.set
-     */
-    loadAndRenderSites(): void {
-        try {
-            const root = document.getElementById('root');
-            if (root) {
-                render(<WebsitesApp manager={this} />, root);
-                return;
-            }
-
-            const list = document.getElementById('whitelisted-sites-list');
-            if (!list) return;
-
-            chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
-                try {
-                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error loading websites')) return;
-                    let sites: WhitelistedSite[] = result.whitelistedWebsites || [];
-                    if (!result.whitelistedWebsites) {
-                        // First time: initialize storage with default list
-                        sites = [...this.defaultSitesList.map(s => ({ ...s }))];
-                        chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
-                            UIUtils.checkStorageError('WhitelistedWebsites', 'Error saving default websites to storage');
-                        });
-                    }
-
-                    // Render through Preact
-                    render(
-                        <WhitelistedSitesList
-                            sites={sites}
-                            onDelete={(domain) => this.handleDeleteWebsite(domain)}
-                        />,
-                        list
-                    );
-
-                    if (this.onUpdate) this.onUpdate(sites);
-                } catch (innerErr) {
-                    UIUtils.catchError('WhitelistedWebsites', 'Error rendering whitelisted sites', innerErr);
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('WhitelistedWebsites', 'Error loading whitelisted sites', err);
-        }
-    }
-
-    /**
-     * Validates domain input strings, requests host permission rules,
-     * and dynamically registers associated content script matches.
-     * @fires chrome.permissions.request
-     * @fires chrome.scripting.registerContentScripts
-     * @fires chrome.storage.local.set
-     */
-    handleAddWebsite(): void {
-        const input = document.getElementById('domain-input') as HTMLInputElement | null;
-        if (!input) return;
-        let value = input.value.trim().toLowerCase();
-        if (!value) return;
-
-        try {
-            if (!value.startsWith('http://') && !value.startsWith('https://')) {
-                value = 'https://' + value;
-            }
-            const url = new URL(value);
-            let hostname = url.hostname;
-            if (hostname.startsWith('www.')) {
-                hostname = hostname.substring(4);
-            }
-
-            if (!hostname) {
-                UIUtils.showToast("Invalid domain name.");
-                return;
-            }
-
-            chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
-                try {
-                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error fetching whitelistedWebsites')) {
-                        UIUtils.showToast("Error checking website status.");
-                        return;
-                    }
-                    const sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map(s => ({ ...s }))];
-                    if (sites.some(s => s.domain === hostname)) {
-                        UIUtils.showToast("Website is already whitelisted.");
-                        return;
-                    }
-
-                    // Request host permission with clear user notice
-                    const originPattern = `*://*.${hostname}/*`;
-                    UIUtils.showToast(`Requesting permission to run on ${hostname}...`);
-
-                    chrome.permissions.request({
-                        origins: [originPattern]
-                    }, (granted: boolean) => {
-                        try {
-                            if (UIUtils.checkStorageError('WhitelistedWebsites', 'Permission request error', { hostname })) {
-                                UIUtils.showToast("Error requesting domain permission.");
-                                return;
-                            }
-
-                            if (granted) {
-                                // Register content script dynamically
-                                chrome.scripting.registerContentScripts([
-                                    {
-                                        id: `site-${hostname.replace(/[^a-z0-9]/g, '-')}`,
-                                        matches: [originPattern],
-                                        js: [
-                                            "features/common/marked.min.js",
-                                            "dist/fsrsScheduler.bundle.js",
-                                            "content/content.js"
-                                        ],
-                                        css: ["features/highlighter/style.css"],
-                                        runAt: "document_idle",
-                                        allFrames: true
-                                    }
-                                ], () => {
-                                    try {
-                                        UIUtils.checkStorageError('WhitelistedWebsites', 'Script registration error', { hostname });
-
-                                        // Save to storage
-                                        sites.push({ domain: hostname, isDefault: false });
-                                        chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
-                                            try {
-                                                if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage set error after script registration', { hostname })) return;
-                                                input.value = '';
-                                                this.loadAndRenderSites();
-                                                if (this.onUpdate) this.onUpdate(sites);
-                                                UIUtils.showToast(`Authorized & Whitelisted: ${hostname}`);
-                                            } catch (saveErr) {
-                                                UIUtils.catchError('WhitelistedWebsites', 'Error saving whitelisted website to storage', saveErr);
-                                            }
-                                        });
-                                    } catch (regErr) {
-                                        UIUtils.catchError('WhitelistedWebsites', 'Error in script registration callback', regErr);
-                                    }
-                                });
-                            } else {
-                                UIUtils.showToast("Permission request was declined.");
-                            }
-                        } catch (permErr) {
-                            UIUtils.catchError('WhitelistedWebsites', 'Error in permissions request callback', permErr);
-                        }
-                    });
-                } catch (getErr) {
-                    UIUtils.catchError('WhitelistedWebsites', 'Error in storage get callback for add website', getErr);
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('WhitelistedWebsites', 'Failed to parse domain input', err, { value });
-            UIUtils.showToast("Please enter a valid URL or domain.");
-        }
-    }
-
-    /**
-     * Revokes host origin permissions and dynamic scripts, then updates storage list.
-     * @param siteDomain - Target domain to delete.
-     * @fires chrome.scripting.unregisterContentScripts
-     * @fires chrome.permissions.remove
-     * @fires chrome.storage.local.set
-     */
-    handleDeleteWebsite(siteDomain: string): void {
-        try {
-            chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
-                try {
-                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error reading websites for delete', { siteDomain })) return;
-                    let sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map(s => ({ ...s }))];
-                    const site = sites.find(s => s.domain === siteDomain);
-                    if (!site) return;
-
-                    const performStorageDelete = () => {
-                        try {
-                            sites = sites.filter(s => s.domain !== siteDomain);
-                            chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
-                                try {
-                                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage set error during website delete', { siteDomain })) return;
-                                    this.loadAndRenderSites();
-                                    if (this.onUpdate) this.onUpdate(sites);
-                                    UIUtils.showToast(`Removed access for: ${siteDomain}`);
-                                } catch (setErr) {
-                                    UIUtils.catchError('WhitelistedWebsites', 'Error in storage set callback for delete website', setErr);
-                                }
-                            });
-                        } catch (deleteErr) {
-                            UIUtils.catchError('WhitelistedWebsites', 'Error performing storage delete', deleteErr);
-                        }
-                    };
-
-                    if (site.isDefault) {
-                        performStorageDelete();
-                    } else {
-                        const originPattern = `*://*.${siteDomain}/*`;
-                        const scriptId = `site-${siteDomain.replace(/[^a-z0-9]/g, '-')}`;
-
-                        chrome.scripting.unregisterContentScripts({
-                            ids: [scriptId]
-                        }, () => {
-                            try {
-                                UIUtils.checkStorageError('WhitelistedWebsites', 'Script unregister warning', { siteDomain });
-
-                                chrome.permissions.remove({
-                                    origins: [originPattern]
-                                }, () => {
-                                    try {
-                                        UIUtils.checkStorageError('WhitelistedWebsites', 'Permission remove warning', { siteDomain });
-                                        performStorageDelete();
-                                    } catch (permRemoveErr) {
-                                        UIUtils.catchError('WhitelistedWebsites', 'Error in permissions remove callback', permRemoveErr);
-                                    }
-                                });
-                            } catch (unregErr) {
-                                UIUtils.catchError('WhitelistedWebsites', 'Error in script unregister callback', unregErr);
-                            }
-                        });
-                    }
-                } catch (getErr) {
-                    UIUtils.catchError('WhitelistedWebsites', 'Error in storage get callback for delete website', getErr);
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('WhitelistedWebsites', `Error deleting website '${siteDomain}'`, err, { siteDomain });
-        }
-    }
-
-    /**
-     * Restores initial hardcoded whitelisted platforms.
-     * @fires chrome.storage.local.get
-     * @fires chrome.storage.local.set
-     */
-    restoreDefaults(): void {
-        try {
-            chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
-                try {
-                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error fetching websites for restore defaults')) return;
-                    const currentSites: WhitelistedSite[] = result.whitelistedWebsites || [];
-
-                    const customSites = currentSites.filter(s => !s.isDefault);
-                    const restoredList = [...this.defaultSitesList.map(s => ({ ...s })), ...customSites];
-
-                    chrome.storage.local.set({ whitelistedWebsites: restoredList }, () => {
-                        try {
-                            if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error saving restored defaults')) return;
-                            this.loadAndRenderSites();
-                            if (this.onUpdate) this.onUpdate(restoredList);
-                            UIUtils.showToast("Default platforms restored!");
-                        } catch (setErr) {
-                            UIUtils.catchError('WhitelistedWebsites', 'Error in storage set callback for restore defaults', setErr);
-                        }
-                    });
-                } catch (getErr) {
-                    UIUtils.catchError('WhitelistedWebsites', 'Error in storage get callback for restore defaults', getErr);
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('WhitelistedWebsites', 'Error restoring default platforms', err);
-        }
-    }
 }
 
 export function initWebsitesManager(): void {
     try {
         const root = document.getElementById('root');
-        const manager = new WhitelistedWebsitesManager();
         if (root) {
-            render(<WebsitesApp manager={manager} />, root);
-        } else {
-            manager.init();
+            render(<WebsitesApp />, root);
         }
     } catch (err) {
         UIUtils.catchError('WhitelistedWebsites', 'Initialization failed', err);
@@ -608,18 +407,3 @@ if (typeof document !== 'undefined') {
 }
 
 export default WhitelistedWebsitesManager;
-
-try {
-    if (typeof module !== 'undefined' && module.exports) {
-        module.exports = WhitelistedWebsitesManager;
-        (module.exports as any).default = WhitelistedWebsitesManager;
-        (module.exports as any).WhitelistedWebsitesManager = WhitelistedWebsitesManager;
-        (module.exports as any).WhitelistedSitesList = WhitelistedSitesList;
-        (module.exports as any).WebsitesApp = WebsitesApp;
-        (module.exports as any).initWebsitesManager = initWebsitesManager;
-    } else if (typeof window !== 'undefined') {
-        (window as unknown as { WhitelistedWebsitesManager?: typeof WhitelistedWebsitesManager }).WhitelistedWebsitesManager = WhitelistedWebsitesManager;
-    }
-} catch (err) {
-    UIUtils.catchError('WhitelistedWebsites', 'Error exporting WhitelistedWebsitesManager', err);
-}

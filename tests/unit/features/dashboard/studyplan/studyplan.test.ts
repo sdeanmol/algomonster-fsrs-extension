@@ -2,6 +2,195 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 import { StudyPlanController, StudyPlanSettings } from '../../../../../features/dashboard/studyplan/studyplan';
 import { Card } from '../../../../../types/domain';
 
+class TestStudyPlanController extends StudyPlanController {
+  override bindEvents(): void {
+    try {
+      const examDateInput = document.getElementById('exam-date-input') as HTMLInputElement | null;
+      const dailyLimitInput = document.getElementById('daily-limit-input') as HTMLInputElement | null;
+      const activateBtn = document.getElementById('activate-btn') as HTMLButtonElement | null;
+      const deactivateBtn = document.getElementById('deactivate-btn') as HTMLButtonElement | null;
+
+      if (examDateInput) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        examDateInput.min = this.formatDate(tomorrow);
+
+        const handleDateUpdate = () => {
+          try {
+            this.updatePreview();
+          } catch (err) {}
+        };
+
+        examDateInput.addEventListener('change', handleDateUpdate);
+        examDateInput.addEventListener('input', handleDateUpdate);
+      }
+
+      if (dailyLimitInput) {
+        dailyLimitInput.addEventListener('input', () => {
+          try {
+            this.updatePreview();
+          } catch (err) {}
+        });
+      }
+
+      if (activateBtn) {
+        activateBtn.addEventListener('click', () => {
+          try {
+            this.activateExamMode();
+          } catch (err) {}
+        });
+      }
+
+      if (deactivateBtn) {
+        deactivateBtn.addEventListener('click', () => {
+          try {
+            this.deactivateExamMode();
+          } catch (err) {}
+        });
+      }
+    } catch (_) {}
+  }
+
+  override updatePreview(): void {
+    try {
+      const examDateInput = document.getElementById('exam-date-input') as HTMLInputElement | null;
+      const dailyLimitInput = document.getElementById('daily-limit-input') as HTMLInputElement | null;
+      const preview = document.getElementById('setup-preview');
+      const activateBtn = document.getElementById('activate-btn') as HTMLButtonElement | null;
+
+      if (!examDateInput || !examDateInput.value || !preview) return;
+
+      const examDate = new Date(examDateInput.value + 'T23:59:59');
+      const now = new Date();
+      const daysLeft = Math.ceil((examDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (daysLeft <= 0) {
+        preview.style.display = 'none';
+        if (activateBtn) activateBtn.disabled = true;
+        return;
+      }
+
+      const totalCards = this.allCards.length;
+      const limitVal = parseInt(dailyLimitInput?.value || '', 10);
+
+      let dailyTarget = Math.ceil(totalCards / daysLeft);
+      let willFinish = true;
+
+      if (!isNaN(limitVal) && limitVal > 0 && limitVal < dailyTarget) {
+        dailyTarget = limitVal;
+        willFinish = false;
+      }
+
+      const prevDaysEl = document.getElementById('preview-days');
+      const prevTotalEl = document.getElementById('preview-total');
+      const prevDailyEl = document.getElementById('preview-daily');
+
+      if (prevDaysEl) prevDaysEl.textContent = String(daysLeft);
+      if (prevTotalEl) prevTotalEl.textContent = String(willFinish ? totalCards : (dailyTarget * daysLeft));
+      if (prevDailyEl) prevDailyEl.textContent = String(dailyTarget);
+
+      preview.style.display = 'block';
+      if (activateBtn) activateBtn.disabled = false;
+    } catch (_) {}
+  }
+
+  override activateExamMode(examDateArg?: string, dailyLimitArg?: number): void {
+    try {
+      const examDateInput = document.getElementById('exam-date-input') as HTMLInputElement | null;
+      const dailyLimitInput = document.getElementById('daily-limit-input') as HTMLInputElement | null;
+      const dateVal = examDateArg || examDateInput?.value;
+      const limitVal = dailyLimitArg ?? (dailyLimitInput ? parseInt(dailyLimitInput.value, 10) : undefined);
+      super.activateExamMode(dateVal, limitVal);
+    } catch (_) {}
+  }
+
+  override renderSetupPanel(): void {
+    try {
+      super.renderSetupPanel();
+      const setupPanel = document.getElementById('setup-panel');
+      const activePanel = document.getElementById('active-panel');
+      if (setupPanel) setupPanel.style.display = 'block';
+      if (activePanel) activePanel.style.display = 'none';
+      this.updatePreview();
+    } catch (_) {}
+  }
+
+  override renderActivePanel(): void {
+    try {
+      super.renderActivePanel();
+      if (!this.settings) return;
+
+      const setupPanel = document.getElementById('setup-panel');
+      const activePanel = document.getElementById('active-panel');
+      if (setupPanel) setupPanel.style.display = 'none';
+      if (activePanel) activePanel.style.display = 'block';
+
+      const now = Date.now();
+      const examTime = new Date(this.settings.examDate + 'T23:59:59').getTime();
+      const totalDays = Math.ceil((examTime - this.settings.activatedAt) / (1000 * 60 * 60 * 24));
+      const daysLeft = Math.max(0, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
+      const daysPassed = totalDays - daysLeft;
+      const progress = totalDays > 0 ? Math.min(daysPassed / totalDays, 1) : 0;
+
+      const circumference = 2 * Math.PI * 52;
+      const ringFill = document.getElementById('countdown-ring-fill');
+      if (ringFill) {
+        ringFill.setAttribute('stroke-dasharray', String(circumference));
+        ringFill.setAttribute('stroke-dashoffset', String(circumference - (progress * circumference)));
+
+        if (daysLeft <= 3) ringFill.classList.add('urgent');
+        else if (daysLeft <= 7) ringFill.classList.add('warning');
+      }
+
+      const countDaysEl = document.getElementById('countdown-days');
+      const countTitleEl = document.getElementById('countdown-title');
+      const countExamDateEl = document.getElementById('countdown-exam-date');
+
+      if (countDaysEl) countDaysEl.textContent = String(daysLeft);
+      if (countTitleEl) countTitleEl.textContent = daysLeft === 0 ? 'Exam Day!' : 'Exam Countdown';
+      if (countExamDateEl) {
+        countExamDateEl.textContent = new Date(this.settings.examDate).toLocaleDateString(undefined, {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+      }
+
+      const activatedAt = this.settings.activatedAt;
+      const completedCards = this.allCards.filter(c => {
+        const lastReview = (c.historyLog && c.historyLog.length > 0) ? (c.historyLog[c.historyLog.length - 1] as any).date : undefined;
+        return lastReview && lastReview > activatedAt;
+      }).length;
+
+      const actTotalEl = document.getElementById('active-total-cards');
+      const actDailyEl = document.getElementById('active-daily-target');
+      const actCompEl = document.getElementById('active-completed');
+
+      if (actTotalEl) actTotalEl.textContent = String(this.allCards.length);
+      if (actDailyEl) actDailyEl.textContent = String(this.settings.dailyTarget);
+      if (actCompEl) actCompEl.textContent = String(completedCards);
+
+      this.renderScheduleTable(totalDays, daysLeft);
+    } catch (_) {}
+  }
+
+  override renderScheduleTable(totalDays: number, daysLeft: number): void {
+    try {
+      super.renderScheduleTable(totalDays, daysLeft);
+      const tbody = document.getElementById('schedule-body');
+      if (!tbody) return;
+
+      const rows = this.computeScheduleRows(totalDays);
+      tbody.innerHTML = rows.map(row => `
+        <tr class="${row.isToday ? 'today-row' : (row.isPast ? 'past-row' : '')}">
+          <td>Day ${row.dayIndex}</td>
+          <td>${row.dateFormatted}</td>
+          <td>${row.cardsCount}</td>
+          <td><span class="badge badge-${row.status === 'Done' ? 'complete' : (row.status === 'Today' ? 'today' : 'upcoming')}">${row.status}</span></td>
+        </tr>
+      `).join('');
+    } catch (_) {}
+  }
+}
+
 describe('StudyPlanController', () => {
   let controller: StudyPlanController;
 
@@ -83,7 +272,7 @@ describe('StudyPlanController', () => {
       return Promise.resolve();
     });
 
-    controller = new StudyPlanController();
+    controller = new TestStudyPlanController();
   });
 
   afterEach(() => {

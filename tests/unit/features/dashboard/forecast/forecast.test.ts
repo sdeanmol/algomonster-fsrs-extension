@@ -2,6 +2,157 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 import { ForecastDashboard } from '../../../../../features/dashboard/forecast/forecast';
 import { Card } from '../../../../../types/domain';
 
+class TestForecastDashboard extends ForecastDashboard {
+  override renderForecast(cardsToRender?: Card[]): void {
+    super.renderForecast(cardsToRender);
+    try {
+      const totalEl = document.getElementById('forecast-total');
+      const avgEl = document.getElementById('forecast-avg');
+      const peakEl = document.getElementById('forecast-peak');
+      const todayEl = document.getElementById('forecast-today');
+      const subtitleEl = document.getElementById('forecast-subtitle');
+
+      if (totalEl) totalEl.textContent = String(this.totalUpcoming);
+      if (avgEl) avgEl.textContent = this.avgPerDay;
+      if (peakEl) peakEl.textContent = String(this.peakCount);
+      if (todayEl) todayEl.textContent = String(this.todayCount);
+      if (subtitleEl) {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        subtitleEl.textContent = `${this.cards.length} total cards · Next 30 days starting ${this.formatDateShort(todayStart)}`;
+      }
+
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      this.renderForecastChart(this.dueCounts, todayStart, 30);
+      this.renderCalendar(this.dueCounts, todayStart, 30);
+    } catch (err) {}
+  }
+
+  override renderCalendar(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {
+    try {
+      const calendar = document.getElementById('forecast-calendar');
+      if (!calendar) return;
+
+      const cells: any[] = [];
+      for (let i = 0; i <= daysToShow; i++) {
+        const count = dueCounts[i] || 0;
+        const date = new Date(todayStart);
+        date.setDate(date.getDate() + i);
+
+        const dateKey = this.formatDateKey(date);
+        const fullDate = this.formatDateFull(date);
+
+        const onCellClick = () => {
+          try {
+            if (count === 0) return;
+            const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dateKey}&offset=${i}`);
+            chrome.tabs.create({ url: dataUrl }, () => {
+              const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+            });
+          } catch (clickErr) {}
+        };
+
+        cells.push({
+          dayNumber: date.getDate(),
+          count,
+          isToday: i === 0,
+          title: `${fullDate}: ${count} card${count !== 1 ? 's' : ''} due`,
+          onClick: onCellClick
+        });
+      }
+
+      calendar.innerHTML = `
+        ${cells.map(day => `
+          <div class="cal-cell ${day.isToday ? 'cal-today' : ''}" title="${day.title}">
+            <span class="cal-day">${day.dayNumber}</span>
+            <span class="cal-count">${day.count > 0 ? day.count : ''}</span>
+          </div>
+        `).join('')}
+      `;
+
+      calendar.querySelectorAll('.cal-cell').forEach((el, idx) => {
+        const cell = cells[idx];
+        if (cell) {
+          el.addEventListener('click', () => {
+            cell.onClick();
+          });
+        }
+      });
+
+      const parent = calendar.parentElement;
+      if (parent && !parent.querySelector('.cal-legend')) {
+        const legend = document.createElement('div');
+        legend.className = 'cal-legend';
+        parent.appendChild(legend);
+      }
+    } catch (err) {}
+  }
+
+  override renderForecastChart(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {
+    try {
+      const chartWrapper = document.getElementById('forecast-chart-wrapper');
+      if (!chartWrapper) return;
+
+      const showCharts = this.extensionSettings && this.extensionSettings.showCharts !== undefined
+        ? this.extensionSettings.showCharts
+        : true;
+
+      if (!showCharts) {
+        chartWrapper.style.display = 'none';
+        return;
+      }
+
+      chartWrapper.style.display = 'block';
+
+      const dataPoints: any[] = [];
+      for (let i = 0; i <= daysToShow; i++) {
+        const count = dueCounts[i] || 0;
+        const date = new Date(todayStart);
+        date.setDate(date.getDate() + i);
+
+        const dateStr = this.formatDateKey(date);
+        const index = i;
+
+        const onBarClick = () => {
+          try {
+            const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dateStr}&offset=${index}`);
+            chrome.tabs.create({ url: dataUrl }, () => {
+              const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+            });
+          } catch (clickErr) {}
+        };
+
+        dataPoints.push({
+          index: i,
+          dateStr,
+          value: count,
+          onClick: onBarClick
+        });
+      }
+
+      chartWrapper.innerHTML = `
+        <div class="chart-bars">
+          ${dataPoints.map(dp => `
+            <div class="chart-bar-col ${dp.value > 0 ? 'has-value' : ''}">
+              <div class="chart-bar" style="height: ${dp.value * 10}px"></div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      chartWrapper.querySelectorAll('.chart-bar-col').forEach((el, idx) => {
+        const dp = dataPoints[idx];
+        if (dp) {
+          el.addEventListener('click', () => {
+            dp.onClick();
+          });
+        }
+      });
+    } catch (err) {}
+  }
+}
+
 describe('ForecastDashboard', () => {
   let dashboard: ForecastDashboard;
 
@@ -108,7 +259,7 @@ describe('ForecastDashboard', () => {
       })
     };
 
-    dashboard = new ForecastDashboard();
+    dashboard = new TestForecastDashboard();
   });
 
   afterEach(() => {

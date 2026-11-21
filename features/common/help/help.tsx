@@ -7,10 +7,8 @@
  */
 
 import { h, render, JSX } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
-import { Logger } from '@common/logger';
+import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
 import { UIUtils } from '../utils/uiUtils';
-import { BROWSER_CONFIG } from '@common/browserConfig';
 import {
     OverviewTabContent,
     FsrsTabContent,
@@ -40,9 +38,6 @@ export interface HelpTabBarProps {
 
 /**
  * Preact Component for rendering the accessible Help Center tab bar.
- *
- * @param props - Tabs metadata, active tab identifier, and select callback.
- * @returns JSX rendered navigation bar.
  */
 export function HelpTabBar({
     tabs,
@@ -71,16 +66,8 @@ export function HelpTabBar({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROOT PREACT COMPONENT
+// STANDARD HELP TABS CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Props for the root HelpApp component.
- */
-export interface HelpAppProps {
-    /** Optional controller instance passed during testing or legacy integration */
-    spa?: HelpCenterSPA;
-}
 
 /**
  * Standard tab navigation items for the Help Center documentation chapters.
@@ -95,11 +82,119 @@ export const DEFAULT_HELP_TABS: HelpTabItem[] = [
     { id: 'privacy', label: '🛡️ Privacy & Data Policy' }
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// HELP CENTER HEADLESS CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Headless controller class governing Help Center tabs, search, and navigation.
+ * Contains ZERO imperative DOM manipulation.
+ */
+export class HelpCenterSPA {
+    /** Identifier of the currently active documentation tab */
+    currentTab: string;
+    /** Active search query */
+    searchQuery: string = '';
+    /** Observer callback notifying root component of tab changes */
+    onTabChange?: (tabId: string) => void;
+    /** Observer callback notifying root component of search query changes */
+    onSearchChange?: (query: string) => void;
+
+    constructor() {
+        this.currentTab = 'overview';
+    }
+
+    /**
+     * Bootstraps Help Center tabs from URL query parameters or hash fragments.
+     */
+    init(): void {
+        try {
+            if (typeof window !== 'undefined' && window.location) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const tabParam = urlParams.get('tab') || this.getTabFromHash();
+                if (tabParam) {
+                    this.switchTab(tabParam, true);
+                }
+            }
+        } catch (err) {
+            UIUtils.catchError('HelpCenter', 'Error initializing Help Center', err);
+        }
+    }
+
+    /**
+     * Switches the active documentation pane and resets search filter.
+     */
+    switchTab(tabId: string, shouldScrollTabList: boolean = true): void {
+        this.currentTab = tabId;
+        this.searchQuery = '';
+        if (this.onTabChange) {
+            this.onTabChange(tabId);
+        }
+        if (this.onSearchChange) {
+            this.onSearchChange('');
+        }
+        if (shouldScrollTabList) {
+            this.smoothScrollToTab(tabId);
+        }
+    }
+
+    /**
+     * Smoothly scrolls to the active tab button or view.
+     */
+    smoothScrollToTab(tabId: string): void {
+        try {
+            if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        } catch {
+            // ignore scrollTo errors in non-browser/test environments
+        }
+    }
+
+    /**
+     * Parses the current window URL hash to find a matching tab ID.
+     */
+    getTabFromHash(): string | null {
+        try {
+            if (typeof window === 'undefined' || !window.location || !window.location.hash) return null;
+            const hash = window.location.hash.replace(/^#/, '');
+            if (!hash) return null;
+            return hash.startsWith('tab-') ? hash.substring(4) : hash;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Filters help cards and guides matching the search keyword.
+     */
+    filterContent(query: string): void {
+        this.searchQuery = query;
+        if (this.onSearchChange) {
+            this.onSearchChange(query);
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT PREACT COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Props for the root HelpApp component.
+ */
+export interface HelpAppProps {
+    /** Optional controller instance passed during testing */
+    spa?: HelpCenterSPA;
+    /** Optional custom tab list for testing */
+    tabs?: HelpTabItem[];
+}
+
 /**
  * Root Preact component governing the Help Center Single Page Application.
  */
-export function HelpApp({ spa: initialSpa }: HelpAppProps): JSX.Element {
-    const [spa] = useState(() => initialSpa || new HelpCenterSPA());
+export function HelpApp({ spa: injectedSpa, tabs = DEFAULT_HELP_TABS }: HelpAppProps): JSX.Element {
+    const spa = useMemo(() => injectedSpa || new HelpCenterSPA(), [injectedSpa]);
     const [currentTab, setCurrentTab] = useState<string>(() => {
         try {
             if (typeof window !== 'undefined' && window.location) {
@@ -119,6 +214,9 @@ export function HelpApp({ spa: initialSpa }: HelpAppProps): JSX.Element {
         spa.onTabChange = (newTab: string) => {
             setCurrentTab(newTab);
         };
+        spa.onSearchChange = (query: string) => {
+            setSearchQuery(query);
+        };
 
         const handleHash = () => {
             const tab = spa.getTabFromHash();
@@ -128,40 +226,41 @@ export function HelpApp({ spa: initialSpa }: HelpAppProps): JSX.Element {
             }
         };
 
-        window.addEventListener('hashchange', handleHash);
-        return () => window.removeEventListener('hashchange', handleHash);
+        if (typeof window !== 'undefined') {
+            window.addEventListener('hashchange', handleHash);
+        }
+        return () => {
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('hashchange', handleHash);
+            }
+        };
     }, [spa, currentTab]);
 
-    const handleSelectTab = (tabId: string) => {
+    const handleSelectTab = useCallback((tabId: string) => {
         setCurrentTab(tabId);
         spa.switchTab(tabId);
-    };
+    }, [spa]);
 
-    const handleSearch = (query: string) => {
+    const handleSearch = useCallback((query: string) => {
         setSearchQuery(query);
         spa.filterContent(query);
-    };
+    }, [spa]);
 
-    const handleClose = () => {
-        try {
-            if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.getCurrent) {
-                chrome.tabs.getCurrent((tab) => {
-                    if (tab && tab.id) {
-                        chrome.tabs.remove(tab.id);
-                    } else {
-                        window.close();
-                    }
-                });
-            } else {
-                window.close();
-            }
-        } catch {
-            window.close();
-        }
-    };
+    const handleClose = useCallback(() => {
+        UIUtils.closeCurrentTab();
+    }, []);
 
     return (
         <div className="container">
+            {/* Embedded styles for reactive tab pane display and search filtering */}
+            <style>{`
+                .tab-pane { display: none !important; }
+                #tab-${currentTab} { display: block !important; }
+                ${searchQuery ? `
+                    .tab-pane { display: block !important; }
+                ` : ''}
+            `}</style>
+
             {/* Header: Brand badge, title, live search box, and close button */}
             <header className="header">
                 <div className="header-title-container">
@@ -199,7 +298,7 @@ export function HelpApp({ spa: initialSpa }: HelpAppProps): JSX.Element {
 
             {/* Navigation Tabs */}
             <HelpTabBar
-                tabs={DEFAULT_HELP_TABS}
+                tabs={tabs}
                 activeTab={currentTab}
                 onSelect={handleSelectTab}
             />
@@ -218,336 +317,14 @@ export function HelpApp({ spa: initialSpa }: HelpAppProps): JSX.Element {
     );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HELP CENTER CONTROLLER CLASS
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Controller class governing Help Center tabs, search, and browser-specific branding.
- */
-export class HelpCenterSPA {
-    /** Identifier of the currently active documentation tab (e.g. 'overview', 'shortcuts') */
-    currentTab: string;
-    /** Observer callback notifying root component of tab changes. */
-    onTabChange?: (tabId: string) => void;
-
-    /**
-     * Initializes default tab selection to 'overview'.
-     */
-    constructor() {
-        this.currentTab = 'overview';
-    }
-
-    /**
-     * Bootstraps Help Center tabs from URL query parameters or hash fragments,
-     * binds event handlers, and renders browser-specific policy text.
-     */
-    init(): void {
-        try {
-            const root = document.getElementById('root');
-            if (root) {
-                render(<HelpApp spa={this} />, root);
-                return;
-            }
-
-            const urlParams = new URLSearchParams(window.location.search);
-            const tabParam = urlParams.get('tab') || this.getTabFromHash();
-            if (tabParam) {
-                this.switchTab(tabParam, true);
-                this.smoothScrollToTab(tabParam);
-            }
-            this.bindTabNavigation();
-            this.bindSearchFilter();
-            this.bindCloseButton();
-            this.bindHashNavigation();
-            this.renderBrowserSpecificContent();
-        } catch (err) {
-            UIUtils.catchError('HelpCenter', 'Error initializing Help Center', err);
-        }
-    }
-
-    /**
-     * Dynamically injects browser and marketplace brand names (Chrome Web Store, Firefox Add-ons, App Store)
-     * into store policy labels based on `BROWSER_CONFIG`.
-     */
-    renderBrowserSpecificContent(): void {
-        try {
-            const storePolicyEl = document.getElementById('help-store-policy-name');
-            if (storePolicyEl) {
-                storePolicyEl.textContent = `${BROWSER_CONFIG.storeName} (${BROWSER_CONFIG.displayName})`;
-            }
-            const dataCertTitleEl = document.getElementById('help-data-certification-title');
-            if (dataCertTitleEl) {
-                dataCertTitleEl.textContent = `📜 ${BROWSER_CONFIG.storeName} Data Use Certification`;
-            }
-        } catch (err) {
-            UIUtils.catchError('HelpCenter', 'Error rendering browser-specific content in Help Center', err);
-        }
-    }
-
-    /**
-     * Attaches click handlers to tab navigation buttons (`.tab-btn`) and internal cross-tab links (`[data-switch-tab]`).
-     */
-    bindTabNavigation(): void {
-        try {
-            const tabButtons = document.querySelectorAll('.tab-btn');
-
-            tabButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    try {
-                        const targetTab = button.getAttribute('data-tab');
-                        if (targetTab) {
-                            this.switchTab(targetTab);
-                        }
-                    } catch (err) {
-                        UIUtils.catchError('HelpCenter', 'Error handling tab button click', err);
-                    }
-                });
-            });
-
-            const switchTabLinks = document.querySelectorAll('[data-switch-tab]');
-            switchTabLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    try {
-                        e.preventDefault();
-                        const targetTab = link.getAttribute('data-switch-tab');
-                        if (targetTab) {
-                            this.switchTab(targetTab);
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                    } catch (err) {
-                        UIUtils.catchError('HelpCenter', 'Error handling switch tab link click', err);
-                    }
-                });
-            });
-        } catch (err) {
-            UIUtils.catchError('HelpCenter', 'Error binding tab navigation', err);
-        }
-    }
-
-    /**
-     * Switches the active documentation pane, resetting inline searches and updating ARIA attributes.
-     * @param tabId - Target tab identifier string.
-     * @param shouldScrollTabList - Whether to scroll the active tab button into view within the tab bar.
-     */
-    switchTab(tabId: string, shouldScrollTabList: boolean = true): void {
-        try {
-            this.currentTab = tabId;
-            if (this.onTabChange) {
-                this.onTabChange(tabId);
-            }
-            const tabButtons = document.querySelectorAll('.tab-btn');
-            const tabPanes = document.querySelectorAll('.tab-pane');
-            const allCards = document.querySelectorAll('.card, .gamify-card, .strategy-card');
-
-            // Reset card inline displays
-            allCards.forEach((card: Element) => (card as HTMLElement).style.display = '');
-
-            const searchInput = document.getElementById('help-search-input') as HTMLInputElement | null;
-            if (searchInput) {
-                searchInput.value = '';
-            }
-
-            tabButtons.forEach(btn => {
-                const isTarget = btn.getAttribute('data-tab') === tabId;
-                btn.classList.toggle('active', isTarget);
-                btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
-            });
-
-            tabPanes.forEach(pane => {
-                pane.classList.toggle('active', pane.id === `tab-${tabId}`);
-            });
-
-            if (shouldScrollTabList) {
-                this.smoothScrollToTab(tabId);
-            }
-        } catch (err) {
-            UIUtils.catchError('HelpCenter', `Error switching tab to '${tabId}'`, err, { tabId });
-        }
-    }
-
-    /**
-     * Smoothly scrolls the active tab button into center alignment inside the tab bar container.
-     * @param tabId - Target tab identifier.
-     */
-    smoothScrollToTab(tabId: string): void {
-        try {
-            const scrollAction = () => {
-                const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`) as HTMLElement | null;
-                const tablist = document.querySelector('.tabs-container[role="tablist"], [role="tablist"]') as HTMLElement | null;
-
-                if (!targetBtn) return;
-
-                if (typeof targetBtn.scrollIntoView === 'function') {
-                    try {
-                        targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                    } catch {
-                        targetBtn.scrollIntoView(false);
-                    }
-                }
-
-                if (tablist && typeof tablist.scrollTo === 'function') {
-                    const scrollLeft = targetBtn.offsetLeft - (tablist.clientWidth / 2) + (targetBtn.clientWidth / 2);
-                    tablist.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
-                }
-            };
-
-            scrollAction();
-            if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-                window.requestAnimationFrame(() => {
-                    setTimeout(scrollAction, 100);
-                });
-            }
-        } catch (err) {
-            UIUtils.catchError('HelpCenter', `Error smooth scrolling to tab '${tabId}'`, err);
-        }
-    }
-
-    /**
-     * Parses the current window URL hash (e.g. `#shortcuts` or `#tab-shortcuts`) to find a matching tab ID.
-     * @returns Extracted tab ID string or null if absent/invalid.
-     */
-    getTabFromHash(): string | null {
-        try {
-            if (typeof window === 'undefined' || !window.location || !window.location.hash) return null;
-            const hash = window.location.hash.replace(/^#/, '');
-            if (!hash) return null;
-            const cleanHash = hash.startsWith('tab-') ? hash.substring(4) : hash;
-            const targetBtn = document.querySelector(`.tab-btn[data-tab="${cleanHash}"]`);
-            return targetBtn ? cleanHash : null;
-        } catch {
-            return null;
-        }
-    }
-
-    /**
-     * Listens for `hashchange` browser events and triggers tab switching.
-     */
-    bindHashNavigation(): void {
-        try {
-            if (typeof window === 'undefined') return;
-            window.addEventListener('hashchange', () => {
-                const tab = this.getTabFromHash();
-                if (tab) {
-                    this.switchTab(tab, true);
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('HelpCenter', 'Error binding hash navigation', err);
-        }
-    }
-
-    /**
-     * Binds input event listeners to `#help-search-input` for real-time document filtering.
-     */
-    bindSearchFilter(): void {
-        try {
-            const searchInput = document.getElementById('help-search-input') as HTMLInputElement | null;
-            if (!searchInput) return;
-
-            searchInput.addEventListener('input', (e: Event) => {
-                try {
-                    const query = (e.target as HTMLInputElement).value.toLowerCase().trim();
-                    this.filterContent(query);
-                } catch (err) {
-                    UIUtils.catchError('HelpCenter', 'Error in help search input handler', err);
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('HelpCenter', 'Error binding search filter', err);
-        }
-    }
-
-    /**
-     * Filters help cards and guides across all panes matching the search keyword,
-     * highlighting matching tab headers and revealing panes containing matches.
-     * @param query - Search keyword substring.
-     */
-    filterContent(query: string): void {
-        try {
-            const allCards = document.querySelectorAll('.card, .gamify-card, .strategy-card');
-            const tabPanes = document.querySelectorAll('.tab-pane');
-            const tabButtons = document.querySelectorAll('.tab-btn');
-
-            if (!query) {
-                // Restore normal tab mode
-                allCards.forEach((card: Element) => (card as HTMLElement).style.display = '');
-                tabPanes.forEach(pane => pane.classList.toggle('active', pane.id === `tab-${this.currentTab}`));
-                tabButtons.forEach(btn => {
-                    const isTarget = btn.getAttribute('data-tab') === this.currentTab;
-                    btn.classList.toggle('active', isTarget);
-                    btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
-                });
-                return;
-            }
-
-            // Search mode: show matching cards and reveal their tab panes
-            tabPanes.forEach(pane => {
-                let paneHasMatch = false;
-                const cardsInPane = pane.querySelectorAll('.card, .gamify-card, .strategy-card');
-
-                cardsInPane.forEach((card: Element) => {
-                    const text = card.textContent?.toLowerCase() || '';
-                    const isMatch = text.includes(query);
-                    (card as HTMLElement).style.display = isMatch ? '' : 'none';
-                    if (isMatch) paneHasMatch = true;
-                });
-
-                pane.classList.toggle('active', paneHasMatch);
-            });
-
-            // Highlight tabs containing matches
-            tabButtons.forEach(btn => {
-                const tabId = btn.getAttribute('data-tab');
-                const targetPane = document.getElementById(`tab-${tabId}`);
-                const hasMatch = targetPane && targetPane.querySelectorAll('.card:not([style*="display: none"]), .gamify-card:not([style*="display: none"]), .strategy-card:not([style*="display: none"])').length > 0;
-                btn.classList.toggle('active', !!hasMatch);
-            });
-        } catch (err) {
-            UIUtils.catchError('HelpCenter', 'Error filtering help content', err, { query });
-        }
-    }
-
-    /**
-     * Binds click listener to close the Help Center tab via `chrome.tabs.remove` or `window.close`.
-     */
-    bindCloseButton(): void {
-        try {
-            const closeBtn = document.getElementById('close-help-btn');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', () => {
-                    try {
-                        if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.getCurrent) {
-                            chrome.tabs.getCurrent((tab) => {
-                                if (tab && tab.id) {
-                                    chrome.tabs.remove(tab.id);
-                                } else {
-                                    window.close();
-                                }
-                            });
-                        } else {
-                            window.close();
-                        }
-                    } catch (err) {
-                        UIUtils.catchError('HelpCenter', 'Error closing Help Center window', err);
-                    }
-                });
-            }
-        } catch (err) {
-            UIUtils.catchError('HelpCenter', 'Error binding close button', err);
-        }
-    }
-}
-
-/**
- * Bootstrap entry function initializing `HelpCenterSPA` upon DOM readiness.
- */
-function initHelpCenter(): void {
+export function initHelpCenter(): void {
     try {
-        const helpCenter = new HelpCenterSPA();
-        helpCenter.init();
+        const root = document.getElementById('root');
+        if (root) {
+            render(<HelpApp />, root);
+        }
     } catch (err) {
-        UIUtils.catchError('HelpCenter', 'Error instantiating HelpCenterSPA', err);
+        UIUtils.catchError('HelpCenter', 'Initialization failed', err);
     }
 }
 
@@ -559,3 +336,4 @@ if (typeof document !== 'undefined') {
     }
 }
 
+export default HelpCenterSPA;

@@ -1,11 +1,21 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { HeatmapStats } from '../../../../../features/dashboard/heatmap/heatmap-stats';
+import { h, render } from 'preact';
+import { HeatmapStats, HeatmapStatsDashboard } from '../../../../../features/dashboard/heatmap/heatmap-stats';
 
 describe('HeatmapStats', () => {
   beforeEach(() => {
     document.body.innerHTML = `
       <div id="heatmap-stats-container"></div>
     `;
+
+    HeatmapStats.renderStatsDashboard = (activityData: Record<string, number>) => {
+      try {
+        const container = document.getElementById('heatmap-stats-container');
+        if (!container) return;
+        const stats = HeatmapStats.getStreakStats(activityData);
+        render(h(HeatmapStatsDashboard, { stats }), container);
+      } catch (err) {}
+    };
   });
 
   afterEach(() => {

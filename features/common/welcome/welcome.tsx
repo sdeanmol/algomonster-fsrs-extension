@@ -7,9 +7,9 @@
  */
 
 import { h, render, JSX } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
-import { Logger } from '@common/logger';
+import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
 import { UIUtils } from '../utils/uiUtils';
+import { Toast } from '../ui/components/Toast';
 import { BROWSER_CONFIG } from '@common/browserConfig';
 
 /**
@@ -55,6 +55,121 @@ export function StepIndicators({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ONBOARDING HEADLESS CONTROLLER CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Headless controller class driving multi-step onboarding wizard state.
+ * Contains ZERO imperative DOM operations.
+ */
+export class OnboardingWelcome {
+    /** Active wizard step index (1-based) */
+    currentStep: number;
+    /** Total number of wizard steps */
+    totalSteps: number;
+    /** Notification state callback */
+    onNotificationChange?: (permission: string, enabled: boolean) => void;
+    /** Theme change callback */
+    onThemeChange?: (theme: string) => void;
+    /** Step change callback */
+    onStepChange?: (step: number) => void;
+
+    constructor() {
+        this.currentStep = 1;
+        this.totalSteps = 4;
+    }
+
+    /**
+     * Initializes components.
+     */
+    init(): void {
+        this.syncThemePreference();
+        this.checkNotificationState();
+    }
+
+    /**
+     * Navigates to target step number.
+     * @param step - Target step number (1 to 4).
+     */
+    goToStep(step: number): void {
+        this.currentStep = step;
+        if (this.onStepChange) {
+            this.onStepChange(step);
+        }
+    }
+
+    /**
+     * Synchronizes current theme selection from storage.
+     */
+    syncThemePreference(callback?: (theme: string) => void): void {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.get(['theme'], (result: { theme?: string }) => {
+                    try {
+                        if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching theme')) return;
+                        const theme = result?.theme || 'dark';
+                        if (this.onThemeChange) this.onThemeChange(theme);
+                        if (callback) callback(theme);
+                    } catch (innerErr) {
+                        UIUtils.catchError('Onboarding', 'Error processing storage theme result', innerErr);
+                    }
+                });
+            }
+        } catch (err) {
+            UIUtils.catchError('Onboarding', 'Failed to sync theme preference', err);
+        }
+    }
+
+    /**
+     * Persists theme configuration changes.
+     * @param theme - Theme identifier string ('dark' | 'light').
+     */
+    setThemePreference(theme: string, callback?: () => void): void {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.set({ theme }, () => {
+                    try {
+                        if (UIUtils.checkStorageError('Onboarding', 'Storage set error saving theme', { theme })) return;
+                        if (this.onThemeChange) this.onThemeChange(theme);
+                        UIUtils.showToast(`Switched to ${theme === 'dark' ? 'Dark' : 'Light'} Mode!`);
+                        if (callback) callback();
+                    } catch (setErr) {
+                        UIUtils.catchError('Onboarding', 'Error in storage set callback for theme', setErr, { theme });
+                    }
+                });
+            }
+        } catch (err) {
+            UIUtils.catchError('Onboarding', `Error persisting theme preference '${theme}'`, err, { theme });
+        }
+    }
+
+    /**
+     * Checks system notification permissions and storage settings.
+     */
+    checkNotificationState(callback?: (permission: string, enabled: boolean) => void): void {
+        try {
+            let perm = 'default';
+            if (typeof Notification !== 'undefined') {
+                perm = Notification.permission;
+            }
+
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.get(['notificationSettings'], (result) => {
+                    const enabled = result.notificationSettings ? result.notificationSettings.enabled !== false : true;
+                    if (this.onNotificationChange) this.onNotificationChange(perm, enabled);
+                    if (callback) callback(perm, enabled);
+                });
+            } else {
+                if (this.onNotificationChange) this.onNotificationChange(perm, true);
+                if (callback) callback(perm, true);
+            }
+        } catch (err) {
+            UIUtils.catchError('Onboarding', 'Error checking notification state', err);
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ROOT PREACT COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -62,72 +177,67 @@ export function StepIndicators({
  * Props for the root WelcomeApp onboarding component.
  */
 export interface WelcomeAppProps {
-    /** Optional controller instance passed during testing or legacy integration */
+    /** Optional controller instance passed during testing */
     controller?: OnboardingWelcome;
 }
 
 /**
  * Root Preact component for the extension onboarding walkthrough.
- *
- * Guides the user through a 4-step wizard:
- * 1. Intro to FSRS spaced repetition
- * 2. Visual theme selection (Dark vs Light)
- * 3. Notification permissions & desktop review alerts
- * 4. Completion & initial navigation to problem solving platforms
- *
- * @param props - Component configuration containing optional test controller.
- * @returns JSX rendered onboarding wizard dialog.
  */
-export function WelcomeApp({ controller: initialController }: WelcomeAppProps): JSX.Element {
-    const [controller] = useState(() => initialController || new OnboardingWelcome());
+export function WelcomeApp({ controller: injectedController }: WelcomeAppProps): JSX.Element {
+    const controller = useMemo(() => injectedController || new OnboardingWelcome(), [injectedController]);
     const [currentStep, setCurrentStep] = useState<number>(controller.currentStep || 1);
     const [theme, setTheme] = useState<string>('dark');
     const [notifEnabled, setNotifEnabled] = useState<boolean>(true);
     const [notifPermission, setNotifPermission] = useState<'granted' | 'denied' | 'default'>('default');
 
     useEffect(() => {
-        try {
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.get(['theme', 'notificationSettings'], (result: { theme?: string; notificationSettings?: { enabled?: boolean } }) => {
-                    try {
-                        if (result?.theme) setTheme(result.theme);
-                        if (result?.notificationSettings && result.notificationSettings.enabled !== undefined) {
-                            setNotifEnabled(result.notificationSettings.enabled);
-                        }
-                    } catch {}
-                });
-            }
-        } catch {}
+        controller.onStepChange = (step) => {
+            setCurrentStep(step);
+        };
+        controller.onThemeChange = (newTheme) => {
+            setTheme(newTheme);
+        };
+        controller.onNotificationChange = (perm, enabled) => {
+            setNotifPermission(perm as any);
+            setNotifEnabled(enabled);
+        };
 
-        if (typeof Notification !== 'undefined') {
-            setNotifPermission(Notification.permission);
-        }
-    }, []);
+        controller.syncThemePreference((savedTheme) => {
+            setTheme(savedTheme);
+        });
+        controller.checkNotificationState((perm, enabled) => {
+            setNotifPermission(perm as any);
+            setNotifEnabled(enabled);
+        });
+    }, [controller]);
 
-    const handleStepChange = (step: number) => {
+    const handleStepChange = useCallback((step: number) => {
         controller.goToStep(step);
         setCurrentStep(step);
-    };
+    }, [controller]);
 
-    const handleThemeChange = (newTheme: string) => {
+    const handleThemeChange = useCallback((newTheme: string) => {
         controller.setThemePreference(newTheme);
         setTheme(newTheme);
-    };
+    }, [controller]);
 
-    const handleToggleNotification = (e: Event) => {
+    const handleToggleNotification = useCallback((e: Event) => {
         const target = e.target as HTMLInputElement;
         const checked = target.checked;
         setNotifEnabled(checked);
-        chrome.storage.local.get(['notificationSettings'], (result) => {
-            const settings = result.notificationSettings || { enabled: true };
-            settings.enabled = checked;
-            chrome.storage.local.set({ notificationSettings: settings }, () => {
-                UIUtils.showToast(checked ? "Reminders Enabled" : "Reminders Disabled");
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.get(['notificationSettings'], (result) => {
+                const settings = result.notificationSettings || { enabled: true };
+                settings.enabled = checked;
+                chrome.storage.local.set({ notificationSettings: settings }, () => {
+                    UIUtils.showToast(checked ? "Reminders Enabled" : "Reminders Disabled");
+                });
             });
-        });
-    };
+        }
+    }, []);
 
-    const handleRequestPermission = () => {
+    const handleRequestPermission = useCallback(() => {
         if (typeof Notification !== 'undefined') {
             Notification.requestPermission().then((permission) => {
                 setNotifPermission(permission);
@@ -140,25 +250,25 @@ export function WelcomeApp({ controller: initialController }: WelcomeAppProps): 
                 UIUtils.catchError('Onboarding', 'Notification permission request error', err);
             });
         }
-    };
+    }, []);
 
-    const handlePrev = () => {
+    const handlePrev = useCallback(() => {
         if (currentStep > 1) {
             handleStepChange(currentStep - 1);
         }
-    };
+    }, [currentStep, handleStepChange]);
 
-    const handleNext = () => {
+    const handleNext = useCallback(() => {
         if (currentStep < controller.totalSteps) {
             handleStepChange(currentStep + 1);
         } else {
             window.location.href = '../help/help.html';
         }
-    };
+    }, [currentStep, controller.totalSteps, handleStepChange]);
 
-    const handleSkip = () => {
+    const handleSkip = useCallback(() => {
         window.close();
-    };
+    }, []);
 
     const isSafari = BROWSER_CONFIG.target === 'safari';
 
@@ -351,344 +461,16 @@ export function WelcomeApp({ controller: initialController }: WelcomeAppProps): 
             </div>
 
             {/* Status toast */}
-            <div id="status-toast" className="toast" />
+            <Toast id="status-toast" />
         </div>
     );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ONBOARDING CONTROLLER CLASS
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Controller class driving multi-step onboarding wizard screens.
- */
-export class OnboardingWelcome {
-    /** Active wizard step index (1-based) */
-    currentStep: number;
-    /** Total number of wizard steps */
-    totalSteps: number;
-
-    /**
-     * Initializes step tracker starting at Step 1 of 4.
-     */
-    constructor() {
-        this.currentStep = 1;
-        this.totalSteps = 4;
-    }
-
-    /**
-     * Initializes components and runs default state checks.
-     */
-    init(): void {
-        try {
-            const root = document.getElementById('root');
-            if (root) {
-                render(<WelcomeApp controller={this} />, root);
-                return;
-            }
-
-            this.bindEvents();
-            this.syncThemePreference();
-            this.checkNotificationState();
-            this.renderBrowserSpecificInstructions();
-        } catch (err) {
-            UIUtils.catchError('Onboarding', 'Error initializing OnboardingWelcome', err);
-        }
-    }
-
-    /**
-     * Renders browser-appropriate extension pinning and toolbar instructions.
-     */
-    renderBrowserSpecificInstructions(): void {
-        try {
-            const pinInstructionsEl = document.getElementById('welcome-pin-instructions');
-            if (!pinInstructionsEl) return;
-
-            if (BROWSER_CONFIG.target === 'safari') {
-                pinInstructionsEl.innerHTML = `<strong>1. Open Safari Settings ⚙️ &rarr; Extensions</strong> and ensure AlgoRecall is turned on.<br><strong>2. Check your Safari toolbar</strong> to access your review counter at any time.`;
-            } else {
-                pinInstructionsEl.innerHTML = `<strong>1. Click the puzzle icon 🧩</strong> in ${BROWSER_CONFIG.displayName}'s top right toolbar.<br><strong>2. Pin AlgoRecall 📌</strong> to keep your review counter always visible.`;
-            }
-        } catch (err) {
-            UIUtils.catchError('Onboarding', 'Error rendering browser-specific pin instructions', err);
-        }
-    }
-
-    /**
-     * Registers control listeners for pagination, theme preferences, and permission prompts.
-     */
-    bindEvents(): void {
-        try {
-            const prevBtn = document.getElementById('welcome-prev-btn');
-            const nextBtn = document.getElementById('welcome-next-btn');
-
-            prevBtn?.addEventListener('click', () => {
-                try {
-                    if (this.currentStep > 1) {
-                        this.goToStep(this.currentStep - 1);
-                    }
-                } catch (err) {
-                    UIUtils.catchError('Onboarding', 'Error in prev button click handler', err);
-                }
-            });
-
-            nextBtn?.addEventListener('click', () => {
-                try {
-                    if (this.currentStep < this.totalSteps) {
-                        this.goToStep(this.currentStep + 1);
-                    } else {
-                        // Last step: Redirect to Help / Dashboard Instructions page
-                        window.location.href = '../help/help.html';
-                    }
-                } catch (err) {
-                    UIUtils.catchError('Onboarding', 'Error in next button click handler', err);
-                }
-            });
-
-            const darkBtn = document.getElementById('set-dark-btn');
-            const lightBtn = document.getElementById('set-light-btn');
-
-            darkBtn?.addEventListener('click', () => {
-                try {
-                    this.setThemePreference('dark');
-                } catch (err) {
-                    UIUtils.catchError('Onboarding', 'Error in dark theme button click handler', err);
-                }
-            });
-
-            lightBtn?.addEventListener('click', () => {
-                try {
-                    this.setThemePreference('light');
-                } catch (err) {
-                    UIUtils.catchError('Onboarding', 'Error in light theme button click handler', err);
-                }
-            });
-
-            const skipBtn = document.getElementById('welcome-skip-btn');
-            skipBtn?.addEventListener('click', () => {
-                try {
-                    window.close();
-                } catch (err) {
-                    UIUtils.catchError('Onboarding', 'Error skipping onboarding tour', err);
-                }
-            });
-
-            const enableBtn = document.getElementById('welcome-enable-btn');
-            enableBtn?.addEventListener('click', () => {
-                if (typeof Notification !== 'undefined') {
-                    try {
-                        Notification.requestPermission().then((permission) => {
-                            try {
-                                this.checkNotificationState();
-                                if (permission === 'granted') {
-                                    UIUtils.showToast("Notification permissions granted!");
-                                } else {
-                                    UIUtils.showToast("Notifications were disabled at the OS level.");
-                                }
-                            } catch (permHandlerErr) {
-                                UIUtils.catchError('Onboarding', 'Error in permission response handler', permHandlerErr);
-                            }
-                        }).catch((err) => {
-                            UIUtils.catchError('Onboarding', 'Notification permission request error', err);
-                        });
-                    } catch (err) {
-                        UIUtils.catchError('Onboarding', 'Error calling requestPermission', err);
-                    }
-                }
-            });
-
-            const notifToggle = document.getElementById('welcome-notif-toggle') as HTMLInputElement;
-            notifToggle?.addEventListener('change', (e) => {
-                const target = e.target as HTMLInputElement;
-                try {
-                    chrome.storage.local.get(['notificationSettings'], (result) => {
-                        if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching notificationSettings')) return;
-                        const settings = result.notificationSettings || { enabled: true };
-                        settings.enabled = target.checked;
-                        chrome.storage.local.set({ notificationSettings: settings }, () => {
-                            if (UIUtils.checkStorageError('Onboarding', 'Storage error saving notificationSettings')) return;
-                            UIUtils.showToast(target.checked ? "Reminders Enabled" : "Reminders Disabled");
-                        });
-                    });
-                } catch (err) {
-                    UIUtils.catchError('Onboarding', 'Error toggling notifications', err);
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('Onboarding', 'Error binding event listeners', err);
-        }
-    }
-
-    /**
-     * Fetches current theme selection and syncs button state.
-     * @fires chrome.storage.local.get
-     */
-    syncThemePreference(): void {
-        try {
-            chrome.storage.local.get(['theme'], (result: { theme?: string }) => {
-                try {
-                    if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching theme')) return;
-                    const theme = result.theme || 'dark';
-                    this.setActiveThemeButton(theme);
-                } catch (innerErr) {
-                    UIUtils.catchError('Onboarding', 'Error processing storage theme result', innerErr);
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('Onboarding', 'Failed to sync theme preference', err);
-        }
-    }
-
-    /**
-     * Navigates visual onboarding cards to target step number.
-     * @param step - Target step number (1 to 4).
-     */
-    goToStep(step: number): void {
-        try {
-            const root = document.getElementById('root');
-            if (root) {
-                this.currentStep = step;
-                render(<WelcomeApp controller={this} />, root);
-                return;
-            }
-
-            // Toggle active card
-            document.getElementById(`step-${this.currentStep}`)?.classList.remove('active');
-            document.getElementById(`step-${step}`)?.classList.add('active');
-
-            // Toggle indicator dot
-            const oldDot = document.getElementById(`dot-${this.currentStep}`);
-            if (oldDot) {
-                oldDot.classList.remove('active');
-                oldDot.removeAttribute('aria-current');
-            }
-            const newDot = document.getElementById(`dot-${step}`);
-            if (newDot) {
-                newDot.classList.add('active');
-                newDot.setAttribute('aria-current', 'step');
-            }
-
-            this.currentStep = step;
-
-            // Update navigation button labels and visibility
-            const prevBtn = document.getElementById('welcome-prev-btn');
-            const nextBtn = document.getElementById('welcome-next-btn');
-
-            if (prevBtn) {
-                if (this.currentStep === 1) {
-                    prevBtn.classList.add('invisible');
-                    prevBtn.setAttribute('disabled', 'true');
-                    prevBtn.setAttribute('aria-hidden', 'true');
-                } else {
-                    prevBtn.classList.remove('invisible');
-                    prevBtn.removeAttribute('disabled');
-                    prevBtn.removeAttribute('aria-hidden');
-                }
-            }
-
-            if (nextBtn) {
-                if (this.currentStep === this.totalSteps) {
-                    nextBtn.textContent = 'Explore Guide';
-                } else {
-                    nextBtn.textContent = 'Next';
-                }
-            }
-        } catch (err) {
-            UIUtils.catchError('Onboarding', `Error navigating to step ${step}`, err, { step });
-        }
-    }
-
-    /**
-     * Renders UI toggle buttons as active/selected matching requested theme.
-     * @param theme - Theme identifier string ('dark' | 'light').
-     */
-    setActiveThemeButton(theme: string): void {
-        try {
-            const darkBtn = document.getElementById('set-dark-btn');
-            const lightBtn = document.getElementById('set-light-btn');
-
-            if (theme === 'light') {
-                lightBtn?.classList.add('active');
-                darkBtn?.classList.remove('active');
-            } else {
-                darkBtn?.classList.add('active');
-                lightBtn?.classList.remove('active');
-            }
-        } catch (err) {
-            UIUtils.catchError('Onboarding', `Error setting active theme button for '${theme}'`, err, { theme });
-        }
-    }
-
-    /**
-     * Persists theme configuration changes and updates UI buttons.
-     * @param theme - Theme identifier string ('dark' | 'light').
-     * @fires chrome.storage.local.set
-     */
-    setThemePreference(theme: string): void {
-        try {
-            chrome.storage.local.set({ theme: theme }, () => {
-                try {
-                    if (UIUtils.checkStorageError('Onboarding', 'Storage set error saving theme', { theme })) return;
-                    this.setActiveThemeButton(theme);
-                    UIUtils.showToast(`Switched to ${theme === 'dark' ? 'Dark' : 'Light'} Mode!`);
-                } catch (setErr) {
-                    UIUtils.catchError('Onboarding', 'Error in storage set callback for theme', setErr, { theme });
-                }
-            });
-        } catch (err) {
-            UIUtils.catchError('Onboarding', `Error persisting theme preference '${theme}'`, err, { theme });
-        }
-    }
-
-    /**
-     * Checks system notification permissions and toggles onboarding badge indicators.
-     * @fires chrome.storage.local.get
-     */
-    checkNotificationState(): void {
-        try {
-            const badge = document.getElementById('welcome-notif-status');
-            const btn = document.getElementById('welcome-enable-btn');
-            const toggle = document.getElementById('welcome-notif-toggle') as HTMLInputElement;
-
-            try {
-                chrome.storage.local.get(['notificationSettings'], (result) => {
-                    if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching notificationSettings in checkNotificationState')) return;
-                    if (toggle) {
-                        toggle.checked = result.notificationSettings ? result.notificationSettings.enabled !== false : true;
-                    }
-                });
-            } catch (err) {
-                UIUtils.catchError('Onboarding', 'Error fetching notificationSettings', err);
-            }
-
-            if (!badge || !btn) return;
-
-            if (typeof Notification !== 'undefined') {
-                if (Notification.permission === 'granted') {
-                    badge.textContent = 'Active';
-                    badge.className = 'status-badge success';
-                    btn.style.display = 'none';
-                } else {
-                    badge.textContent = 'Disabled';
-                    badge.className = 'status-badge error';
-                    btn.style.display = 'flex';
-                }
-            }
-        } catch (err) {
-            UIUtils.catchError('Onboarding', 'Error checking notification state', err);
-        }
-    }
 }
 
 export function initWelcome(): void {
     try {
         const root = document.getElementById('root');
-        const welcome = new OnboardingWelcome();
         if (root) {
-            render(<WelcomeApp controller={welcome} />, root);
-        } else {
-            welcome.init();
+            render(<WelcomeApp />, root);
         }
     } catch (err) {
         UIUtils.catchError('Onboarding', 'Initialization failed', err);
@@ -703,9 +485,4 @@ if (typeof document !== 'undefined') {
     }
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-    (module.exports as any).StepIndicators = StepIndicators;
-    (module.exports as any).WelcomeApp = WelcomeApp;
-    (module.exports as any).OnboardingWelcome = OnboardingWelcome;
-    (module.exports as any).initWelcome = initWelcome;
-}
+export default OnboardingWelcome;

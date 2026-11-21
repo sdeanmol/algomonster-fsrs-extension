@@ -14,23 +14,15 @@ import { Logger } from '@common/logger';
 export class UIUtils {
     /**
      * Displays an animated toast notification on the current HTML page.
-     * Searches for an element with ID `status-toast` and applies the `.show` CSS class.
+     * Dispatches an 'algorecall-toast' CustomEvent received by declarative Toast components.
      * @param msg - Toast message text to display.
      * @param durationMs - Display duration in milliseconds before auto-dismissal (defaults to 2500ms).
      */
     static showToast(msg: string, durationMs: number = 2500): void {
         try {
-            const toast = document.getElementById('status-toast');
-            if (!toast) return;
-            toast.textContent = msg;
-            toast.className = 'toast show';
-            setTimeout(() => {
-                try {
-                    toast.className = 'toast';
-                } catch (animErr) {
-                    this.catchError('UIUtils', 'Error hiding toast animation', animErr);
-                }
-            }, durationMs);
+            if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+                window.dispatchEvent(new CustomEvent('algorecall-toast', { detail: { message: msg, durationMs } }));
+            }
         } catch (err) {
             this.catchError('UIUtils', `Error showing toast message '${msg}'`, err, { msg });
         }

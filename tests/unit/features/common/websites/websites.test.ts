@@ -1,19 +1,15 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import WhitelistedWebsitesManager from '../../../../../features/common/websites/websites';
+import { h, render } from 'preact';
+import { WhitelistedWebsitesManager, WebsitesApp } from '../../../../../features/common/websites/websites';
 import { UIUtils } from '../../../../../features/common/utils/uiUtils';
 
-describe('WhitelistedWebsitesManager', () => {
+describe('WhitelistedWebsitesManager & WebsitesApp', () => {
     let manager: WhitelistedWebsitesManager;
+    let container: HTMLElement;
 
-    beforeEach(() => {
-        document.body.innerHTML = `
-            <ul id="whitelisted-sites-list"></ul>
-            <input id="domain-input" value="https://google.com" />
-            <button id="add-domain-btn"></button>
-            <div id="status-toast"></div>
-            <button id="back-to-popup-btn"></button>
-            <button id="restore-defaults-btn"></button>
-        `;
+    beforeEach(async () => {
+        container = document.createElement('div');
+        document.body.appendChild(container);
 
         (global as any).mockStorage = {
             whitelistedWebsites: []
@@ -29,16 +25,21 @@ describe('WhitelistedWebsitesManager', () => {
             registerContentScripts: jest.fn((scripts: any, callback: any) => callback && callback()),
             unregisterContentScripts: jest.fn((options: any, callback: any) => callback && callback())
         };
+
+        render(h(WebsitesApp, { manager }), container);
+        await new Promise((resolve) => setTimeout(resolve, 10));
     });
 
     afterEach(() => {
         jest.clearAllMocks();
+        render(null, container);
+        container.remove();
         document.body.innerHTML = '';
     });
 
     it('initializes and binds events correctly', () => {
-        const spyLoad = jest.spyOn(manager, 'loadAndRenderSites').mockImplementation(() => {});
-        manager.init();
+        const spyLoad = jest.spyOn(manager, 'loadAndRenderSites');
+        manager.loadAndRenderSites();
         expect(spyLoad).toHaveBeenCalled();
 
         // Test back button
@@ -48,25 +49,27 @@ describe('WhitelistedWebsitesManager', () => {
         expect(windowCloseSpy).toHaveBeenCalled();
 
         // Test add domain button
-        const addSpy = jest.spyOn(manager, 'handleAddWebsite').mockImplementation(() => {});
+        const addSpy = jest.spyOn(manager, 'handleAddWebsite');
+        const input = document.getElementById('domain-input') as HTMLInputElement;
+        input.value = 'https://google.com';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
         document.getElementById('add-domain-btn')!.click();
         expect(addSpy).toHaveBeenCalled();
 
         // Test domain input enter keypress
-        const input = document.getElementById('domain-input')!;
-        input.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter' }));
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
         expect(addSpy).toHaveBeenCalledTimes(2);
 
-        input.dispatchEvent(new KeyboardEvent('keypress', { key: 'a' }));
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
         expect(addSpy).toHaveBeenCalledTimes(2); // no increase
 
         // Test restore defaults button
-        const restoreSpy = jest.spyOn(manager, 'restoreDefaults').mockImplementation(() => {});
+        const restoreSpy = jest.spyOn(manager, 'restoreDefaults');
         document.getElementById('restore-defaults-btn')!.click();
         expect(restoreSpy).toHaveBeenCalled();
     });
 
-    it('loads and renders sites correctly when custom site present', () => {
+    it('loads and renders sites correctly when custom site present', async () => {
         jest.spyOn(chrome.storage.local, 'get').mockImplementation((keys: any, callback: any) => {
             callback({
                 whitelistedWebsites: [
@@ -77,6 +80,7 @@ describe('WhitelistedWebsitesManager', () => {
         });
 
         manager.loadAndRenderSites();
+        await new Promise((resolve) => setTimeout(resolve, 0));
 
         const list = document.getElementById('whitelisted-sites-list');
         expect(list?.innerHTML).toContain('leetcode.com');
@@ -84,17 +88,18 @@ describe('WhitelistedWebsitesManager', () => {
 
         // Test clicking delete site button
         const delBtn = list?.querySelector('.delete-site-btn[data-site="custom.com"]') as HTMLElement;
-        const delSpy = jest.spyOn(manager, 'handleDeleteWebsite').mockImplementation(() => {});
+        const delSpy = jest.spyOn(manager, 'handleDeleteWebsite');
         delBtn?.click();
         expect(delSpy).toHaveBeenCalledWith('custom.com');
     });
 
-    it('renders empty message when whitelistedWebsites is empty array', () => {
+    it('renders empty message when whitelistedWebsites is empty array', async () => {
         jest.spyOn(chrome.storage.local, 'get').mockImplementation((keys: any, callback: any) => {
             callback({ whitelistedWebsites: [] });
         });
 
         manager.loadAndRenderSites();
+        await new Promise((resolve) => setTimeout(resolve, 0));
         const list = document.getElementById('whitelisted-sites-list');
         expect(list?.innerHTML).toContain('No whitelisted websites');
     });
@@ -112,10 +117,7 @@ describe('WhitelistedWebsitesManager', () => {
     });
 
     it('handles adding new website with www. prefix', () => {
-        const input = document.getElementById('domain-input') as HTMLInputElement;
-        input.value = 'www.mycustomsite.com';
-
-        manager.handleAddWebsite();
+        manager.handleAddWebsite('www.mycustomsite.com');
 
         expect(chrome.permissions.request).toHaveBeenCalledWith(
             { origins: ['*://*.mycustomsite.com/*'] },
@@ -137,25 +139,17 @@ describe('WhitelistedWebsitesManager', () => {
 
     it('handles adding new website when permission is declined', () => {
         (chrome.permissions.request as jest.Mock).mockImplementation((opts: any, cb: any) => cb(false));
-        const input = document.getElementById('domain-input') as HTMLInputElement;
-        input.value = 'declinedsite.com';
-
-        manager.handleAddWebsite();
+        manager.handleAddWebsite('declinedsite.com');
         expect(document.getElementById('status-toast')?.textContent).toBe("Permission request was declined.");
     });
 
     it('returns early when add website input is empty', () => {
-        const input = document.getElementById('domain-input') as HTMLInputElement;
-        input.value = '   ';
-        manager.handleAddWebsite();
+        manager.handleAddWebsite('   ');
         expect(chrome.permissions.request).not.toHaveBeenCalled();
     });
 
     it('shows toast for invalid domain', () => {
-        const input = document.getElementById('domain-input') as HTMLInputElement;
-        input.value = 'http://';
-
-        manager.handleAddWebsite();
+        manager.handleAddWebsite('http://');
         expect(document.getElementById('status-toast')?.textContent).toBe("Please enter a valid URL or domain.");
     });
 
@@ -165,10 +159,7 @@ describe('WhitelistedWebsitesManager', () => {
                 whitelistedWebsites: [{ domain: 'duplicate.com', isDefault: false }]
             });
         });
-        const input = document.getElementById('domain-input') as HTMLInputElement;
-        input.value = 'duplicate.com';
-
-        manager.handleAddWebsite();
+        manager.handleAddWebsite('duplicate.com');
         expect(document.getElementById('status-toast')?.textContent).toBe("Website is already whitelisted.");
     });
 
@@ -234,4 +225,3 @@ describe('WhitelistedWebsitesManager', () => {
         jest.useRealTimers();
     });
 });
-

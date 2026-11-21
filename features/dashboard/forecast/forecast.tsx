@@ -456,6 +456,11 @@ export function ForecastApp({ initialCards, initialSettings }: ForecastAppProps)
 export class ForecastDashboard {
     cards: Card[];
     extensionSettings: ExtensionSettings | null;
+    totalUpcoming: number = 0;
+    avgPerDay: string = '0';
+    peakCount: number = 0;
+    todayCount: number = 0;
+    dueCounts: Record<number, number> = {};
 
     constructor() {
         this.cards = [];
@@ -476,12 +481,7 @@ export class ForecastDashboard {
                     this.cards = result.fsrsCards || [];
                     this.extensionSettings = result.extensionSettings || null;
 
-                    const root = document.getElementById('root');
-                    if (root) {
-                        render(<ForecastApp initialCards={this.cards} initialSettings={this.extensionSettings || undefined} />, root);
-                    } else {
-                        this.renderForecast();
-                    }
+                    this.renderForecast();
                 } catch (innerErr) {
                     UIUtils.catchError('ForecastDashboard', 'Error initializing forecast view', innerErr);
                 }
@@ -518,6 +518,7 @@ export class ForecastDashboard {
             });
 
             dueCounts[0] = (dueCounts[0] || 0) + pastDueCount;
+            this.dueCounts = dueCounts;
 
             let totalUpcoming = 0;
             let peakCount = 0;
@@ -528,22 +529,10 @@ export class ForecastDashboard {
                 if (count > peakCount) peakCount = count;
             }
 
-            const avgPerDay = totalUpcoming > 0 ? (totalUpcoming / (daysToShow + 1)).toFixed(1) : '0';
-            const todayCount = dueCounts[0] || 0;
-
-            const totalEl = document.getElementById('forecast-total');
-            const avgEl = document.getElementById('forecast-avg');
-            const peakEl = document.getElementById('forecast-peak');
-            const todayEl = document.getElementById('forecast-today');
-            const subtitleEl = document.getElementById('forecast-subtitle');
-
-            if (totalEl) totalEl.textContent = String(totalUpcoming);
-            if (avgEl) avgEl.textContent = avgPerDay;
-            if (peakEl) peakEl.textContent = String(peakCount);
-            if (todayEl) todayEl.textContent = String(todayCount);
-            if (subtitleEl) {
-                subtitleEl.textContent = `${cards.length} total cards · Next 30 days starting ${this.formatDateShort(todayStart)}`;
-            }
+            this.totalUpcoming = totalUpcoming;
+            this.peakCount = peakCount;
+            this.avgPerDay = totalUpcoming > 0 ? (totalUpcoming / (daysToShow + 1)).toFixed(1) : '0';
+            this.todayCount = dueCounts[0] || 0;
 
             this.renderForecastChart(dueCounts, todayStart, daysToShow);
             this.renderCalendar(dueCounts, todayStart, daysToShow);
@@ -552,157 +541,9 @@ export class ForecastDashboard {
         }
     }
 
-    renderCalendar(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {
-        try {
-            const calendar = document.getElementById('forecast-calendar');
-            if (!calendar) return;
+    renderCalendar(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {}
 
-            const cells: ForecastCalendarCellProps[] = [];
-
-            for (let i = 0; i <= daysToShow; i++) {
-                const count = dueCounts[i] || 0;
-                const date = new Date(todayStart);
-                date.setDate(date.getDate() + i);
-
-                let level: 0 | 1 | 2 | 3 | 4 = 0;
-                if (count === 0) level = 0;
-                else if (count <= 2) level = 1;
-                else if (count <= 5) level = 2;
-                else if (count <= 10) level = 3;
-                else level = 4;
-
-                const dateKey = this.formatDateKey(date);
-                const fullDate = this.formatDateFull(date);
-
-                const onCellClick = () => {
-                    try {
-                        if (count === 0) return;
-                        const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dateKey}&offset=${i}`);
-                        chrome.tabs.create({ url: dataUrl }, () => {
-                            const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                            if (lastError) {
-                                const errorMessage = lastError.message || String(lastError);
-                                Logger.error('ForecastDashboard', `Error creating tab on calendar cell click: ${errorMessage}`, { dateKey, error: lastError });
-                            }
-                        });
-                    } catch (clickErr) {
-                        UIUtils.catchError('ForecastDashboard', 'Error in calendar cell click handler', clickErr, { dateKey });
-                    }
-                };
-
-                cells.push({
-                    dayNumber: date.getDate(),
-                    count,
-                    isToday: i === 0,
-                    level,
-                    title: `${fullDate}: ${count} card${count !== 1 ? 's' : ''} due`,
-                    onClick: onCellClick
-                });
-            }
-
-            const startDow = todayStart.getDay();
-            const emptyCells = Array.from({ length: startDow });
-
-            render(
-                <div>
-                    {DAY_NAMES_SHORT.map((name) => (
-                        <div key={name} className="cal-header">{name}</div>
-                    ))}
-                    {emptyCells.map((_, idx) => (
-                        <div key={`empty-${idx}`} className="cal-cell cal-empty" />
-                    ))}
-                    {cells.map((day, idx) => (
-                        <ForecastCalendarCell key={idx} {...day} />
-                    ))}
-                </div>,
-                calendar
-            );
-
-            const parent = calendar.parentElement;
-            if (parent && !parent.querySelector('.cal-legend')) {
-                const legend = document.createElement('div');
-                legend.className = 'cal-legend';
-                legend.innerHTML = `
-                    <span class="cal-legend-label">Less</span>
-                    <div class="cal-legend-cell cal-level-0"></div>
-                    <div class="cal-legend-cell cal-level-1"></div>
-                    <div class="cal-legend-cell cal-level-2"></div>
-                    <div class="cal-legend-cell cal-level-3"></div>
-                    <div class="cal-legend-cell cal-level-4"></div>
-                    <span class="cal-legend-label">More</span>
-                `;
-                parent.appendChild(legend);
-            }
-        } catch (err) {
-            UIUtils.catchError('ForecastDashboard', 'Error orchestrating forecast calendar rendering', err);
-        }
-    }
-
-    renderForecastChart(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {
-        try {
-            const chartWrapper = document.getElementById('forecast-chart-wrapper');
-            if (!chartWrapper) return;
-
-            const showCharts = this.extensionSettings && this.extensionSettings.showCharts !== undefined
-                ? this.extensionSettings.showCharts
-                : true;
-
-            if (!showCharts) {
-                chartWrapper.style.display = 'none';
-                return;
-            }
-
-            chartWrapper.style.display = 'block';
-
-            let maxVal = 0;
-            const dataPoints: ForecastDataPoint[] = [];
-
-            for (let i = 0; i <= daysToShow; i++) {
-                const count = dueCounts[i] || 0;
-                if (count > maxVal) maxVal = count;
-
-                const date = new Date(todayStart);
-                date.setDate(date.getDate() + i);
-
-                const dateStr = this.formatDateKey(date);
-                const displayDate = this.formatDateFull(date);
-                const index = i;
-
-                const onBarClick = () => {
-                    try {
-                        const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dateStr}&offset=${index}`);
-                        chrome.tabs.create({ url: dataUrl }, () => {
-                            const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
-                            if (lastError) {
-                                const errorMessage = lastError.message || String(lastError);
-                                Logger.error('ForecastDashboard', `Error creating tab on bar click: ${errorMessage}`, { dateStr, error: lastError });
-                            }
-                        });
-                    } catch (clickErr) {
-                        UIUtils.catchError('ForecastDashboard', 'Error in bar click handler', clickErr, { dateStr });
-                    }
-                };
-
-                dataPoints.push({
-                    index: i,
-                    dateStr,
-                    displayDate,
-                    value: count,
-                    onClick: onBarClick
-                });
-            }
-
-            render(
-                <ForecastChart
-                    dataPoints={dataPoints}
-                    maxLimit={maxVal}
-                />,
-                chartWrapper
-            );
-        } catch (err) {
-            UIUtils.catchError('ForecastDashboard', 'Error rendering forecast chart', err);
-        }
-    }
+    renderForecastChart(dueCounts: Record<number, number>, todayStart: Date, daysToShow: number): void {}
 
     formatDateShort(date: Date): string {
         try {
@@ -743,9 +584,6 @@ function initForecast(): void {
         const root = document.getElementById('root');
         if (root) {
             render(<ForecastApp />, root);
-        } else {
-            const dashboard = new ForecastDashboard();
-            dashboard.init();
         }
     } catch (err) {
         UIUtils.catchError('ForecastDashboard', 'Initialization failed', err);

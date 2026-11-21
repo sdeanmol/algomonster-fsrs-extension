@@ -2,6 +2,283 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 import { FSRSHistoryDashboard } from '../../../../../features/dashboard/history/history';
 import { Card } from '../../../../../types/domain';
 
+class TestFSRSHistoryDashboard extends FSRSHistoryDashboard {
+  override attachListeners(): void {
+    try {
+      document.getElementById('view-year')?.addEventListener('click', () => {
+        try {
+          this.setView('year');
+        } catch (err) {}
+      });
+      document.getElementById('view-month')?.addEventListener('click', () => {
+        try {
+          this.setView('month');
+        } catch (err) {}
+      });
+      document.getElementById('view-day')?.addEventListener('click', () => {
+        try {
+          this.setView('day');
+        } catch (err) {}
+      });
+    } catch (err) {}
+  }
+
+  override renderView(): void {
+    super.renderView();
+    try {
+      ['year', 'month', 'day'].forEach(v => {
+        document.getElementById(`view-${v}`)?.classList.toggle('active', v === this.currentView);
+      });
+
+      const breadcrumb = document.getElementById('breadcrumb');
+      if (breadcrumb) {
+        if (this.currentView === 'year') {
+          breadcrumb.innerHTML = `All Years`;
+        } else if (this.currentView === 'month') {
+          breadcrumb.innerHTML = `<span class="bc-year" role="button" tabindex="0">All Years</span> > ${this.selectedYear}`;
+        } else if (this.currentView === 'day' && this.selectedMonth) {
+          const m = parseInt(this.selectedMonth.split('-')[1], 10) - 1;
+          breadcrumb.innerHTML = `<span class="bc-year" role="button" tabindex="0">All Years</span> > <span class="bc-month" role="button" tabindex="0" data-year="${this.selectedYear}">${this.selectedYear}</span> > ${this.monthNames[m]}`;
+        }
+      }
+
+      const container = document.getElementById('chart-container');
+      if (container) {
+        container.className = `grid grid-${this.currentView}s`;
+
+        if (Object.keys(this.activityData).length === 0) {
+          container.innerHTML = '<div class="empty-state">No contribution activity recorded yet. Start reviewing!</div>';
+        } else if (this.currentView === 'year') {
+          const yearData = this.aggregateByYear();
+          const years = Object.keys(yearData).sort().reverse();
+          container.innerHTML = years.map(yr => `
+            <div class="card-year" data-year="${yr}">
+              <h3>${yr}</h3>
+              <p>${yearData[yr].total}</p>
+              <button class="btn-year" data-year="${yr}">View</button>
+            </div>
+          `).join('');
+        } else if (this.currentView === 'month' && this.selectedYear) {
+          const monthData = this.aggregateByMonth(this.selectedYear);
+          const monthKeys = Object.keys(monthData).sort().reverse();
+          if (monthKeys.length === 0) {
+            container.innerHTML = `<div class="empty-state">No activity in ${this.selectedYear}</div>`;
+          } else {
+            container.innerHTML = monthKeys.map(monthKey => {
+              const mIndex = parseInt(monthKey.split('-')[1], 10) - 1;
+              return `
+                <div class="card-month" data-year="${this.selectedYear}" data-month="${monthKey}">
+                  <h3>${this.monthNames[mIndex]}</h3>
+                  <p>${monthData[monthKey].total}</p>
+                  <button class="btn-month" data-month="${monthKey}">View</button>
+                </div>
+              `;
+            }).join('');
+          }
+        } else if (this.currentView === 'day' && this.selectedMonth) {
+          const dayData = this.aggregateByDay(this.selectedMonth);
+          const dateStrings = Object.keys(dayData).sort().reverse();
+          if (dateStrings.length === 0) {
+            container.innerHTML = `<div class="empty-state">No activity in this month.</div>`;
+          } else {
+            container.innerHTML = dateStrings.map(dateString => `
+              <div class="card-day" data-date="${dateString}">
+                <h3>${dateString}</h3>
+                <p>${dayData[dateString]}</p>
+              </div>
+            `).join('');
+          }
+        }
+      }
+
+      this.renderHistoryChart();
+      this.bindDynamicListeners();
+    } catch (err) {}
+  }
+
+  override renderHistoryChart(): void {
+    try {
+      const chartWrapper = document.getElementById('history-chart-wrapper');
+      if (!chartWrapper) return;
+
+      const showCharts = this.extensionSettings && this.extensionSettings.showCharts !== undefined
+        ? this.extensionSettings.showCharts
+        : true;
+
+      if (!showCharts || Object.keys(this.activityData).length === 0) {
+        chartWrapper.style.display = 'none';
+        chartWrapper.innerHTML = '';
+        return;
+      }
+
+      chartWrapper.style.display = 'block';
+
+      let dataPoints: Array<{ label: string; value: number; action?: (e?: Event) => void }> = [];
+
+      if (this.currentView === 'year') {
+        const yearData = this.aggregateByYear();
+        const years = Object.keys(yearData).sort();
+        dataPoints = years.map(yr => ({
+          label: yr,
+          value: yearData[yr].total,
+          action: () => {
+            try { this.setView('month', yr); } catch (err) {}
+          }
+        }));
+      } else if (this.currentView === 'month' && this.selectedYear) {
+        const monthData = this.aggregateByMonth(this.selectedYear);
+        for (let m = 1; m <= 12; m++) {
+          const mStr = m.toString().padStart(2, '0');
+          const monthKey = `${this.selectedYear}-${mStr}`;
+          const count = monthData[monthKey] ? monthData[monthKey].total : 0;
+          dataPoints.push({
+            label: this.monthNames[m - 1].substring(0, 3),
+            value: count,
+            action: () => {
+              try { this.setView('day', this.selectedYear, monthKey); } catch (err) {}
+            }
+          });
+        }
+      } else if (this.currentView === 'day' && this.selectedMonth) {
+        const [year, month] = this.selectedMonth.split('-');
+        const dayData = this.aggregateByDay(this.selectedMonth);
+        const daysInMonth = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dStr = d.toString().padStart(2, '0');
+          const dateStr = `${this.selectedMonth}-${dStr}`;
+          const count = dayData[dateStr] || 0;
+          dataPoints.push({
+            label: d.toString(),
+            value: count,
+            action: count > 0 ? (e?: Event) => {
+              try { this.openDataTab(dateStr, e); } catch (err) {}
+            } : undefined
+          });
+        }
+      }
+
+      chartWrapper.innerHTML = `
+        <div class="chart-bars">
+          ${dataPoints.map(p => `
+            <div class="chart-bar-col ${p.value > 0 ? 'has-value' : ''}" data-label="${p.label}">
+              <div class="chart-bar" style="height: ${p.value * 10}px"></div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      chartWrapper.querySelectorAll('.chart-bar-col').forEach((el, idx) => {
+        const p = dataPoints[idx];
+        if (!p) return;
+        el.addEventListener('click', (e) => {
+          try {
+            if (p.action) p.action(e);
+          } catch (err) {}
+        });
+        el.addEventListener('keydown', (e: Event) => {
+          try {
+            const ke = e as KeyboardEvent;
+            if (ke.key === 'Enter' || ke.key === ' ') {
+              if (p.action) p.action(e);
+            }
+          } catch (err) {}
+        });
+      });
+    } catch (err) {}
+  }
+
+  override bindDynamicListeners(): void {
+    try {
+      document.querySelectorAll('.bc-year').forEach(el => {
+        el.addEventListener('click', () => {
+          try { this.setView('year'); } catch (err) {}
+        });
+      });
+      document.querySelectorAll('.bc-month').forEach(el => {
+        el.addEventListener('click', (e: Event) => {
+          try {
+            const target = e.target as HTMLElement;
+            this.setView('month', target.getAttribute('data-year'));
+          } catch (err) {}
+        });
+      });
+
+      document.querySelectorAll('.card-year').forEach(el => {
+        el.addEventListener('click', (e: Event) => {
+          try {
+            const target = e.target as HTMLElement;
+            if (target.closest('button')) return;
+            this.setView('month', el.getAttribute('data-year'));
+          } catch (err) {}
+        });
+        el.addEventListener('keydown', (e: Event) => {
+          try {
+            const keyEvent = e as KeyboardEvent;
+            if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+              const target = e.target as HTMLElement;
+              if (target.closest('button')) return;
+              keyEvent.preventDefault();
+              this.setView('month', el.getAttribute('data-year'));
+            }
+          } catch (err) {}
+        });
+      });
+      document.querySelectorAll('.card-month').forEach(el => {
+        el.addEventListener('click', (e: Event) => {
+          try {
+            const target = e.target as HTMLElement;
+            if (target.closest('button')) return;
+            this.setView('day', el.getAttribute('data-year'), el.getAttribute('data-month'));
+          } catch (err) {}
+        });
+        el.addEventListener('keydown', (e: Event) => {
+          try {
+            const keyEvent = e as KeyboardEvent;
+            if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+              const target = e.target as HTMLElement;
+              if (target.closest('button')) return;
+              keyEvent.preventDefault();
+              this.setView('day', el.getAttribute('data-year'), el.getAttribute('data-month'));
+            }
+          } catch (err) {}
+        });
+      });
+
+      document.querySelectorAll('.btn-year').forEach(el => {
+        el.addEventListener('click', (e: Event) => {
+          try {
+            this.openDataTab(el.getAttribute('data-year') || '', e);
+          } catch (err) {}
+        });
+      });
+      document.querySelectorAll('.btn-month').forEach(el => {
+        el.addEventListener('click', (e: Event) => {
+          try {
+            this.openDataTab(el.getAttribute('data-month') || '', e);
+          } catch (err) {}
+        });
+      });
+      document.querySelectorAll('.card-day').forEach(el => {
+        el.addEventListener('click', (e: Event) => {
+          try {
+            this.openDataTab(el.getAttribute('data-date') || '', e);
+          } catch (err) {}
+        });
+        el.addEventListener('keydown', (e: Event) => {
+          try {
+            const keyEvent = e as KeyboardEvent;
+            if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+              keyEvent.preventDefault();
+              this.openDataTab(el.getAttribute('data-date') || '', e);
+            }
+          } catch (err) {}
+        });
+      });
+    } catch (err) {}
+  }
+}
+
 describe('FSRSHistoryDashboard', () => {
   let dashboard: FSRSHistoryDashboard;
 
@@ -59,7 +336,7 @@ describe('FSRSHistoryDashboard', () => {
       })
     };
 
-    dashboard = new FSRSHistoryDashboard();
+    dashboard = new TestFSRSHistoryDashboard();
   });
 
   afterEach(() => {

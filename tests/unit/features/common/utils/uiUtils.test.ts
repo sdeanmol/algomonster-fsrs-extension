@@ -1,22 +1,29 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { h, render } from 'preact';
 import { UIUtils } from '../../../../../features/common/utils/uiUtils';
+import { Toast } from '../../../../../features/common/ui/components/Toast';
 
 describe('UIUtils', () => {
+    let container: HTMLElement;
+
     beforeEach(() => {
-        document.body.innerHTML = `
-            <div id="status-toast" class="toast"></div>
-        `;
+        container = document.createElement('div');
+        document.body.appendChild(container);
+        render(h(Toast, { id: 'status-toast' }), container);
         delete (chrome.runtime as any).lastError;
     });
 
     afterEach(() => {
         jest.clearAllMocks();
+        render(null, container);
+        container.remove();
         document.body.innerHTML = '';
     });
 
     it('shows toast with message and hides after duration', () => {
         jest.useFakeTimers();
         UIUtils.showToast('Test Message', 1000);
+        jest.advanceTimersByTime(10);
         const toast = document.getElementById('status-toast')!;
         expect(toast.textContent).toBe('Test Message');
         expect(toast.className).toBe('toast show');

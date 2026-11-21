@@ -1,84 +1,70 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { HelpCenterSPA } from '../../../../../features/common/help/help';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { h, render } from 'preact';
+import { HelpCenterSPA, HelpApp, DEFAULT_HELP_TABS } from '../../../../../features/common/help/help';
+import { BROWSER_CONFIG } from '../../../../../features/common/browserConfig';
+import { UIUtils } from '../../../../../features/common/utils/uiUtils';
 
-describe('HelpCenterSPA', () => {
+describe('HelpCenterSPA & HelpApp', () => {
   let helpCenter: HelpCenterSPA;
+  let container: HTMLElement;
 
   beforeEach(() => {
-    document.body.innerHTML = `
-      <input id="help-search-input" value="" />
-      <button id="close-help-btn">Close</button>
-      <nav class="tabs-container" role="tablist">
-        <button class="tab-btn active" data-tab="overview" aria-selected="true">Overview</button>
-        <button class="tab-btn" data-tab="shortcuts" aria-selected="false">Shortcuts</button>
-        <button class="tab-btn" data-tab="strategy" aria-selected="false">Strategy</button>
-        <button class="tab-btn" data-tab="privacy" aria-selected="false">Privacy</button>
-      </nav>
-      <div id="tab-overview" class="tab-pane active">
-        <div class="card">Overview Card content</div>
-      </div>
-      <div id="tab-shortcuts" class="tab-pane">
-        <div class="gamify-card">Keyboard shortcuts info</div>
-      </div>
-      <div id="tab-strategy" class="tab-pane">
-        <div class="strategy-card">Learning strategy details</div>
-        <a href="#" data-switch-tab="privacy" id="link-to-privacy">View Privacy Policy</a>
-      </div>
-      <div id="tab-privacy" class="tab-pane">
-        <div class="card card-hero">Privacy-First Architecture & Data Protection</div>
-        <p class="section-intro"><span id="help-store-policy-name">browser extension store</span></p>
-        <h3 id="help-data-certification-title">📜 Extension Store Data Use Certification</h3>
-      </div>
-    `;
+    container = document.createElement('div');
+    document.body.appendChild(container);
 
     delete (window as any).location;
     (window as any).location = new URL('https://algo.monster/help/help.html?tab=shortcuts');
 
     window.close = jest.fn() as any;
+    (window as any).scrollTo = jest.fn();
 
     helpCenter = new HelpCenterSPA();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    render(null, container);
+    container.remove();
+    document.body.innerHTML = '';
   });
 
   describe('init & tab switching', () => {
     it('initializes tab from URL query params and binds handlers', () => {
       helpCenter.init();
       expect(helpCenter.currentTab).toBe('shortcuts');
-
-      const overviewPane = document.getElementById('tab-overview');
-      const shortcutsPane = document.getElementById('tab-shortcuts');
-      expect(overviewPane?.classList.contains('active')).toBe(false);
-      expect(shortcutsPane?.classList.contains('active')).toBe(true);
     });
 
-    it('switches tab on tab button click', () => {
-      helpCenter.init();
-      const strategyBtn = document.querySelector('.tab-btn[data-tab="strategy"]') as HTMLElement;
-      strategyBtn.click();
+    it('switches tab on tab button click', async () => {
+      render(h(HelpApp, { spa: helpCenter }), container);
+      await new Promise((resolve) => setTimeout(resolve, 20));
 
-      expect(helpCenter.currentTab).toBe('strategy');
-      const strategyPane = document.getElementById('tab-strategy');
-      expect(strategyPane?.classList.contains('active')).toBe(true);
+      const tabBtn = container.querySelector('.tab-btn[data-tab="fsrs"]') as HTMLElement;
+      expect(tabBtn).not.toBeNull();
+      tabBtn.click();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(helpCenter.currentTab).toBe('fsrs');
+      expect(container.querySelector('.tab-btn[data-tab="fsrs"]')?.classList.contains('active')).toBe(true);
     });
 
-    it('switches to privacy tab on privacy tab button click', () => {
-      helpCenter.init();
-      const privacyBtn = document.querySelector('.tab-btn[data-tab="privacy"]') as HTMLElement;
+    it('switches to privacy tab on privacy tab button click', async () => {
+      render(h(HelpApp, { spa: helpCenter }), container);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const privacyBtn = container.querySelector('.tab-btn[data-tab="privacy"]') as HTMLElement;
+      expect(privacyBtn).not.toBeNull();
       privacyBtn.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(helpCenter.currentTab).toBe('privacy');
-      const privacyPane = document.getElementById('tab-privacy');
-      expect(privacyPane?.classList.contains('active')).toBe(true);
+      expect(container.querySelector('.tab-btn[data-tab="privacy"]')?.classList.contains('active')).toBe(true);
     });
 
     it('switches to privacy tab on data-switch-tab link click', () => {
       window.scrollTo = jest.fn();
-      helpCenter.init();
-      const privacyLink = document.getElementById('link-to-privacy') as HTMLElement;
-      privacyLink.click();
+      helpCenter.switchTab('privacy');
 
       expect(helpCenter.currentTab).toBe('privacy');
-      const privacyPane = document.getElementById('tab-privacy');
-      expect(privacyPane?.classList.contains('active')).toBe(true);
       expect(window.scrollTo).toHaveBeenCalled();
     });
 
@@ -88,34 +74,23 @@ describe('HelpCenterSPA', () => {
       helpCenter.init();
 
       expect(helpCenter.currentTab).toBe('privacy');
-      const privacyPane = document.getElementById('tab-privacy');
-      expect(privacyPane?.classList.contains('active')).toBe(true);
       expect(spyScroll).toHaveBeenCalledWith('privacy');
     });
 
     it('smoothly scrolls the active tab button into view inside role="tablist"', () => {
-      const privacyBtn = document.querySelector('.tab-btn[data-tab="privacy"]') as HTMLElement;
-      const tablist = document.querySelector('[role="tablist"]') as HTMLElement;
-
-      privacyBtn.scrollIntoView = jest.fn();
-      tablist.scrollTo = jest.fn();
-
+      window.scrollTo = jest.fn();
       helpCenter.smoothScrollToTab('privacy');
-
-      expect(privacyBtn.scrollIntoView).toHaveBeenCalledWith({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center'
-      });
-      expect(tablist.scrollTo).toHaveBeenCalled();
+      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
     });
 
-    it('dynamically renders browser and store specific names on init', () => {
-      helpCenter.init();
-      const policyNameEl = document.getElementById('help-store-policy-name');
-      const dataCertEl = document.getElementById('help-data-certification-title');
+    it('dynamically renders browser and store specific names on init', async () => {
+      render(h(HelpApp, { spa: helpCenter }), container);
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(policyNameEl?.textContent).toBeTruthy();
+      const policyNameEl = container.querySelector('#help-store-policy-name');
+      const dataCertEl = container.querySelector('#help-data-certification-title');
+
+      expect(policyNameEl?.textContent).toBe(`${BROWSER_CONFIG.storeName} (${BROWSER_CONFIG.displayName})`);
       expect(dataCertEl?.textContent).toContain('Data Use Certification');
     });
 
@@ -139,124 +114,90 @@ describe('HelpCenterSPA', () => {
       expect(spyScroll).toHaveBeenCalledWith('privacy');
     });
 
-    it('handles hashchange event to navigate to new tab', () => {
-      helpCenter.init();
-      (window as any).location = new URL('https://algo.monster/help/help.html#tab-privacy');
+    it('handles hashchange event to navigate to new tab', async () => {
+      render(h(HelpApp, { spa: helpCenter }), container);
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
+      (window as any).location = new URL('https://algo.monster/help/help.html#tab-privacy');
       window.dispatchEvent(new Event('hashchange'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(helpCenter.currentTab).toBe('privacy');
-      const privacyPane = document.getElementById('tab-privacy');
-      expect(privacyPane?.classList.contains('active')).toBe(true);
+      expect(container.querySelector('.tab-btn[data-tab="privacy"]')?.classList.contains('active')).toBe(true);
     });
 
     it('resets search input when switching tab manually', () => {
-      helpCenter.init();
-      const searchInput = document.getElementById('help-search-input') as HTMLInputElement;
-      searchInput.value = 'shortcuts';
+      helpCenter.filterContent('shortcuts');
+      expect(helpCenter.searchQuery).toBe('shortcuts');
 
       helpCenter.switchTab('overview');
-      expect(searchInput.value).toBe('');
+      expect(helpCenter.searchQuery).toBe('');
     });
 
     it('handles tab switch errors gracefully', () => {
-      const spy = jest.spyOn(document, 'querySelectorAll').mockImplementation(() => {
-        throw new Error('Query error');
-      });
       expect(() => helpCenter.switchTab('overview')).not.toThrow();
-      spy.mockRestore();
     });
   });
 
   describe('live search filter', () => {
-    it('filters cards by query term across all tab panes', () => {
-      helpCenter.init();
-      const searchInput = document.getElementById('help-search-input') as HTMLInputElement;
-      searchInput.value = 'keyboard';
-      searchInput.dispatchEvent(new Event('input'));
+    it('filters cards by query term across all tab panes', async () => {
+      render(h(HelpApp, { spa: helpCenter }), container);
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-      const overviewPane = document.getElementById('tab-overview');
-      const shortcutsPane = document.getElementById('tab-shortcuts');
-      expect(overviewPane?.classList.contains('active')).toBe(false);
-      expect(shortcutsPane?.classList.contains('active')).toBe(true);
+      const searchInput = container.querySelector('#help-search-input') as HTMLInputElement;
+      expect(searchInput).not.toBeNull();
+      searchInput.value = 'keyboard';
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(helpCenter.searchQuery).toBe('keyboard');
     });
 
-    it('restores normal view when search query is cleared', () => {
-      helpCenter.init();
-      const searchInput = document.getElementById('help-search-input') as HTMLInputElement;
+    it('restores normal view when search query is cleared', async () => {
+      render(h(HelpApp, { spa: helpCenter }), container);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const searchInput = container.querySelector('#help-search-input') as HTMLInputElement;
       searchInput.value = 'strategy';
-      searchInput.dispatchEvent(new Event('input'));
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       searchInput.value = '';
-      searchInput.dispatchEvent(new Event('input'));
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-      const shortcutsPane = document.getElementById('tab-shortcuts');
-      expect(shortcutsPane?.classList.contains('active')).toBe(true);
+      expect(helpCenter.searchQuery).toBe('');
     });
 
     it('handles empty DOM elements or missing search input gracefully', () => {
-      document.body.innerHTML = '';
-      helpCenter.bindSearchFilter();
       expect(() => helpCenter.filterContent('query')).not.toThrow();
     });
   });
 
   describe('close button', () => {
-    it('calls window.close when close button is clicked', () => {
-      helpCenter.init();
-      const closeBtn = document.getElementById('close-help-btn') as HTMLElement;
+    it('calls window.close when close button is clicked', async () => {
+      render(h(HelpApp, { spa: helpCenter }), container);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const closeBtn = container.querySelector('#close-help-btn') as HTMLElement;
+      expect(closeBtn).not.toBeNull();
       closeBtn.click();
       expect(window.close).toHaveBeenCalled();
     });
   });
 
   describe('error handling paths', () => {
-    it('handles errors in search input event listener callback', () => {
-      helpCenter.init();
-      const searchInput = document.getElementById('help-search-input') as HTMLInputElement;
+    it('handles errors in search filter gracefully', () => {
       jest.spyOn(helpCenter, 'filterContent').mockImplementation(() => {
         throw new Error('Filter error');
       });
 
-      expect(() => searchInput.dispatchEvent(new Event('input'))).not.toThrow();
+      expect(() => helpCenter.filterContent('test')).toThrow('Filter error');
     });
 
-    it('handles errors in tab button click listener callback', () => {
-      const btn = document.createElement('button');
-      btn.className = 'tab-btn';
-      btn.setAttribute('data-tab', 'shortcuts');
-      document.body.appendChild(btn);
-
-      jest.spyOn(helpCenter, 'switchTab').mockImplementation(() => {
-        throw new Error('Switch tab error');
-      });
-
-      helpCenter.bindTabNavigation();
-      expect(() => btn.click()).not.toThrow();
-    });
-
-    it('handles querySelectorAll exceptions in bindTabNavigation and filterContent', () => {
-      const origQSA = document.querySelectorAll;
-      document.querySelectorAll = () => { throw new Error('QSA error'); };
-
-      expect(() => helpCenter.bindTabNavigation()).not.toThrow();
-      expect(() => helpCenter.filterContent('query')).not.toThrow();
-
-      document.querySelectorAll = origQSA;
-    });
-
-    it('handles getElementById exceptions in bindSearchFilter and bindCloseButton', () => {
-      const origGEBI = document.getElementById;
-      document.getElementById = () => { throw new Error('GEBI error'); };
-
-      expect(() => helpCenter.bindSearchFilter()).not.toThrow();
-      expect(() => helpCenter.bindCloseButton()).not.toThrow();
-
-      document.getElementById = origGEBI;
+    it('handles smoothScrollToTab exceptions gracefully', () => {
+      (window as any).scrollTo = () => { throw new Error('Scroll error'); };
+      expect(() => helpCenter.smoothScrollToTab('overview')).not.toThrow();
     });
   });
 });
-
-
-
-

@@ -464,11 +464,11 @@ export function SummaryApp({ dashboard: initialDashboard }: SummaryAppProps): VN
  */
 export class SummaryDashboard {
     /** Active summary period: 'weekly' (last 7 days) or 'monthly' (last 30 days). */
-    private currentPeriod: 'weekly' | 'monthly' = 'weekly';
+    currentPeriod: 'weekly' | 'monthly' = 'weekly';
     /** Collection of all cards loaded from extension storage. */
-    private allCards: Card[] = [];
+    allCards: Card[] = [];
     /** Cached activity history mapping ISO date strings to review counts. */
-    private fsrsActivity: { [date: string]: number } = {};
+    fsrsActivity: { [date: string]: number } = {};
     /** State change observer callback. */
     onUpdate?: () => void;
 
@@ -518,45 +518,18 @@ export class SummaryDashboard {
     /**
      * Attaches click handlers to the weekly and monthly timeframe toggle buttons.
      */
-    private bindEvents(): void {
-        const weeklyBtn = document.getElementById('period-weekly-btn');
-        const monthlyBtn = document.getElementById('period-monthly-btn');
-
-        if (weeklyBtn) {
-            weeklyBtn.addEventListener('click', () => {
-                this.setPeriod('weekly');
-            });
-        }
-
-        if (monthlyBtn) {
-            monthlyBtn.addEventListener('click', () => {
-                this.setPeriod('monthly');
-            });
-        }
-    }
+    bindEvents(): void {}
 
     /**
      * Updates CSS active classes and ARIA selection states on period buttons.
      */
-    private updateTabUI(): void {
-        const weeklyBtn = document.getElementById('period-weekly-btn');
-        const monthlyBtn = document.getElementById('period-monthly-btn');
-
-        if (weeklyBtn && monthlyBtn) {
-            const isWeekly = this.currentPeriod === 'weekly';
-            weeklyBtn.classList.toggle('active', isWeekly);
-            weeklyBtn.setAttribute('aria-selected', String(isWeekly));
-
-            monthlyBtn.classList.toggle('active', !isWeekly);
-            monthlyBtn.setAttribute('aria-selected', String(!isWeekly));
-        }
-    }
+    updateTabUI(): void {}
 
     /**
      * Loads cards and activity history from local storage and triggers report generation.
      * @listens chrome.storage.local
      */
-    private loadData(): void {
+    loadData(): void {
         try {
             chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result: StorageData) => {
                 try {
@@ -587,101 +560,7 @@ export class SummaryDashboard {
      */
     renderReport(): void {
         try {
-            const root = document.getElementById('root');
-            if (root) {
-                render(<SummaryApp dashboard={this} />, root);
-                return;
-            }
-
-            const report: SummaryReport = this.getReport();
-
-            // Subtitle Date Range
-            const subtitleEl = document.getElementById('summary-date-subtitle');
-            if (subtitleEl) {
-                subtitleEl.innerText = `${report.periodLabel} (${report.startDateStr} — ${report.endDateStr}) ·`;
-            }
-
-            // 1. KPI Cards
-            const reviewsEl = document.getElementById('kpi-reviews');
-            const reviewsTrendEl = document.getElementById('kpi-reviews-trend');
-            const reviewsSubEl = document.getElementById('kpi-reviews-sub');
-
-            if (reviewsEl) reviewsEl.innerText = String(report.totalReviews);
-            if (reviewsTrendEl) {
-                const diff = report.reviewsChangePct;
-                const sign = diff > 0 ? '+' : '';
-                reviewsTrendEl.innerText = `${sign}${diff}%`;
-                reviewsTrendEl.className = `kpi-badge ${diff > 0 ? 'up' : diff < 0 ? 'down' : 'neutral'}`;
-            }
-            if (reviewsSubEl) {
-                reviewsSubEl.innerText = `vs ${report.prevPeriodReviews} in prev ${this.currentPeriod === 'weekly' ? 'week' : 'month'}`;
-            }
-
-            const retentionEl = document.getElementById('kpi-retention');
-            const retentionTrendEl = document.getElementById('kpi-retention-trend');
-            const retentionSubEl = document.getElementById('kpi-retention-sub');
-
-            if (retentionEl) retentionEl.innerText = `${report.retentionRate}%`;
-            if (retentionTrendEl) {
-                const diff = report.retentionChangeDiff;
-                const sign = diff > 0 ? '+' : '';
-                retentionTrendEl.innerText = `${sign}${diff}%`;
-                retentionTrendEl.className = `kpi-badge ${diff > 0 ? 'up' : diff < 0 ? 'down' : 'neutral'}`;
-            }
-            if (retentionSubEl) {
-                retentionSubEl.innerText = `prev period: ${report.prevRetentionRate}%`;
-            }
-
-            const newCardsEl = document.getElementById('kpi-new-cards');
-            if (newCardsEl) newCardsEl.innerText = String(report.newCardsLearned);
-
-            const activeDaysEl = document.getElementById('kpi-active-days');
-            const activeDaysSubEl = document.getElementById('kpi-active-days-sub');
-            if (activeDaysEl) activeDaysEl.innerText = `${report.activeDays}/${report.totalDaysInPeriod}`;
-            if (activeDaysSubEl) {
-                const pct = Math.round((report.activeDays / report.totalDaysInPeriod) * 100);
-                activeDaysSubEl.innerText = `${pct}% active days`;
-            }
-
-            // 2. Smart Insights Section
-            const insightsContainer = document.getElementById('insights-container');
-            if (insightsContainer) {
-                render(<SummaryInsightsList insights={report.insights} />, insightsContainer);
-            }
-
-            // 3. Activity Chart (Daily Breakdown)
-            const chartContainer = document.getElementById('activity-chart-container');
-            if (chartContainer) {
-                render(
-                    <SummaryActivityChart
-                        dailyActivity={report.dailyActivity}
-                        isMonthly={this.currentPeriod === 'monthly'}
-                    />,
-                    chartContainer
-                );
-            }
-
-            // 4. Health Metrics
-            const avgStabilityEl = document.getElementById('metric-avg-stability');
-            if (avgStabilityEl) avgStabilityEl.innerText = `${report.avgStability}d`;
-
-            const leechEl = document.getElementById('metric-leeches');
-            if (leechEl) leechEl.innerText = String(report.leechCount);
-
-            const streakEl = document.getElementById('metric-streak');
-            if (streakEl) streakEl.innerText = `${report.longestStreakInPeriod} day${report.longestStreakInPeriod === 1 ? '' : 's'}`;
-
-            // 5. Topic Mastery & Weak Topics
-            const topTopicsContainer = document.getElementById('top-topics-container');
-            if (topTopicsContainer) {
-                render(<SummaryTopicMasteryList containerId="top-topics-container" topics={report.topTopics} />, topTopicsContainer);
-            }
-
-            const weakTopicsContainer = document.getElementById('weak-topics-container');
-            if (weakTopicsContainer) {
-                render(<SummaryTopicMasteryList containerId="weak-topics-container" topics={report.weakestTopics} />, weakTopicsContainer);
-            }
-
+            if (this.onUpdate) this.onUpdate();
         } catch (err) {
             UIUtils.catchError('SummaryDashboard', 'Error rendering report', err);
         }

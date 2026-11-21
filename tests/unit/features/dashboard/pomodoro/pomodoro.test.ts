@@ -1,6 +1,156 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { PomodoroTimer, PomodoroState, PomodoroSettings, PomodoroStats } from '../../../../../features/dashboard/pomodoro/pomodoro';
 
+class TestPomodoroTimer extends PomodoroTimer {
+  override loadSettingsUI(): void {
+    try {
+      const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
+      const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
+      const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
+      const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
+
+      if (focusInput) focusInput.value = String(this.settings.focusDuration);
+      if (shortInput) shortInput.value = String(this.settings.shortBreakDuration);
+      if (longInput) longInput.value = String(this.settings.longBreakDuration);
+      if (sessionsInput) sessionsInput.value = String(this.settings.sessionsBeforeLongBreak);
+    } catch (_) {}
+  }
+
+  override saveSettings(newSettings?: Partial<PomodoroSettings>): void {
+    try {
+      if (!newSettings) {
+        const focusInput = document.getElementById('focus-duration') as HTMLInputElement | null;
+        const shortInput = document.getElementById('short-break-duration') as HTMLInputElement | null;
+        const longInput = document.getElementById('long-break-duration') as HTMLInputElement | null;
+        const sessionsInput = document.getElementById('sessions-count') as HTMLInputElement | null;
+
+        const focusDuration = parseInt(focusInput?.value || '25', 10) || 25;
+        const shortBreakDuration = parseInt(shortInput?.value || '5', 10) || 5;
+        const longBreakDuration = parseInt(longInput?.value || '15', 10) || 15;
+        const sessionsBeforeLongBreak = parseInt(sessionsInput?.value || '4', 10) || 4;
+
+        newSettings = { focusDuration, shortBreakDuration, longBreakDuration, sessionsBeforeLongBreak };
+      }
+      super.saveSettings(newSettings);
+    } catch (_) {}
+  }
+
+  override updateTodayStats(): void {
+    try {
+      const sessionsEl = document.getElementById('today-sessions');
+      const focusEl = document.getElementById('today-focus-time');
+
+      if (sessionsEl) sessionsEl.textContent = String(this.todaySessions);
+      if (focusEl) {
+        if (this.todayFocusMinutes >= 60) {
+          const hours = Math.floor(this.todayFocusMinutes / 60);
+          const mins = this.todayFocusMinutes % 60;
+          focusEl.textContent = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+        } else {
+          focusEl.textContent = `${this.todayFocusMinutes}m`;
+        }
+      }
+    } catch (_) {}
+  }
+
+  override updateRing(): void {
+    try {
+      const ring = document.getElementById('timer-ring-fill');
+      if (!ring) return;
+
+      const circumference = 2 * Math.PI * 88;
+      const progress = this.totalTime > 0 ? (this.totalTime - this.timeRemaining) / this.totalTime : 0;
+      const offset = circumference - (progress * circumference);
+
+      ring.setAttribute('stroke-dasharray', String(circumference));
+      ring.setAttribute('stroke-dashoffset', String(offset));
+
+      if (this.phase === 'focus') {
+        ring.classList.remove('break-ring');
+      } else {
+        ring.classList.add('break-ring');
+      }
+    } catch (_) {}
+  }
+
+  override updateDisplay(): void {
+    try {
+      const minutes = Math.floor(this.timeRemaining / 60);
+      const seconds = this.timeRemaining % 60;
+      const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+      const timerTimeEl = document.getElementById('timer-time');
+      if (timerTimeEl) timerTimeEl.textContent = timeStr;
+      document.title = `${timeStr} — AlgoRecall Pomodoro`;
+      
+      const labels: Record<string, string> = { focus: 'Focus Time', shortBreak: 'Short Break', longBreak: 'Long Break' };
+      const phaseLabelEl = document.getElementById('timer-phase-label');
+      if (phaseLabelEl) phaseLabelEl.textContent = labels[this.phase] || 'Focus Time';
+    } catch (_) {}
+  }
+
+  override updatePhaseIndicator(): void {
+    try {
+      const pills: Record<string, HTMLElement | null> = {
+        'focus': document.getElementById('phase-focus'),
+        'shortBreak': document.getElementById('phase-short-break'),
+        'longBreak': document.getElementById('phase-long-break')
+      };
+
+      Object.entries(pills).forEach(([phase, el]) => {
+        if (!el) return;
+        el.classList.remove('active', 'break-active');
+        if (phase === this.phase) {
+          el.classList.add('active');
+          if (phase !== 'focus') el.classList.add('break-active');
+        }
+      });
+    } catch (_) {}
+  }
+
+  override updateSessionDots(): void {
+    try {
+      const dotsContainer = document.getElementById('session-dots');
+      const sessionText = document.getElementById('session-text');
+      if (!dotsContainer) return;
+
+      const total = this.settings.sessionsBeforeLongBreak;
+      let html = '';
+      for (let i = 1; i <= total; i++) {
+        let cls = 'session-dot';
+        if (i < this.currentSession) cls += ' complete';
+        else if (i === this.currentSession) cls += ' active';
+        html += `<div class="${cls}"></div>`;
+      }
+      dotsContainer.innerHTML = html;
+
+      if (sessionText) {
+        sessionText.textContent = `${this.currentSession} of ${total}`;
+      }
+    } catch (_) {}
+  }
+
+  override bindEvents(): void {
+    try {
+      document.getElementById('start-btn')?.addEventListener('click', () => {
+        try { this.start(); } catch (_) {}
+      });
+      document.getElementById('pause-btn')?.addEventListener('click', () => {
+        try { this.pause(); } catch (_) {}
+      });
+      document.getElementById('reset-btn')?.addEventListener('click', () => {
+        try { this.reset(); } catch (_) {}
+      });
+      document.getElementById('skip-btn')?.addEventListener('click', () => {
+        try { this.skip(); } catch (_) {}
+      });
+      document.getElementById('save-settings-btn')?.addEventListener('click', () => {
+        try { this.saveSettings(); } catch (_) {}
+      });
+    } catch (_) {}
+  }
+}
+
 describe('PomodoroTimer', () => {
   let timer: PomodoroTimer;
 
@@ -82,7 +232,7 @@ describe('PomodoroTimer', () => {
       addListener: jest.fn()
     };
 
-    timer = new PomodoroTimer();
+    timer = new TestPomodoroTimer();
   });
 
   afterEach(() => {

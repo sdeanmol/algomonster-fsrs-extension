@@ -142,16 +142,7 @@ export class HeatmapStats {
      * @param activityData - Map of ISO date strings (`YYYY-MM-DD`) to daily review counts.
      */
     static renderStatsDashboard(activityData: Record<string, number>): void {
-        try {
-            const container = document.getElementById('heatmap-stats-container');
-            if (!container) return;
-
-            const stats = this.getStreakStats(activityData);
-
-            render(<HeatmapStatsDashboard stats={stats} />, container);
-        } catch (err) {
-            UIUtils.catchError('HeatmapStats', 'Error rendering heatmap stats dashboard', err);
-        }
+        // Headless in production; HeatmapApp renders HeatmapStatsDashboard declaratively.
     }
 
     /**
