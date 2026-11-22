@@ -20,6 +20,13 @@ import { Card, StorageData, ExtensionSettings } from '../../types/domain';
 import { RATING_UI_DEBOUNCE_MS } from '../common/constants';
 import FsrsScheduler from './scheduler/fsrsScheduler';
 import { Logger } from '@common/logger';
+import { Notifier } from '../../content/notifications';
+import {
+    getOrCreateTrackerHost,
+    removeTrackerHost,
+    getTrackerHost,
+    isTrackerLauncherPresent
+} from '../../content/utils';
 
 declare const jest: any;
 
@@ -1474,7 +1481,10 @@ export class Tracker {
                 const logger = getLogger();
                 if (logger) {
                     logger.warn('Tracker', 'Extension context invalidated. Ignoring refresh.');
-                    alert("Please refresh the page");
+                    const notifier = (this.notifier as any) || (getAlgoRecallGlobal() as any)?.Notifier || Notifier;
+                    if (notifier?.showPageNotification) {
+                        notifier.showPageNotification('AlgoRecall Notice', 'Extension updated. Please refresh the page.', 'test');
+                    }
                 }
                 return;
             }
@@ -1589,17 +1599,73 @@ export class Tracker {
     }
 
     /**
-     * Injects the Preact Tracker widget root component hierarchy into `document.body`.
+     * Resolves or creates the dedicated host mounting container `#algo-tracker-host`
+     * for the Tracker widget, isolating it from host SPA Virtual DOM trees.
+     * Boundary 2: Host container injection in content script layer.
+     */
+    static getOrCreateHost(): HTMLElement | null {
+        try {
+            const utils = (getAlgoRecallGlobal() as any)?.Utils;
+            if (typeof utils?.getOrCreateTrackerHost === 'function') {
+                return utils.getOrCreateTrackerHost();
+            }
+            return getOrCreateTrackerHost();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Tracker', `Failed to get or create tracker host: ${errorMessage}`, { err });
+            return null;
+        }
+    }
+
+    /**
+     * Safely queries the host container without creating it.
+     */
+    static getHost(): HTMLElement | null {
+        try {
+            const utils = (getAlgoRecallGlobal() as any)?.Utils;
+            if (typeof utils?.getTrackerHost === 'function') {
+                return utils.getTrackerHost();
+            }
+            return getTrackerHost();
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Injects the Preact Tracker widget root component hierarchy into `#algo-tracker-host`.
      * 
      * @returns {void}
      */
     createUI(): void {
         try {
-            if (this.isMounted) return;
-            if (typeof document !== 'undefined' && document.body) {
-                delete (document.body as any).__k;
+            const host = Tracker.getOrCreateHost();
+            if (!host) return;
+
+            // SPA Route Navigation Recovery:
+            // Check if host is disconnected from DOM or if launcher element was wiped out by host SPA navigation/reconciliation.
+            const utils = (getAlgoRecallGlobal() as any)?.Utils;
+            const launcherPresent = typeof utils?.hasTrackerLauncher === 'function'
+                ? utils.hasTrackerLauncher()
+                : isTrackerLauncherPresent(host);
+            const isHostConnected = host.isConnected ?? (typeof document !== 'undefined' && document.body?.contains(host));
+
+            if (this.isMounted && isHostConnected && launcherPresent) {
+                return;
             }
-            render(<TrackerApp tracker={this} />, document.body);
+
+            // If previously mounted but elements were wiped, reset isMounted to re-mount
+            if (this.isMounted && (!isHostConnected || !launcherPresent)) {
+                this.isMounted = false;
+                this._cleanupReviewKeyboard();
+                this.activeReviewFilter = null;
+                delete (host as any).__k;
+                if (!isHostConnected) {
+                    Tracker.getOrCreateHost();
+                }
+            }
+
+            render(<TrackerApp tracker={this} />, host);
             this.isMounted = true;
 
             try {
@@ -1614,6 +1680,38 @@ export class Tracker {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to create UI elements: ${errorMessage}`, { err });
+        }
+    }
+
+    /**
+     * Removes the Preact Tracker widget from the DOM and cleans up its dedicated host container.
+     * 
+     * @returns {void}
+     */
+    removeUI(): void {
+        try {
+            this._cleanupReviewKeyboard();
+            const host = Tracker.getHost();
+            if (host) {
+                try {
+                    render(null, host);
+                } catch (renderErr) {
+                    const errorMessage = renderErr instanceof Error ? renderErr.message : String(renderErr);
+                    Logger.error('Tracker', `Error unmounting Preact in removeUI: ${errorMessage}`, { renderErr });
+                }
+            }
+            const utils = (getAlgoRecallGlobal() as any)?.Utils;
+            if (typeof utils?.removeTrackerHost === 'function') {
+                utils.removeTrackerHost();
+            } else {
+                removeTrackerHost();
+            }
+            this._appControls = null;
+            this.activeReviewFilter = null;
+            this.isMounted = false;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Tracker', `Failed to remove UI: ${errorMessage}`, { err });
         }
     }
 
@@ -1698,7 +1796,10 @@ export class Tracker {
         try {
             const allDue = this.getDueCards();
             if (allDue.length === 0) {
-                alert("No cards due right now!");
+                const notifier = (this.notifier as any) || (getAlgoRecallGlobal() as any)?.Notifier || Notifier;
+                if (notifier?.showPageNotification) {
+                    notifier.showPageNotification('AlgoRecall', 'No cards due right now!', 'test');
+                }
                 return;
             }
 
@@ -1754,7 +1855,10 @@ export class Tracker {
         try {
             const dueCards = this.getDueCards(this.activeReviewFilter);
             if (dueCards.length === 0) {
-                alert("No cards due for this filter!");
+                const notifier = (this.notifier as any) || (getAlgoRecallGlobal() as any)?.Notifier || Notifier;
+                if (notifier?.showPageNotification) {
+                    notifier.showPageNotification('AlgoRecall', 'No cards due for this filter!', 'test');
+                }
                 this.activeReviewFilter = null;
                 return;
             }
@@ -1990,7 +2094,13 @@ export class Tracker {
     handleRatingBarClick(rating: number): void {
         try {
             const approach = this.approachInputRef?.current ? this.approachInputRef.current.value : this.currentApproachText;
-            if (!approach) return alert("Please enter your approach.");
+            if (!approach) {
+                const notifier = (this.notifier as any) || (getAlgoRecallGlobal() as any)?.Notifier || Notifier;
+                if (notifier?.showPageNotification) {
+                    notifier.showPageNotification('AlgoRecall', 'Please enter your approach.', 'test');
+                }
+                return;
+            }
 
             const tagsVal = this.tagsInputRef?.current ? this.tagsInputRef.current.value : this.currentTagsText;
             const parsedTags = tagsVal.split(',').map(t => t.trim()).filter(t => t.length > 0);

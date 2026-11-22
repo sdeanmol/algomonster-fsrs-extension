@@ -696,6 +696,161 @@ describe('Tracker Floating Widget', () => {
       globalState.extensionSettings = { showLauncher: true };
     });
   });
+
+  describe('DOM Isolation and Host SPA Stability', () => {
+    it('mounts into dedicated #algo-tracker-host without polluting document.body.__k', () => {
+      // Set dummy property on document.body to verify it is not deleted
+      (document.body as any).__k = 'host_vnode_root';
+
+      tracker.createUI();
+
+      const host = document.getElementById('algo-tracker-host');
+      expect(host).not.toBeNull();
+      expect(document.body.contains(host)).toBe(true);
+
+      // Verify launcher and container are inside host
+      const launcher = document.getElementById('algo-fsrs-launcher');
+      const container = document.getElementById('algo-fsrs-container');
+      expect(host?.contains(launcher)).toBe(true);
+      expect(host?.contains(container)).toBe(true);
+
+      // Verify document.body.__k is preserved and not deleted
+      expect((document.body as any).__k).toBe('host_vnode_root');
+      delete (document.body as any).__k;
+    });
+
+    it('cleans up UI and removes #algo-tracker-host on removeUI()', () => {
+      tracker.createUI();
+      expect(document.getElementById('algo-tracker-host')).not.toBeNull();
+      expect(tracker.isMounted).toBe(true);
+
+      const cleanupSpy = jest.spyOn(tracker, '_cleanupReviewKeyboard');
+      tracker.removeUI();
+
+      expect(cleanupSpy).toHaveBeenCalled();
+      expect(document.getElementById('algo-tracker-host')).toBeNull();
+      expect(document.getElementById('algo-fsrs-launcher')).toBeNull();
+      expect(tracker.isMounted).toBe(false);
+    });
+
+    it('recovers and re-mounts when #algo-tracker-host is detached during SPA route changes', () => {
+      tracker.createUI();
+      expect(tracker.isMounted).toBe(true);
+
+      // Simulate SPA framework (e.g. Next.js / React) wiping body children on route navigation
+      const host = document.getElementById('algo-tracker-host');
+      host?.remove();
+      expect(document.getElementById('algo-tracker-host')).toBeNull();
+
+      // Calling createUI must detect missing host/launcher and re-mount
+      tracker.createUI();
+
+      expect(tracker.isMounted).toBe(true);
+      expect(document.getElementById('algo-tracker-host')).not.toBeNull();
+      expect(document.getElementById('algo-fsrs-launcher')).not.toBeNull();
+    });
+
+    it('recovers and re-mounts when launcher is wiped while host element remains', () => {
+      tracker.createUI();
+      expect(tracker.isMounted).toBe(true);
+
+      // Simulate partial DOM wipe (e.g. host element emptied)
+      const host = document.getElementById('algo-tracker-host');
+      if (host) host.innerHTML = '';
+      expect(document.getElementById('algo-fsrs-launcher')).toBeNull();
+
+      tracker.createUI();
+
+      expect(tracker.isMounted).toBe(true);
+      expect(document.getElementById('algo-fsrs-launcher')).not.toBeNull();
+    });
+
+    it('cleans up review keyboard and resets activeReviewFilter when recovering from detached host or wiped launcher', () => {
+      tracker.createUI();
+      expect(tracker.isMounted).toBe(true);
+      tracker.activeReviewFilter = 'DP';
+      const cleanupSpy = jest.spyOn(tracker, '_cleanupReviewKeyboard');
+
+      const host = document.getElementById('algo-tracker-host');
+      host?.remove();
+
+      tracker.createUI();
+
+      expect(cleanupSpy).toHaveBeenCalled();
+      expect(tracker.activeReviewFilter).toBeNull();
+      expect(tracker.isMounted).toBe(true);
+    });
+
+    it('invokes toast notification instead of alert when extension context is invalidated in refreshWidgetState', () => {
+      const showPageNotifSpy = jest.fn();
+      (window as any).AlgoRecall.Notifier = { showPageNotification: showPageNotifSpy };
+
+      const originalId = chrome.runtime.id;
+      delete (chrome as any).runtime.id;
+
+      tracker.createUI();
+      tracker.refreshWidgetState();
+
+      expect(showPageNotifSpy).toHaveBeenCalledWith(
+        'AlgoRecall Notice',
+        'Extension updated. Please refresh the page.',
+        'test'
+      );
+
+      (chrome as any).runtime.id = originalId;
+    });
+
+    it('invokes toast notification instead of alert when zero cards are due in startReview', () => {
+      const showPageNotifSpy = jest.fn();
+      (window as any).AlgoRecall.Notifier = { showPageNotification: showPageNotifSpy };
+
+      tracker.createUI();
+      tracker.getDueCards = jest.fn(() => []);
+
+      tracker.startReview();
+
+      expect(showPageNotifSpy).toHaveBeenCalledWith(
+        'AlgoRecall',
+        'No cards due right now!',
+        'test'
+      );
+    });
+
+    it('invokes toast notification instead of alert when zero cards are due for active filter in _startReviewSession', () => {
+      const showPageNotifSpy = jest.fn();
+      (window as any).AlgoRecall.Notifier = { showPageNotification: showPageNotifSpy };
+
+      tracker.createUI();
+      tracker.activeReviewFilter = 'Graph';
+      tracker.getDueCards = jest.fn(() => []);
+
+      tracker._startReviewSession();
+
+      expect(showPageNotifSpy).toHaveBeenCalledWith(
+        'AlgoRecall',
+        'No cards due for this filter!',
+        'test'
+      );
+      expect(tracker.activeReviewFilter).toBeNull();
+    });
+
+    it('invokes toast notification instead of alert when approach is empty in handleRatingBarClick', () => {
+      const showPageNotifSpy = jest.fn();
+      (window as any).AlgoRecall.Notifier = { showPageNotification: showPageNotifSpy };
+
+      tracker.createUI();
+      tracker.currentApproachText = '';
+      (tracker as any).approachInputRef = { current: null };
+
+      tracker.handleRatingBarClick(3);
+
+      expect(showPageNotifSpy).toHaveBeenCalledWith(
+        'AlgoRecall',
+        'Please enter your approach.',
+        'test'
+      );
+    });
+  });
 });
 
 

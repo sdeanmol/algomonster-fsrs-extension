@@ -18,8 +18,9 @@ import { PerformanceTab } from './performance/performance';
 import { InsightsTab } from './insights/insights';
 import { ReadinessTab } from './readiness/readiness';
 import { SimulationTab } from './memory/futureMemorySimulation';
-import { Card, StorageData } from '../../../types/domain';
+import { Card, StorageData, FSRSParameters } from '../../../types/domain';
 import AbstractScheduler from '../../tracker/scheduler/scheduler';
+import FsrsScheduler from '@tracker/scheduler/fsrsScheduler';
 
 /**
  * Valid tab navigation identifiers in the Analytics SPA dashboard.
@@ -267,6 +268,7 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
     const [currentTab, setCurrentTab] = useState<TabKey>(initialTab);
     const [cards, setCards] = useState<Card[]>(propCards || []);
     const [activity, setActivity] = useState<Record<string, number>>(propActivity || {});
+    const [fsrsGlobalParams, setFsrsGlobalParams] = useState<Partial<FSRSParameters> | null>(null);
     const [stats, setStats] = useState<SummaryStats>(() => new DataUtils([], {}, null).getSummaryStats());
     const [examRecall, setExamRecall] = useState<number>(0);
     const [subtitle, setSubtitle] = useState<string>('Loading analytics...');
@@ -275,10 +277,10 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
         setCurrentTab(tab);
     }, []);
 
-    const computeAndSetStats = useCallback((c: Card[], a: Record<string, number>) => {
+    const computeAndSetStats = useCallback((c: Card[], a: Record<string, number>, globalParams?: Partial<FSRSParameters> | null) => {
         try {
-            const SchedulerClass = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
-            const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass() : null;
+            const SchedulerClass = (window as unknown as { FsrsScheduler?: new (params?: Partial<FSRSParameters> | null) => AbstractScheduler }).FsrsScheduler || FsrsScheduler;
+            const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass(globalParams || null) : new FsrsScheduler(globalParams || null);
             const utils = new DataUtils(c, a, scheduler);
             const s = utils.getSummaryStats();
             const r = utils.getExamReadinessStats(12).overallRecall || 0;
@@ -298,7 +300,7 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
         const loadData = () => {
             try {
                 if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-                    chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result: StorageData) => {
+                    chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'fsrsGlobalParams'], (result: StorageData) => {
                         const lastError = chrome.runtime?.lastError;
                         if (lastError) {
                             Logger.error('AnalyticsApp', `Storage error: ${lastError.message}`, { lastError });
@@ -309,8 +311,10 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
 
                         const loadedCards = result?.fsrsCards || propCards || [];
                         const loadedActivity = result?.fsrsActivity || propActivity || {};
+                        const loadedParams = result?.fsrsGlobalParams || null;
                         setCards(loadedCards);
                         setActivity(loadedActivity);
+                        setFsrsGlobalParams(loadedParams);
 
                         // If FsrsScheduler is loading asynchronously, wait for it
                         const win = window as unknown as { FsrsScheduler?: unknown };
@@ -320,17 +324,17 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
                                 if (win.FsrsScheduler !== undefined || retries > 50) {
                                     clearInterval(interval);
                                     if (isSubscribed) {
-                                        computeAndSetStats(loadedCards, loadedActivity);
+                                        computeAndSetStats(loadedCards, loadedActivity, loadedParams);
                                     }
                                 }
                                 retries++;
                             }, 100);
                         } else {
-                            computeAndSetStats(loadedCards, loadedActivity);
+                            computeAndSetStats(loadedCards, loadedActivity, loadedParams);
                         }
                     });
                 } else if (propCards) {
-                    computeAndSetStats(propCards, propActivity || {});
+                    computeAndSetStats(propCards, propActivity || {}, fsrsGlobalParams);
                 }
             } catch (err) {
                 UIUtils.catchError('AnalyticsApp', 'Error loading storage data', err);
@@ -342,7 +346,7 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
         return () => {
             isSubscribed = false;
         };
-    }, [propCards, propActivity, computeAndSetStats]);
+    }, [propCards, propActivity, computeAndSetStats, fsrsGlobalParams]);
 
     const title = TAB_TITLES[currentTab] || 'Overview';
 

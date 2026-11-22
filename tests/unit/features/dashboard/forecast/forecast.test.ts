@@ -331,6 +331,10 @@ describe('ForecastDashboard', () => {
 
       const subtitleEl = document.getElementById('forecast-subtitle');
       expect(subtitleEl?.textContent).toContain('total cards');
+      expect(subtitleEl?.textContent).toContain('· Next 30 days starting');
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      expect(subtitleEl?.textContent).toBe(`7 total cards · Next 30 days starting ${dashboard.formatDateShort(todayStart)}`);
     });
 
     it('returns early if forecast-calendar element is missing', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { AlgoRecallOrchestrator } from '../../../content/content';
+import { AlgoRecallOrchestrator, isIgnoredMutationNode, getOrCreateTrackerHost, removeTrackerHost } from '../../../content/content';
 import { Logger } from '@common/logger';
 
 describe('AlgoRecallOrchestrator', () => {
@@ -435,6 +435,176 @@ describe('AlgoRecallOrchestrator', () => {
         'local'
       );
       expect(launcher?.style.display).toBe('flex');
+    });
+  });
+
+  describe('Host SPA Stability, Mutation Filtering & Container Management', () => {
+    it('isIgnoredMutationNode correctly classifies AlgoRecall UI and code editor elements', () => {
+      // Ignored elements
+      const trackerHost = document.createElement('div');
+      trackerHost.id = 'algo-tracker-host';
+      const trackerChild = document.createElement('span');
+      trackerHost.appendChild(trackerChild);
+
+      const monacoEditor = document.createElement('div');
+      monacoEditor.className = 'monaco-editor vs-dark';
+      const monacoLine = document.createElement('div');
+      monacoEditor.appendChild(monacoLine);
+
+      const aceEditor = document.createElement('div');
+      aceEditor.className = 'ace_editor';
+      const textarea = document.createElement('textarea');
+
+      const notif = document.createElement('div');
+      notif.className = 'algo-custom-notification';
+
+      expect(isIgnoredMutationNode(trackerHost)).toBe(true);
+      expect(isIgnoredMutationNode(trackerChild)).toBe(true);
+      expect(isIgnoredMutationNode(monacoEditor)).toBe(true);
+      expect(isIgnoredMutationNode(monacoLine)).toBe(true);
+      expect(isIgnoredMutationNode(aceEditor)).toBe(true);
+      expect(isIgnoredMutationNode(textarea)).toBe(true);
+      expect(isIgnoredMutationNode(notif)).toBe(true);
+
+      // Non-ignored host content elements
+      const problemDesc = document.createElement('div');
+      problemDesc.className = 'problem-description';
+      const textNode = document.createTextNode('Sample text');
+      problemDesc.appendChild(textNode);
+
+      expect(isIgnoredMutationNode(problemDesc)).toBe(false);
+      expect(isIgnoredMutationNode(textNode)).toBe(false);
+      expect(isIgnoredMutationNode(null)).toBe(false);
+    });
+
+    it('filters out mutations originating inside AlgoRecall containers without scheduling debounce', async () => {
+      // Create #algo-tracker-host before observer starts
+      let trackerHost = document.getElementById('algo-tracker-host');
+      if (!trackerHost) {
+        trackerHost = document.createElement('div');
+        trackerHost.id = 'algo-tracker-host';
+        document.body.appendChild(trackerHost);
+      }
+
+      orchestrator.setupMutationObserver();
+
+      const applyHighlightsSpy = jest.spyOn(orchestrator.highlighter, 'applyHighlightsForCurrentPage');
+
+      const internalWidgetChild = document.createElement('span');
+      internalWidgetChild.textContent = 'internal rating update';
+      trackerHost.appendChild(internalWidgetChild);
+
+      await Promise.resolve();
+
+      // Advance by 150ms debounce
+      jest.advanceTimersByTime(150);
+
+      // Highlights should NOT be reapplied because all mutations occurred inside tracker host
+      expect(applyHighlightsSpy).not.toHaveBeenCalled();
+    });
+
+    it('filters out mutations when child nodes are removed or edited inside code editors (detached nodes)', async () => {
+      const monacoEditor = document.createElement('div');
+      monacoEditor.className = 'monaco-editor';
+      const monacoLine = document.createElement('div');
+      monacoLine.textContent = 'const solution = () => {};';
+      monacoEditor.appendChild(monacoLine);
+      document.body.appendChild(monacoEditor);
+
+      orchestrator.setupMutationObserver();
+
+      const applyHighlightsSpy = jest.spyOn(orchestrator.highlighter, 'applyHighlightsForCurrentPage');
+
+      // Remove the child element inside Monaco editor
+      monacoEditor.removeChild(monacoLine);
+
+      await Promise.resolve();
+      jest.advanceTimersByTime(150);
+
+      // Highlights should NOT be reapplied because target was inside code editor
+      expect(applyHighlightsSpy).not.toHaveBeenCalled();
+    });
+
+    it('triggers debounced highlight update (150ms) when mutations occur in external host content', async () => {
+      orchestrator.setupMutationObserver();
+
+      const applyHighlightsSpy = jest.spyOn(orchestrator.highlighter, 'applyHighlightsForCurrentPage').mockImplementation(() => {});
+
+      // Add a regular host problem node
+      const hostContent = document.createElement('div');
+      hostContent.className = 'content__u3I1';
+      hostContent.textContent = 'Given an array of integers nums...';
+      document.body.appendChild(hostContent);
+
+      await Promise.resolve();
+
+      // At 100ms, debounce should not have fired yet (150ms debounce)
+      jest.advanceTimersByTime(100);
+      expect(applyHighlightsSpy).not.toHaveBeenCalled();
+
+      // At 150ms, debounce fires
+      jest.advanceTimersByTime(50);
+      expect(applyHighlightsSpy).toHaveBeenCalled();
+    });
+
+    it('binds popstate listener and invokes triggerAggressiveUIUpdate on history navigation', () => {
+      orchestrator.bindEvents();
+      const updateSpy = jest.spyOn(orchestrator, 'triggerAggressiveUIUpdate').mockImplementation(() => {});
+
+      window.dispatchEvent(new PopStateEvent('popstate'));
+
+      expect(updateSpy).toHaveBeenCalled();
+    });
+
+    it('creates, reuses, and removes dedicated #algo-tracker-host container', () => {
+      // Remove any existing host
+      removeTrackerHost();
+      expect(document.getElementById('algo-tracker-host')).toBeNull();
+
+      // First call creates host
+      const host1 = getOrCreateTrackerHost();
+      expect(host1).not.toBeNull();
+      expect(host1?.id).toBe('algo-tracker-host');
+      expect(document.getElementById('algo-tracker-host')).toBe(host1);
+
+      // Subsequent call returns identical instance
+      const host2 = getOrCreateTrackerHost();
+      expect(host2).toBe(host1);
+
+      // Removal cleans it up
+      removeTrackerHost();
+      expect(document.getElementById('algo-tracker-host')).toBeNull();
+    });
+
+    it('re-injects tracker UI and refreshes widget state if #algo-tracker-host is missing during triggerAggressiveUIUpdate', () => {
+      removeTrackerHost();
+      const createUISpy = jest.spyOn(orchestrator.tracker, 'createUI');
+      const refreshSpy = jest.spyOn(orchestrator.tracker, 'refreshWidgetState');
+
+      orchestrator.triggerAggressiveUIUpdate();
+
+      expect(createUISpy).toHaveBeenCalled();
+      expect(refreshSpy).toHaveBeenCalled();
+    });
+
+    it('re-injects tracker UI and refreshes widget state when host is wiped during DOM mutations', async () => {
+      orchestrator.setupMutationObserver();
+      removeTrackerHost();
+      const launcher = document.getElementById('algo-fsrs-launcher');
+      launcher?.remove();
+
+      const createUISpy = jest.spyOn(orchestrator.tracker, 'createUI');
+      const refreshSpy = jest.spyOn(orchestrator.tracker, 'refreshWidgetState');
+
+      const hostContent = document.createElement('div');
+      hostContent.textContent = 'Problem content mutated';
+      document.body.appendChild(hostContent);
+
+      await Promise.resolve();
+      jest.advanceTimersByTime(150);
+
+      expect(createUISpy).toHaveBeenCalled();
+      expect(refreshSpy).toHaveBeenCalled();
     });
   });
 });

@@ -25,7 +25,7 @@ describe('Tracker Integration', () => {
             },
             saveData: jest.fn(callback => { if (callback) callback(); }),
             isAllowedDomain: jest.fn(() => true),
-            Notifier: { show: jest.fn() }
+            Notifier: { show: jest.fn(), showPageNotification: jest.fn() }
         });
 
         // Mock alert
@@ -85,14 +85,18 @@ describe('Tracker Integration', () => {
     });
 
     describe('Review Session (startReview)', () => {
-        it('alerts if no cards are due', () => {
+        it('shows notification if no cards are due', () => {
             tracker.createUI();
             
             // All cards due in future
             window.AlgoRecall.state.cards.forEach(c => c.due = Date.now() + 100000);
             tracker.startReview();
             
-            expect(global.alert).toHaveBeenCalledWith("No cards due right now!");
+            expect(window.AlgoRecall.Notifier.showPageNotification).toHaveBeenCalledWith(
+                'AlgoRecall',
+                'No cards due right now!',
+                'test'
+            );
         });
 
         it('shows review directly if only one unique tag is due', () => {

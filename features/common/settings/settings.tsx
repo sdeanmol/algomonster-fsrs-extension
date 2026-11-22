@@ -1155,32 +1155,57 @@ export const SettingsApp: FunctionalComponent<SettingsAppProps> = ({ initialTab 
         }
     }, []);
 
-    // Load initial settings from chrome.storage.local
-    useEffect(() => {
+    const reloadSettings = useCallback(async () => {
         if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+        try {
+            const result = (await chrome.storage.local.get([
+                'extensionSettings',
+                'notificationSettings',
+                'weeklySummaryEnabled'
+            ])) as StorageData & { notificationSettings?: NotificationSettings & FullNotificationSettings; weeklySummaryEnabled?: boolean };
 
-        chrome.storage.local.get(
-            ['extensionSettings', 'notificationSettings', 'weeklySummaryEnabled'],
-            (result: StorageData & { notificationSettings?: NotificationSettings & FullNotificationSettings; weeklySummaryEnabled?: boolean }) => {
-                if (result.extensionSettings) {
-                    setExtSettings(result.extensionSettings);
-                }
-                if (result.notificationSettings) {
-                    setNotifSettings(result.notificationSettings);
-                }
-                if (result.weeklySummaryEnabled !== undefined) {
-                    setWeeklySummaryEnabled(result.weeklySummaryEnabled !== false);
+            if (result.extensionSettings) {
+                setExtSettings(result.extensionSettings);
+            }
+            if (result.notificationSettings) {
+                setNotifSettings(result.notificationSettings);
+            }
+            if (result.weeklySummaryEnabled !== undefined) {
+                setWeeklySummaryEnabled(result.weeklySummaryEnabled !== false);
+            }
+        } catch (err) {
+            Logger.error('SettingsApp', 'Error reloading settings', { err });
+        }
+    }, []);
+
+    // Load initial settings from chrome.storage.local & listen for changes
+    useEffect(() => {
+        reloadSettings();
+
+        const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+            if (areaName === 'local') {
+                if (changes.extensionSettings || changes.notificationSettings || changes.weeklySummaryEnabled) {
+                    reloadSettings();
                 }
             }
-        );
+        };
+
+        if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+            chrome.storage.onChanged.addListener(handleStorageChange);
+        }
 
         const handleHashChange = () => {
             const h = window.location.hash.replace('#', '');
             if (h) setActiveTabState(h);
         };
         window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, []);
+        return () => {
+            window.removeEventListener('hashchange', handleHashChange);
+            if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+                chrome.storage.onChanged.removeListener(handleStorageChange);
+            }
+        };
+    }, [reloadSettings]);
 
     const handleToggleTheme = useCallback(async () => {
         try {
@@ -1263,12 +1288,22 @@ export const SettingsApp: FunctionalComponent<SettingsAppProps> = ({ initialTab 
     }, [showToast]);
 
     const handleImportBackup = useCallback(
-        (file: File) => {
-            BackupManager.importBackup(file, (msg: string, isError?: boolean) => {
-                showToast(msg, isError ?? false);
-            });
+        async (file: File) => {
+            try {
+                let hasError = false;
+                await BackupManager.importBackup(file, (msg: string, isError?: boolean) => {
+                    if (isError) hasError = true;
+                    showToast(msg, isError ?? false);
+                });
+                if (!hasError) {
+                    await reloadSettings();
+                }
+            } catch (err) {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                showToast(`Import failed: ${errorMessage}`, true);
+            }
         },
-        [showToast]
+        [showToast, reloadSettings]
     );
 
     const handleExportAnki = useCallback(async () => {

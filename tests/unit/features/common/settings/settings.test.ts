@@ -394,6 +394,60 @@ describe('SettingsApp & initSettings (Production Preact UI)', () => {
       expect(BackupManager.importBackup).toHaveBeenCalledWith(mockFile, expect.any(Function));
     });
 
+    it('rehydrates settings into state after BackupManager.importBackup completes', async () => {
+      (BackupManager.importBackup as jest.Mock).mockImplementationOnce(async (_file: any, cb: any) => {
+        mockStorage.extensionSettings.showMarkerPopup = false;
+        mockStorage.notificationSettings.enabled = false;
+        mockStorage.weeklySummaryEnabled = false;
+        if (cb) cb('Backup restored successfully!', false);
+      });
+
+      await act(async () => {
+        render(h(SettingsApp, { initialTab: 'data' }), container);
+        await Promise.resolve();
+      });
+
+      const importFileInput = container.querySelector('#settings-import-file') as HTMLInputElement;
+      const mockFile = new File(['{"cards":[]}'], 'backup.json', { type: 'application/json' });
+      Object.defineProperty(importFileInput, 'files', {
+        value: [mockFile],
+        writable: true
+      });
+
+      await act(async () => {
+        importFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+        await Promise.resolve();
+      });
+
+      expect(BackupManager.importBackup).toHaveBeenCalled();
+      expect(chrome.storage.local.get).toHaveBeenCalled();
+    });
+
+    it('rehydrates settings when chrome.storage.onChanged fires', async () => {
+      let changeListener: any = null;
+      (global as any).chrome.storage.onChanged = {
+        addListener: jest.fn((listener: any) => { changeListener = listener; }),
+        removeListener: jest.fn()
+      };
+
+      await act(async () => {
+        render(h(SettingsApp, { initialTab: 'data' }), container);
+        await Promise.resolve();
+      });
+
+      expect((global as any).chrome.storage.onChanged.addListener).toHaveBeenCalled();
+      expect(changeListener).not.toBeNull();
+
+      // Trigger change event
+      mockStorage.notificationSettings.enabled = false;
+      await act(async () => {
+        changeListener({ notificationSettings: { newValue: { enabled: false } } }, 'local');
+        await Promise.resolve();
+      });
+
+      expect(chrome.storage.local.get).toHaveBeenCalled();
+    });
+
     it('calls ActionService.executeAction when Anki export button is clicked', async () => {
       await act(async () => {
         render(h(SettingsApp, { initialTab: 'data' }), container);

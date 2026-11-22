@@ -430,6 +430,104 @@ export class Utils {
             // ignore
         }
     }
+
+    /**
+     * Retrieves or creates the dedicated host mounting container for the Tracker widget.
+     * Boundary 2: Host container injection in content script layer.
+     * @returns {HTMLElement | null} Host container element.
+     */
+    static getOrCreateTrackerHost(): HTMLElement | null {
+        try {
+            if (typeof document === 'undefined') return null;
+            let host = document.getElementById('algo-tracker-host');
+            if (!host) {
+                host = document.createElement('div');
+                host.id = 'algo-tracker-host';
+                if (document.body) {
+                    document.body.appendChild(host);
+                }
+            } else if (document.body && !document.body.contains(host)) {
+                document.body.appendChild(host);
+            }
+            return host;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Removes the host mounting container for the Tracker widget.
+     * Boundary 2: Host container removal in content script layer.
+     */
+    static removeTrackerHost(): void {
+        try {
+            if (typeof document === 'undefined') return;
+            const host = document.getElementById('algo-tracker-host');
+            if (host) {
+                host.remove();
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    /**
+     * Queries the tracker host mounting container without creating it.
+     * Boundary 2: Host container query in content script layer.
+     * @returns {HTMLElement | null}
+     */
+    static getTrackerHost(): HTMLElement | null {
+        try {
+            if (typeof document === 'undefined') return null;
+            return document.getElementById('algo-tracker-host');
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Checks if the floating launcher button is present in the DOM.
+     * Boundary 2: Host container query in content script layer.
+     * @returns {boolean}
+     */
+    static hasTrackerLauncher(): boolean {
+        try {
+            if (typeof document === 'undefined') return false;
+            return !!document.getElementById('algo-fsrs-launcher');
+        } catch {
+            return false;
+        }
+    }
+}
+
+/**
+ * Retrieves or creates the dedicated host mounting container for the Tracker widget.
+ * Boundary 2: Host container injection in content script layer.
+ */
+export function getOrCreateTrackerHost(): HTMLElement | null {
+    return Utils.getOrCreateTrackerHost();
+}
+
+/**
+ * Removes the dedicated host mounting container for the Tracker widget.
+ * Boundary 2: Host container removal in content script layer.
+ */
+export function removeTrackerHost(): void {
+    Utils.removeTrackerHost();
+}
+
+/**
+ * Queries the host mounting container without creating it.
+ */
+export function getTrackerHost(): HTMLElement | null {
+    return Utils.getTrackerHost();
+}
+
+/**
+ * Checks if the tracker launcher button is currently present in the DOM.
+ */
+export function isTrackerLauncherPresent(host?: HTMLElement | null): boolean {
+    return Utils.hasTrackerLauncher();
 }
 
 try {

@@ -139,6 +139,11 @@ describe('Forecast Preact Components', () => {
 
             expect(container.querySelector('.algorecall-brand-name')?.textContent).toBe('AlgoRecall');
             expect(container.querySelector('h1')?.textContent).toBe('Review Forecast');
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const expectedStartStr = todayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            expect(container.querySelector('#forecast-subtitle')?.textContent).toBe(`2 total cards · Next 30 days starting ${expectedStartStr}`);
+            expect(container.querySelector('#forecast-subtitle')?.textContent).toMatch(/^2 total cards · Next 30 days starting [A-Z][a-z]{2} \d+$/);
             expect(container.querySelector('.forecast-summary')).not.toBeNull();
             expect(container.querySelector('#forecast-chart-wrapper')).not.toBeNull();
             expect(container.querySelector('#forecast-calendar')).not.toBeNull();

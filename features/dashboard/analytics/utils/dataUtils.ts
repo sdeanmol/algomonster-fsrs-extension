@@ -232,7 +232,10 @@ export class DataUtils {
             
             this.cards.forEach((card: Card & { elapsedDays?: number; scheduledDays?: number }) => {
                 try {
-                    card.last_review = getLastReviewDate(card);
+                    const lr = getLastReviewDate(card);
+                    if (lr) {
+                        card.last_review = lr;
+                    }
                     
                     if (card.elapsedDays === undefined) card.elapsedDays = card.elapsed_days || 0;
                     if (card.scheduledDays === undefined) card.scheduledDays = card.scheduled_days || 0;
@@ -305,7 +308,8 @@ export class DataUtils {
                     dueTodayCount++;
                 }
 
-                if (card.stability > 0 && card.last_review && this.scheduler) {
+                const lastReview = card.last_review || getLastReviewDate(card);
+                if (card.stability > 0 && lastReview && this.scheduler) {
                     const r = this.scheduler.getRetrievability(card, now.getTime());
                     totalRetrievability += r;
                     retrievabilityCount++;
@@ -363,7 +367,7 @@ export class DataUtils {
             let graduatedPrevWeek = 0;
             
             this.cards.forEach(card => {
-                let firstReview: number | null | undefined = card.last_review;
+                let firstReview: number | null | undefined = card.last_review || getLastReviewDate(card);
                 if (card.historyLog && card.historyLog.length > 0) {
                     const firstLog = card.historyLog[0] as ReviewLog | number;
                     firstReview = typeof firstLog === 'object' && firstLog !== null ? firstLog.date : firstLog;
@@ -377,10 +381,11 @@ export class DataUtils {
                     }
                 }
                 
-                if (card.stability > GRADUATED_STABILITY_THRESHOLD && card.last_review) {
-                    if (card.last_review > oneWeekAgo) {
+                const lastReview = card.last_review || getLastReviewDate(card);
+                if (card.stability > GRADUATED_STABILITY_THRESHOLD && lastReview) {
+                    if (lastReview > oneWeekAgo) {
                         graduatedLastWeek++;
-                    } else if (card.last_review > twoWeeksAgo && card.last_review <= oneWeekAgo) {
+                    } else if (lastReview > twoWeeksAgo && lastReview <= oneWeekAgo) {
                         graduatedPrevWeek++;
                     }
                 }
@@ -394,7 +399,7 @@ export class DataUtils {
             const dailyRev = [0, 0, 0, 0, 0, 0, 0];
 
             this.cards.forEach(card => {
-                let firstReview: number | null | undefined = card.last_review;
+                let firstReview: number | null | undefined = card.last_review || getLastReviewDate(card);
                 if (card.historyLog && card.historyLog.length > 0) {
                     const firstLog = card.historyLog[0] as ReviewLog | number;
                     firstReview = typeof firstLog === 'object' && firstLog !== null ? firstLog.date : firstLog;
@@ -404,8 +409,9 @@ export class DataUtils {
                     if (dayIndex >= 0 && dayIndex < 7) dailyNew[dayIndex]++;
                 }
                 
-                if (card.stability > GRADUATED_STABILITY_THRESHOLD && card.last_review && card.last_review > oneWeekAgo) {
-                    const dayIndex = 6 - Math.floor((now - card.last_review) / MS_PER_DAY);
+                const lastReview = card.last_review || getLastReviewDate(card);
+                if (card.stability > GRADUATED_STABILITY_THRESHOLD && lastReview && lastReview > oneWeekAgo) {
+                    const dayIndex = 6 - Math.floor((now - lastReview) / MS_PER_DAY);
                     if (dayIndex >= 0 && dayIndex < 7) dailyGrad[dayIndex]++;
                 }
             });
@@ -484,7 +490,8 @@ export class DataUtils {
                         tags[tag].due++;
                     }
 
-                    if (card.stability > 0 && card.last_review && this.scheduler) {
+                    const lastReview = card.last_review || getLastReviewDate(card);
+                    if (card.stability > 0 && lastReview && this.scheduler) {
                         const r = this.scheduler.getRetrievability(card, Date.now());
                         tags[tag].totalRetrievability += r;
                         tags[tag].retrievabilityCount++;
@@ -514,6 +521,28 @@ export class DataUtils {
             Logger.error('DataUtils', `Error getting stats by tag: ${errorMessage}`, { err });
             return [];
         }
+    }
+
+    /**
+     * Alias for getStatsByTag() providing topic coverage analysis.
+     * @returns Array of tag breakdown statistics.
+     */
+    getTopicCoverage(): TagStats[] {
+        return this.getStatsByTag();
+    }
+
+    /**
+     * Calculates overall deck memory health score and qualitative status.
+     * Derives health score from trueRetention (or raw retention fallback).
+     * @returns Health score (0-100) and status string.
+     */
+    getMemoryHealthScore(): { score: number; status: string } {
+        const stats = this.getSummaryStats();
+        const score = stats.trueRetention > 0 ? stats.trueRetention : (stats.retention || 0);
+        return {
+            score: isNaN(score) ? 0 : score,
+            status: score >= 90 ? 'Excellent' : score >= 80 ? 'Good' : score > 0 ? 'Needs Attention' : 'Need Data'
+        };
     }
     
     /**
@@ -693,7 +722,8 @@ export class DataUtils {
                 const cardTags = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
                 
                 let projectedR = 0;
-                const hasReviewHistory = card.stability > 0 && (card.last_review);
+                const lastReview = card.last_review || getLastReviewDate(card);
+                const hasReviewHistory = card.stability > 0 && Boolean(lastReview);
                 
                 if (hasReviewHistory && this.scheduler) {
                     projectedR = this.scheduler.getRetrievability(card, targetTime);
@@ -786,6 +816,14 @@ export class DataUtils {
     }
 
     /**
+     * Alias for getExamReadinessStats() providing exam readiness forecast.
+     * @param daysAhead - Days into the future to forecast (default 12).
+     */
+    getExamReadiness(daysAhead: number = 12): ExamReadinessStats {
+        return this.getExamReadinessStats(daysAhead);
+    }
+
+    /**
      * Calculates Future Memory Simulation data predicting decay if user stops studying.
      * Evaluates fixed intervals (30, 90, 180 days) plus a user-controlled slider day target.
      * @param [customDays=45] - Specific day offset requested by the simulation slider.
@@ -816,7 +854,8 @@ export class DataUtils {
             }
 
             this.cards.forEach(card => {
-                const hasReviewHistory = card.stability > 0 && (card.last_review);
+                const lastReview = card.last_review || getLastReviewDate(card);
+                const hasReviewHistory = card.stability > 0 && Boolean(lastReview);
                 if (hasReviewHistory) {
                     reviewedCardsCount++;
 

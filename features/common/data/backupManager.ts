@@ -180,6 +180,7 @@ export class BackupManager {
                 ratingPromptState?: unknown;
                 dailyGoalTarget?: number | null;
                 longestStreak?: number;
+                weeklySummaryEnabled?: boolean;
             };
 
             // Extract and deduplicate URLs across bookmarks, cards, marks, pagecontents
@@ -309,6 +310,9 @@ export class BackupManager {
                     dailyGoalTarget: raw.dailyGoalTarget || null,
                     longestStreak: raw.longestStreak || 0
                 };
+                if (raw.weeklySummaryEnabled !== undefined) {
+                    settings.weeklySummaryEnabled = raw.weeklySummaryEnabled;
+                }
                 if (raw.whitelistedWebsites !== undefined) {
                     settings.whitelistedWebsites = raw.whitelistedWebsites;
                 }
@@ -605,6 +609,10 @@ export class BackupManager {
                 dailyGoalTarget: (settings.dailyGoalTarget as number | null) || null,
                 longestStreak: (settings.longestStreak as number) || 0
             };
+
+            if (typeof settings.weeklySummaryEnabled === 'boolean') {
+                storageUpdate.weeklySummaryEnabled = settings.weeklySummaryEnabled;
+            }
 
             if (settings.whitelistedWebsites && Array.isArray(settings.whitelistedWebsites) && settings.whitelistedWebsites.length > 0) {
                 storageUpdate.whitelistedWebsites = settings.whitelistedWebsites as WhitelistedWebsite[];

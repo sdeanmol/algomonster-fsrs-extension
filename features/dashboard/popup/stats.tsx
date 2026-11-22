@@ -32,8 +32,9 @@ import {
 } from '@common/constants';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
-import { Card, StorageData, Achievement, PersonalRecords } from '../../../types/domain';
+import { Card, StorageData, Achievement, PersonalRecords, FSRSParameters } from '../../../types/domain';
 import AbstractScheduler from '../../tracker/scheduler/scheduler';
+import FsrsScheduler from '@tracker/scheduler/fsrsScheduler';
 import { evaluateAchievements, renderAchievementsModalContent } from './achievements';
 
 /**
@@ -716,6 +717,7 @@ export interface StatsDashboardProps {
     cachedRecords: PersonalRecords | null;
     onSaveGoal?: (newGoal: number) => void;
     coordinator?: DashboardCoordinator;
+    fsrsGlobalParams?: Partial<FSRSParameters> | null;
 }
 
 export function StatsDashboardApp({
@@ -727,7 +729,8 @@ export function StatsDashboardApp({
     cachedAchievements = [],
     cachedRecords = null,
     onSaveGoal,
-    coordinator
+    coordinator,
+    fsrsGlobalParams = null
 }: StatsDashboardProps): VNode {
     const [toast, setToast] = useState<{ message: string; show: boolean }>({ message: '', show: false });
     const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
@@ -775,8 +778,8 @@ export function StatsDashboardApp({
 
     let totalRetrievability = 0;
     let retrievabilityCount = 0;
-    const SchedulerClass = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
-    const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass() : null;
+    const SchedulerClass = (window as unknown as { FsrsScheduler?: new (params?: Partial<FSRSParameters> | null) => AbstractScheduler }).FsrsScheduler || FsrsScheduler;
+    const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass(fsrsGlobalParams || null) : new FsrsScheduler(fsrsGlobalParams || null);
 
     let totalActivityReviews = 0;
     let totalReps = 0;
@@ -1018,6 +1021,7 @@ export class StatsComponent extends DashboardComponent {
     cachedRecords: PersonalRecords | null = null;
     cards: Card[] = [];
     studyPlanSettings?: { isActive?: boolean; examDate?: string } | null = null;
+    fsrsGlobalParams: Partial<FSRSParameters> | null = null;
 
     public static updateToast: ((toast: { message: string; show: boolean }) => void) | null = null;
     public static updateAchievements: ((achievements: Achievement[], records: PersonalRecords | null) => void) | null = null;
@@ -1049,6 +1053,7 @@ export class StatsComponent extends DashboardComponent {
                                 await this.load();
                             }}
                             coordinator={this.coordinator}
+                            fsrsGlobalParams={this.fsrsGlobalParams}
                         />,
                         root
                     );
@@ -1066,15 +1071,18 @@ export class StatsComponent extends DashboardComponent {
                 'longestStreak',
                 'lastCelebratedMilestone',
                 'unlockedAchievements',
-                'studyPlanSettings'
+                'studyPlanSettings',
+                'fsrsGlobalParams'
             ])) as StorageData & {
                 lastCelebratedMilestone?: number;
                 unlockedAchievements?: string[];
                 studyPlanSettings?: { isActive?: boolean; examDate?: string };
+                fsrsGlobalParams?: FSRSParameters;
             };
 
             this.cards = result.fsrsCards || [];
             this.cachedActivity = result.fsrsActivity || {};
+            this.fsrsGlobalParams = result.fsrsGlobalParams || null;
             this.dailyGoalTarget = typeof result.dailyGoalTarget === 'number' ? result.dailyGoalTarget : DEFAULT_DAILY_GOAL;
             const storedLongestStreak = typeof result.longestStreak === 'number' ? result.longestStreak : 0;
             const lastCelebratedMilestone = typeof result.lastCelebratedMilestone === 'number' ? result.lastCelebratedMilestone : 0;

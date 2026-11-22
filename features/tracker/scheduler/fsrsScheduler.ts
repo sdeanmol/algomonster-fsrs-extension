@@ -51,6 +51,7 @@ export class FsrsScheduler extends AbstractScheduler {
     public factor: number;
     /** Desired target recall probability (e.g. 0.90 for 90%). */
     public requestRetention: number;
+    public hasCustomWeights: boolean;
 
     /**
      * Initializes the FSRS scheduler with standard FSRS-4.5 weights and constants.
@@ -63,10 +64,12 @@ export class FsrsScheduler extends AbstractScheduler {
         this.decay = DEFAULT_FSRS_DECAY;
         this.factor = DEFAULT_FSRS_FACTOR;
         this.requestRetention = DEFAULT_FSRS_REQUEST_RETENTION; // Target memory retention rate
+        this.hasCustomWeights = false;
 
         if (params) {
             if (params.w && Array.isArray(params.w) && params.w.length === 17) {
                 this.w = params.w;
+                this.hasCustomWeights = true;
             }
             if (params.decay !== undefined && !isNaN(Number(params.decay))) {
                 this.decay = parseFloat(String(params.decay));
@@ -385,10 +388,14 @@ export class FsrsScheduler extends AbstractScheduler {
                 last_review: new Date(lastReview)
             };
 
-            const scheduler = fsrs({
-                w: this.w,
-                request_retention: this.requestRetention
-            });
+            const scheduler = this.hasCustomWeights
+                ? fsrs({
+                    w: this.w,
+                    request_retention: this.requestRetention
+                })
+                : fsrs({
+                    request_retention: this.requestRetention
+                });
 
             return scheduler.get_retrievability(tsCard, new Date(now), false) || 0;
         } catch (err) {
@@ -499,4 +506,6 @@ if (typeof window !== 'undefined') {
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = FsrsScheduler;
+    (module.exports as any).default = FsrsScheduler;
+    (module.exports as any).FsrsScheduler = FsrsScheduler;
 }

@@ -3,7 +3,6 @@ import { useState, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { ensureCardIds } from '../utils/cardUtils';
-import { TagInputControl } from '../utils/tagInput';
 import { Card, StorageData, UserSettings } from '../../../types/domain';
 import { PLATFORM_NAMES, MONTH_NAMES } from '../constants';
 

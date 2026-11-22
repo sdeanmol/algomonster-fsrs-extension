@@ -14,7 +14,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'preact/hooks'
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { withErrorHandling } from '../../../decorators';
-import { Card, StorageData, ExtensionSettings, Achievement, PersonalRecords } from '../../../types/domain';
+import { Card, StorageData, ExtensionSettings, Achievement, PersonalRecords, FSRSParameters } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
 import { calculateStreaks, triggerConfetti } from './stats';
 import {
@@ -34,6 +34,7 @@ import { ThemeSync } from '../../common/theme-sync';
 import { ActionService } from '../../common/services/actionService';
 import { getLastReviewDate } from '../../common/utils/cardUtils';
 import AbstractScheduler from '../../tracker/scheduler/scheduler';
+import FsrsScheduler from '@tracker/scheduler/fsrsScheduler';
 import { evaluateAchievements } from './achievements';
 
 function safeFlushSync(fn: () => void): void {
@@ -904,6 +905,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
 
     const [cards, setCards] = useState<Card[]>(() => initialCards || []);
     const [activity, setActivity] = useState<Record<string, number>>({});
+    const [fsrsGlobalParams, setFsrsGlobalParams] = useState<Partial<FSRSParameters> | null>(null);
     const [dailyGoalTarget, setDailyGoalTarget] = useState<number>(DEFAULT_DAILY_GOAL);
     const [longestStreak, setLongestStreak] = useState<number>(0);
     const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
@@ -933,7 +935,8 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                     'longestStreak',
                     'lastCelebratedMilestone',
                     'unlockedAchievements',
-                    'studyPlanSettings'
+                    'studyPlanSettings',
+                    'fsrsGlobalParams'
                 ])) as StorageData & {
                     ratingPromptState?: { status?: string; snoozedUntil?: number };
                     dailyGoalTarget?: number;
@@ -941,6 +944,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                     lastCelebratedMilestone?: number;
                     unlockedAchievements?: string[];
                     studyPlanSettings?: { isActive?: boolean; examDate?: string };
+                    fsrsGlobalParams?: Partial<FSRSParameters>;
                 };
 
                 if (result.extensionSettings) {
@@ -964,6 +968,9 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                 }
                 if (result.studyPlanSettings) {
                     setStudyPlanSettings(result.studyPlanSettings);
+                }
+                if (result.fsrsGlobalParams) {
+                    setFsrsGlobalParams(result.fsrsGlobalParams);
                 }
 
                 // Rating Prompt State
@@ -1000,8 +1007,8 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
 
         let totalRetrievability = 0;
         let retrievabilityCount = 0;
-        const SchedulerClass = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
-        const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass() : null;
+        const SchedulerClass = (window as unknown as { FsrsScheduler?: new (params?: Partial<FSRSParameters> | null) => AbstractScheduler }).FsrsScheduler || FsrsScheduler;
+        const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass(fsrsGlobalParams || null) : new FsrsScheduler(fsrsGlobalParams || null);
 
         let totalReps = 0;
         let totalLapses = 0;
@@ -1026,7 +1033,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
             return Math.max(0, Math.min(100, Math.round(((totalReps - totalLapses) / totalReps) * 100)));
         }
         return 0;
-    }, [cards, now]);
+    }, [cards, fsrsGlobalParams]);
 
     // Consecutive Study Streaks
     const { current: currentStreak, longest: calculatedLongestStreak } = useMemo(() => {

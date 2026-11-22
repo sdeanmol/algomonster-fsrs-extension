@@ -27,6 +27,65 @@ import { Highlighter } from '../features/highlighter/highlighter';
 import Tracker from '../features/tracker/tracker';
 import { DEFAULT_WHITELISTED_WEBSITES, DEFAULT_PALETTES } from '../features/common/constants';
 
+import {
+    getOrCreateTrackerHost,
+    removeTrackerHost,
+    getTrackerHost,
+    isTrackerLauncherPresent
+} from './utils';
+
+export {
+    getOrCreateTrackerHost,
+    removeTrackerHost,
+    getTrackerHost,
+    isTrackerLauncherPresent
+};
+
+/**
+ * Determines whether a DOM node or its ancestry belongs to an ignored container
+ * (AlgoRecall UI widgets or code editors) to avoid recursive observer thrashing.
+ */
+export function isIgnoredMutationNode(node: Node | null): boolean {
+    if (!node) return false;
+    let el: Element | null = null;
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        el = node as Element;
+    } else if (node.parentElement) {
+        el = node.parentElement;
+    } else if (node.parentNode && node.parentNode.nodeType === Node.ELEMENT_NODE) {
+        el = node.parentNode as Element;
+    }
+    if (!el) return false;
+
+    if (typeof el.closest === 'function') {
+        if (el.closest('#algo-tracker-host, #algo-highlighter-host, #algo-custom-notification-el, .algo-custom-notification, #algo-fsrs-launcher, #algo-fsrs-container, .monaco-editor, .ace_editor, textarea')) {
+            return true;
+        }
+    } else {
+        let curr: Element | null = el;
+        while (curr) {
+            const id = curr.id || '';
+            const className = typeof curr.className === 'string' ? curr.className : '';
+            const tagName = curr.tagName ? curr.tagName.toLowerCase() : '';
+            if (
+                id === 'algo-tracker-host' ||
+                id === 'algo-highlighter-host' ||
+                id === 'algo-custom-notification-el' ||
+                id === 'algo-fsrs-launcher' ||
+                id === 'algo-fsrs-container' ||
+                className.includes('algo-custom-notification') ||
+                className.includes('monaco-editor') ||
+                className.includes('ace_editor') ||
+                tagName === 'textarea'
+            ) {
+                return true;
+            }
+            curr = curr.parentElement || (curr.parentNode && curr.parentNode.nodeType === Node.ELEMENT_NODE ? curr.parentNode as Element : null);
+        }
+    }
+    return false;
+}
+
 /**
  * @class AlgoRecallOrchestrator
  * @description Main content script orchestrator injected into whitelisted coding domains.
@@ -56,6 +115,7 @@ export class AlgoRecallOrchestrator {
         this.state = algoGlobal.state as AlgoRecallState;
         this.utils = algoGlobal.Utils || Utils;
         this.notifier = algoGlobal.Notifier || Notifier;
+
 
         // Instantiate component controllers
         const HighlighterClass = algoGlobal.Highlighter || Highlighter;
@@ -204,6 +264,18 @@ export class AlgoRecallOrchestrator {
             if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
                 chrome.runtime.onMessage.addListener(this.handleMessage.bind(this));
             }
+
+            // 4. Popstate Listener for browser Back/Forward navigation
+            if (typeof window !== 'undefined') {
+                window.addEventListener('popstate', () => {
+                    try {
+                        this.triggerAggressiveUIUpdate();
+                    } catch (err) {
+                        const errorMessage = err instanceof Error ? err.message : String(err);
+                        Logger.error('ContentScript', `Error in popstate handler: ${errorMessage}`, { err });
+                    }
+                });
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('ContentScript', `Error binding orchestrator events: ${errorMessage}`, { err });
@@ -228,7 +300,43 @@ export class AlgoRecallOrchestrator {
                 }
                 this.domObserver = null;
             }
-            this.domObserver = new MutationObserver(() => {
+            this.domObserver = new MutationObserver((mutations: MutationRecord[]) => {
+                // If all mutations in the batch originate within AlgoRecall UI containers or code editors, skip
+                if (mutations && mutations.length > 0) {
+                    const allIgnored = mutations.every((record) => {
+                        // 1. If mutation target is inside an ignored container (Monaco, Ace, textarea, AlgoRecall host),
+                        // all child mutations (additions, removals, text edits) are internal to it
+                        if (isIgnoredMutationNode(record.target)) {
+                            return true;
+                        }
+
+                        // 2. If target is an external container (e.g. document.body), verify all added/removed nodes are ignored elements
+                        const hasAdded = record.addedNodes && record.addedNodes.length > 0;
+                        const hasRemoved = record.removedNodes && record.removedNodes.length > 0;
+
+                        if (!hasAdded && !hasRemoved) {
+                            return false;
+                        }
+
+                        if (hasAdded) {
+                            for (let i = 0; i < record.addedNodes.length; i++) {
+                                if (!isIgnoredMutationNode(record.addedNodes[i])) return false;
+                            }
+                        }
+
+                        if (hasRemoved) {
+                            for (let i = 0; i < record.removedNodes.length; i++) {
+                                if (!isIgnoredMutationNode(record.removedNodes[i])) return false;
+                            }
+                        }
+
+                        return true;
+                    });
+                    if (allIgnored) {
+                        return;
+                    }
+                }
+
                 if (this.state.highlightDebounceTimer) clearTimeout(this.state.highlightDebounceTimer);
                 this.state.highlightDebounceTimer = setTimeout(() => {
                     try {
@@ -236,8 +344,9 @@ export class AlgoRecallOrchestrator {
 
                         // If client-side routing/hydration wiped out our elements, re-inject them
                         if (document.body) {
-                            if (!document.getElementById('algo-fsrs-launcher')) {
+                            if (!document.getElementById('algo-tracker-host') || !document.getElementById('algo-fsrs-launcher')) {
                                 this.tracker.createUI();
+                                this.tracker.refreshWidgetState();
                             }
                             if (!document.getElementById('algo-highlight-tooltip')) {
                                 this.highlighter.createHighlighterUI();
@@ -253,7 +362,7 @@ export class AlgoRecallOrchestrator {
                         Logger.error('ContentScript', `Error in mutation observer callback: ${errorMessage}`, { err });
                         // Comment: Non-fatal DOM observer error recovery
                     }
-                }, 100);
+                }, 150);
             });
             if (document.body) {
                 try {
@@ -345,9 +454,9 @@ export class AlgoRecallOrchestrator {
                     const isWhitelisted = whitelistedWebsites.some(site => currentDomain.includes(site.domain));
                     if (!isWhitelisted) {
                         this.highlighter.removeHighlighterUI();
-                        (this.tracker as unknown as { removeUI?: () => void }).removeUI?.();
+                        this.tracker.removeUI?.();
                     } else {
-                        if (!document.getElementById('algo-fsrs-overlay') && document.body) {
+                        if ((!document.getElementById('algo-tracker-host') || !document.getElementById('algo-fsrs-launcher')) && document.body) {
                             this.tracker.createUI();
                             this.highlighter.createHighlighterUI();
                         }
@@ -421,8 +530,9 @@ export class AlgoRecallOrchestrator {
         try {
             this.state.lastCheckedUrl = window.location.href;
 
-            if (!document.getElementById('algo-fsrs-container') && document.body) {
+            if ((!document.getElementById('algo-tracker-host') || !document.getElementById('algo-fsrs-launcher')) && document.body) {
                 this.tracker.createUI(); // Inject if the SPA accidentally destroyed it
+                this.tracker.refreshWidgetState();
             } else {
                 // Restore launcher display on page transition so it's not permanently lost
                 const launcher = document.getElementById('algo-fsrs-launcher') as HTMLElement | null;
@@ -432,11 +542,6 @@ export class AlgoRecallOrchestrator {
                     launcher.style.display = 'flex';
                 }
 
-                // Instantly update the contents of the existing widget
-                const tagsEl = document.getElementById('fsrs-current-tags') as HTMLElement | null;
-                if (tagsEl) {
-                    tagsEl.innerText = this.utils.getAutoTags().join(', ');
-                }
                 this.tracker.refreshWidgetState();
             }
             this.highlighter.applyHighlightsForCurrentPage();

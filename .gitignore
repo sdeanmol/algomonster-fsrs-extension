@@ -47,6 +47,7 @@ release.zip
 *.tar.gz
 *.tgz
 *.gz
+!tests/fixtures/*.gz
 
 # Logs
 logs/

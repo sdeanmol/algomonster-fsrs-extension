@@ -283,10 +283,17 @@ export function ForecastApp({ initialCards, initialSettings }: ForecastAppProps)
 
     const showCharts = settings.showCharts !== undefined ? settings.showCharts : true;
 
-    const { summary, dataPoints, maxVal, calendarCells, startDow } = useMemo(() => {
+    const { summary, dataPoints, maxVal, calendarCells, startDow, startStr } = useMemo(() => {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
         const todayStartTime = todayStart.getTime();
+
+        let startStr: string;
+        try {
+            startStr = todayStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } catch {
+            startStr = todayStart.toDateString();
+        }
 
         const dueCounts: Record<number, number> = {};
         for (let i = 0; i <= FORECAST_DAYS_TO_SHOW; i++) {
@@ -374,7 +381,8 @@ export function ForecastApp({ initialCards, initialSettings }: ForecastAppProps)
             dataPoints: pts,
             maxVal: peak,
             calendarCells: cells,
-            startDow: todayStart.getDay()
+            startDow: todayStart.getDay(),
+            startStr
         };
     }, [cards]);
 
@@ -410,7 +418,7 @@ export function ForecastApp({ initialCards, initialSettings }: ForecastAppProps)
                         </svg>
                         Review Forecast
                     </h1>
-                    <p className="subtitle" id="forecast-subtitle">{`${cards.length} total cards tracked`}</p>
+                    <p className="subtitle" id="forecast-subtitle">{`${cards.length} total cards · Next 30 days starting ${startStr}`}</p>
                 </div>
                 <div className="header-actions">
                     <a href="../popup/popup.html" className="btn btn-secondary">
