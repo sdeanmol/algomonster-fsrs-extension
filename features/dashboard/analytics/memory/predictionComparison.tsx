@@ -9,6 +9,7 @@ import { h, Fragment, FunctionalComponent, render } from 'preact';
 import { useMemo } from 'preact/hooks';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 import {
     DEFAULT_FSRS_DECAY,
@@ -163,7 +164,7 @@ export class PredictionComparison {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             render(<PredictionComparisonChart dataUtils={this.dataUtils} />, container);

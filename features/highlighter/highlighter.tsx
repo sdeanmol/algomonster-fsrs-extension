@@ -20,11 +20,21 @@
  * - `HighlighterTooltipView`: Preact container component for the floating highlighter tooltip.
  */
 
-import { h, Fragment, render, ComponentChildren, VNode } from 'preact';
+import { h, Fragment, render, ComponentChildren, VNode, JSX } from 'preact';
 import { useState, useRef, useEffect } from 'preact/hooks';
+import { flushSync } from 'preact/compat';
 import { Logger } from '@common/logger';
 import { HighlightMark, DOMMeta, ExtensionSettings, BookmarkItem, Card } from '../../types/domain';
 import { DEFAULT_EXTENSION_SETTINGS, DEFAULT_PALETTES, DEFAULT_HIGHLIGHT_COLOR } from '../common/constants';
+import { Utils } from '../../content/utils';
+
+function safeFlushSync(fn: () => void): void {
+    try {
+        flushSync(fn);
+    } catch (_) {
+        fn();
+    }
+}
 
 /**
  * Shared in-memory highlighter state container.
@@ -71,6 +81,18 @@ export interface HighlighterUtils {
     getExtractedProblemTitle?: () => string;
     /** Resolves active page favicon URL. */
     getFaviconUrl?: () => string;
+    /** Resolves active card ID from page DOM or null. */
+    getActiveCardIdFromDOM?: () => string | null;
+    /** Updates problem approach textarea value for specified card. */
+    updateApproachAreaValue?: (cardId: string | null, value: string) => void;
+    /** Extracts text content and length metadata from host page. */
+    getPageTextMetadata?: () => { innerText: string; length: number; description: string };
+    /** Cleans up floating symbols injected into the host page. */
+    cleanFloatingSymbols?: () => void;
+    /** Gets or creates the persistent host container element for the highlighter. */
+    getOrCreateHighlighterHost?: () => HTMLElement;
+    /** Removes the persistent host container element for the highlighter. */
+    removeHighlighterHost?: () => void;
     [key: string]: unknown;
 }
 
@@ -256,8 +278,7 @@ export function HighlighterColorPicker({
     onBlur
 }: HighlighterColorPickerProps): VNode {
     const pickerRef = useRef<HTMLInputElement>(null);
-    const initialValue = currentColor || defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
-    const [pickerVal, setPickerVal] = useState<string>(initialValue);
+    const colorValue = currentColor || defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
 
     const handlePointerDown = (e: MouseEvent | PointerEvent) => {
         e.stopPropagation();
@@ -271,7 +292,7 @@ export function HighlighterColorPicker({
             id="algo-color-picker"
             aria-label="Custom highlight color"
             title="Custom Color Picker"
-            value={pickerVal}
+            value={colorValue}
             onPointerDown={handlePointerDown}
             onMouseDown={handlePointerDown}
             onClick={handlePointerDown}
@@ -279,16 +300,13 @@ export function HighlighterColorPicker({
             onMouseUp={(e) => e.stopPropagation()}
             onInput={(e) => {
                 const newColor = (e.target as HTMLInputElement).value;
-                setPickerVal(newColor);
                 onColorInput(newColor);
             }}
             onChange={(e) => {
                 const newColor = (e.target as HTMLInputElement).value;
                 onColorChange(newColor);
             }}
-            onBlur={() => {
-                onBlur();
-            }}
+            onBlur={onBlur}
         />
     );
 }
@@ -341,25 +359,19 @@ export function HighlighterNotesSection({
     onSaveNote,
     onLinkCard
 }: HighlighterNotesSectionProps): VNode {
-    const linkBtnRef = useRef<HTMLButtonElement>(null);
+    const [isLinked, setIsLinked] = useState(false);
     const categories = ['', 'Key Insight', 'Gotcha', 'Edge Case', 'Pattern'];
 
     const handleLinkClick = () => {
         onLinkCard();
-        const btn = linkBtnRef.current;
-        if (btn) {
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '✓';
-            btn.style.color = '#2ecc71';
-            setTimeout(() => {
-                try {
-                    btn.innerHTML = originalHtml;
-                    btn.style.color = '';
-                } catch {
-                    // Ignore reset error
-                }
-            }, 1500);
-        }
+        safeFlushSync(() => {
+            setIsLinked(true);
+        });
+        setTimeout(() => {
+            safeFlushSync(() => {
+                setIsLinked(false);
+            });
+        }, 1500);
     };
 
     return (
@@ -386,17 +398,19 @@ export function HighlighterNotesSection({
             />
 
             <button
-                ref={linkBtnRef}
                 type="button"
                 className="algo-link-btn"
                 title="Link Highlight to Card"
                 aria-label="Link Highlight to Card"
                 onClick={handleLinkClick}
+                style={isLinked ? { color: '#2ecc71' } : undefined}
             >
-                <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }}>
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                </svg>
+                {isLinked ? '✓' : (
+                    <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px' }}>
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                )}
             </button>
         </div>
     );
@@ -409,6 +423,14 @@ export interface HighlighterTooltipViewProps {
     paletteColors: string[];
     defaultHighlightColor: string;
     mark: HighlightMark | undefined;
+    visible?: boolean;
+    left?: number;
+    top?: number;
+    caretLeft?: number;
+    isCaretBottom?: boolean;
+    theme?: string;
+    pickerOpen?: boolean;
+    renderCount?: number;
     onSelectType: (type: string) => void;
     onSelectColor: (color: string) => void;
     onColorInput: (color: string) => void;
@@ -425,8 +447,23 @@ export interface HighlighterTooltipViewProps {
  * Preact container view rendering all sub-components inside the floating tooltip.
  */
 export function HighlighterTooltipView(props: HighlighterTooltipViewProps): VNode {
+    const isVisible = props.visible !== false;
+    const tooltipStyle = `display: ${isVisible ? 'flex' : 'none'};${props.left !== undefined ? ` left: ${props.left}px;` : ''}${props.top !== undefined ? ` top: ${props.top}px;` : ''}${props.caretLeft !== undefined ? ` --tooltip-caret-left: ${props.caretLeft}px;` : ''} /* ${props.renderCount || 0} */;`;
+    const classNames = [
+        'algo-highlight-tooltip',
+        props.isCaretBottom ? 'caret-bottom' : '',
+        props.theme === 'light' ? 'light-theme' : ''
+    ].filter(Boolean).join(' ');
+
     return (
-        <Fragment>
+        <div
+            id="algo-highlight-tooltip"
+            role="dialog"
+            aria-label="Highlighter Options"
+            className={classNames}
+            style={tooltipStyle}
+            data-picker-open={props.pickerOpen ? 'true' : undefined}
+        >
             {!props.existingMarkId && (
                 <HighlighterTypeSelector
                     activeType={props.activeType}
@@ -475,13 +512,15 @@ export function HighlighterTooltipView(props: HighlighterTooltipViewProps): VNod
                     onLinkCard={props.onLinkCard}
                 />
             )}
-        </Fragment>
+        </div>
     );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HIGHLIGHTER CONTROLLER CLASS
 // ─────────────────────────────────────────────────────────────────────────────
+
+let currentActiveHighlighter: Highlighter | null = null;
 
 /**
  * Controller for in-page text selection highlights, floating action tooltips, and CSS Custom Highlights.
@@ -495,11 +534,38 @@ export class Highlighter {
     isHighlighterListenersBound: boolean = false;
     /** Active annotation type ('highlight' or 'underline') for new marks. */
     activeType: string = 'highlight';
+    /** Declarative state governing tooltip visibility, position, theme, and content. */
+    tooltipState: {
+        visible: boolean;
+        left: number;
+        top: number;
+        caretLeft: number;
+        isCaretBottom: boolean;
+        existingMarkId: string | null;
+        currentColor: string | null;
+        theme: string;
+        pickerOpen: boolean;
+        renderCount?: number;
+    };
 
     /**
      * Initializes the highlighter controller, attaching to `window.AlgoRecall.state` if available.
      */
     constructor() {
+        currentActiveHighlighter = this;
+        this.tooltipState = {
+            visible: false,
+            left: 0,
+            top: 0,
+            caretLeft: 20,
+            isCaretBottom: false,
+            existingMarkId: null,
+            currentColor: null,
+            theme: 'dark',
+            pickerOpen: false,
+            renderCount: 0
+        };
+
         try {
             const win = window as unknown as {
                 AlgoRecall?: {
@@ -547,18 +613,11 @@ export class Highlighter {
      */
     createHighlighterUI(): void {
         try {
-            if (!document.getElementById('algo-highlight-tooltip')) {
-                const tooltip = document.createElement('div');
-                tooltip.id = 'algo-highlight-tooltip';
-                tooltip.setAttribute('role', 'dialog');
-                tooltip.setAttribute('aria-label', 'Highlighter Options');
-                tooltip.style.display = 'none';
-
-                if (this.state && this.state.currentTheme === 'light') {
-                    tooltip.classList.add('light-theme');
-                }
-
-                document.body.appendChild(tooltip);
+            currentActiveHighlighter = this;
+            const host = (this.utils?.getOrCreateHighlighterHost || (Utils as any).getOrCreateHighlighterHost)?.();
+            this.tooltipState.theme = this.state.currentTheme || 'dark';
+            if (host) {
+                this.renderTooltip();
             }
 
             if (this.isHighlighterListenersBound) return;
@@ -579,11 +638,14 @@ export class Highlighter {
      */
     removeHighlighterUI(): void {
         try {
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (tooltip) {
-                render(null, tooltip);
-                tooltip.remove();
+            if (currentActiveHighlighter === this) {
+                currentActiveHighlighter = null;
             }
+            const host = (this.utils?.getOrCreateHighlighterHost || (Utils as any).getOrCreateHighlighterHost)?.();
+            if (host) {
+                render(null, host);
+            }
+            (this.utils?.removeHighlighterHost || (Utils as any).removeHighlighterHost)?.();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Highlighter', `Error removing highlighter UI: ${errorMessage}`, { err });
@@ -599,13 +661,13 @@ export class Highlighter {
     bindEvents(): void {
         try {
             // 1. Text Selection Logic (For NEW highlights)
-            document.addEventListener('pointerup', (e: MouseEvent) => {
+            window.addEventListener('pointerup', (e: MouseEvent) => {
                 try {
+                    if (currentActiveHighlighter && currentActiveHighlighter !== this) return;
                     const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
                     if (!showPopup) return;
 
-                    const tooltip = document.getElementById('algo-highlight-tooltip');
-                    const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+                    const isPickerOpen = Boolean(this.state.isColorPickerOpen || this.tooltipState.pickerOpen);
                     if (isPickerOpen) {
                         if (this.state.hideTooltipTimer) {
                             clearTimeout(this.state.hideTooltipTimer);
@@ -618,11 +680,10 @@ export class Highlighter {
                     if (target && typeof target.closest === 'function' && (target.closest('#algo-highlight-tooltip') || target.closest('#algo-fsrs-container'))) return;
 
                     const selection = window.getSelection();
-                    if (!tooltip) return;
 
                     if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
                         if (this.state.hoveredMarkId === null) {
-                            tooltip.style.display = 'none';
+                            this.hideTooltip();
                         }
                         return;
                     }
@@ -649,7 +710,7 @@ export class Highlighter {
                     if (!lastRect) return;
 
                     this.renderTooltipColors(null, null);
-                    this.positionTooltip(tooltip, lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
+                    this.positionTooltip(lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Highlighter', `Error in pointerup event handler: ${errorMessage}`, { err });
@@ -657,13 +718,13 @@ export class Highlighter {
             }, true);
 
             // 2. Hover Detection Logic (For EXISTING highlights)
-            document.addEventListener('mousemove', (e: MouseEvent) => {
+            window.addEventListener('mousemove', (e: MouseEvent) => {
                 try {
+                    if (currentActiveHighlighter && currentActiveHighlighter !== this) return;
                     const showPopup = this.state.extensionSettings?.showMarkerPopup !== false;
                     if (!showPopup) return;
 
-                    const tooltip = document.getElementById('algo-highlight-tooltip');
-                    const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
+                    const isPickerOpen = Boolean(this.state.isColorPickerOpen || this.tooltipState.pickerOpen);
                     if (isPickerOpen) {
                         if (this.state.hideTooltipTimer) {
                             clearTimeout(this.state.hideTooltipTimer);
@@ -699,8 +760,6 @@ export class Highlighter {
                         }
                     }
 
-                    if (!tooltip) return;
-
                     if (foundMark) {
                         if (this.state.hideTooltipTimer) {
                             clearTimeout(this.state.hideTooltipTimer);
@@ -711,14 +770,14 @@ export class Highlighter {
                             this.state.hoveredMarkId = foundMark.markId;
                             this.renderTooltipColors(this.state.hoveredMarkId, foundMark.color);
                             const r = foundMark.range.getBoundingClientRect();
-                            this.positionTooltip(tooltip, e.clientX + window.scrollX + 15, e.clientY + window.scrollY, r.top + window.scrollY);
+                            this.positionTooltip(e.clientX + window.scrollX + 15, e.clientY + window.scrollY, r.top + window.scrollY);
                         }
                     } else {
                         if (this.state.hoveredMarkId !== null && !this.state.hideTooltipTimer) {
                             this.state.hideTooltipTimer = setTimeout(() => {
                                 try {
                                     this.state.hoveredMarkId = null;
-                                    if (tooltip) tooltip.style.display = 'none';
+                                    this.hideTooltip();
                                     this.state.hideTooltipTimer = null;
                                 } catch (timerErr) {
                                     const errorMessage = timerErr instanceof Error ? timerErr.message : String(timerErr);
@@ -734,8 +793,9 @@ export class Highlighter {
             });
 
             // Fallback for keyboard selection shifts
-            document.addEventListener('keyup', (e: KeyboardEvent) => {
+            window.addEventListener('keyup', (e: KeyboardEvent) => {
                 try {
+                    if (currentActiveHighlighter && currentActiveHighlighter !== this) return;
                     if (e.key === 'Shift' || e.key.startsWith('Arrow')) {
                         this.handleTextSelection();
                     }
@@ -759,12 +819,10 @@ export class Highlighter {
         try {
             if (this.state.isColorPickerOpen) return;
             const selection = window.getSelection();
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (!tooltip) return;
 
             if (!selection || selection.isCollapsed || selection.toString().trim() === '') {
                 if (!this.state.hoveredMarkId) {
-                    tooltip.style.display = 'none';
+                    this.hideTooltip();
                 }
                 return;
             }
@@ -782,7 +840,7 @@ export class Highlighter {
 
             if (lastRect) {
                 this.renderTooltipColors(null, null);
-                this.positionTooltip(tooltip, lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
+                this.positionTooltip(lastRect.right + window.scrollX, lastRect.bottom + window.scrollY, lastRect.top + window.scrollY);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
@@ -794,45 +852,77 @@ export class Highlighter {
      * Calculates absolute screen coordinates for the floating tooltip, ensuring it stays within viewport
      * boundaries and flipping above the text range when bottom clearance is insufficient.
      * 
-     * @param {HTMLElement} tooltip - Floating tooltip container element.
-     * @param {number} x - Target horizontal page coordinate.
-     * @param {number} y - Target vertical page coordinate.
-     * @param {number} fallbackTop - Alternate top coordinate for upward flipping.
+     * @param {HTMLElement | number} tooltipOrX - Floating tooltip container element or target horizontal coordinate.
+     * @param {number} [xOrY] - Target horizontal or vertical coordinate.
+     * @param {number} [yOrFallbackTop] - Target vertical or fallback top coordinate.
+     * @param {number} [fallbackTop] - Alternate top coordinate for upward flipping.
      * @returns {void}
      */
-    positionTooltip(tooltip: HTMLElement, x: number, y: number, fallbackTop: number): void {
-        tooltip.style.display = 'flex';
-        const tooltipRect = tooltip.getBoundingClientRect();
-        
+    positionTooltip(
+        tooltipOrX: HTMLElement | number,
+        xOrY?: number,
+        yOrFallbackTop?: number,
+        fallbackTop?: number
+    ): void {
+        let x: number;
+        let y: number;
+        let fallback: number;
+        let width = 200;
+        let height = 40;
+
+        if (typeof tooltipOrX === 'number') {
+            x = tooltipOrX;
+            y = xOrY || 0;
+            fallback = yOrFallbackTop || 0;
+        } else {
+            if (tooltipOrX && typeof tooltipOrX.getBoundingClientRect === 'function') {
+                const rect = tooltipOrX.getBoundingClientRect();
+                if (rect.width > 0) width = rect.width;
+                if (rect.height > 0) height = rect.height;
+            }
+            x = xOrY || 0;
+            y = yOrFallbackTop || 0;
+            fallback = fallbackTop || 0;
+        }
+
         let left = x;
         let top = y;
         let isFlippedAbove = false;
 
-        if (left + tooltipRect.width > window.scrollX + window.innerWidth) {
-            left = window.scrollX + window.innerWidth - tooltipRect.width - 15;
+        if (left + width > window.scrollX + window.innerWidth) {
+            left = window.scrollX + window.innerWidth - width - 15;
         }
         if (left < window.scrollX + 5) left = window.scrollX + 5;
 
-        if (top + tooltipRect.height > window.scrollY + window.innerHeight) {
-            top = fallbackTop - tooltipRect.height - 10;
+        if (top + height > window.scrollY + window.innerHeight) {
+            top = fallback - height - 10;
             isFlippedAbove = true;
         }
         if (top < window.scrollY + 5) top = window.scrollY + 5;
 
-        tooltip.style.left = `${left}px`;
-        tooltip.style.top = `${top}px`;
-
-        // Compute dynamic caret horizontal position relative to anchor x
         const relativeX = x - left;
-        const width = tooltipRect.width > 0 ? tooltipRect.width : 200;
         const caretLeft = Math.min(Math.max(relativeX, 16), width - 16);
-        tooltip.style.setProperty('--tooltip-caret-left', `${caretLeft}px`);
 
-        if (isFlippedAbove) {
-            tooltip.classList.add('caret-bottom');
-        } else {
-            tooltip.classList.remove('caret-bottom');
-        }
+        this.tooltipState = {
+            ...this.tooltipState,
+            visible: true,
+            left,
+            top,
+            caretLeft,
+            isCaretBottom: isFlippedAbove
+        };
+        this.renderTooltip();
+    }
+
+    /**
+     * Dismisses the floating highlighter tooltip declaratively.
+     */
+    hideTooltip(): void {
+        this.tooltipState = {
+            ...this.tooltipState,
+            visible: false
+        };
+        this.renderTooltip();
     }
 
     handleMouseMove(_e: MouseEvent): void {
@@ -850,8 +940,28 @@ export class Highlighter {
     renderTooltipColors(existingMarkId: string | null = null, currentColor: string | null = null): void {
         try {
             if (this.state.isColorPickerOpen) return;
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (!tooltip) return;
+            this.tooltipState = {
+                ...this.tooltipState,
+                visible: true,
+                existingMarkId,
+                currentColor
+            };
+            this.renderTooltip();
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            Logger.error('Highlighter', `Error in renderTooltipColors: ${errorMessage}`, { err });
+        }
+    }
+
+    /**
+     * Mounts or updates the Preact HighlighterTooltipView declaratively.
+     */
+    renderTooltip(): void {
+        try {
+            const host = (this.utils?.getOrCreateHighlighterHost || (Utils as any).getOrCreateHighlighterHost)?.();
+            if (!host) return;
+
+            this.tooltipState.renderCount = (this.tooltipState.renderCount || 0) + 1;
 
             const activeIndex = this.state.extensionSettings?.activePaletteIndex || 0;
             const activePalette = (this.state.extensionSettings?.palettes && this.state.extensionSettings.palettes.length > activeIndex)
@@ -860,6 +970,9 @@ export class Highlighter {
 
             const paletteColors = activePalette.colors || [];
             const defaultHighlightColor = this.state.extensionSettings?.defaultHighlightColor || DEFAULT_HIGHLIGHT_COLOR;
+
+            const existingMarkId = this.tooltipState.existingMarkId;
+            const currentColor = this.tooltipState.currentColor;
 
             const existingMark = existingMarkId
                 ? this.state.marks.find((m: HighlightMark) => (m.id || m.createdAt.toString()) === existingMarkId)
@@ -884,13 +997,7 @@ export class Highlighter {
 
             const handleColorInput = (newColor: string) => {
                 try {
-                    const defaultSwatch = tooltip.querySelector('#algo-default-color-swatch') as HTMLElement | null;
-                    if (defaultSwatch) {
-                        defaultSwatch.style.background = newColor;
-                        defaultSwatch.title = `Default Color: ${newColor}`;
-                        defaultSwatch.setAttribute('data-default-color', newColor);
-                    }
-
+                    this.tooltipState.currentColor = newColor;
                     this.updateRecentColors(newColor);
 
                     if (existingMarkId) {
@@ -900,6 +1007,7 @@ export class Highlighter {
                     } else {
                         this.saveHighlight(newColor, this.activeType);
                     }
+                    this.renderTooltip();
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
                     Logger.error('Highlighter', `Error in custom color picker input: ${errorMessage}`, { err });
@@ -910,11 +1018,11 @@ export class Highlighter {
                 try {
                     setTimeout(() => {
                         this.state.isColorPickerOpen = false;
-                        if (tooltip) tooltip.removeAttribute('data-picker-open');
+                        this.tooltipState.pickerOpen = false;
                         this.state.savedRange = null;
                         this.state.activeCreationMarkId = null;
                         if (!existingMarkId) {
-                            if (tooltip) tooltip.style.display = 'none';
+                            this.hideTooltip();
                             const selection = window.getSelection();
                             if (selection) selection.removeAllRanges();
                         } else {
@@ -933,7 +1041,7 @@ export class Highlighter {
                     this.state.savedRange = selection.getRangeAt(0).cloneRange();
                 }
                 this.state.isColorPickerOpen = true;
-                if (tooltip) tooltip.setAttribute('data-picker-open', 'true');
+                this.tooltipState.pickerOpen = true;
                 if (this.state.hideTooltipTimer) {
                     clearTimeout(this.state.hideTooltipTimer);
                     this.state.hideTooltipTimer = null;
@@ -942,12 +1050,12 @@ export class Highlighter {
 
             const handleColorBlur = () => {
                 setTimeout(() => {
-                    const picker = tooltip.querySelector('#algo-color-picker');
-                    if (document.activeElement !== picker) {
+                    if (document.activeElement?.id !== 'algo-color-picker') {
                         this.state.isColorPickerOpen = false;
-                        if (tooltip) tooltip.removeAttribute('data-picker-open');
+                        this.tooltipState.pickerOpen = false;
                         this.state.savedRange = null;
                         this.state.activeCreationMarkId = null;
+                        this.renderTooltip();
                     }
                 }, 250);
             };
@@ -976,31 +1084,40 @@ export class Highlighter {
                 if (existingMarkId) this.linkHighlightToCard(existingMarkId);
             };
 
-            // Mount Preact Component inside the tooltip DOM element
-            render(
-                <HighlighterTooltipView
-                    existingMarkId={existingMarkId}
-                    currentColor={currentColor}
-                    activeType={this.activeType}
-                    paletteColors={paletteColors}
-                    defaultHighlightColor={defaultHighlightColor}
-                    mark={existingMark}
-                    onSelectType={handleSelectType}
-                    onSelectColor={handleSelectColor}
-                    onColorInput={handleColorInput}
-                    onColorChange={handleColorChange}
-                    onColorBlur={handleColorBlur}
-                    onCacheSelection={handleCacheSelection}
-                    onDelete={handleDelete}
-                    onSaveCategory={handleSaveCategory}
-                    onSaveNote={handleSaveNote}
-                    onLinkCard={handleLinkCard}
-                />,
-                tooltip
-            );
+            safeFlushSync(() => {
+                render(
+                    <HighlighterTooltipView
+                        renderCount={this.tooltipState.renderCount}
+                        visible={this.tooltipState.visible}
+                        left={this.tooltipState.left}
+                        top={this.tooltipState.top}
+                        caretLeft={this.tooltipState.caretLeft}
+                        isCaretBottom={this.tooltipState.isCaretBottom}
+                        theme={this.tooltipState.theme}
+                        pickerOpen={this.tooltipState.pickerOpen}
+                        existingMarkId={existingMarkId}
+                        currentColor={currentColor}
+                        activeType={this.activeType}
+                        paletteColors={paletteColors}
+                        defaultHighlightColor={defaultHighlightColor}
+                        mark={existingMark}
+                        onSelectType={handleSelectType}
+                        onSelectColor={handleSelectColor}
+                        onColorInput={handleColorInput}
+                        onColorChange={handleColorChange}
+                        onColorBlur={handleColorBlur}
+                        onCacheSelection={handleCacheSelection}
+                        onDelete={handleDelete}
+                        onSaveCategory={handleSaveCategory}
+                        onSaveNote={handleSaveNote}
+                        onLinkCard={handleLinkCard}
+                    />,
+                    host
+                );
+            });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('Highlighter', `Error rendering tooltip colors: ${errorMessage}`, { existingMarkId, currentColor, err });
+            Logger.error('Highlighter', `Error rendering highlighter tooltip: ${errorMessage}`, { err });
         }
     }
 
@@ -1061,7 +1178,7 @@ export class Highlighter {
 
                     const tracker = win.AlgoRecall?.orchestrator?.tracker || win.AlgoRecall?.trackerInstance;
                     const trackerActiveId = tracker?.activeCardId;
-                    const domActiveId = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
+                    const domActiveId = (this.utils?.getActiveCardIdFromDOM ? this.utils.getActiveCardIdFromDOM() : null) || (Utils as any).getActiveCardIdFromDOM?.() || null;
                     const activeId = trackerActiveId || domActiveId;
 
                     const pageCards = cards.filter((c: Card) => c.problemUrl === cleanUrl);
@@ -1077,8 +1194,6 @@ export class Highlighter {
                     if (!isNewDraft && !targetCard && pageCards.length > 0) {
                         targetCard = pageCards[0];
                     }
-
-                    const approachArea = document.getElementById('fsrs-approach') as HTMLTextAreaElement | null;
 
                     if (targetCard) {
                         const approach = targetCard.approach || '';
@@ -1098,12 +1213,7 @@ export class Highlighter {
                                     return;
                                 }
 
-                                if (approachArea) {
-                                    const currentCardIdInUi = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
-                                    if (!currentCardIdInUi || currentCardIdInUi === targetCard!.id) {
-                                        approachArea.value = targetCard!.approach || '';
-                                    }
-                                }
+                                (this.utils?.updateApproachAreaValue || (Utils as any).updateApproachAreaValue)?.(targetCard!.id, targetCard!.approach || '');
 
                                 if (win.AlgoRecall?.Notifier) {
                                     win.AlgoRecall.Notifier.showPageNotification('Highlight Linked', 'Highlight appended to active FSRS card approach.', 'test');
@@ -1136,12 +1246,7 @@ export class Highlighter {
                                     return;
                                 }
 
-                                if (approachArea) {
-                                    const currentCardIdInUi = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
-                                    if (!currentCardIdInUi || currentCardIdInUi === '__new__') {
-                                        approachArea.value = draft.approach || '';
-                                    }
-                                }
+                                (this.utils?.updateApproachAreaValue || (Utils as any).updateApproachAreaValue)?.(null, draft.approach || '');
 
                                 if (win.AlgoRecall?.Notifier) {
                                     win.AlgoRecall.Notifier.showPageNotification('Highlight Linked', 'Highlight appended to active unsaved card draft.', 'test');
@@ -1252,7 +1357,7 @@ export class Highlighter {
                 const problemTitle = this.utils.getExtractedProblemTitle ? this.utils.getExtractedProblemTitle() : document.title;
                 const favIconUrl = (this.utils && typeof this.utils.getFaviconUrl === 'function')
                     ? this.utils.getFaviconUrl()
-                    : (document.querySelector('link[rel~="icon"], link[rel="shortcut icon"]') as HTMLLinkElement | null)?.href || (window.location.origin ? `${window.location.origin}/favicon.ico` : '');
+                    : ((Utils as any).getFaviconUrl ? (Utils as any).getFaviconUrl() : '');
                 this.state.bookmarks.push({
                     url: cleanUrl,
                     title: problemTitle,
@@ -1262,10 +1367,11 @@ export class Highlighter {
 
             if (!this.state.pagecontents) this.state.pagecontents = [];
             this.state.pagecontents = this.state.pagecontents.filter((p: { url: string }) => p.url !== cleanUrl);
+            const pageMeta = (this.utils?.getPageTextMetadata ? this.utils.getPageTextMetadata() : (Utils as any).getPageTextMetadata?.()) || { innerText: '', length: 0, description: '' };
             this.state.pagecontents.push({
                 url: cleanUrl,
-                description: document.body.innerText ? document.body.innerText.substring(0, 100) : '',
-                length: document.body.innerText ? document.body.innerText.length : 0
+                description: pageMeta.description || '',
+                length: pageMeta.length || 0
             });
 
             chrome.storage.local.set({
@@ -1274,9 +1380,8 @@ export class Highlighter {
                 pagecontents: this.state.pagecontents
             });
 
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            const isPickerOpen = Boolean(this.state.isColorPickerOpen || tooltip?.getAttribute('data-picker-open') === 'true');
-            if (tooltip && !isPickerOpen) tooltip.style.display = 'none';
+            const isPickerOpen = Boolean(this.state.isColorPickerOpen || this.tooltipState.pickerOpen);
+            if (!isPickerOpen) this.hideTooltip();
             if (selection && !isPickerOpen) {
                 selection.removeAllRanges();
             }
@@ -1329,8 +1434,7 @@ export class Highlighter {
             this.state.marks = this.state.marks.filter((m: HighlightMark) => (m.id || m.createdAt.toString()) !== markId);
             chrome.storage.local.set({ marks: this.state.marks });
 
-            const tooltip = document.getElementById('algo-highlight-tooltip');
-            if (tooltip) tooltip.style.display = 'none';
+            this.hideTooltip();
             this.state.hoveredMarkId = null;
             this.applyHighlightsForCurrentPage();
         } catch (err) {
@@ -1383,7 +1487,7 @@ export class Highlighter {
 
             (CSS as unknown as { highlights: { clear(): void; set(name: string, highlight: unknown): void } }).highlights.clear();
 
-            document.querySelectorAll('.algo-floating-symbol').forEach(el => el.remove());
+            (this.utils?.cleanFloatingSymbols || (Utils as any).cleanFloatingSymbols)?.();
 
             const highlightsByColor: Record<string, Range[]> = {};
             this.state.activeMarkRanges = [];

@@ -10,6 +10,7 @@ import { h, Fragment, FunctionalComponent, render as preactRender } from 'preact
 import { Logger } from '@common/logger';
 import { getLastReviewDate } from '../../../common/utils/cardUtils';
 import { DataUtils } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import { Card, ReviewLog } from '../../../../types/domain';
 
 export interface RecoveryTableProps {
@@ -179,7 +180,7 @@ export class RecoveryTracking {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             const { lapsed, recovered } = this.dataUtils.getPerformanceStats();

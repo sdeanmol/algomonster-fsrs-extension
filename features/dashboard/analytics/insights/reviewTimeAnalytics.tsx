@@ -13,6 +13,7 @@
 import { h, Fragment, FunctionalComponent, render as preactRender } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, ReviewTimeInsights } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import { TIME_OF_DAY_BUCKET_NAMES } from '../../../common/constants';
 
 /**
@@ -216,7 +217,7 @@ export class ReviewTimeAnalytics {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             const timeInsights = this.dataUtils ? this.dataUtils.getReviewTimeInsights() : { hasTimeData: false, data: [] };

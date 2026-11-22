@@ -11,6 +11,7 @@ import { useState, useMemo } from 'preact/hooks';
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, FutureMemorySimulationStats } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import { Card } from '../../../../types/domain';
 
 export interface SimulationStepCardProps {
@@ -276,7 +277,7 @@ export class FutureMemorySimulation {
     render(containerId: string): void {
         try {
             this.lastContainerId = containerId;
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             render(
@@ -354,28 +355,11 @@ export class FutureMemorySimulation {
 
     /**
      * Binds input event listeners to the interactive range slider to trigger real-time re-renders.
+     * In Preact 11, slider input events are bound declaratively via JSX onInput handlers.
      * @returns void
      */
     bindEvents(): void {
-        try {
-            const slider = document.getElementById('sim-days-range') as HTMLInputElement | null;
-            if (slider) {
-                slider.addEventListener('input', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        const days = parseInt(target.value, 10);
-                        if (!isNaN(days)) {
-                            this.sliderDays = days;
-                            this.render(this.lastContainerId);
-                        }
-                    } catch (inputErr) {
-                        UIUtils.catchError('FutureMemorySimulation', 'Error handling sim-days-range input event', inputErr);
-                    }
-                });
-            }
-        } catch (err) {
-            UIUtils.catchError('FutureMemorySimulation', 'Error binding FutureMemorySimulation event listeners', err);
-        }
+        // Range slider input events are bound declaratively via JSX onInput handlers in SimulationTab.
     }
 
     /**

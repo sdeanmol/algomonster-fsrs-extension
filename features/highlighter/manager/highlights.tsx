@@ -15,10 +15,20 @@
 
 import { h, render, Fragment, JSX } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
+import { flushSync } from 'preact/compat';
 import { Logger } from '@common/logger';
 import { HighlightsHelpers } from './highlights-helpers';
 import { HighlightMark, BookmarkItem, StorageData } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
+import { ActionService } from '@common/services/actionService';
+
+function safeFlushSync(fn: () => void): void {
+    try {
+        flushSync(fn);
+    } catch (_) {
+        fn();
+    }
+}
 
 try {
     window.AlgoRecall = window.AlgoRecall || {};
@@ -289,35 +299,35 @@ export type HighlightsAppProps = HighlightsManagerAppProps;
  */
 export function HighlightsManagerApp({ manager: initialManager }: HighlightsManagerAppProps): JSX.Element {
     const [manager] = useState(() => initialManager || new HighlightsManager());
-    const [marks, setMarks] = useState<HighlightMark[]>(manager.loadedMarks || []);
-    const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(manager.loadedBookmarks || []);
-    const [searchQuery, setSearchQuery] = useState<string>(manager.searchQuery || '');
-    const [activeColorFilter, setActiveColorFilter] = useState<string | null>(manager.activeColorFilter);
-    const [activePageFilter, setActivePageFilter] = useState<string>(manager.activePageFilter || 'all');
-    const [sortOption, setSortOption] = useState<string>(manager.sortOption || 'newest');
-    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [marks, setMarks] = useState<HighlightMark[]>(() => manager.loadedMarks || []);
+    const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(() => manager.loadedBookmarks || []);
+    const [searchQuery, setSearchQuery] = useState<string>(() => manager.searchQuery || '');
+    const [activeColorFilter, setActiveColorFilter] = useState<string | null>(() => manager.activeColorFilter);
+    const [activePageFilter, setActivePageFilter] = useState<string>(() => manager.activePageFilter || 'all');
+    const [sortOption, setSortOption] = useState<string>(() => manager.sortOption || 'newest');
+    const [isLoading, setIsLoading] = useState<boolean>(() => !manager.loadedMarks || manager.loadedMarks.length === 0);
 
     const refreshData = () => {
-        if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
-        chrome.storage.local.get(['marks', 'bookmarks'], (result: StorageData) => {
-            const m = result.marks || [];
-            const b = result.bookmarks || [];
-            manager.loadedMarks = m;
-            manager.loadedBookmarks = b;
-            setMarks(m);
-            setBookmarks(b);
+        manager.loadHighlights();
+    };
+
+    manager.onUpdate = () => {
+        safeFlushSync(() => {
+            setMarks([...manager.loadedMarks]);
+            setBookmarks([...manager.loadedBookmarks]);
+            setSearchQuery(manager.searchQuery || '');
+            setActiveColorFilter(manager.activeColorFilter);
+            setActivePageFilter(manager.activePageFilter || 'all');
+            setSortOption(manager.sortOption || 'newest');
             setIsLoading(false);
         });
     };
 
     useEffect(() => {
-        manager.onUpdate = () => {
-            setMarks([...manager.loadedMarks]);
-            setBookmarks([...manager.loadedBookmarks]);
-            setIsLoading(false);
-        };
-        refreshData();
-    }, [manager]);
+        if (!initialManager && (!manager.loadedMarks || manager.loadedMarks.length === 0)) {
+            refreshData();
+        }
+    }, [manager, initialManager]);
 
     // Unique colors for filtering
     const uniqueColors = [...new Set(marks.map(m => m.color).filter(Boolean))];
@@ -376,14 +386,16 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
     const isFilteredActive = searchQuery !== '' || activeColorFilter !== null || activePageFilter !== 'all';
 
     const handleClearFilters = () => {
-        setSearchQuery('');
-        setActiveColorFilter(null);
-        setActivePageFilter('all');
-        setSortOption('newest');
         manager.searchQuery = '';
         manager.activeColorFilter = null;
         manager.activePageFilter = 'all';
         manager.sortOption = 'newest';
+        safeFlushSync(() => {
+            setSearchQuery('');
+            setActiveColorFilter(null);
+            setActivePageFilter('all');
+            setSortOption('newest');
+        });
     };
 
     const handleCopy = (text: string) => {
@@ -462,7 +474,18 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
                         className="input-field search-input"
                         placeholder="Search in highlights or webpage titles..."
                         value={searchQuery}
-                        onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+                        onInput={(e) => {
+                            try {
+                                const val = (e.target as HTMLInputElement).value;
+                                manager.searchQuery = val;
+                                safeFlushSync(() => {
+                                    setSearchQuery(val);
+                                });
+                            } catch (err) {
+                                const errorMessage = err instanceof Error ? err.message : String(err);
+                                Logger.error('HighlightsManager', `Error handling search input: ${errorMessage}`, { err });
+                            }
+                        }}
                     />
                 </div>
 
@@ -473,7 +496,18 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
                             id="webpage-select"
                             className="input-field select-field"
                             value={activePageFilter}
-                            onChange={(e) => setActivePageFilter((e.target as HTMLSelectElement).value)}
+                            onChange={(e) => {
+                                try {
+                                    const val = (e.target as HTMLSelectElement).value;
+                                    manager.activePageFilter = val;
+                                    safeFlushSync(() => {
+                                        setActivePageFilter(val);
+                                    });
+                                } catch (err) {
+                                    const errorMessage = err instanceof Error ? err.message : String(err);
+                                    Logger.error('HighlightsManager', `Error handling page filter change: ${errorMessage}`, { err });
+                                }
+                            }}
                         >
                             <option value="all">All Pages</option>
                             {Array.from(uniquePagesMap.entries()).map(([url, title]) => (
@@ -490,7 +524,18 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
                             id="sort-select"
                             className="input-field select-field"
                             value={sortOption}
-                            onChange={(e) => setSortOption((e.target as HTMLSelectElement).value)}
+                            onChange={(e) => {
+                                try {
+                                    const val = (e.target as HTMLSelectElement).value;
+                                    manager.sortOption = val;
+                                    safeFlushSync(() => {
+                                        setSortOption(val);
+                                    });
+                                } catch (err) {
+                                    const errorMessage = err instanceof Error ? err.message : String(err);
+                                    Logger.error('HighlightsManager', `Error handling sort option change: ${errorMessage}`, { err });
+                                }
+                            }}
                         >
                             <option value="newest">Newest First</option>
                             <option value="oldest">Oldest First</option>
@@ -506,7 +551,13 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
                             <ColorFilterBubbles
                                 colors={uniqueColors}
                                 activeColor={activeColorFilter}
-                                onToggleColor={(col) => setActiveColorFilter(prev => prev === col ? null : col)}
+                                onToggleColor={(col) => {
+                                    const nextCol = activeColorFilter === col ? null : col;
+                                    manager.activeColorFilter = nextCol;
+                                    safeFlushSync(() => {
+                                        setActiveColorFilter(nextCol);
+                                    });
+                                }}
                             />
                         </div>
                     </div>
@@ -595,10 +646,11 @@ export class HighlightsManager {
      */
     init(): void {
         try {
-            const root = document.getElementById('root');
+            const root = (typeof document !== 'undefined' ? document.getElementById('root') : null) || (typeof document !== 'undefined' ? document.body : null);
             if (root) {
-                render(<HighlightsManagerApp manager={this} />, root);
-                return;
+                safeFlushSync(() => {
+                    render(<HighlightsManagerApp manager={this} />, root);
+                });
             }
 
             this.loadHighlights();
@@ -610,103 +662,9 @@ export class HighlightsManager {
     }
 
     /**
-     * Registers UI event listeners for search queries, page filtering dropdowns,
-     * sorting options, refresh triggers, and Markdown export actions.
+     * Registers UI event listeners. Redundant listeners are deprecated since JSX handles events declaratively.
      */
-    bindEvents(): void {
-        try {
-            const refreshBtn = document.getElementById('refresh-btn');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', () => {
-                    try {
-                        this.loadHighlights();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightsManager', `Error in refresh button click handler: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            const exportBtn = document.getElementById('export-highlights-btn');
-            if (exportBtn) {
-                exportBtn.addEventListener('click', () => {
-                    try {
-                        this.exportHighlightsToMarkdown();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightsManager', `Error in export button click handler: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
-            if (searchInput) {
-                searchInput.addEventListener('input', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLInputElement;
-                        this.searchQuery = target.value.trim();
-                        this.filterAndRender();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightsManager', `Error in search input handler: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            const webpageSelect = document.getElementById('webpage-select') as HTMLSelectElement | null;
-            if (webpageSelect) {
-                webpageSelect.addEventListener('change', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLSelectElement;
-                        this.activePageFilter = target.value;
-                        this.filterAndRender();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightsManager', `Error in webpage select handler: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            const sortSelect = document.getElementById('sort-select') as HTMLSelectElement | null;
-            if (sortSelect) {
-                sortSelect.addEventListener('change', (e: Event) => {
-                    try {
-                        const target = e.target as HTMLSelectElement;
-                        this.sortOption = target.value;
-                        this.filterAndRender();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightsManager', `Error in sort select handler: ${errorMessage}`, { err });
-                    }
-                });
-            }
-
-            const clearFiltersBtn = document.getElementById('clear-filters-btn');
-            if (clearFiltersBtn) {
-                clearFiltersBtn.addEventListener('click', () => {
-                    try {
-                        this.searchQuery = '';
-                        this.activeColorFilter = null;
-                        this.activePageFilter = 'all';
-                        this.sortOption = 'newest';
-
-                        if (searchInput) searchInput.value = '';
-                        if (webpageSelect) webpageSelect.value = 'all';
-                        if (sortSelect) sortSelect.value = 'newest';
-
-                        this.renderColorFilters();
-                        this.filterAndRender();
-                    } catch (err) {
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        Logger.error('HighlightsManager', `Error in clear filters handler: ${errorMessage}`, { err });
-                    }
-                });
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            Logger.error('HighlightsManager', `Error binding events: ${errorMessage}`, { err });
-        }
-    }
+    bindEvents(): void {}
 
     /**
      * Retrieves saved highlight marks and bookmarks from `chrome.storage.local` and triggers view rendering.
@@ -728,6 +686,13 @@ export class HighlightsManager {
                     this.loadedBookmarks = result.bookmarks || [];
                     if (this.onUpdate) {
                         this.onUpdate();
+                    } else if (typeof document !== 'undefined') {
+                        const root = document.getElementById('root') || document.body;
+                        if (root) {
+                            safeFlushSync(() => {
+                                render(<HighlightsManagerApp manager={this} />, root);
+                            });
+                        }
                     }
                     
                     this.populateWebpageSelect();
@@ -749,26 +714,16 @@ export class HighlightsManager {
      */
     populateWebpageSelect(): void {
         try {
-            const select = document.getElementById('webpage-select') as HTMLSelectElement | null;
-            if (!select) return;
-            
-            select.innerHTML = '<option value="all">All Pages</option>';
-
-            const uniquePagesMap = new Map<string, string>();
-            this.loadedMarks.forEach(mark => {
-                const bookmark = this.loadedBookmarks.find(b => b.url === mark.url);
-                const title = bookmark && bookmark.title ? bookmark.title : this.helpers.getCleanDisplayUrl(mark.url);
-                uniquePagesMap.set(mark.url, title);
-            });
-
-            for (const [url, title] of uniquePagesMap.entries()) {
-                const option = document.createElement('option');
-                option.value = url;
-                option.textContent = title.length > 50 ? title.substring(0, 50) + '...' : title;
-                select.appendChild(option);
+            if (this.onUpdate) {
+                this.onUpdate();
+            } else if (typeof document !== 'undefined') {
+                const root = document.getElementById('root') || document.body;
+                if (root) {
+                    safeFlushSync(() => {
+                        render(<HighlightsManagerApp manager={this} />, root);
+                    });
+                }
             }
-            
-            select.value = this.activePageFilter;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Error populating webpage select: ${errorMessage}`, { err });
@@ -780,23 +735,16 @@ export class HighlightsManager {
      */
     renderColorFilters(): void {
         try {
-            const container = document.getElementById('color-filters-container');
-            if (!container) return;
-
-            const uniqueColors = [...new Set(this.loadedMarks.map(m => m.color).filter(Boolean))];
-
-            render(
-                <ColorFilterBubbles
-                    colors={uniqueColors}
-                    activeColor={this.activeColorFilter}
-                    onToggleColor={(color) => {
-                        this.activeColorFilter = this.activeColorFilter === color ? null : color;
-                        this.renderColorFilters();
-                        this.filterAndRender();
-                    }}
-                />,
-                container
-            );
+            if (this.onUpdate) {
+                this.onUpdate();
+            } else if (typeof document !== 'undefined') {
+                const root = document.getElementById('root') || document.body;
+                if (root) {
+                    safeFlushSync(() => {
+                        render(<HighlightsManagerApp manager={this} />, root);
+                    });
+                }
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Error rendering color filters: ${errorMessage}`, { err });
@@ -835,55 +783,16 @@ export class HighlightsManager {
      */
     filterAndRender(): void {
         try {
-            const container = document.getElementById('highlights-container');
-            const subtitle = document.getElementById('highlight-subtitle');
-            const clearFiltersBtn = document.getElementById('clear-filters-btn');
-            if (!container) return;
-
-            const filtered = this.getFilteredMarks();
-
-            filtered.sort((a, b) => {
-                if (this.sortOption === 'newest') {
-                    return b.createdAt - a.createdAt;
-                } else if (this.sortOption === 'oldest') {
-                    return a.createdAt - b.createdAt;
-                } else if (this.sortOption === 'longest') {
-                    return b.text.length - a.text.length;
-                } else if (this.sortOption === 'shortest') {
-                    return a.text.length - b.text.length;
-                } else if (this.sortOption === 'title') {
-                    const bookmarkA = this.loadedBookmarks.find(b => b.url === a.url);
-                    const bookmarkB = this.loadedBookmarks.find(b => b.url === b.url);
-                    const titleA = bookmarkA && bookmarkA.title ? bookmarkA.title.toLowerCase() : a.url.toLowerCase();
-                    const titleB = bookmarkB && bookmarkB.title ? bookmarkB.title.toLowerCase() : b.url.toLowerCase();
-                    return titleA.localeCompare(titleB);
-                }
-                return 0;
-            });
-
-            const isFilteredActive = this.searchQuery !== '' || this.activeColorFilter !== null || this.activePageFilter !== 'all';
-            if (clearFiltersBtn) {
-                clearFiltersBtn.style.display = isFilteredActive ? 'inline-block' : 'none';
-            }
-
-            if (subtitle) {
-                if (isFilteredActive) {
-                    subtitle.innerText = `Found ${filtered.length} matching highlight(s) out of ${this.loadedMarks.length} total.`;
-                } else {
-                    subtitle.innerText = `You have ${this.loadedMarks.length} saved highlight(s).`;
+            if (this.onUpdate) {
+                this.onUpdate();
+            } else if (typeof document !== 'undefined') {
+                const root = document.getElementById('root') || document.body;
+                if (root) {
+                    safeFlushSync(() => {
+                        render(<HighlightsManagerApp manager={this} />, root);
+                    });
                 }
             }
-
-            render(
-                <HighlightsListView
-                    marks={filtered}
-                    bookmarks={this.loadedBookmarks}
-                    searchQuery={this.searchQuery}
-                    onCopy={(text) => this.helpers.copyToClipboard(text)}
-                    onDelete={(id) => this.deleteHighlight(id)}
-                />,
-                container
-            );
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsManager', `Error filtering and rendering highlights: ${errorMessage}`, { err });
@@ -962,7 +871,7 @@ export class HighlightsManager {
             const url = URL.createObjectURL(blob);
             const filename = `algorecall_highlights_${new Date().toISOString().split('T')[0]}.md`;
 
-            // Safari does not support chrome.downloads — use anchor-click fallback.
+            // Safari does not support chrome.downloads — use ActionService anchor-click fallback.
             if (BROWSER_CONFIG.supportsDownloads) {
                 chrome.downloads.download({
                     url: url,
@@ -981,13 +890,7 @@ export class HighlightsManager {
                     }
                 });
             } else {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                ActionService.triggerDomDownload(url, filename);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);

@@ -13,6 +13,7 @@ import { MemoryHealth, MemoryHealthPanel } from './memoryHealth';
 import { LearningVelocity, LearningVelocityView } from './learningVelocity';
 import { MiniForecast, MiniForecastPanel } from './miniForecast';
 import { DataUtils } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import { Card } from '../../../../types/domain';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
@@ -197,7 +198,7 @@ export class OverviewTabClass {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
             
             render(<OverviewTabComponent dataUtils={this.dataUtils} />, container);
@@ -215,7 +216,7 @@ export class OverviewTabClass {
      */
     renderNextAction(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             const stats = this.dataUtils.getSummaryStats();

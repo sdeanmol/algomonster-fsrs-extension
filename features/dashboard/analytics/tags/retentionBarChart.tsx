@@ -9,6 +9,7 @@
 import { h, Fragment, FunctionalComponent, render as preactRender } from 'preact';
 import { Logger } from '@common/logger';
 import { DataUtils, TagStats } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import { getTagColorClass } from './coverageTable';
 
 export interface RetentionBarRowProps {
@@ -169,7 +170,7 @@ export class RetentionBarChart {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             const stats = this.dataUtils.getStatsByTag();

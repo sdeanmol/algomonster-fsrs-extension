@@ -14,6 +14,7 @@ import { useState, useMemo } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '@common/constants';
 import { DataUtils, ExamReadinessStats, ExamReadinessTagResult } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import { Card } from '../../../../types/domain';
 
 export interface ReadinessTopicCardProps {
@@ -239,7 +240,7 @@ export class ReadinessTabClass {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             render(

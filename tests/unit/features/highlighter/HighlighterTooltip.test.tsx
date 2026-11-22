@@ -159,6 +159,7 @@ describe('Highlighter Preact Tooltip Components', () => {
             picker.dispatchEvent(new Event('change', { bubbles: true }));
             expect(onColorChange).toHaveBeenCalledWith('#abcdef');
 
+            picker.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
             picker.dispatchEvent(new Event('blur', { bubbles: true }));
             expect(onBlur).toHaveBeenCalled();
         });

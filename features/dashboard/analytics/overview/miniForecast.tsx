@@ -10,6 +10,7 @@ import { h, Fragment, FunctionalComponent, render } from 'preact';
 import { useCallback, useMemo } from 'preact/hooks';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import { MS_PER_DAY, DAY_NAMES_SHORT } from '../../../common/constants';
 
 export interface ForecastDayTileProps {
@@ -247,7 +248,7 @@ export class MiniForecast {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             render(<MiniForecastPanel dataUtils={this.dataUtils} />, container);
@@ -317,43 +318,5 @@ export class MiniForecast {
         return forecastStrip;
     }
 
-    /**
-     * Attaches click handlers to the 30-day forecast link and individual day cards,
-     * opening new Chrome tabs with appropriately filtered parameters.
-     * @param container - Root container element hosting the forecast strip.
-     * @returns void
-     * @fires chrome.tabs.create
-     */
-    private bindEventListeners(container: HTMLElement): void {
-        const fullForecastLink = container.querySelector('#full-forecast-link');
-        if (fullForecastLink) {
-            fullForecastLink.addEventListener('click', (e) => {
-                try {
-                    e.preventDefault();
-                    if (typeof chrome !== 'undefined' && chrome.runtime?.getURL && chrome.tabs?.create) {
-                        chrome.tabs.create({ url: chrome.runtime.getURL('features/dashboard/forecast/forecast.html') });
-                    }
-                } catch (linkErr) {
-                    UIUtils.catchError('MiniForecast', 'Error handling full forecast link click', linkErr);
-                }
-            });
-        }
-
-        const dayCards = container.querySelectorAll('.forecast-day-card');
-        dayCards.forEach(card => {
-            card.addEventListener('click', () => {
-                try {
-                    const dateStr = card.getAttribute('data-date');
-                    const offset = card.getAttribute('data-offset');
-                    if (typeof chrome !== 'undefined' && chrome.runtime?.getURL && chrome.tabs?.create) {
-                        const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?view=forecast&date=${dateStr}&offset=${offset}`);
-                        chrome.tabs.create({ url: dataUrl });
-                    }
-                } catch (cardClickErr) {
-                    UIUtils.catchError('MiniForecast', 'Error handling day card click', cardClickErr);
-                }
-            });
-        });
-    }
 }
 

@@ -48,24 +48,7 @@ describe('HighlightsManager', () => {
   beforeEach(() => {
     delete (chrome.runtime as any).lastError;
 
-    document.body.innerHTML = `
-      <button id="refresh-btn">Refresh</button>
-      <button id="export-highlights-btn">Export</button>
-      <input id="search-input" value="" />
-      <select id="webpage-select"><option value="all">All Pages</option></select>
-      <select id="sort-select">
-        <option value="newest">Newest</option>
-        <option value="oldest">Oldest</option>
-        <option value="longest">Longest</option>
-        <option value="shortest">Shortest</option>
-        <option value="title">Title</option>
-      </select>
-      <button id="clear-filters-btn">Clear</button>
-
-      <div id="color-filters-container"></div>
-      <div id="highlights-container"></div>
-      <span id="highlight-subtitle"></span>
-    `;
+    document.body.innerHTML = '<div id="root"></div>';
 
     (global as any).confirm = jest.fn().mockReturnValue(true);
     (global as any).alert = jest.fn();

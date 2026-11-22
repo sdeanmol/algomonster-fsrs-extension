@@ -13,6 +13,7 @@ import { Card } from '../../../../types/domain';
 import { RecoveryTracking, RecoveryTrackingComponent } from './recoveryTracking';
 import { ReviewStats, ReviewStatsComponent } from './reviewStats';
 import { DataUtils } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 
 export interface PerformanceNextActionBannerProps {
     strugglingCount: number;
@@ -51,9 +52,16 @@ export const PerformanceNextActionBanner: FunctionalComponent<PerformanceNextAct
 export interface PerformanceTabProps {
     cards?: Card[];
     dataUtils?: DataUtils;
+    onFilterTagChange?: (tag: string) => void;
+    onPeriodChange?: (period: string) => void;
 }
 
-export const PerformanceTabComponent: FunctionalComponent<PerformanceTabProps> = ({ cards, dataUtils: propDataUtils }) => {
+export const PerformanceTabComponent: FunctionalComponent<PerformanceTabProps> = ({
+    cards,
+    dataUtils: propDataUtils,
+    onFilterTagChange,
+    onPeriodChange
+}) => {
     const dataUtils = propDataUtils || new DataUtils(cards || [], {}, null);
     const [period, setPeriod] = useState('daily');
     const [filterTag, setFilterTag] = useState('all');
@@ -94,7 +102,16 @@ export const PerformanceTabComponent: FunctionalComponent<PerformanceTabProps> =
                             id="review-period-select"
                             class="modern-select"
                             value={period}
-                            onChange={(e) => setPeriod((e.target as HTMLSelectElement).value)}
+                            onChange={(e) => {
+                                try {
+                                    const val = (e.target as HTMLSelectElement).value;
+                                    setPeriod(val);
+                                    onPeriodChange?.(val);
+                                } catch (periodErr) {
+                                    const errorMessage = periodErr instanceof Error ? periodErr.message : String(periodErr);
+                                    Logger.error('PerformanceTab', `Error in period select change listener: ${errorMessage}`, { periodErr });
+                                }
+                            }}
                         >
                             <option value="daily">Daily (14 days)</option>
                             <option value="weekly">Weekly (12 weeks)</option>
@@ -122,7 +139,16 @@ export const PerformanceTabComponent: FunctionalComponent<PerformanceTabProps> =
                             id="performance-filter-tag"
                             class="modern-select"
                             value={filterTag}
-                            onChange={(e) => setFilterTag((e.target as HTMLSelectElement).value)}
+                            onChange={(e) => {
+                                try {
+                                    const val = (e.target as HTMLSelectElement).value;
+                                    setFilterTag(val);
+                                    onFilterTagChange?.(val);
+                                } catch (tagErr) {
+                                    const errorMessage = tagErr instanceof Error ? tagErr.message : String(tagErr);
+                                    Logger.error('PerformanceTab', `Error in tag filter change listener: ${errorMessage}`, { tagErr });
+                                }
+                            }}
                         >
                             <option value="all">All Tags</option>
                             {allTags.map(tag => (
@@ -226,81 +252,24 @@ export class PerformanceTabClass {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
-            
-            if (!this.rendered) {
-                container.innerHTML = `
-                    <div class="performance-grid">
-                        <div id="performance-next-action-container"></div>
-                        <div class="performance-panel ana-panel-wide">
-                            <div class="ana-panel-header">
-                                <span class="ana-panel-title">
-                                    Review Statistics
-                                    <span class="help-icon" data-tooltip="Shows the volume of your review activity over daily, weekly, or monthly periods.">?</span>
-                                </span>
-                                <div class="performance-controls">
-                                    <select id="review-period-select" class="modern-select">
-                                        <option value="daily">Daily (14 days)</option>
-                                        <option value="weekly">Weekly (12 weeks)</option>
-                                        <option value="monthly">Monthly (12 months)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div id="review-stats-container"></div>
-                        </div>
 
-                        <div class="performance-panel ana-panel-wide">
-                            <div class="ana-panel-header">
-                                <span class="ana-panel-title">
-                                    Trouble Spots & Recovery
-                                    <span class="help-icon" data-tooltip="Highlights cards you've forgotten multiple times (Lapses). 'Still Struggling' means the card has not yet graduated to long-term memory again.">?</span>
-                                </span>
-                                <div class="performance-controls">
-                                    <select id="performance-filter-tag" class="modern-select">
-                                        <option value="all">All Tags</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div id="recovery-tracking-container"></div>
-                        </div>
-                    </div>
-                `;
-                
-                const tagFilter = container.querySelector('#performance-filter-tag') as HTMLSelectElement | null;
-                if (tagFilter) {
-                    tagFilter.addEventListener('change', (e: Event) => {
-                        try {
-                            const target = e.target as HTMLSelectElement;
-                            this.recoveryTracking.setTagFilter(target.value);
-                            this.recoveryTracking.render('recovery-tracking-container');
-                        } catch (tagErr) {
-                            const errorMessage = tagErr instanceof Error ? tagErr.message : String(tagErr);
-                            Logger.error('PerformanceTab', `Error in tag filter change listener: ${errorMessage}`, { tagErr });
-                        }
-                    });
-                }
-
-                const periodSelect = container.querySelector('#review-period-select') as HTMLSelectElement | null;
-                if (periodSelect) {
-                    periodSelect.addEventListener('change', (e: Event) => {
-                        try {
-                            const target = e.target as HTMLSelectElement;
-                            this.reviewStats.setPeriod(target.value);
-                            this.reviewStats.render('review-stats-container');
-                        } catch (periodErr) {
-                            const errorMessage = periodErr instanceof Error ? periodErr.message : String(periodErr);
-                            Logger.error('PerformanceTab', `Error in period select change listener: ${errorMessage}`, { periodErr });
-                        }
-                    });
-                }
-                
-                this.rendered = true;
-            }
-
-            this.reviewStats.render('review-stats-container');
-            this.recoveryTracking.render('recovery-tracking-container');
-            this.renderNextAction('performance-next-action-container');
+            preactRender(
+                <PerformanceTabComponent
+                    dataUtils={this.dataUtils}
+                    onFilterTagChange={(tag) => {
+                        this.recoveryTracking.setTagFilter(tag);
+                        this.recoveryTracking.render('recovery-tracking-container');
+                    }}
+                    onPeriodChange={(period) => {
+                        this.reviewStats.setPeriod(period);
+                        this.reviewStats.render('review-stats-container');
+                    }}
+                />,
+                container
+            );
+            this.rendered = true;
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('PerformanceTab', `Error rendering PerformanceTab: ${errorMessage}`, { containerId, err });
@@ -316,7 +285,7 @@ export class PerformanceTabClass {
      */
     renderNextAction(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             const dataUtils = this.dataUtils;

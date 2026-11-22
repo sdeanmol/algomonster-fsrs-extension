@@ -48,6 +48,9 @@ try {
  * Provides clipboard replication, string sanitizer escapers, and search match mark wrapper overlays.
  */
 export class HighlightsHelpers {
+    /** Toast delegate callback for declarative Preact integration. */
+    static onToast?: (message: string) => void;
+
     /**
      * Copies a string directly into user's OS clipboard buffer and triggers toast confirmation feedback.
      * 
@@ -69,6 +72,7 @@ export class HighlightsHelpers {
 
     /**
      * Escapes special HTML tag symbols from strings to mitigate XSS vulnerabilities.
+     * Uses pure string escaping without imperative DOM nodes.
      * 
      * @param {string} text - Raw string to escape.
      * @returns {string} Sanitized HTML string.
@@ -76,13 +80,16 @@ export class HighlightsHelpers {
     static escapeHtml(text: string): string {
         try {
             if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsHelpers', `Error escaping HTML: ${errorMessage}`, { text, err });
-            // Comment: Basic string replacement fallback on DOM element creation failure
+            // Comment: Basic string replacement fallback on escaping error
             return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
     }
@@ -136,6 +143,11 @@ export class HighlightsHelpers {
      */
     static showToast(message: string): void {
         try {
+            if (this.onToast) {
+                this.onToast(message);
+                return;
+            }
+            if (typeof document === 'undefined') return;
             const toast = document.getElementById('status-toast');
             if (!toast) return;
             toast.textContent = message;

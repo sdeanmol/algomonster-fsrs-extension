@@ -8,6 +8,7 @@
 import { h, Fragment, FunctionalComponent, render as preactRender } from 'preact';
 import { Logger } from '@common/logger';
 import { DataUtils } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 
 export interface ReviewStatMiniProps {
     value: string | number;
@@ -193,7 +194,7 @@ export class ReviewStats {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             const activity = this.dataUtils ? (this.dataUtils.activity || {}) : {};

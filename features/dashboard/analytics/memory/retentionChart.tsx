@@ -11,6 +11,7 @@ import { useMemo } from 'preact/hooks';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { ConfidenceBand, ConfidenceBandPolygon, PointR } from './confidenceBand';
 import { DataUtils } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 import { ANALYTICS_CHART_COLORS, RETENTION_TIME_POINTS } from '../../../common/constants';
 
@@ -274,7 +275,7 @@ export class RetentionChart {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             render(

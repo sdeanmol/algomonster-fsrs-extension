@@ -323,6 +323,108 @@ export class Utils {
             return window.location.origin ? `${window.location.origin}/favicon.ico` : '';
         }
     }
+
+    /**
+     * Extracts text metadata from the document body for page indexation.
+     * Boundary 2: Content script third-party DOM inspection.
+     * @returns {Object} Extracted innerText, length, and description snippet.
+     */
+    static getPageTextMetadata(): { innerText: string; length: number; description: string } {
+        try {
+            const text = (typeof document !== 'undefined' && document.body && document.body.innerText) ? document.body.innerText : '';
+            return {
+                innerText: text,
+                length: text.length,
+                description: text.substring(0, 100)
+            };
+        } catch (err) {
+            return { innerText: '', length: 0, description: '' };
+        }
+    }
+
+    /**
+     * Removes all floating symbol DOM nodes injected into the host page.
+     * Boundary 2: Content script third-party DOM mutation.
+     */
+    static cleanFloatingSymbols(): void {
+        try {
+            if (typeof document === 'undefined') return;
+            const symbols = document.querySelectorAll('.algo-floating-symbol');
+            symbols.forEach(el => el.remove());
+        } catch (err) {
+            // ignore
+        }
+    }
+
+    /**
+     * Reads active card ID from host page rating widget DOM if present.
+     * Boundary 2: Cross-widget DOM query fallback in content script layer.
+     * @returns {string | null} Active card ID or null if not found.
+     */
+    static getActiveCardIdFromDOM(): string | null {
+        try {
+            if (typeof document === 'undefined') return null;
+            return document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id') || null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    /**
+     * Updates the approach textarea in the tracker overlay widget if active.
+     * Boundary 2: Cross-widget DOM update fallback in content script layer.
+     * @param {string | null} cardId - Target card identifier.
+     * @param {string} value - Text content to set in approach textarea.
+     */
+    static updateApproachAreaValue(cardId: string | null, value: string): void {
+        try {
+            if (typeof document === 'undefined') return;
+            const approachArea = document.getElementById('fsrs-approach') as HTMLTextAreaElement | null;
+            if (!approachArea) return;
+            const currentCardIdInUi = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
+            if (!currentCardIdInUi || currentCardIdInUi === cardId || (cardId === null && currentCardIdInUi === '__new__')) {
+                approachArea.value = value;
+            }
+        } catch (err) {
+            // ignore
+        }
+    }
+
+    /**
+     * Retrieves or creates the host mounting container for the floating highlighter tooltip.
+     * Boundary 2: Host container injection in content script layer.
+     * @returns {HTMLElement | null} Host container element.
+     */
+    static getOrCreateHighlighterHost(): HTMLElement | null {
+        try {
+            if (typeof document === 'undefined') return null;
+            let host = document.getElementById('algo-highlighter-host');
+            if (!host) {
+                host = document.createElement('div');
+                host.id = 'algo-highlighter-host';
+                document.body.appendChild(host);
+            }
+            return host;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    /**
+     * Removes the host mounting container for the floating highlighter tooltip.
+     * Boundary 2: Host container removal in content script layer.
+     */
+    static removeHighlighterHost(): void {
+        try {
+            if (typeof document === 'undefined') return;
+            const host = document.getElementById('algo-highlighter-host');
+            if (host) {
+                host.remove();
+            }
+        } catch (err) {
+            // ignore
+        }
+    }
 }
 
 try {

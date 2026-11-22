@@ -8,12 +8,22 @@
 
 import { h, Fragment, FunctionalComponent, render } from 'preact';
 import { useState, useMemo, useEffect } from 'preact/hooks';
+import { flushSync } from 'preact/compat';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { RetentionChart, RetentionChartView } from './retentionChart';
 import { PredictionComparison, PredictionComparisonChart } from './predictionComparison';
 import { DataUtils } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import { Card, StorageData } from '../../../../types/domain';
 import { DEFAULT_FSRS_REQUEST_RETENTION, RETENTION_DROP_THRESHOLD } from '../../../common/constants';
+
+function safeFlushSync(fn: () => void): void {
+    try {
+        flushSync(fn);
+    } catch (_) {
+        fn();
+    }
+}
 
 export interface PersonalMemoryModelBannerProps {
     isPersonalized: boolean;
@@ -125,12 +135,10 @@ export const MemoryTabComponent: FunctionalComponent<MemoryTabProps> = ({
 
     const handleGroupByChange = (val: string) => {
         try {
-            setGroupBy(val);
+            safeFlushSync(() => {
+                setGroupBy(val);
+            });
             if (propRetentionChart) propRetentionChart.setGroupBy(val);
-            const tagFilterWrapper = document.getElementById('tag-filter-wrapper');
-            if (tagFilterWrapper) {
-                tagFilterWrapper.style.display = (val === 'tag') ? 'flex' : 'none';
-            }
         } catch (err) {
             UIUtils.catchError('MemoryTab', 'Error handling retention-group-by select change', err);
         }
@@ -322,7 +330,7 @@ export class MemoryTabClass {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             render(<MemoryTabComponent dataUtils={this.dataUtils} retentionChart={this.retentionChart} />, container);
@@ -334,7 +342,7 @@ export class MemoryTabClass {
 
     renderPersonalMemoryStatus(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             if (typeof chrome !== 'undefined' && chrome.storage?.local) {
@@ -352,7 +360,7 @@ export class MemoryTabClass {
 
     renderNextAction(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             const stats = this.dataUtils.getSummaryStats();

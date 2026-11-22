@@ -8,6 +8,7 @@
 import { h, Fragment, FunctionalComponent, render } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, SummaryStats } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
 /**
@@ -193,7 +194,7 @@ export class MemoryHealth {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             render(<MemoryHealthPanel dataUtils={this.dataUtils} />, container);

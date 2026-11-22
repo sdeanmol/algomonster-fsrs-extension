@@ -273,24 +273,6 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
 
     const handleSelectTab = useCallback((tab: TabKey) => {
         setCurrentTab(tab);
-        const titleEl = document.getElementById('current-tab-title');
-        if (titleEl) {
-            titleEl.textContent = TAB_TITLES[tab] || 'Overview';
-        }
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            if (btn.getAttribute('data-tab') === tab) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
-        document.querySelectorAll('.tab-pane').forEach(pane => {
-            if (pane.id === `tab-${tab}`) {
-                pane.classList.add('active');
-            } else {
-                pane.classList.remove('active');
-            }
-        });
     }, []);
 
     const computeAndSetStats = useCallback((c: Card[], a: Record<string, number>) => {
@@ -304,41 +286,6 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
             setExamRecall(r);
             const sub = `${s.totalCards || 0} patterns tracked · ${s.totalActivityReviews || 0} total reviews · ${s.trueRetention || 0}% retention rate`;
             setSubtitle(sub);
-
-            // Synchronously synchronize DOM elements for instant test assertions
-            const subtitleEl = document.getElementById('analytics-subtitle');
-            if (subtitleEl) {
-                subtitleEl.innerHTML = sub;
-            }
-
-            const cardsElem = document.getElementById('global-kpi-cards');
-            if (cardsElem) cardsElem.textContent = String(s.totalCards || 0);
-
-            const retentionElem = document.getElementById('global-kpi-retention');
-            const retentionVal = s.trueRetention !== undefined && s.trueRetention > 0 ? s.trueRetention : (s.retention || 0);
-            if (retentionElem) retentionElem.textContent = `${retentionVal}%`;
-
-            const pillRetention = document.getElementById('global-kpi-pill-retention');
-            if (pillRetention) {
-                pillRetention.className = `kpi-pill ${retentionVal >= RECALL_THRESHOLD_GOOD ? 'success' : (retentionVal >= RECALL_THRESHOLD_WARNING ? 'warning' : 'danger')}`;
-            }
-
-            const dueCount = s.dueToday !== undefined ? s.dueToday : (s.due || 0);
-            const dueElem = document.getElementById('global-kpi-due');
-            if (dueElem) dueElem.textContent = String(dueCount);
-
-            const pillDue = document.getElementById('global-kpi-pill-due');
-            if (pillDue) {
-                pillDue.className = `kpi-pill ${dueCount === 0 ? 'success' : (dueCount <= DUE_CARDS_THRESHOLD_WARNING ? 'warning' : 'danger')}`;
-            }
-
-            const readinessElem = document.getElementById('global-kpi-readiness');
-            if (readinessElem) readinessElem.textContent = `${r}%`;
-
-            const pillReadiness = document.getElementById('global-kpi-pill-readiness');
-            if (pillReadiness) {
-                pillReadiness.className = `kpi-pill ${r >= RECALL_THRESHOLD_GOOD ? 'success' : (r >= RECALL_THRESHOLD_WARNING ? 'warning' : 'danger')}`;
-            }
         } catch (err) {
             UIUtils.catchError('AnalyticsApp', 'Error computing analytics statistics', err);
         }

@@ -9,6 +9,7 @@
 import { h, Fragment, FunctionalComponent, render } from 'preact';
 import { UIUtils } from '../../../common/utils/uiUtils';
 import { DataUtils, LearningVelocity as LearningVelocityData } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 
 export interface LearningVelocityKpiCardProps {
     title: string;
@@ -158,7 +159,7 @@ export class LearningVelocity {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             render(<LearningVelocityView dataUtils={this.dataUtils} />, container);

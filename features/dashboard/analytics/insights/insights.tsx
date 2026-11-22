@@ -15,6 +15,7 @@ import { UIUtils } from '../../../common/utils/uiUtils';
 import { Card } from '../../../../types/domain';
 import { ReviewTimeAnalytics, ReviewTimeAnalyticsView } from './reviewTimeAnalytics';
 import { DataUtils } from '../utils/dataUtils';
+import { resolveContainer } from '../utils/resolveContainer';
 
 export interface InsightsNextActionBannerProps {
     type: 'empty' | 'optimize' | 'collect';
@@ -168,27 +169,11 @@ export class InsightsTabClass {
      */
     render(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
-            
-            if (!this.rendered) {
-                container.innerHTML = `
-                    <div class="insights-grid">
-                        <div id="insights-next-action-container"></div>
-                        <div class="insights-panel ana-panel-wide">
-                            <div class="ana-panel-header">
-                                <span class="ana-panel-title">
-                                    Review Time Analytics
-                                    <span class="help-icon" data-tooltip="Analyzes your retention rates based on the time of day you do your reviews to find your most effective study time.">?</span>
-                                </span>
-                                <span class="ana-panel-hint">When do you study best?</span>
-                            </div>
-                            <div id="review-time-analytics-container"></div>
-                        </div>
-                    </div>
-                `;
-                this.rendered = true;
-            }
+
+            preactRender(<InsightsTabComponent dataUtils={this.dataUtils} />, container);
+            this.rendered = true;
 
             this.reviewTimeAnalytics.render('review-time-analytics-container');
             this.renderNextAction('insights-next-action-container');
@@ -203,7 +188,7 @@ export class InsightsTabClass {
      */
     renderNextAction(containerId: string): void {
         try {
-            const container = document.getElementById(containerId);
+            const container = resolveContainer(containerId);
             if (!container) return;
 
             const timeInsights = this.dataUtils ? this.dataUtils.getReviewTimeInsights() : { hasTimeData: false, data: [] };
