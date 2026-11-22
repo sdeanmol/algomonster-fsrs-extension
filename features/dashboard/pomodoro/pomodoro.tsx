@@ -162,8 +162,13 @@ export function PomodoroTimerRing({
                     cx="100"
                     cy="100"
                     r={88}
-                    strokeDasharray={String(circumference)}
-                    strokeDashoffset={String(animatedOffset)}
+                    stroke-dasharray={String(circumference)}
+                    stroke-dashoffset={String(targetOffset)}
+                    style={{
+                        strokeDasharray: `${circumference}`,
+                        strokeDashoffset: `${targetOffset}`,
+                        transition: isRunning ? 'stroke-dashoffset 1s linear, stroke 0.5s ease' : 'none'
+                    }}
                 />
             </svg>
             <div className="timer-display-overlay">
@@ -485,8 +490,13 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                             cx="100"
                             cy="100"
                             r="88"
-                            strokeDasharray={String(circumference)}
-                            strokeDashoffset={String(animatedOffset)}
+                            stroke-dasharray={String(circumference)}
+                            stroke-dashoffset={String(offset)}
+                            style={{
+                                strokeDasharray: `${circumference}`,
+                                strokeDashoffset: `${offset}`,
+                                transition: timer.state === 'running' ? 'stroke-dashoffset 1s linear, stroke 0.5s ease' : 'none'
+                            }}
                         />
                     </svg>
                     <div className="timer-display">
