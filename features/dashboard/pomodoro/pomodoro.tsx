@@ -697,8 +697,8 @@ export class PomodoroTimer {
         this.state = 'idle';
         this.phase = 'focus';
         this.currentSession = 1;
-        this.timeRemaining = 0;
-        this.totalTime = 0;
+        this.totalTime = this.settings.focusDuration * 60;
+        this.timeRemaining = this.totalTime;
         this.targetEndTime = null;
         this.intervalId = null;
 

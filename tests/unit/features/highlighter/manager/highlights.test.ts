@@ -1,6 +1,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { h, render } from 'preact';
 import { HighlightsManager, HighlightsApp } from '../../../../../features/highlighter/manager/highlights';
+import { HighlightsHelpers } from '../../../../../features/highlighter/manager/highlights-helpers';
 import { HighlightMark, BookmarkItem } from '../../../../../types/domain';
 
 describe('HighlightsManager', () => {
@@ -339,6 +340,27 @@ describe('HighlightsManager', () => {
       expect(toast?.textContent).toBe('');
       render(null, testDiv);
       testDiv.remove();
+    });
+
+    it('updates declarative status toast when HighlightsHelpers.showToast is invoked', () => {
+      jest.useFakeTimers();
+      const testDiv = document.createElement('div');
+      render(h(HighlightsApp, { manager }), testDiv);
+
+      const toast = testDiv.querySelector('#status-toast');
+      expect(toast).not.toBeNull();
+      expect(toast?.textContent).toBe('');
+
+      HighlightsHelpers.showToast('Test Declarative Toast');
+      expect(toast?.textContent).toBe('Test Declarative Toast');
+      expect(toast?.className).toContain('show');
+
+      jest.advanceTimersByTime(2100);
+      expect(toast?.className).not.toContain('show');
+
+      render(null, testDiv);
+      testDiv.remove();
+      jest.useRealTimers();
     });
   });
 });

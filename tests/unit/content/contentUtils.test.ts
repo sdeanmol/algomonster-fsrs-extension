@@ -253,4 +253,82 @@ describe('Content Utils', () => {
       querySpy.mockRestore();
     });
   });
+
+  describe('getActiveCardIdFromDOM and updateApproachAreaValue', () => {
+    it('returns null for getActiveCardIdFromDOM when save ratings element is missing', () => {
+      expect(Utils.getActiveCardIdFromDOM()).toBeNull();
+    });
+
+    it('returns card ID from fsrs-save-ratings data-existing-id attribute', () => {
+      const btn = document.createElement('button');
+      btn.id = 'fsrs-save-ratings';
+      btn.setAttribute('data-existing-id', 'card-123');
+      document.body.appendChild(btn);
+
+      expect(Utils.getActiveCardIdFromDOM()).toBe('card-123');
+    });
+
+    it('updates approach textarea and dispatches input event when cardId matches', () => {
+      const btn = document.createElement('button');
+      btn.id = 'fsrs-save-ratings';
+      btn.setAttribute('data-existing-id', 'card-456');
+      document.body.appendChild(btn);
+
+      const textarea = document.createElement('textarea');
+      textarea.id = 'fsrs-approach';
+      document.body.appendChild(textarea);
+
+      let inputDispatched = false;
+      textarea.addEventListener('input', () => {
+        inputDispatched = true;
+      });
+
+      Utils.updateApproachAreaValue('card-456', 'Optimal DP Approach');
+      expect(textarea.value).toBe('Optimal DP Approach');
+      expect(inputDispatched).toBe(true);
+    });
+
+    it('updates approach textarea when activeId is __new__', () => {
+      const btn = document.createElement('button');
+      btn.id = 'fsrs-save-ratings';
+      btn.setAttribute('data-existing-id', '__new__');
+      document.body.appendChild(btn);
+
+      const textarea = document.createElement('textarea');
+      textarea.id = 'fsrs-approach';
+      document.body.appendChild(textarea);
+
+      Utils.updateApproachAreaValue(null, 'Draft approach');
+      expect(textarea.value).toBe('Draft approach');
+    });
+
+    it('ignores updateApproachAreaValue when cardId does not match current card in UI', () => {
+      const btn = document.createElement('button');
+      btn.id = 'fsrs-save-ratings';
+      btn.setAttribute('data-existing-id', 'card-other');
+      document.body.appendChild(btn);
+
+      const textarea = document.createElement('textarea');
+      textarea.id = 'fsrs-approach';
+      textarea.value = 'Existing text';
+      document.body.appendChild(textarea);
+
+      Utils.updateApproachAreaValue('card-mismatch', 'New text');
+      expect(textarea.value).toBe('Existing text');
+    });
+
+    it('handles getOrCreateHighlighterHost and removeHighlighterHost', () => {
+      const host = Utils.getOrCreateHighlighterHost();
+      expect(host).not.toBeNull();
+      expect(host?.id).toBe('algo-highlighter-host');
+      expect(document.getElementById('algo-highlighter-host')).toBe(host);
+
+      // Subsequent call returns existing host
+      const existing = Utils.getOrCreateHighlighterHost();
+      expect(existing).toBe(host);
+
+      Utils.removeHighlighterHost();
+      expect(document.getElementById('algo-highlighter-host')).toBeNull();
+    });
+  });
 });

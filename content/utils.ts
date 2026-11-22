@@ -384,6 +384,11 @@ export class Utils {
             const currentCardIdInUi = document.getElementById('fsrs-save-ratings')?.getAttribute('data-existing-id');
             if (!currentCardIdInUi || currentCardIdInUi === cardId || (cardId === null && currentCardIdInUi === '__new__')) {
                 approachArea.value = value;
+                try {
+                    approachArea.dispatchEvent(new Event('input', { bubbles: true }));
+                } catch (_) {
+                    // Ignore event dispatch failure in non-standard environments
+                }
             }
         } catch (err) {
             // ignore

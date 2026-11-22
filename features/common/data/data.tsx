@@ -89,6 +89,139 @@ export function CardsTableEmptyState({
 }
 
 /**
+ * Props for the DataAnalyticsPanel component.
+ */
+export interface DataAnalyticsPanelProps {
+    /** Collection of cards to compute analytics for */
+    cards: Card[];
+}
+
+/**
+ * Preact component rendering analytical overview charts above the table,
+ * including card state breakdowns (New, Learning, Review, Lapsed) and top tag frequency distribution bars.
+ * Purely declarative with zero imperative DOM manipulation.
+ *
+ * @param props - Card collection.
+ * @returns VNode rendered analytics grid.
+ */
+export function DataAnalyticsPanel({ cards }: DataAnalyticsPanelProps): VNode {
+    let newCount = 0;
+    let learningCount = 0;
+    let reviewCount = 0;
+    let lapsedCount = 0;
+
+    cards.forEach((c: Card) => {
+        const reps = c.reps || 0;
+        const stability = c.stability || 0;
+        const lapses = c.lapses || 0;
+
+        if (lapses > 0) lapsedCount++;
+        else if (reps === 0) newCount++;
+        else if (reps > 0 && stability < 3) learningCount++;
+        else if (reps > 0 && stability >= 3) reviewCount++;
+    });
+
+    const total = cards.length;
+    const newPct = total > 0 ? Math.round((newCount / total) * 100) : 0;
+    const learningPct = total > 0 ? Math.round((learningCount / total) * 100) : 0;
+    const reviewPct = total > 0 ? Math.round((reviewCount / total) * 100) : 0;
+    const lapsedPct = total > 0 ? Math.round((lapsedCount / total) * 100) : 0;
+
+    const tagCounts: Record<string, number> = {};
+    cards.forEach((c: Card) => {
+        if (c.tags && Array.isArray(c.tags)) {
+            c.tags.forEach((t: string) => {
+                tagCounts[t] = (tagCounts[t] || 0) + 1;
+            });
+        }
+    });
+
+    const sortedTags = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4);
+
+    const maxTagCount = sortedTags.length > 0 ? sortedTags[0][1] : 1;
+
+    return (
+        <div id="analytics-panel" className="analytics-grid" style={{ marginBottom: '24px' }}>
+            <div className="analytics-card">
+                <h3 className="analytics-card-title">Card States Breakdown</h3>
+                <div className="stacked-bar">
+                    {newCount > 0 && (
+                        <div
+                            className="bar-segment seg-new"
+                            style={{ width: `${newPct}%` }}
+                            title={`New: ${newCount} cards (${newPct}%)`}
+                        />
+                    )}
+                    {learningCount > 0 && (
+                        <div
+                            className="bar-segment seg-learning"
+                            style={{ width: `${learningPct}%` }}
+                            title={`Learning: ${learningCount} cards (${learningPct}%)`}
+                        />
+                    )}
+                    {reviewCount > 0 && (
+                        <div
+                            className="bar-segment seg-review"
+                            style={{ width: `${reviewPct}%` }}
+                            title={`Review: ${reviewCount} cards (${reviewPct}%)`}
+                        />
+                    )}
+                    {lapsedCount > 0 && (
+                        <div
+                            className="bar-segment seg-lapsed"
+                            style={{ width: `${lapsedPct}%` }}
+                            title={`Lapsed: ${lapsedCount} cards (${lapsedPct}%)`}
+                        />
+                    )}
+                </div>
+                <div className="analytics-legend">
+                    <div className="legend-item">
+                        <span className="legend-dot dot-new" /> New: <strong>{newCount}</strong>{' '}
+                        <span className="legend-pct">({newPct}%)</span>
+                    </div>
+                    <div className="legend-item">
+                        <span className="legend-dot dot-learning" /> Learning: <strong>{learningCount}</strong>{' '}
+                        <span className="legend-pct">({learningPct}%)</span>
+                    </div>
+                    <div className="legend-item">
+                        <span className="legend-dot dot-review" /> Review: <strong>{reviewCount}</strong>{' '}
+                        <span className="legend-pct">({reviewPct}%)</span>
+                    </div>
+                    <div className="legend-item">
+                        <span className="legend-dot dot-lapsed" /> Lapsed: <strong>{lapsedCount}</strong>{' '}
+                        <span className="legend-pct">({lapsedPct}%)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="analytics-card">
+                <h3 className="analytics-card-title">Top Tag Distribution</h3>
+                {sortedTags.length === 0 ? (
+                    <div className="empty-analytics-msg">No tags added yet.</div>
+                ) : (
+                    <div className="tags-bars-container">
+                        {sortedTags.map(([tag, count]) => {
+                            const pct = Math.round((count / maxTagCount) * 100);
+                            return (
+                                <div key={tag} className="tag-bar-row">
+                                    <span className="tag-bar-name" title={tag}>{tag}</span>
+                                    <div className="tag-bar-track">
+                                        <div className="tag-bar-fill" style={{ width: `${pct}%` }} />
+                                    </div>
+                                    <span className="tag-bar-value">{count}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+/**
  * Props for the CardsTableRow component.
  */
 export interface CardsTableRowProps {
@@ -505,6 +638,8 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     }
 
     const isFilterActive = searchQuery !== '' || selectedTag !== 'all' || selectedStatus !== 'all' || selectedPlatform !== 'all' || selectedState !== 'all' || sortBy !== 'due-asc';
+    const showCharts = dashboard.extensionSettings?.showCharts !== false;
+    const shouldShowAnalytics = showCharts && cards.length > 0 && (view === 'total' || !view);
 
     const handleClearFilters = () => {
         dashboard.resetFilters();
@@ -624,7 +759,11 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
             </div>
 
             {/* Dynamic Analytics Graphs Panel */}
-            <div id="analytics-panel" className="analytics-grid" style={{ display: 'none', marginBottom: '24px' }} />
+            {shouldShowAnalytics ? (
+                <DataAnalyticsPanel cards={cards} />
+            ) : (
+                <div id="analytics-panel" className="analytics-grid" style={{ display: 'none', marginBottom: '24px' }} />
+            )}
 
             {/* Controls & Filters Panel */}
             <div className="filters-panel">

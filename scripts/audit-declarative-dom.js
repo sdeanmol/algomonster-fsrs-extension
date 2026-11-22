@@ -48,6 +48,7 @@ const TARGET_UI_FILES = [
     'features/dashboard/popup/rating.tsx',
     'features/dashboard/analytics/analytics.tsx',
     'features/highlighter/manager/highlights.tsx',
+    'features/highlighter/manager/highlights-helpers.ts',
     'features/dashboard/popup/search.tsx',
     'features/dashboard/popup/heatmap.tsx',
     'features/dashboard/popup/popup.tsx',

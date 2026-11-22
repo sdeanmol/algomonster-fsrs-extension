@@ -14,7 +14,7 @@
  */
 
 import { h, render, Fragment, JSX } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { flushSync } from 'preact/compat';
 import { Logger } from '@common/logger';
 import { HighlightsHelpers } from './highlights-helpers';
@@ -306,6 +306,35 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
     const [activePageFilter, setActivePageFilter] = useState<string>(() => manager.activePageFilter || 'all');
     const [sortOption, setSortOption] = useState<string>(() => manager.sortOption || 'newest');
     const [isLoading, setIsLoading] = useState<boolean>(() => !manager.loadedMarks || manager.loadedMarks.length === 0);
+    const [toastMessage, setToastMessage] = useState<string>('');
+    const [toastVisible, setToastVisible] = useState<boolean>(false);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const showToast = useCallback((msg: string) => {
+        safeFlushSync(() => {
+            setToastMessage(msg);
+            setToastVisible(true);
+        });
+        if (manager.onToast) {
+            manager.onToast(msg);
+        }
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+            safeFlushSync(() => {
+                setToastVisible(false);
+            });
+        }, 2000);
+    }, [manager]);
+
+    HighlightsHelpers.onToast = showToast;
+    useEffect(() => {
+        HighlightsHelpers.onToast = showToast;
+        return () => {
+            if (HighlightsHelpers.onToast === showToast) {
+                HighlightsHelpers.onToast = undefined;
+            }
+        };
+    }, [showToast]);
 
     const refreshData = () => {
         manager.loadHighlights();
@@ -591,7 +620,9 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
             </div>
 
             {/* Status Toast */}
-            <div id="status-toast" className="toast" />
+            <div id="status-toast" className={`toast${toastVisible ? ' show visible' : ''}`}>
+                {toastMessage}
+            </div>
         </div>
     );
 }
@@ -620,6 +651,8 @@ export class HighlightsManager {
     sortOption: string;
     /** Observer callback notifying root component of state updates. */
     onUpdate?: () => void;
+    /** Delegate callback notifying of toast feedback messages. */
+    onToast?: (message: string) => void;
 
     /**
      * Initializes default filter, search, and sorting states.

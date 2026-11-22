@@ -4,6 +4,11 @@ import { HighlightsHelpers } from '../../../../../features/highlighter/manager/h
 describe('HighlightsHelpers', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    HighlightsHelpers.onToast = undefined;
+  });
+
+  afterEach(() => {
+    HighlightsHelpers.onToast = undefined;
   });
 
   describe('escapeHtml', () => {
@@ -53,10 +58,9 @@ describe('HighlightsHelpers', () => {
   });
 
   describe('copyToClipboard', () => {
-    it('calls navigator.clipboard.writeText and shows success toast', async () => {
-      const toast = document.createElement('div');
-      toast.id = 'status-toast';
-      document.body.appendChild(toast);
+    it('calls navigator.clipboard.writeText and shows success toast via onToast', async () => {
+      const toastMock = jest.fn();
+      HighlightsHelpers.onToast = toastMock;
 
       const writeTextMock = jest.fn().mockImplementation(() => Promise.resolve());
       Object.assign(navigator, {
@@ -67,14 +71,12 @@ describe('HighlightsHelpers', () => {
 
       await HighlightsHelpers.copyToClipboard('Hello World');
       expect(writeTextMock).toHaveBeenCalledWith('Hello World');
-      expect(toast.textContent).toBe('Snippet copied to clipboard!');
-      expect(toast.classList.contains('show')).toBe(true);
+      expect(toastMock).toHaveBeenCalledWith('Snippet copied to clipboard!');
     });
 
-    it('shows failure toast when clipboard write fails', async () => {
-      const toast = document.createElement('div');
-      toast.id = 'status-toast';
-      document.body.appendChild(toast);
+    it('shows failure toast via onToast when clipboard write fails', async () => {
+      const toastMock = jest.fn();
+      HighlightsHelpers.onToast = toastMock;
 
       Object.assign(navigator, {
         clipboard: {
@@ -83,27 +85,21 @@ describe('HighlightsHelpers', () => {
       });
 
       await HighlightsHelpers.copyToClipboard('Failed Copy');
-      expect(toast.textContent).toBe('Failed to copy text.');
+      expect(toastMock).toHaveBeenCalledWith('Failed to copy text.');
     });
   });
 
   describe('showToast', () => {
-    it('removes show class after timeout', () => {
-      jest.useFakeTimers();
-      const toast = document.createElement('div');
-      toast.id = 'status-toast';
-      document.body.appendChild(toast);
+    it('delegates to onToast callback when registered', () => {
+      const toastMock = jest.fn();
+      HighlightsHelpers.onToast = toastMock;
 
       HighlightsHelpers.showToast('Test Message');
-      expect(toast.textContent).toBe('Test Message');
-      expect(toast.classList.contains('show')).toBe(true);
-
-      jest.advanceTimersByTime(2100);
-      expect(toast.classList.contains('show')).toBe(false);
-      jest.useRealTimers();
+      expect(toastMock).toHaveBeenCalledWith('Test Message');
     });
 
-    it('returns early when status-toast element is missing', () => {
+    it('falls back to non-DOM logging without throwing when onToast is not registered', () => {
+      HighlightsHelpers.onToast = undefined;
       expect(() => HighlightsHelpers.showToast('Missing Toast')).not.toThrow();
     });
   });
@@ -127,19 +123,12 @@ describe('HighlightsHelpers', () => {
       expect(() => HighlightsHelpers.highlightSearchMatch('Text', 'query')).not.toThrow();
     });
 
-    it('handles toast class removal exception in showToast timeout', () => {
-      jest.useFakeTimers();
-      const toast = document.createElement('div');
-      toast.id = 'status-toast';
-      document.body.appendChild(toast);
+    it('handles exception inside onToast callback gracefully', () => {
+      HighlightsHelpers.onToast = () => {
+        throw new Error('Toast callback error');
+      };
 
-      HighlightsHelpers.showToast('Test Toast');
-      Object.defineProperty(toast.classList, 'remove', {
-        value: () => { throw new Error('Class remove error'); }
-      });
-
-      expect(() => jest.advanceTimersByTime(2100)).not.toThrow();
-      jest.useRealTimers();
+      expect(() => HighlightsHelpers.showToast('Test Toast')).not.toThrow();
     });
 
     it('executes global window helper functions', async () => {

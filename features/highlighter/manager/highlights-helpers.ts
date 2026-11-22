@@ -137,6 +137,7 @@ export class HighlightsHelpers {
 
     /**
      * Renders temporary status feedback messages on manager layout panels.
+     * Delegates to declarative Preact callback or non-DOM fallback.
      * 
      * @param {string} message - Feedback message string.
      * @returns {void}
@@ -147,19 +148,8 @@ export class HighlightsHelpers {
                 this.onToast(message);
                 return;
             }
-            if (typeof document === 'undefined') return;
-            const toast = document.getElementById('status-toast');
-            if (!toast) return;
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => {
-                try {
-                    toast.classList.remove('show');
-                } catch (animErr) {
-                    const errorMessage = animErr instanceof Error ? animErr.message : String(animErr);
-                    Logger.error('HighlightsHelpers', `Error removing toast show class: ${errorMessage}`, { animErr });
-                }
-            }, 2000);
+            // Non-DOM fallback when declarative toast callback is not registered
+            Logger.info('HighlightsHelpers', `Toast message: ${message}`);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('HighlightsHelpers', `Error showing toast message '${message}': ${errorMessage}`, { message, err });

@@ -10,6 +10,7 @@ import {
     CardsTableRow,
     CardsTable,
     BulkActionsBar,
+    DataAnalyticsPanel,
     DataApp,
     FSRSDataDashboard
 } from '../../../../../features/common/data/data';
@@ -234,6 +235,28 @@ describe('Data Dashboard Preact Components', () => {
 
             const bar = container.querySelector('#bulk-actions-bar') as HTMLElement;
             expect(bar.style.display).toBe('none');
+        });
+    });
+
+    describe('DataAnalyticsPanel', () => {
+        it('renders card states breakdown and tag distribution', () => {
+            render(<DataAnalyticsPanel cards={[mockCard, mockLeechCard]} />, container);
+
+            expect(container.querySelector('#analytics-panel')).not.toBeNull();
+            expect(container.textContent).toContain('Card States Breakdown');
+            expect(container.textContent).toContain('Top Tag Distribution');
+            expect(container.querySelector('.stacked-bar')).not.toBeNull();
+            expect(container.querySelector('.analytics-legend')).not.toBeNull();
+            expect(container.textContent).toContain('array');
+            expect(container.textContent).toContain('hash-table');
+            expect(container.textContent).toContain('design');
+        });
+
+        it('renders empty tags message when no tags are present', () => {
+            const untaggedCard = { ...mockCard, tags: [] };
+            render(<DataAnalyticsPanel cards={[untaggedCard]} />, container);
+
+            expect(container.querySelector('.empty-analytics-msg')?.textContent).toBe('No tags added yet.');
         });
     });
 
