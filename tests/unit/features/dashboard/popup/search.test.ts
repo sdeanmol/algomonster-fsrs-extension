@@ -64,14 +64,7 @@ describe('QuickSearchComponent (Popup)', () => {
     delete (chrome.runtime as any).lastError;
     jest.useFakeTimers();
 
-    document.body.innerHTML = `
-      <input id="popup-search-input" value="" />
-      <select id="popup-tag-filter">
-        <option value="all">All Tags</option>
-        <option value="oldTag">Old Tag</option>
-      </select>
-      <div id="popup-search-results"></div>
-    `;
+    document.body.innerHTML = '<div id="root"></div>';
 
     (chrome as any).runtime = {
       getURL: jest.fn((path: string) => `chrome-extension://mocked-id/${path}`)
@@ -152,46 +145,46 @@ describe('QuickSearchComponent (Popup)', () => {
 
       // Force error inside renderQuickSearch
       const origGEBI = document.getElementById;
-      document.getElementById = () => { throw new Error('Render error'); };
+      try {
+        document.getElementById = () => { throw new Error('Render error'); };
 
-      searchInput.value = 'Test';
-      searchInput.dispatchEvent(new Event('input'));
-      expect(() => jest.advanceTimersByTime(200)).not.toThrow();
+        searchInput.value = 'Test';
+        searchInput.dispatchEvent(new Event('input'));
+        expect(() => jest.advanceTimersByTime(200)).not.toThrow();
 
-      expect(() => tagFilter.dispatchEvent(new Event('change'))).not.toThrow();
-
-      document.getElementById = origGEBI;
+        expect(() => tagFilter.dispatchEvent(new Event('change'))).not.toThrow();
+      } finally {
+        document.getElementById = origGEBI;
+      }
     });
 
     it('handles exceptions inside bindEvents execution', () => {
       const origGEBI = document.getElementById;
-      document.getElementById = () => { throw new Error('GEBI error'); };
+      try {
+        document.getElementById = () => { throw new Error('GEBI error'); };
 
-      expect(() => component.bindEvents()).not.toThrow();
-
-      document.getElementById = origGEBI;
+        expect(() => component.bindEvents()).not.toThrow();
+      } finally {
+        document.getElementById = origGEBI;
+      }
     });
   });
 
   describe('renderQuickSearch branches', () => {
     it('clears container and returns early when query is empty and selectedTag is all', async () => {
       await component.load();
-      const resultsContainer = document.getElementById('popup-search-results') as HTMLElement;
-      resultsContainer.style.display = 'block';
-      resultsContainer.innerHTML = '<div>Previous</div>';
-
-      const searchInput = document.getElementById('popup-search-input') as HTMLInputElement;
-      searchInput.value = '';
+      component.searchQuery = '';
+      component.selectedTag = 'all';
 
       component.renderQuickSearch();
+      const resultsContainer = document.getElementById('popup-search-results') as HTMLElement;
       expect(resultsContainer.style.display).toBe('none');
       expect(resultsContainer.innerHTML).toBe('');
     });
 
     it('renders empty result message when query does not match any card', async () => {
       await component.load();
-      const searchInput = document.getElementById('popup-search-input') as HTMLInputElement;
-      searchInput.value = 'NonExistentProblemQuery';
+      component.searchQuery = 'NonExistentProblemQuery';
 
       component.renderQuickSearch();
       const resultsContainer = document.getElementById('popup-search-results') as HTMLElement;
@@ -200,8 +193,7 @@ describe('QuickSearchComponent (Popup)', () => {
 
     it('renders "View all X results" link when matching card count exceeds maxDisplay (5)', async () => {
       await component.load();
-      const searchInput = document.getElementById('popup-search-input') as HTMLInputElement;
-      searchInput.value = 'Sum';
+      component.searchQuery = 'Sum';
 
       component.renderQuickSearch();
       const resultsContainer = document.getElementById('popup-search-results') as HTMLElement;

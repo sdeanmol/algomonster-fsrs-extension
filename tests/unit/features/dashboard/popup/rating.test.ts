@@ -9,19 +9,7 @@ describe('RatingComponent (Popup)', () => {
   beforeEach(() => {
     delete (chrome.runtime as any).lastError;
 
-    document.body.innerHTML = `
-      <div id="rating-prompt-card" class="hide-panel">
-        <div id="rating-prompt-state"></div>
-        <div id="rating-thanks-state"></div>
-        <a id="rate-store-btn" href="https://chrome.google.com/webstore/detail/YOUR_EXTENSION_ID/reviews">Rate</a>
-        <button id="snooze-rate-btn">Snooze</button>
-        <button id="already-rated-btn">Already Rated</button>
-        <button id="edit-rating-btn">Edit Rating</button>
-      </div>
-      <div class="static-review-banner">
-        <a id="static-review-link" href="#">Rate</a>
-      </div>
-    `;
+    document.body.innerHTML = '<div id="root"></div>';
 
     mockCoordinator = {
       showStatus: jest.fn()
@@ -135,6 +123,7 @@ describe('RatingComponent (Popup)', () => {
 
   describe('bindEvents and action button error boundaries', () => {
     it('snoozes rating prompt for 7 days when clicking snoozeBtn', async () => {
+      await component.load();
       component.bindEvents();
 
       const snoozeBtn = document.getElementById('snooze-rate-btn');
@@ -150,6 +139,7 @@ describe('RatingComponent (Popup)', () => {
     });
 
     it('saves already rated state when clicking alreadyBtn', async () => {
+      await component.load();
       component.bindEvents();
 
       const alreadyBtn = document.getElementById('already-rated-btn');
@@ -163,6 +153,7 @@ describe('RatingComponent (Popup)', () => {
     });
 
     it('resets rating prompt to unrated when clicking editBtn', async () => {
+      await component.load();
       component.bindEvents();
 
       const editBtn = document.getElementById('edit-rating-btn');
@@ -175,6 +166,7 @@ describe('RatingComponent (Popup)', () => {
     });
 
     it('handles exceptions inside button click listeners gracefully', async () => {
+      await component.load();
       component.bindEvents();
 
       (chrome.storage.local.set as jest.Mock).mockImplementation(() => {
@@ -195,11 +187,12 @@ describe('RatingComponent (Popup)', () => {
       expect(() => component.bindEvents()).not.toThrow();
 
       const origGEBI = document.getElementById;
-      document.getElementById = () => { throw new Error('DOM error'); };
-
-      expect(() => component.bindEvents()).not.toThrow();
-
-      document.getElementById = origGEBI;
+      try {
+        document.getElementById = () => { throw new Error('DOM error'); };
+        expect(() => component.bindEvents()).not.toThrow();
+      } finally {
+        document.getElementById = origGEBI;
+      }
     });
 
     it('UA-014: consolidates review CTAs by hiding static banner when prompt card is visible', async () => {

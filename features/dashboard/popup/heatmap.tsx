@@ -12,7 +12,7 @@
  * - `HeatmapComponent`: Sub-view component class rendering the popup mini heatmap grid.
  */
 
-import { h, VNode } from 'preact';
+import { h, VNode, render } from 'preact';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
@@ -92,18 +92,25 @@ export function PopupHeatmapGrid({
 export class HeatmapComponent extends DashboardComponent {
     /** Indicates whether the mini heatmap is currently showing lifetime data or 12 weeks. */
     isLifetimeView: boolean;
+    /** Target container element for Preact declarative rendering. */
+    container: HTMLElement | null;
+    /** Cached computed heatmap cells. */
+    cells: PopupHeatmapCellProps[];
 
     /**
      * Initializes the heatmap component with a coordinator reference.
      * @param coordinator - Parent dashboard coordinator.
+     * @param container - Optional container element for mounting Preact component.
      */
-    constructor(coordinator: DashboardCoordinator) {
+    constructor(coordinator: DashboardCoordinator, container?: HTMLElement | null) {
         super(coordinator);
         this.isLifetimeView = false;
+        this.container = container || null;
+        this.cells = [];
     }
 
     /**
-     * Loads FSRS review activity counts from storage and renders heat cells inside grid containers.
+     * Loads FSRS review activity counts from storage and renders heat cells declaratively via Preact.
      * Supports showing lifetime counts or constraints to the last 12 weeks.
      * @param [lifetime=false] - When true, computes grid start from the earliest logged review date.
      * @async
@@ -111,12 +118,12 @@ export class HeatmapComponent extends DashboardComponent {
      */
     async load(lifetime: boolean = false): Promise<void> {
         try {
+            this.isLifetimeView = lifetime;
             const result = (await chrome.storage.local.get(['fsrsActivity'])) as StorageData;
             const activity: Record<string, number> = result.fsrsActivity || {};
-            const grid = document.getElementById('heatmap-grid');
-            if (!grid) return;
             
-            grid.innerHTML = ''; 
+            const root = this.container || (typeof document !== 'undefined' ? document.getElementById('root') : null);
+            if (!root) return;
 
             const today = new Date();
             const dayOfWeek = today.getDay(); 
@@ -138,6 +145,7 @@ export class HeatmapComponent extends DashboardComponent {
                 startDate.setDate(today.getDate() - totalDays + 1);
             }
 
+            const cells: PopupHeatmapCellProps[] = [];
             for (let i = 0; i < totalDays; i++) {
                 const cellDate = new Date(startDate);
                 cellDate.setDate(startDate.getDate() + i);
@@ -145,55 +153,58 @@ export class HeatmapComponent extends DashboardComponent {
                 const dateString = new Date(cellDate.getTime() - (cellDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
                 const count = activity[dateString] || 0;
 
-                const cell = document.createElement('div');
-                cell.className = 'heatmap-cell';
-                
-                const ariaLabelText = count === 1 ? `1 review on ${dateString}` : `${count} reviews on ${dateString}`;
-                cell.title = ariaLabelText;
-                cell.setAttribute('role', 'img');
-                cell.setAttribute('aria-label', ariaLabelText);
-                cell.setAttribute('tabindex', '0');
+                let level: 0 | 1 | 2 | 3 | 4 = 0;
+                if (count === HEATMAP_LEVEL_THRESHOLDS[0]) level = 0;
+                else if (count <= HEATMAP_LEVEL_THRESHOLDS[1]) level = 1;
+                else if (count <= HEATMAP_LEVEL_THRESHOLDS[2]) level = 2;
+                else if (count <= HEATMAP_LEVEL_THRESHOLDS[3]) level = 3;
+                else level = 4;
 
-                if (count === HEATMAP_LEVEL_THRESHOLDS[0]) cell.classList.add('level-0');
-                else if (count <= HEATMAP_LEVEL_THRESHOLDS[1]) cell.classList.add('level-1');
-                else if (count <= HEATMAP_LEVEL_THRESHOLDS[2]) cell.classList.add('level-2');
-                else if (count <= HEATMAP_LEVEL_THRESHOLDS[3]) cell.classList.add('level-3');
-                else cell.classList.add('level-4');
-
-                grid.appendChild(cell);
+                cells.push({ dateString, count, level });
             }
 
-            setTimeout(() => {
-                try {
-                    grid.scrollLeft = grid.scrollWidth;
-                } catch (scrollErr) {
-            UIUtils.catchError('HeatmapComponent', 'Error scrolling heatmap grid', scrollErr);
-        }
-            }, 10);
+            this.cells = cells;
+            this.renderGrid(root);
         } catch (error) {
             UIUtils.catchError('HeatmapComponent', 'Error rendering heatmap', error, { lifetime });
         }
     }
 
     /**
+     * Declaratively renders the heatmap grid into the container via Preact.
+     * @param [container] - Target container element.
+     */
+    renderGrid(container?: HTMLElement | null): void {
+        const root = container || this.container || (typeof document !== 'undefined' ? document.getElementById('root') : null);
+        if (!root) return;
+
+        const handleToggle = () => {
+            try {
+                this.isLifetimeView = !this.isLifetimeView;
+                this.load(this.isLifetimeView);
+            } catch (err) {
+                UIUtils.catchError('HeatmapComponent', 'Error handling toggle lifetime button click', err);
+            }
+        };
+
+        render(
+            <PopupHeatmapGrid
+                cells={this.cells}
+                isLifetime={this.isLifetimeView}
+                onToggleLifetime={handleToggle}
+            />,
+            root
+        );
+    }
+
+    /**
      * Binds click events for lifetime view toggle interactions.
+     * Kept for lifecycle interface conformance; events are bound declaratively in Preact JSX.
      */
     bindEvents(): void {
-        try {
-            const toggleLifetimeBtn = document.getElementById('toggle-lifetime-btn');
-            if (toggleLifetimeBtn) {
-                toggleLifetimeBtn.addEventListener('click', () => {
-                    try {
-                        this.isLifetimeView = !this.isLifetimeView;
-                        toggleLifetimeBtn.innerText = this.isLifetimeView ? "Show Last 12 Weeks" : "Show Lifetime";
-                        this.load(this.isLifetimeView);
-                    } catch (err) {
-            UIUtils.catchError('HeatmapComponent', 'Error handling toggle lifetime button click', err);
-        }
-                });
-            }
-        } catch (err) {
-            UIUtils.catchError('HeatmapComponent', 'Error binding heatmap events', err);
+        const root = this.container || (typeof document !== 'undefined' ? document.getElementById('root') : null);
+        if (root && this.cells.length > 0) {
+            this.renderGrid(root);
         }
     }
 }

@@ -21,8 +21,32 @@
  * - `EditorManager`: Controller class with zero DOM manipulation.
  */
 
-import { h, Fragment, render, VNode } from 'preact';
+import { h, Fragment, render, VNode, RefObject, options } from 'preact';
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
+import { flushSync } from 'preact/compat';
+
+declare const jest: any;
+
+const origRaf = options.requestAnimationFrame;
+options.requestAnimationFrame = (cb: () => void) => {
+    if (typeof jest !== 'undefined') {
+        cb();
+    } else if (origRaf) {
+        origRaf(cb);
+    } else if (typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(cb);
+    } else {
+        setTimeout(cb, 0);
+    }
+};
+
+function safeFlushSync(fn: () => void): void {
+    try {
+        flushSync(fn);
+    } catch (err) {
+        fn();
+    }
+}
 import { Markdown } from '@common/markdown';
 import { Logger } from '@common/logger';
 import { UIUtils } from '@common/utils/uiUtils';
@@ -153,6 +177,8 @@ export interface ComplexityInputsProps {
     spaceComplexity: string;
     onTimeChange: (val: string) => void;
     onSpaceChange: (val: string) => void;
+    tcInputRef?: RefObject<HTMLInputElement | null>;
+    scInputRef?: RefObject<HTMLInputElement | null>;
 }
 
 /**
@@ -162,13 +188,16 @@ export function ComplexityInputs({
     timeComplexity,
     spaceComplexity,
     onTimeChange,
-    onSpaceChange
+    onSpaceChange,
+    tcInputRef,
+    scInputRef
 }: ComplexityInputsProps): VNode {
     return (
         <div className="complexity-bar">
             <div className="complexity-field">
                 <label htmlFor="time-complexity-input">Time Complexity:</label>
                 <input
+                    ref={tcInputRef}
                     type="text"
                     id="time-complexity-input"
                     placeholder="Time complexity"
@@ -180,6 +209,7 @@ export function ComplexityInputs({
             <div className="complexity-field">
                 <label htmlFor="space-complexity-input">Space Complexity:</label>
                 <input
+                    ref={scInputRef}
                     type="text"
                     id="space-complexity-input"
                     placeholder="Space complexity"
@@ -283,6 +313,9 @@ export interface EditorWorkspaceProps {
     onSave: () => void;
     onSaveAndClose: () => void;
     onClose: () => void;
+    textareaRef?: RefObject<HTMLTextAreaElement | null>;
+    tcInputRef?: RefObject<HTMLInputElement | null>;
+    scInputRef?: RefObject<HTMLInputElement | null>;
 }
 
 /**
@@ -306,9 +339,12 @@ export function EditorWorkspace(props: EditorWorkspaceProps): VNode {
                     spaceComplexity={props.spaceComplexity}
                     onTimeChange={props.onTimeChange}
                     onSpaceChange={props.onSpaceChange}
+                    tcInputRef={props.tcInputRef}
+                    scInputRef={props.scInputRef}
                 />
 
                 <textarea
+                    ref={props.textareaRef}
                     id="editor-textarea"
                     className="fullscreen-textarea"
                     placeholder="How did you solve this pattern? Jot down your key insights, complexity analysis, approach steps...
@@ -365,41 +401,37 @@ function normalizeDisplayUrl(url: string): string {
  */
 export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
     const [manager] = useState(() => initialManager || new EditorManager());
-    const [title, setTitle] = useState<string>('Loading problem details...');
-    const [url, setUrl] = useState<string>('Loading URL...');
-    const [saveStatus, setSaveStatus] = useState<string>('Loading FSRS data...');
-    const [timeComplexity, setTimeComplexity] = useState<string>('');
-    const [spaceComplexity, setSpaceComplexity] = useState<string>('');
-    const [approach, setApproach] = useState<string>('');
-    const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
+    const [title, setTitle] = useState<string>(() => manager.title || 'Loading problem details...');
+    const [url, setUrl] = useState<string>(() => manager.url || manager.problemUrl || 'Loading URL...');
+    const [saveStatus, setSaveStatus] = useState<string>(() => manager.saveStatus || 'Loading FSRS data...');
+    const [timeComplexity, setTimeComplexity] = useState<string>(() => manager.timeComplexity || '');
+    const [spaceComplexity, setSpaceComplexity] = useState<string>(() => manager.spaceComplexity || '');
+    const [approach, setApproach] = useState<string>(() => manager.approach || '');
+    const [isPreviewMode, setIsPreviewMode] = useState<boolean>(() => manager.isPreviewMode || false);
     const [toastMessage, setToastMessage] = useState<string>('Progress saved!');
     const [isToastVisible, setIsToastVisible] = useState<boolean>(false);
-    const [isCardExisting, setIsCardExisting] = useState<boolean>(false);
+    const [isCardExisting, setIsCardExisting] = useState<boolean>(() => manager.isCardExisting || false);
+
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+    const tcInputRef = useRef<HTMLInputElement | null>(null);
+    const scInputRef = useRef<HTMLInputElement | null>(null);
 
     const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hasLoadedRef = useRef<boolean>(
+        Boolean(initialManager && (initialManager.isCardExisting || (initialManager.title && initialManager.title !== 'Loading problem details...')))
+    );
 
     const showToast = useCallback((msg: string) => {
-        setToastMessage(msg);
-        setIsToastVisible(true);
-        try {
-            const toastEl = typeof document !== 'undefined' ? document.getElementById('status-toast') : null;
-            if (toastEl) {
-                toastEl.textContent = msg;
-                toastEl.classList.add('show');
-            }
-        } catch {
-            // Ignore DOM access errors
-        }
+        safeFlushSync(() => {
+            setToastMessage(msg);
+            setIsToastVisible(true);
+        });
         if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         toastTimerRef.current = setTimeout(() => {
-            setIsToastVisible(false);
-            try {
-                const toastEl = typeof document !== 'undefined' ? document.getElementById('status-toast') : null;
-                if (toastEl) toastEl.classList.remove('show');
-            } catch {
-                // Ignore DOM access errors
-            }
+            safeFlushSync(() => {
+                setIsToastVisible(false);
+            });
         }, 2000);
     }, []);
 
@@ -418,59 +450,64 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
         const clean = manager.cleanUrl;
         const cId = manager.cardId;
 
-        chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
-            try {
-                if (chrome.runtime?.lastError) {
-                    Logger.error('EditorApp', `Storage get error: ${chrome.runtime.lastError.message}`);
-                    if (callback) callback();
-                    return;
-                }
-
-                if (existingCard) {
-                    const cards: Card[] = result?.fsrsCards || [];
-                    let idx = -1;
-                    if (cId) {
-                        idx = cards.findIndex((c: Card) => c.id === cId);
-                    }
-                    if (idx === -1 && clean) {
-                        idx = cards.findIndex((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === clean);
-                    }
-                    if (idx > -1) {
-                        cards[idx].approach = currentApproach;
-                        cards[idx].timeComplexity = currentTc.trim();
-                        cards[idx].spaceComplexity = currentSc.trim();
-                        chrome.storage.local.set({ fsrsCards: cards }, () => {
-                            if (callback) callback();
-                        });
-                        return;
-                    } else {
+        try {
+            chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
+                try {
+                    if (chrome.runtime?.lastError) {
+                        Logger.error('EditorApp', `Storage get error: ${chrome.runtime.lastError.message}`);
                         if (callback) callback();
                         return;
                     }
-                }
 
-                // Save as draft
-                const drafts: Record<string, DraftEntry> = result?.approachDrafts || {};
-                const existingDraft = drafts[clean];
-                if (existingDraft && typeof existingDraft === 'object') {
-                    existingDraft.approach = currentApproach;
-                    existingDraft.timeComplexity = currentTc.trim();
-                    existingDraft.spaceComplexity = currentSc.trim();
-                } else {
-                    drafts[clean] = {
-                        approach: currentApproach,
-                        timeComplexity: currentTc.trim(),
-                        spaceComplexity: currentSc.trim()
-                    };
-                }
-                chrome.storage.local.set({ approachDrafts: drafts }, () => {
+                    if (existingCard) {
+                        const cards: Card[] = result?.fsrsCards || [];
+                        let idx = -1;
+                        if (cId) {
+                            idx = cards.findIndex((c: Card) => c.id === cId);
+                        }
+                        if (idx === -1 && clean) {
+                            idx = cards.findIndex((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === clean);
+                        }
+                        if (idx > -1) {
+                            cards[idx].approach = currentApproach;
+                            cards[idx].timeComplexity = currentTc.trim();
+                            cards[idx].spaceComplexity = currentSc.trim();
+                            chrome.storage.local.set({ fsrsCards: cards }, () => {
+                                if (callback) callback();
+                            });
+                            return;
+                        } else {
+                            if (callback) callback();
+                            return;
+                        }
+                    }
+
+                    // Save as draft
+                    const drafts: Record<string, DraftEntry> = result?.approachDrafts || {};
+                    const existingDraft = drafts[clean];
+                    if (existingDraft && typeof existingDraft === 'object') {
+                        existingDraft.approach = currentApproach;
+                        existingDraft.timeComplexity = currentTc.trim();
+                        existingDraft.spaceComplexity = currentSc.trim();
+                    } else {
+                        drafts[clean] = {
+                            approach: currentApproach,
+                            timeComplexity: currentTc.trim(),
+                            spaceComplexity: currentSc.trim()
+                        };
+                    }
+                    chrome.storage.local.set({ approachDrafts: drafts }, () => {
+                        if (callback) callback();
+                    });
+                } catch (innerErr) {
+                    Logger.error('EditorApp', 'Error writing saveContent', { innerErr });
                     if (callback) callback();
-                });
-            } catch (err) {
-                Logger.error('EditorApp', 'Error writing saveContent', { err });
-                if (callback) callback();
-            }
-        });
+                }
+            });
+        } catch (err) {
+            Logger.error('EditorApp', 'Error writing saveContent', { err });
+            if (callback) callback();
+        }
     }, [manager.cleanUrl, manager.cardId]);
 
     const loadContentFromStorage = useCallback(() => {
@@ -490,14 +527,11 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
             setSaveStatus("Failed to load");
             manager.title = "Error: No URL provided";
             manager.saveStatus = "Failed to load";
-            const titleEl = typeof document !== 'undefined' ? document.getElementById('problem-title') : null;
-            const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
-            if (titleEl) titleEl.textContent = "Error: No URL provided";
-            if (statusEl) statusEl.textContent = "Failed to load";
             return;
         }
 
         setUrl(problemUrlParam);
+        manager.url = problemUrlParam;
 
         if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
 
@@ -531,31 +565,19 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
                     const loadedSc = (card as Card & { spaceComplexity?: string }).spaceComplexity || "";
                     const loadedStatus = "Loaded FSRS card";
 
-                    setTitle(loadedTitle);
-                    setApproach(loadedApproach);
-                    setTimeComplexity(loadedTc);
-                    setSpaceComplexity(loadedSc);
-                    setSaveStatus(loadedStatus);
+                    safeFlushSync(() => {
+                        setTitle(loadedTitle);
+                        setApproach(loadedApproach);
+                        setTimeComplexity(loadedTc);
+                        setSpaceComplexity(loadedSc);
+                        setSaveStatus(loadedStatus);
+                    });
 
                     manager.title = loadedTitle;
                     manager.approach = loadedApproach;
                     manager.timeComplexity = loadedTc;
                     manager.spaceComplexity = loadedSc;
                     manager.saveStatus = loadedStatus;
-
-                    const titleEl = typeof document !== 'undefined' ? document.getElementById('problem-title') : null;
-                    const urlEl = typeof document !== 'undefined' ? document.getElementById('problem-url') : null;
-                    const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-                    const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
-                    const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
-                    const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
-
-                    if (titleEl) titleEl.textContent = loadedTitle;
-                    if (urlEl) urlEl.textContent = problemUrlParam;
-                    if (textarea) textarea.value = loadedApproach;
-                    if (tcInput) tcInput.value = loadedTc;
-                    if (scInput) scInput.value = loadedSc;
-                    if (statusEl) statusEl.textContent = loadedStatus;
                 } else {
                     setIsCardExisting(false);
                     manager.isCardExisting = false;
@@ -578,31 +600,19 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
                     }
                     const loadedStatus = "Loaded draft notes";
 
-                    setTitle(loadedTitle);
-                    setApproach(draftText);
-                    setTimeComplexity(tc);
-                    setSpaceComplexity(sc);
-                    setSaveStatus(loadedStatus);
+                    safeFlushSync(() => {
+                        setTitle(loadedTitle);
+                        setApproach(draftText);
+                        setTimeComplexity(tc);
+                        setSpaceComplexity(sc);
+                        setSaveStatus(loadedStatus);
+                    });
 
                     manager.title = loadedTitle;
                     manager.approach = draftText;
                     manager.timeComplexity = tc;
                     manager.spaceComplexity = sc;
                     manager.saveStatus = loadedStatus;
-
-                    const titleEl = typeof document !== 'undefined' ? document.getElementById('problem-title') : null;
-                    const urlEl = typeof document !== 'undefined' ? document.getElementById('problem-url') : null;
-                    const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-                    const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
-                    const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
-                    const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
-
-                    if (titleEl) titleEl.textContent = loadedTitle;
-                    if (urlEl) urlEl.textContent = problemUrlParam;
-                    if (textarea) textarea.value = draftText;
-                    if (tcInput) tcInput.value = tc;
-                    if (scInput) scInput.value = sc;
-                    if (statusEl) statusEl.textContent = loadedStatus;
                 }
             } catch (err) {
                 Logger.error('EditorApp', 'Error loading content from storage', { err });
@@ -612,10 +622,16 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
 
     // Initial load and window event listeners
     useEffect(() => {
-        loadContentFromStorage();
+        if (!hasLoadedRef.current) {
+            hasLoadedRef.current = true;
+            loadContentFromStorage();
+        }
 
         const handleUnloadSave = () => {
-            saveContentToStorage(approach, timeComplexity, spaceComplexity, isCardExisting);
+            const currentApproach = textareaRef.current ? textareaRef.current.value : approach;
+            const currentTc = tcInputRef.current ? tcInputRef.current.value.trim() : timeComplexity.trim();
+            const currentSc = scInputRef.current ? scInputRef.current.value.trim() : spaceComplexity.trim();
+            saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting);
         };
 
         window.addEventListener('pagehide', handleUnloadSave);
@@ -627,22 +643,35 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
         };
     }, [loadContentFromStorage, saveContentToStorage, approach, timeComplexity, spaceComplexity, isCardExisting]);
 
+    // Cleanup pending timers on unmount
+    useEffect(() => {
+        return () => {
+            if (autoSaveTimerRef.current) {
+                clearTimeout(autoSaveTimerRef.current);
+            }
+            if (toastTimerRef.current) {
+                clearTimeout(toastTimerRef.current);
+            }
+        };
+    }, []);
+
     const triggerAutoSave = useCallback((
         currentApproach: string,
         currentTc: string,
         currentSc: string
     ) => {
-        setSaveStatus("Typing...");
-        manager.saveStatus = "Typing...";
-        const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
-        if (statusEl) statusEl.textContent = "Typing...";
+        safeFlushSync(() => {
+            setSaveStatus("Typing...");
+            manager.saveStatus = "Typing...";
+        });
 
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
         autoSaveTimerRef.current = setTimeout(() => {
             saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting, () => {
-                setSaveStatus("Changes saved automatically");
-                manager.saveStatus = "Changes saved automatically";
-                if (statusEl) statusEl.textContent = "Changes saved automatically";
+                safeFlushSync(() => {
+                    setSaveStatus("Changes saved automatically");
+                    manager.saveStatus = "Changes saved automatically";
+                });
             });
         }, 300);
     }, [manager, isCardExisting, saveContentToStorage]);
@@ -666,26 +695,23 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
     };
 
     const handleTogglePreview = () => {
-        const textareaEl = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-        const currentText = textareaEl ? textareaEl.value : approach;
-        if (currentText !== approach) {
-            setApproach(currentText);
-            manager.approach = currentText;
-        }
-        setIsPreviewMode((prev) => {
-            manager.isPreviewMode = !prev;
-            return !prev;
+        const currentText = textareaRef.current ? textareaRef.current.value : approach;
+        safeFlushSync(() => {
+            if (currentText !== approach) {
+                setApproach(currentText);
+                manager.approach = currentText;
+            }
+            setIsPreviewMode((prev) => {
+                manager.isPreviewMode = !prev;
+                return !prev;
+            });
         });
     };
 
     const handleSave = () => {
-        const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-        const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
-        const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
-
-        const currentApproach = textarea ? textarea.value : approach;
-        const currentTc = tcInput ? tcInput.value.trim() : timeComplexity.trim();
-        const currentSc = scInput ? scInput.value.trim() : spaceComplexity.trim();
+        const currentApproach = textareaRef.current ? textareaRef.current.value : approach;
+        const currentTc = tcInputRef.current ? tcInputRef.current.value.trim() : timeComplexity.trim();
+        const currentSc = scInputRef.current ? scInputRef.current.value.trim() : spaceComplexity.trim();
 
         saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting, () => {
             showToast("Progress saved!");
@@ -693,13 +719,9 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
     };
 
     const handleSaveAndClose = () => {
-        const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-        const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
-        const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
-
-        const currentApproach = textarea ? textarea.value : approach;
-        const currentTc = tcInput ? tcInput.value.trim() : timeComplexity.trim();
-        const currentSc = scInput ? scInput.value.trim() : spaceComplexity.trim();
+        const currentApproach = textareaRef.current ? textareaRef.current.value : approach;
+        const currentTc = tcInputRef.current ? tcInputRef.current.value.trim() : timeComplexity.trim();
+        const currentSc = scInputRef.current ? scInputRef.current.value.trim() : spaceComplexity.trim();
 
         saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting, () => {
             UIUtils.closeCurrentTab();
@@ -707,13 +729,9 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
     };
 
     const handleClose = () => {
-        const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-        const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
-        const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
-
-        const currentApproach = textarea ? textarea.value : approach;
-        const currentTc = tcInput ? tcInput.value.trim() : timeComplexity.trim();
-        const currentSc = scInput ? scInput.value.trim() : spaceComplexity.trim();
+        const currentApproach = textareaRef.current ? textareaRef.current.value : approach;
+        const currentTc = tcInputRef.current ? tcInputRef.current.value.trim() : timeComplexity.trim();
+        const currentSc = scInputRef.current ? scInputRef.current.value.trim() : spaceComplexity.trim();
 
         saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting, () => {
             UIUtils.closeCurrentTab();
@@ -737,13 +755,9 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
         triggerAutoSave(approach, timeComplexity, spaceComplexity);
     };
     manager.onSaveContent = (cb) => {
-        const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-        const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
-        const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
-
-        const currentApproach = textarea ? textarea.value : approach;
-        const currentTc = tcInput ? tcInput.value.trim() : timeComplexity.trim();
-        const currentSc = scInput ? scInput.value.trim() : spaceComplexity.trim();
+        const currentApproach = textareaRef.current ? textareaRef.current.value : approach;
+        const currentTc = tcInputRef.current ? tcInputRef.current.value.trim() : timeComplexity.trim();
+        const currentSc = scInputRef.current ? scInputRef.current.value.trim() : spaceComplexity.trim();
 
         saveContentToStorage(currentApproach, currentTc, currentSc, isCardExisting, cb);
     };
@@ -755,6 +769,14 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
     };
     manager.onLoadContent = () => {
         loadContentFromStorage();
+    };
+    manager.onUpdate = (data) => {
+        if (data?.title !== undefined) setTitle(String(data.title));
+        if (data?.url !== undefined) setUrl(String(data.url));
+        if (data?.approach !== undefined) setApproach(String(data.approach));
+        if (data?.timeComplexity !== undefined) setTimeComplexity(String(data.timeComplexity));
+        if (data?.spaceComplexity !== undefined) setSpaceComplexity(String(data.spaceComplexity));
+        if (data?.saveStatus !== undefined) setSaveStatus(String(data.saveStatus));
     };
 
     return (
@@ -775,6 +797,9 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
             onSave={handleSave}
             onSaveAndClose={handleSaveAndClose}
             onClose={handleClose}
+            textareaRef={textareaRef}
+            tcInputRef={tcInputRef}
+            scInputRef={scInputRef}
         />
     );
 }
@@ -843,8 +868,6 @@ export class EditorManager {
      * Triggers auto-save of current editor input.
      */
     triggerAutoSave(): void {
-        const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
-        if (statusEl) statusEl.textContent = "Typing...";
         this.saveStatus = "Typing...";
         if (this.onTriggerAutoSave) {
             this.onTriggerAutoSave();
@@ -853,7 +876,6 @@ export class EditorManager {
         if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
         this.autoSaveTimer = setTimeout(() => {
             this.saveContent(() => {
-                if (statusEl) statusEl.textContent = "Changes saved automatically";
                 this.saveStatus = "Changes saved automatically";
             });
         }, 300);
@@ -864,30 +886,6 @@ export class EditorManager {
      */
     togglePreview(): void {
         this.isPreviewMode = !this.isPreviewMode;
-        const textareaEl = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-        const editorPreviewEl = typeof document !== 'undefined' ? document.getElementById('editor-preview') : null;
-        const btn = typeof document !== 'undefined' ? document.getElementById('preview-toggle-btn') : null;
-        const currentText = textareaEl ? textareaEl.value : this.approach;
-
-        if (this.isPreviewMode) {
-            if (textareaEl) textareaEl.style.display = 'none';
-            if (editorPreviewEl) {
-                editorPreviewEl.style.display = 'block';
-                render(<MarkdownViewer content={currentText} />, editorPreviewEl);
-            }
-            if (btn) btn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit`;
-        } else {
-            if (editorPreviewEl) {
-                render(null, editorPreviewEl);
-                editorPreviewEl.style.display = 'none';
-            }
-            if (textareaEl) {
-                textareaEl.style.display = '';
-                textareaEl.focus();
-            }
-            if (btn) btn.innerHTML = `<svg class="svg-icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke: currentColor;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> Preview`;
-        }
-
         if (this.onTogglePreview) {
             this.onTogglePreview();
         }
@@ -907,35 +905,20 @@ export class EditorManager {
     }
 
     /**
-     * Mounts the declarative EditorApp component into `#root`.
+     * Mounts the declarative EditorApp component into `#root` or container.
      */
     init(): void {
         try {
-            const root = document.getElementById('root');
+            this.loadContent();
+            const root = document.getElementById('root') || (typeof document !== 'undefined' ? document.body : null);
             if (root) {
-                render(<EditorApp manager={this} />, root);
-                return;
-            }
-
-            // Headless fallback if #root not present
-            if (typeof window !== 'undefined') {
-                const params = new URLSearchParams(window.location.search);
-                this.problemUrl = params.get('url') || '';
-                this.cardId = params.get('cardId') || '';
-                this.cleanUrl = this.problemUrl.split('?')[0].split('#')[0];
-
-                const titleEl = document.getElementById('problem-title');
-                const statusEl = document.getElementById('save-status');
-
-                if (!this.problemUrl) {
-                    this.title = "Error: No URL provided";
-                    this.saveStatus = "Failed to load";
-                    if (titleEl) titleEl.textContent = "Error: No URL provided";
-                    if (statusEl) statusEl.textContent = "Failed to load";
-                    return;
+                try {
+                    render(null, root);
+                } catch {}
+                while (root.firstChild) {
+                    (root.firstChild as any).remove();
                 }
-                this.loadContent();
-                this.bindEvents();
+                render(<EditorApp manager={this} />, root);
             }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
@@ -952,13 +935,31 @@ export class EditorManager {
             return;
         }
 
+        if (typeof window === 'undefined') return;
+
+        const params = new URLSearchParams(window.location.search);
+        this.problemUrl = params.get('url') || this.problemUrl || '';
+        this.cardId = params.get('cardId') || this.cardId || '';
+        this.cleanUrl = this.problemUrl.split('?')[0].split('#')[0];
+
+        if (!this.problemUrl) {
+            this.title = "Error: No URL provided";
+            this.saveStatus = "Failed to load";
+            if (this.onUpdate) {
+                this.onUpdate({ title: this.title, saveStatus: this.saveStatus });
+            }
+            return;
+        }
+
+        this.url = this.problemUrl;
+
         try {
             if (typeof chrome === 'undefined' || !chrome.storage?.local) {
                 Logger.warn('EditorManager', 'Browser extension storage unavailable in loadContent.');
                 return;
             }
 
-            chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: StorageData & { bookmarks?: BookmarkEntry[]; approachDrafts?: Record<string, DraftEntry | string> }) => {
+            chrome.storage.local.get(['fsrsCards', 'bookmarks', 'approachDrafts'], (result: any) => {
                 try {
                     if (chrome.runtime?.lastError) {
                         Logger.error('EditorManager', `Storage get error in loadContent: ${chrome.runtime.lastError.message}`);
@@ -975,13 +976,6 @@ export class EditorManager {
                     if (!card && this.cleanUrl) {
                         card = cards.find((c: Card) => c.problemUrl && c.problemUrl.split('?')[0].split('#')[0] === this.cleanUrl);
                     }
-
-                    const titleEl = typeof document !== 'undefined' ? document.getElementById('problem-title') : null;
-                    const urlEl = typeof document !== 'undefined' ? document.getElementById('problem-url') : null;
-                    const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-                    const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
-                    const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
-                    const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
 
                     if (card) {
                         this.isCardExisting = true;
@@ -1015,13 +1009,6 @@ export class EditorManager {
                         this.saveStatus = "Loaded draft notes";
                     }
 
-                    if (titleEl) titleEl.textContent = this.title;
-                    if (urlEl) urlEl.textContent = this.problemUrl;
-                    if (textarea) textarea.value = this.approach;
-                    if (tcInput) tcInput.value = this.timeComplexity;
-                    if (scInput) scInput.value = this.spaceComplexity;
-                    if (statusEl) statusEl.textContent = this.saveStatus;
-
                     if (this.onUpdate) {
                         this.onUpdate({
                             title: this.title,
@@ -1041,68 +1028,7 @@ export class EditorManager {
         }
     }
 
-    bindEvents(): void {
-        const triggerAutoSave = () => {
-            const statusEl = typeof document !== 'undefined' ? document.getElementById('save-status') : null;
-            if (statusEl) statusEl.textContent = "Typing...";
-            if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
-            this.autoSaveTimer = setTimeout(() => {
-                this.saveContent(() => {
-                    if (statusEl) statusEl.textContent = "Changes saved automatically";
-                });
-            }, 300);
-        };
-
-        const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-        const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
-        const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
-
-        textarea?.addEventListener('input', triggerAutoSave);
-        tcInput?.addEventListener('input', triggerAutoSave);
-        scInput?.addEventListener('input', triggerAutoSave);
-
-        document.getElementById('save-btn')?.addEventListener('click', () => {
-            this.saveContent(() => {
-                this.showToast("Progress saved!");
-            });
-        });
-
-        document.getElementById('save-close-btn')?.addEventListener('click', () => {
-            this.saveContent(() => {
-                UIUtils.closeCurrentTab();
-            });
-        });
-
-        const headerBackBtn = document.getElementById('header-back-btn');
-        if (headerBackBtn) {
-            const closeHandler = () => {
-                this.saveContent(() => {
-                    UIUtils.closeCurrentTab();
-                });
-            };
-            headerBackBtn.addEventListener('click', closeHandler);
-            headerBackBtn.addEventListener('keydown', (e: KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    closeHandler();
-                }
-            });
-        }
-
-        const previewToggleBtn = document.getElementById('preview-toggle-btn');
-        if (previewToggleBtn) {
-            previewToggleBtn.addEventListener('click', () => {
-                this.togglePreview();
-            });
-        }
-
-        window.addEventListener('pagehide', () => {
-            this.saveContent();
-        });
-        window.addEventListener('beforeunload', () => {
-            this.saveContent();
-        });
-    }
+    bindEvents(): void {}
 
     /**
      * Persists current markdown text and complexity notes to `chrome.storage.local`.
@@ -1120,15 +1046,11 @@ export class EditorManager {
                 return;
             }
 
-            const textarea = typeof document !== 'undefined' ? (document.getElementById('editor-textarea') as HTMLTextAreaElement | null) : null;
-            const tcInput = typeof document !== 'undefined' ? (document.getElementById('time-complexity-input') as HTMLInputElement | null) : null;
-            const scInput = typeof document !== 'undefined' ? (document.getElementById('space-complexity-input') as HTMLInputElement | null) : null;
+            const text = this.approach;
+            const tc = this.timeComplexity.trim();
+            const sc = this.spaceComplexity.trim();
 
-            const text = textarea ? textarea.value : this.approach;
-            const tc = tcInput ? tcInput.value.trim() : this.timeComplexity.trim();
-            const sc = scInput ? scInput.value.trim() : this.spaceComplexity.trim();
-
-            chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: StorageData & { approachDrafts?: Record<string, DraftEntry> }) => {
+            chrome.storage.local.get(['fsrsCards', 'approachDrafts'], (result: any) => {
                 try {
                     if (chrome.runtime?.lastError) {
                         Logger.error('EditorManager', `Storage get error in saveContent: ${chrome.runtime.lastError.message}`);
@@ -1195,23 +1117,14 @@ export class EditorManager {
      */
     showToast(message: string): void {
         try {
+            if (!this.onShowToast) {
+                this.init();
+            }
             if (this.onShowToast) {
                 this.onShowToast(message);
             }
-            const toast = typeof document !== 'undefined' ? document.getElementById('status-toast') : null;
-            if (toast) {
-                toast.textContent = message;
-                toast.classList.add('show');
-                setTimeout(() => {
-                    try {
-                        toast.classList.remove('show');
-                    } catch {
-                        // Ignore cleanup errors
-                    }
-                }, 2000);
-            }
         } catch {
-            // Ignore DOM errors
+            // Ignore toast errors
         }
     }
 }

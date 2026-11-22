@@ -10,31 +10,7 @@ describe('NotificationsComponent (Popup)', () => {
     delete (chrome.runtime as any).lastError;
 
     document.body.innerHTML = `
-      <div id="permission-warning-banner" class="hide-panel">
-        <span></span>
-        <button id="enable-notifications-btn">Enable</button>
-      </div>
-
-      <input id="toggle-notifications" type="checkbox" />
-      <select id="notification-interval">
-        <option value="60">1 Hour</option>
-        <option value="custom">Custom</option>
-      </select>
-      <div id="custom-interval-container" class="hide-panel">
-        <input id="custom-interval-input" value="" />
-      </div>
-
-      <input id="toggle-sticky-notification" type="checkbox" />
-      <input id="toggle-quiet-hours" type="checkbox" />
-      <div id="quiet-hours-container" class="hide-panel">
-        <input id="quiet-hours-start" value="22:00" />
-        <input id="quiet-hours-end" value="07:00" />
-      </div>
-
-      <button id="test-notification-btn">Test</button>
-      <button id="test-summary-notification-btn">Test Summary</button>
-      <input id="toggle-weekly-digest" type="checkbox" />
-      <input id="toggle-badge-due-count" type="checkbox" />
+      <div id="root"></div>
     `;
 
     mockCoordinator = {

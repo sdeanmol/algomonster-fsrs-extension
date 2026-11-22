@@ -16,7 +16,8 @@
  */
 
 import { h, VNode, Fragment, render as preactRender } from "preact";
-import { useState } from "preact/hooks";
+import { useState, useEffect, useLayoutEffect, useRef } from "preact/hooks";
+import { flushSync } from 'preact/compat';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import {
@@ -190,15 +191,21 @@ export function PopupDailyGoalRing({
 }: PopupDailyGoalRingProps): VNode {
     const [isEditing, setIsEditing] = useState(false);
     const [goalInputVal, setGoalInputVal] = useState(String(dailyGoal));
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const circumference = 2 * Math.PI * 42;
     const offset = circumference - (Math.min(Math.max(progress, 0), 1) * circumference);
 
     const handleSave = () => {
-        const parsed = parseInt(goalInputVal, 10);
-        if (parsed && parsed > 0 && parsed <= 999) {
-            onSaveGoal?.(parsed);
-            setIsEditing(false);
+        try {
+            const rawVal = inputRef.current ? inputRef.current.value : goalInputVal;
+            const parsed = parseInt(rawVal, 10);
+            if (parsed && parsed > 0 && parsed <= 999) {
+                onSaveGoal?.(parsed);
+                setIsEditing(false);
+            }
+        } catch (err) {
+            Logger.error('StatsComponent', 'Error saving goal', { err });
         }
     };
 
@@ -270,6 +277,7 @@ export function PopupDailyGoalRing({
                     <input
                         type="number"
                         id="goal-input"
+                        ref={inputRef}
                         className="goal-input"
                         value={goalInputVal}
                         min="1"
@@ -342,6 +350,7 @@ export interface PopupLevelBadgeProps {
     currentXP: number;
     nextLevelXP: number;
     progress: number;
+    badgeTitle?: string;
 }
 
 /**
@@ -352,13 +361,14 @@ export function PopupLevelBadge({
     levelTitle,
     currentXP,
     nextLevelXP,
-    progress
+    progress,
+    badgeTitle
 }: PopupLevelBadgeProps): VNode {
     return (
         <div className="level-badge-card">
             <div className="level-badge-top">
                 <span id="user-level" className="level-badge-number">Level {level}</span>
-                <span id="user-level-badge" className="level-badge" style={{ display: 'none' }}>Lv. {level}</span>
+                <span id="user-level-badge" className="level-badge" title={badgeTitle}>Lv. {level}</span>
                 <span id="level-num" style={{ display: 'none' }}>{level}</span>
                 <span id="user-title" className="level-badge-title">{levelTitle}</span>
                 <span id="level-title" style={{ display: 'none' }}>{levelTitle}</span>
@@ -619,8 +629,8 @@ export function formatDateKey(date: Date): string {
  */
 export function triggerConfetti(canvasEl?: HTMLCanvasElement | null): void {
     try {
-        const canvas = canvasEl || (document.getElementById('confetti-canvas') || document.getElementById('celebration-confetti-canvas')) as HTMLCanvasElement | null;
-        if (!canvas) return;
+        const canvas = canvasEl;
+        if (!canvas || canvas.isConnected === false) return;
 
         const ctx = canvas.getContext ? canvas.getContext('2d') : null;
         if (!ctx) return;
@@ -715,8 +725,316 @@ export function triggerConfetti(canvasEl?: HTMLCanvasElement | null): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPATIBILITY FACADE: StatsComponent
+// COMPATIBILITY FACADE: StatsComponent & StatsDashboardApp
 // ─────────────────────────────────────────────────────────────────────────────
+
+function safeFlushSync(fn: () => void): void {
+    try {
+        flushSync(fn);
+    } catch (_) {
+        fn();
+    }
+}
+
+export interface StatsDashboardProps {
+    cards: Card[];
+    activity: Record<string, number>;
+    dailyGoalTarget: number;
+    longestStreak: number;
+    studyPlanSettings?: { isActive?: boolean; examDate?: string } | null;
+    cachedAchievements: Achievement[];
+    cachedRecords: PersonalRecords | null;
+    onSaveGoal?: (newGoal: number) => void;
+    coordinator?: DashboardCoordinator;
+}
+
+export function StatsDashboardApp({
+    cards = [],
+    activity = {},
+    dailyGoalTarget = DEFAULT_DAILY_GOAL,
+    longestStreak = 0,
+    studyPlanSettings = null,
+    cachedAchievements = [],
+    cachedRecords = null,
+    onSaveGoal,
+    coordinator
+}: StatsDashboardProps): VNode {
+    const [toast, setToast] = useState<{ message: string; show: boolean }>({ message: '', show: false });
+    const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
+    const [localRecords, setLocalRecords] = useState<PersonalRecords | null>(cachedRecords);
+    const [localAchievements, setLocalAchievements] = useState<Achievement[]>(cachedAchievements);
+
+    useLayoutEffect(() => {
+        StatsComponent.updateToast = (newToast) => {
+            safeFlushSync(() => {
+                setToast(newToast);
+            });
+        };
+        StatsComponent.updateAchievements = (achievements, records) => {
+            safeFlushSync(() => {
+                setLocalAchievements(achievements);
+                setLocalRecords(records);
+            });
+        };
+        return () => {
+            StatsComponent.updateToast = null;
+            StatsComponent.updateAchievements = null;
+        };
+    }, []);
+
+    useLayoutEffect(() => {
+        setLocalRecords(cachedRecords);
+        setLocalAchievements(cachedAchievements);
+    }, [cachedRecords, cachedAchievements]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                safeFlushSync(() => {
+                    setIsAchievementsOpen(false);
+                });
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    const now = Date.now();
+    const dueCards = cards.filter(c => c.due <= now).length;
+    const totalCards = cards.length;
+
+    let totalRetrievability = 0;
+    let retrievabilityCount = 0;
+    const SchedulerClass = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
+    const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass() : null;
+
+    let totalActivityReviews = 0;
+    let totalReps = 0;
+    let totalLapses = 0;
+
+    cards.forEach((card: Card) => {
+        totalReps += card.reps || 0;
+        totalLapses += card.lapses || 0;
+
+        if (card.stability > 0 && scheduler) {
+            const lastReview = getLastReviewDate(card);
+            if (lastReview) {
+                const r = scheduler.getRetrievability(card, now);
+                totalRetrievability += r;
+                retrievabilityCount++;
+            }
+        }
+    });
+
+    Object.values(activity).forEach(count => {
+        totalActivityReviews += count;
+    });
+
+    let retentionVal = 0;
+    if (retrievabilityCount > 0) {
+        retentionVal = Math.round((totalRetrievability / retrievabilityCount) * 100);
+    } else if (totalReps > 0) {
+        retentionVal = Math.round(((totalReps - totalLapses) / totalReps) * 100);
+    }
+
+    const level = Math.floor(1 + 0.6 * Math.sqrt(totalActivityReviews));
+    const currentLevelReviews = Math.pow((level - 1) / 0.6, 2);
+    const nextLevelReviews = Math.pow(level / 0.6, 2);
+    const progressRange = nextLevelReviews - currentLevelReviews;
+    const progressMade = totalActivityReviews - currentLevelReviews;
+    const currentLevelProgress = progressRange > 0 ? Math.max(0, Math.min(100, (progressMade / progressRange) * 100)) : 0;
+
+    let levelTitle = "Novice";
+    if (level >= 35) levelTitle = "Grandmaster";
+    else if (level >= 20) levelTitle = "Expert";
+    else if (level >= 10) levelTitle = "Specialist";
+    else if (level >= 5) levelTitle = "Apprentice";
+
+    const reviewsToNext = Math.ceil(nextLevelReviews - totalActivityReviews);
+    const badgeTitle = `${levelTitle} (${totalActivityReviews} Total Reviews) - ${reviewsToNext} until Lv. ${level + 1}`;
+
+    const streakData = calculateStreaks(activity);
+
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+    const todayEndTime = todayEnd.getTime();
+
+    let completedToday = 0;
+    cards.forEach((card: Card) => {
+        const lastReview = getLastReviewDate(card);
+        const isReviewedToday = lastReview ? new Date(lastReview).toDateString() === new Date().toDateString() : false;
+        const wasDueTodayOrEarlier = !card.previousDue || card.previousDue <= todayEndTime;
+
+        if (isReviewedToday && wasDueTodayOrEarlier) {
+            completedToday++;
+        }
+    });
+
+    let studyPlanDaysLeft: number | null = null;
+    if (studyPlanSettings && studyPlanSettings.isActive && studyPlanSettings.examDate) {
+        const examTime = new Date(studyPlanSettings.examDate + 'T23:59:59').getTime();
+        studyPlanDaysLeft = Math.max(0, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
+    }
+
+    return (
+        <div className="stats-dashboard-container">
+            <PopupStatsOverview
+                totalCards={totalCards}
+                dueCards={dueCards}
+                retentionRate={retentionVal}
+                onViewTotal={() => coordinator?.showStatus?.('All patterns')}
+                onViewDue={() => coordinator?.showStatus?.('Due patterns')}
+            />
+
+            <PopupLevelBadge
+                level={level}
+                levelTitle={levelTitle}
+                currentXP={Math.round(totalActivityReviews)}
+                nextLevelXP={Math.round(nextLevelReviews)}
+                progress={currentLevelProgress}
+                badgeTitle={badgeTitle}
+            />
+
+            <div id="gamification-panel" className="gamification-wrapper">
+                {totalCards === 0 ? (
+                    <div className="achievement-state">
+                        <div className="achievement-title" style={{ color: "var(--md-text-low)" }}>
+                            <svg className="svg-icon" style={{ stroke: "var(--md-text-low)", marginRight: "4px" }} viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                            Welcome to Spaced Repetitions!
+                        </div>
+                        <div className="achievement-subtitle">Highlight text or open FSRS widget on problems to save your first pattern.</div>
+                    </div>
+                ) : (
+                    <Fragment>
+                        <PopupDailyGoalRing
+                            todayReviewed={completedToday}
+                            dailyGoal={dailyGoalTarget}
+                            progress={dailyGoalTarget > 0 ? completedToday / dailyGoalTarget : 0}
+                            isGoalMet={dailyGoalTarget > 0 && completedToday >= dailyGoalTarget}
+                            onSaveGoal={onSaveGoal}
+                        />
+
+                        <PopupStreakBadge
+                            currentStreak={streakData.current}
+                            longestStreak={longestStreak}
+                        />
+
+                        {studyPlanDaysLeft !== null && (
+                            <div className={`exam-countdown-pill ${studyPlanDaysLeft <= 3 ? '' : 'safe'}`}>
+                                <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: "12px", height: "12px" }}>
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                    <line x1="16" y1="2" x2="16" y2="6" />
+                                    <line x1="8" y1="2" x2="8" y2="6" />
+                                    <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg>
+                                {studyPlanDaysLeft === 0 ? 'Exam is today!' : `${studyPlanDaysLeft} day${studyPlanDaysLeft !== 1 ? 's' : ''} until exam`}
+                            </div>
+                        )}
+
+                        <div id="momentum-days" className="weekly-progress-container" aria-label="7-Day Review Momentum">
+                            <div className="weekly-progress-header">
+                                <span className="weekly-progress-title">7-Day Momentum</span>
+                                <span className="weekly-progress-badge">
+                                    {Object.keys(activity).filter(k => activity[k] > 0).length}/7 active
+                                </span>
+                            </div>
+                            <div className="weekly-days-row">
+                                {Array.from({ length: 7 }, (_, idx) => {
+                                    const d = new Date();
+                                    d.setDate(d.getDate() - (6 - idx));
+                                    const dateKey = formatDateKey(d);
+                                    const count = activity[dateKey] || 0;
+                                    const isToday = idx === 6;
+                                    const goalMet = count >= dailyGoalTarget && dailyGoalTarget > 0;
+                                    const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+                                    return (
+                                        <div
+                                            key={idx}
+                                            className={`weekly-day-col ${goalMet ? 'goal-met' : (count > 0 ? 'active' : 'empty')} ${isToday ? 'is-today' : ''}`}
+                                            title={`${dateKey}: ${count} review${count === 1 ? '' : 's'}`}
+                                            tabIndex={0}
+                                            role="img"
+                                            aria-label={`${dateKey}: ${count} reviews`}
+                                        >
+                                            <span className="weekly-day-name">{dayNames[d.getDay()]}</span>
+                                            <div className="weekly-day-dot">
+                                                {goalMet ? '✓' : (count > 0 ? count : '')}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="achievements-pill-container">
+                            <button
+                                id="achievements-open-btn"
+                                className="achievements-pill-btn"
+                                type="button"
+                                aria-haspopup="dialog"
+                                aria-expanded="false"
+                                title="View unlocked milestones and personal records"
+                                onClick={() => safeFlushSync(() => setIsAchievementsOpen(true))}
+                            >
+                                <span className="achievements-pill-icon">🏆</span>
+                                <span className="achievements-pill-text">Milestones & Records</span>
+                                <span className="achievements-pill-count">
+                                    {localAchievements.filter(a => a.unlocked).length}/{localAchievements.length || 8}
+                                </span>
+                            </button>
+                        </div>
+                    </Fragment>
+                )}
+            </div>
+
+            <div
+                id="achievements-modal"
+                className={`modal-overlay ${isAchievementsOpen ? '' : 'hide-panel'}`}
+                aria-hidden={isAchievementsOpen ? 'false' : 'true'}
+                onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                        safeFlushSync(() => setIsAchievementsOpen(false));
+                    }
+                }}
+            >
+                <div className="modal-content">
+                    <button
+                        id="close-achievements-btn"
+                        className="modal-close-btn"
+                        onClick={() => safeFlushSync(() => setIsAchievementsOpen(false))}
+                    >
+                        &times;
+                    </button>
+                    <div
+                        id="achievements-modal-body"
+                        dangerouslySetInnerHTML={{
+                            __html: localRecords ? renderAchievementsModalContent(localAchievements, localRecords) : ''
+                        }}
+                    />
+                </div>
+            </div>
+
+            <button
+                id="achievements-btn"
+                style={{ display: 'none' }}
+                onClick={() => safeFlushSync(() => setIsAchievementsOpen(true))}
+            />
+
+            <canvas
+                id="confetti-canvas"
+                ref={(el) => { StatsComponent.canvasElement = el; }}
+                style={{ width: '100px', height: '100px' }}
+            />
+
+            <div
+                id="milestone-toast"
+                className={`toast ${toast.show ? 'show' : ''}`}
+            >
+                <span id="milestone-toast-text">{toast.message}</span>
+            </div>
+        </div>
+    );
+}
 
 /**
  * Sub-component for the popup dashboard that calculates overall retention,
@@ -728,11 +1046,45 @@ export class StatsComponent extends DashboardComponent {
     cachedActivity: Record<string, number> = {};
     cachedAchievements: Achievement[] = [];
     cachedRecords: PersonalRecords | null = null;
+    cards: Card[] = [];
+    studyPlanSettings?: { isActive?: boolean; examDate?: string } | null = null;
+
+    public static updateToast: ((toast: { message: string; show: boolean }) => void) | null = null;
+    public static updateAchievements: ((achievements: Achievement[], records: PersonalRecords | null) => void) | null = null;
+    public static canvasElement: HTMLCanvasElement | null = null;
 
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
         this.dailyGoalTarget = DEFAULT_DAILY_GOAL;
         this.longestStreak = 0;
+        this.renderComponent();
+    }
+
+    renderComponent(): void {
+        try {
+            const root = document.getElementById('root');
+            if (root) {
+                safeFlushSync(() => {
+                    preactRender(
+                        <StatsDashboardApp
+                            cards={this.cards}
+                            activity={this.cachedActivity}
+                            dailyGoalTarget={this.dailyGoalTarget}
+                            longestStreak={this.longestStreak}
+                            studyPlanSettings={this.studyPlanSettings}
+                            cachedAchievements={this.cachedAchievements}
+                            cachedRecords={this.cachedRecords}
+                            onSaveGoal={async (newGoal: number) => {
+                                await chrome.storage.local.set({ dailyGoalTarget: newGoal });
+                                await this.load();
+                            }}
+                            coordinator={this.coordinator}
+                        />,
+                        root
+                    );
+                });
+            }
+        } catch (_) {}
     }
 
     async load(): Promise<void> {
@@ -751,132 +1103,26 @@ export class StatsComponent extends DashboardComponent {
                 studyPlanSettings?: { isActive?: boolean; examDate?: string };
             };
 
-            const cards: Card[] = result.fsrsCards || [];
-            const activity: Record<string, number> = result.fsrsActivity || {};
+            this.cards = result.fsrsCards || [];
+            this.cachedActivity = result.fsrsActivity || {};
             this.dailyGoalTarget = typeof result.dailyGoalTarget === 'number' ? result.dailyGoalTarget : DEFAULT_DAILY_GOAL;
             const storedLongestStreak = typeof result.longestStreak === 'number' ? result.longestStreak : 0;
             const lastCelebratedMilestone = typeof result.lastCelebratedMilestone === 'number' ? result.lastCelebratedMilestone : 0;
-            const studyPlanSettings = result.studyPlanSettings || null;
-            const now = Date.now();
+            this.studyPlanSettings = result.studyPlanSettings || null;
 
-            const dueToday = cards.filter((c: Card) => c.due <= now).length;
-
-            const totalEl = document.getElementById('total-cards');
-            const dueEl = document.getElementById('due-cards');
-            const retentionEl = document.getElementById('retention-rate');
-
-            if (totalEl) totalEl.innerText = String(cards.length);
-            if (dueEl) dueEl.innerText = String(dueToday);
-
-            const boxDue = document.getElementById('box-due');
-            if (boxDue) {
-                boxDue.classList.remove('success', 'warning', 'danger', 'urgent');
-                if (dueToday === 0) {
-                    boxDue.classList.add('success');
-                } else if (dueToday <= DUE_CARDS_THRESHOLD_WARNING) {
-                    boxDue.classList.add('warning');
-                } else {
-                    boxDue.classList.add('danger');
-                }
-            }
-
-            let totalRetrievability = 0;
-            let retrievabilityCount = 0;
-            const SchedulerClass = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
-            const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass() : null;
-
-            let totalActivityReviews = 0;
-            let totalReps = 0;
-            let totalLapses = 0;
-
-            cards.forEach((card: Card) => {
-                totalReps += card.reps || 0;
-                totalLapses += card.lapses || 0;
-
-                if (card.stability > 0 && scheduler) {
-                    const lastReview = getLastReviewDate(card);
-                    if (lastReview) {
-                        const r = scheduler.getRetrievability(card, now);
-                        totalRetrievability += r;
-                        retrievabilityCount++;
-                    }
-                }
-            });
-
-            Object.values(activity).forEach(count => {
-                totalActivityReviews += count;
-            });
-
-            const boxRetention = document.getElementById('box-retention');
-            if (retentionEl) {
-                let retentionVal = 0;
-                let retentionStr = "0%";
-                if (retrievabilityCount > 0) {
-                    retentionVal = (totalRetrievability / retrievabilityCount) * 100;
-                    retentionStr = Math.round(retentionVal) + "%";
-                } else if (totalReps > 0) {
-                    retentionVal = ((totalReps - totalLapses) / totalReps) * 100;
-                    retentionStr = Math.round(retentionVal) + "%";
-                }
-                retentionEl.innerText = retentionStr;
-
-                if (boxRetention) {
-                    boxRetention.classList.remove('success', 'warning', 'danger');
-                    if (retentionVal >= RECALL_THRESHOLD_GOOD) {
-                        boxRetention.classList.add('success');
-                    } else if (retentionVal >= RECALL_THRESHOLD_WARNING) {
-                        boxRetention.classList.add('warning');
-                    } else {
-                        boxRetention.classList.add('danger');
-                    }
-                }
-            }
-
-            // Level & XP Progression
-            const level = Math.floor(1 + 0.6 * Math.sqrt(totalActivityReviews));
-            const currentLevelReviews = Math.pow((level - 1) / 0.6, 2);
-            const nextLevelReviews = Math.pow(level / 0.6, 2);
-            const progressRange = nextLevelReviews - currentLevelReviews;
-            const progressMade = totalActivityReviews - currentLevelReviews;
-            const currentLevelProgress = progressRange > 0 ? Math.max(0, Math.min(100, (progressMade / progressRange) * 100)) : 0;
-
-            const levelBadge = document.getElementById('user-level-badge');
-            const xpBarFill = document.getElementById('xp-bar-fill');
-            const xpBarContainer = document.getElementById('xp-progress-bar-container');
-
-            if (levelBadge) {
-                levelBadge.innerText = `Lv. ${level}`;
-                let levelTitle = "Novice";
-                if (level >= 35) levelTitle = "Grandmaster";
-                else if (level >= 20) levelTitle = "Expert";
-                else if (level >= 10) levelTitle = "Specialist";
-                else if (level >= 5) levelTitle = "Apprentice";
-
-                const reviewsToNext = Math.ceil(nextLevelReviews - totalActivityReviews);
-                levelBadge.title = `${levelTitle} (${totalActivityReviews} Total Reviews) - ${reviewsToNext} until Lv. ${level + 1}`;
-            }
-            if (xpBarFill) {
-                xpBarFill.style.width = `${currentLevelProgress}%`;
-            }
-            if (xpBarContainer) {
-                xpBarContainer.setAttribute('aria-valuenow', Math.round(currentLevelProgress).toString());
-            }
-
-            // Streaks
-            const streakData = this.calculateStreaks(activity);
+            const streakData = this.calculateStreaks(this.cachedActivity);
             this.longestStreak = Math.max(streakData.longest, storedLongestStreak);
 
             if (this.longestStreak > storedLongestStreak) {
                 await chrome.storage.local.set({ longestStreak: this.longestStreak });
             }
 
-            // Completed today
             const todayEnd = new Date();
             todayEnd.setHours(23, 59, 59, 999);
             const todayEndTime = todayEnd.getTime();
 
             let completedToday = 0;
-            cards.forEach((card: Card) => {
+            this.cards.forEach((card: Card) => {
                 const lastReview = getLastReviewDate(card);
                 const isReviewedToday = lastReview ? new Date(lastReview).toDateString() === new Date().toDateString() : false;
                 const wasDueTodayOrEarlier = !card.previousDue || card.previousDue <= todayEndTime;
@@ -886,11 +1132,9 @@ export class StatsComponent extends DashboardComponent {
                 }
             });
 
-            // Achievements
-            this.cachedActivity = activity;
             const evalResult = evaluateAchievements({
-                cards,
-                activity,
+                cards: this.cards,
+                activity: this.cachedActivity,
                 dailyGoalTarget: this.dailyGoalTarget,
                 currentStreak: streakData.current,
                 longestStreak: this.longestStreak,
@@ -909,50 +1153,13 @@ export class StatsComponent extends DashboardComponent {
                 }, 300);
             }
 
-            // Render into gamification panel
-            const gamificationPanel = document.getElementById('gamification-panel');
-            if (gamificationPanel) {
-                let studyPlanDaysLeft: number | null = null;
-                if (studyPlanSettings && studyPlanSettings.isActive && studyPlanSettings.examDate) {
-                    const examTime = new Date(studyPlanSettings.examDate + 'T23:59:59').getTime();
-                    studyPlanDaysLeft = Math.max(0, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
-                }
-
-                if (cards.length === 0) {
-                    gamificationPanel.innerHTML = `
-                        <div class="achievement-state">
-                            <div class="achievement-title" style="color: var(--md-text-low);">
-                                <svg class="svg-icon" style="stroke: var(--md-text-low); margin-right: 4px;" viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                                Welcome to Spaced Repetitions!
-                            </div>
-                            <div class="achievement-subtitle">Highlight text or open FSRS widget on problems to save your first pattern.</div>
-                        </div>
-                    `;
-                } else if (dueToday === 0 && completedToday >= this.dailyGoalTarget) {
-                    gamificationPanel.innerHTML = this.renderGoalComplete(completedToday, this.dailyGoalTarget, streakData.current, this.longestStreak);
-                } else {
-                    gamificationPanel.innerHTML = this.renderGoalProgress(completedToday, this.dailyGoalTarget, dueToday, streakData.current, this.longestStreak);
-                }
-
-                if (studyPlanDaysLeft !== null) {
-                    const pillClass = studyPlanDaysLeft <= 3 ? '' : 'safe';
-                    const goalInfo = gamificationPanel.querySelector('.goal-info') || gamificationPanel;
-                    const pillHtml = document.createElement('div');
-                    pillHtml.className = `exam-countdown-pill ${pillClass}`;
-                    pillHtml.innerHTML = `
-                        <svg class="svg-icon" viewBox="0 0 24 24" style="width:12px;height:12px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                        ${studyPlanDaysLeft === 0 ? 'Exam is today!' : `${studyPlanDaysLeft} day${studyPlanDaysLeft !== 1 ? 's' : ''} until exam`}
-                    `;
-                    goalInfo.appendChild(pillHtml);
-                }
-
-                this.bindEditorEvents(gamificationPanel);
-                this.bindAchievementsModal(gamificationPanel);
-            }
-
-            // Milestone check
             const streakMilestones = STREAK_MILESTONES;
             const reviewMilestones = REVIEW_MILESTONES;
+
+            let totalActivityReviews = 0;
+            Object.values(this.cachedActivity).forEach(count => {
+                totalActivityReviews += count;
+            });
 
             let newMilestone: { type: string; value: number } | null = null;
             for (const milestone of streakMilestones) {
@@ -981,6 +1188,8 @@ export class StatsComponent extends DashboardComponent {
                     this.showConfetti();
                 }, 300);
             }
+
+            this.renderComponent();
         } catch (error) {
             UIUtils.catchError('StatsComponent', 'Error loading stats', error);
         }
@@ -1072,7 +1281,7 @@ export class StatsComponent extends DashboardComponent {
                 motivationMsg = `<svg class="svg-icon" style="stroke: var(--md-success); margin-right: 4px; display: inline-block; vertical-align: middle;" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Daily goal reached! ${dueRemaining > 0 ? `${dueRemaining} more patterns due.` : 'All caught up!'}`;
             }
 
-        return `
+            return `
             <div class="goal-ring-container">
                 <div class="goal-ring-wrap">
                     <svg class="goal-ring-svg" viewBox="0 0 100 100">
@@ -1093,7 +1302,7 @@ export class StatsComponent extends DashboardComponent {
                             Daily Goal
                         </span>
                         <button id="goal-edit-btn" class="goal-edit-btn" title="Change daily goal" aria-label="Change daily goal">
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                         </button>
                     </div>
                     <div id="goal-editor" class="goal-editor" style="display: none;">
@@ -1118,9 +1327,9 @@ export class StatsComponent extends DashboardComponent {
             const completedVal = Number(completed);
             const targetVal = Number(target);
             const circumference = 2 * Math.PI * 42;
-        const streakHtml = this.renderStreakBadge(currentStreak, longestStreak);
+            const streakHtml = this.renderStreakBadge(currentStreak, longestStreak);
 
-        return `
+            return `
             <div class="goal-ring-container">
                 <div class="goal-ring-wrap goal-ring-complete">
                     <svg class="goal-ring-svg" viewBox="0 0 100 100">
@@ -1140,7 +1349,7 @@ export class StatsComponent extends DashboardComponent {
                             Goal Complete!
                         </span>
                         <button id="goal-edit-btn" class="goal-edit-btn" title="Change daily goal" aria-label="Change daily goal">
-                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            <svg class="svg-icon" viewBox="0 0 24 24" style="width:11px; height:11px;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                         </button>
                     </div>
                     <div id="goal-editor" class="goal-editor" style="display: none;">
@@ -1185,127 +1394,39 @@ export class StatsComponent extends DashboardComponent {
         }
     }
 
-    bindEditorEvents(gamificationPanel: HTMLElement): void {
-        const goalEditBtn = gamificationPanel.querySelector('#goal-edit-btn');
-        const goalEditor = gamificationPanel.querySelector('#goal-editor') as HTMLElement | null;
-        const goalInput = gamificationPanel.querySelector('#goal-input') as HTMLInputElement | null;
-        const goalSaveBtn = gamificationPanel.querySelector('#goal-save-btn');
-
-        if (goalEditBtn && goalEditor && goalInput) {
-            goalEditBtn.addEventListener('click', () => {
-                goalEditor.style.display = goalEditor.style.display === 'none' ? 'flex' : 'none';
-                if (goalEditor.style.display === 'flex') goalInput.focus();
-            });
-
-            const saveGoal = async () => {
-                const val = parseInt(goalInput.value, 10);
-                if (val && val > 0 && val <= 999) {
-                    await chrome.storage.local.set({ dailyGoalTarget: val });
-                    goalEditor.style.display = 'none';
-                    await this.load();
-                }
-            };
-
-            goalSaveBtn?.addEventListener('click', () => {
-                saveGoal().catch(err => {
-                    Logger.error('StatsComponent', 'Error saving goal on click', { err });
-                });
-            });
-
-            goalInput.addEventListener('keydown', (e: KeyboardEvent) => {
-                if (e.key === 'Enter') {
-                    saveGoal().catch(err => {
-                        Logger.error('StatsComponent', 'Error saving goal on keydown', { err });
-                    });
-                }
-            });
-        }
-    }
-
+    bindEditorEvents(_gamificationPanel?: HTMLElement): void {}
     bindEvents(): void {}
 
-    bindAchievementsModal(container?: HTMLElement): void {
-        const openModal = () => {
-            const modal = document.getElementById('achievements-modal');
-            const modalBody = document.getElementById('achievements-modal-body');
-            if (modal && modalBody) {
-                if (this.cachedRecords) {
-                    modalBody.innerHTML = renderAchievementsModalContent(
-                        this.cachedAchievements,
-                        this.cachedRecords
-                    );
-                }
-                modal.classList.remove('hide-panel');
-                modal.setAttribute('aria-hidden', 'false');
-                const closeBtn = document.getElementById('close-achievements-btn');
-                closeBtn?.focus();
+    bindAchievementsModal(_container?: HTMLElement): void {
+        try {
+            if (StatsComponent.updateAchievements && (this.cachedRecords || this.cachedAchievements.length > 0)) {
+                StatsComponent.updateAchievements(this.cachedAchievements, this.cachedRecords);
             }
-        };
-
-        const closeModal = () => {
-            const modal = document.getElementById('achievements-modal');
-            if (modal) {
-                modal.classList.add('hide-panel');
-                modal.setAttribute('aria-hidden', 'true');
-            }
-        };
-
-        const openBtns = [
-            container?.querySelector('#achievements-open-btn'),
-            document.getElementById('achievements-open-btn'),
-            document.getElementById('achievements-btn')
-        ];
-
-        openBtns.forEach(btn => {
-            if (btn) {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    openModal();
-                });
-            }
-        });
-
-        const closeBtn = document.getElementById('close-achievements-btn');
-        closeBtn?.addEventListener('click', closeModal);
-
-        const modal = document.getElementById('achievements-modal');
-        modal?.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
-
-        document.addEventListener('keydown', (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && modal && !modal.classList.contains('hide-panel')) {
-                closeModal();
-            }
-        });
+        } catch (err) {
+            UIUtils.catchError('StatsComponent', 'Error in bindAchievementsModal', err);
+        }
     }
 
     showMilestoneToast(message: string): void {
         try {
-            const toast = document.getElementById('milestone-toast');
-            const toastText = document.getElementById('milestone-toast-text');
-            if (!toast || !toastText) return;
-
-            toastText.textContent = message;
-            toast.classList.add('show');
-
-            setTimeout(() => {
-                try {
-                    toast.classList.remove('show');
-                } catch (timerErr) {
-                    UIUtils.catchError('StatsComponent', 'Error hiding milestone toast', timerErr);
-                }
-            }, 3500);
+            if (StatsComponent.updateToast) {
+                StatsComponent.updateToast({ message, show: true });
+                setTimeout(() => {
+                    try {
+                        StatsComponent.updateToast?.({ message: '', show: false });
+                    } catch (timerErr) {
+                        UIUtils.catchError('StatsComponent', 'Error hiding milestone toast', timerErr);
+                    }
+                }, 3500);
+            }
         } catch (err) {
             UIUtils.catchError('StatsComponent', 'Error showing milestone toast', err, { message });
         }
     }
 
-    showConfetti(): void {
+    showConfetti(canvasEl?: HTMLCanvasElement | null): void {
         try {
-            triggerConfetti();
+            triggerConfetti(canvasEl || StatsComponent.canvasElement);
         } catch (err) {
             UIUtils.catchError('StatsComponent', 'Error showing confetti', err);
         }
@@ -1314,6 +1435,7 @@ export class StatsComponent extends DashboardComponent {
 
 if (typeof module !== "undefined" && module.exports) {
     (module.exports as any).StatsComponent = StatsComponent;
+    (module.exports as any).StatsDashboardApp = StatsDashboardApp;
     (module.exports as any).PopupStatsOverview = PopupStatsOverview;
     (module.exports as any).PopupDailyGoalRing = PopupDailyGoalRing;
     (module.exports as any).PopupStreakBadge = PopupStreakBadge;

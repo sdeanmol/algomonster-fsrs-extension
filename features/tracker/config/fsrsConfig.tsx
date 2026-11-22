@@ -28,6 +28,7 @@ import { Card, FSRSParameters, StorageData } from '../../../types/domain';
 import { Logger } from '@common/logger';
 import { UIUtils } from '@common/utils/uiUtils';
 import { BROWSER_CONFIG } from '@common/browserConfig';
+import { ActionService } from '@common/services/actionService';
 import {
     DEFAULT_FSRS_W,
     DEFAULT_FSRS_DECAY,
@@ -194,7 +195,7 @@ export function TagProfilesList({
                         <div>
                             <span className="profile-tag-badge">{tag}</span>
                         </div>
-                        <span className="profile-weights-text">w: [{weights.join(', ')}]</span>
+                        <span className="profile-weights-text">w: [{Array.isArray(weights) ? weights.join(', ') : String(weights)}]</span>
                     </div>
                     <button
                         className="delete-profile-btn"
@@ -443,7 +444,11 @@ export interface FSRSConfigAppProps {
  * Root Preact component governing the full FSRS Configuration page.
  */
 export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): VNode {
-    const [manager] = useState(() => initialManager || new FSRSConfigManager());
+    const fallbackManagerRef = useRef<FSRSConfigManager | null>(null);
+    if (!fallbackManagerRef.current) {
+        fallbackManagerRef.current = new FSRSConfigManager();
+    }
+    const manager = initialManager || fallbackManagerRef.current;
     const [mode, setMode] = useState<'simple' | 'advanced'>(manager.currentMode || 'simple');
     const [retention, setRetention] = useState<number>(manager.defaultRetention || 0.90);
     const [decay, setDecay] = useState<number>(manager.defaultDecay || -0.5);
@@ -465,15 +470,9 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
         setToastMessage(msg);
         setToastIsError(isError);
         setToastVisible(true);
-        const toastEl = typeof document !== 'undefined' ? document.getElementById('status-toast') : null;
-        if (toastEl) {
-            toastEl.textContent = msg;
-            toastEl.className = 'toast show ' + (isError ? 'error' : 'success');
-        }
         if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         toastTimerRef.current = setTimeout(() => {
             setToastVisible(false);
-            if (toastEl) toastEl.className = 'toast';
         }, 2500);
     }, []);
 
@@ -488,20 +487,14 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
             const topics: Record<string, number[]> = result?.fsrsTopicWeights || {};
             if (params.requestRetention !== undefined) {
                 setRetention(params.requestRetention);
-                const slider = typeof document !== 'undefined' ? (document.getElementById('retention-slider') as HTMLInputElement | null) : null;
-                const badge = typeof document !== 'undefined' ? document.getElementById('retention-val') : null;
-                if (slider) slider.value = params.requestRetention.toString();
-                if (badge) badge.textContent = `${Math.round(params.requestRetention * 100)}%`;
             }
             if (params.decay !== undefined) {
                 setDecay(params.decay);
-                const decayEl = typeof document !== 'undefined' ? (document.getElementById('decay-input') as HTMLInputElement | null) : null;
-                if (decayEl) decayEl.value = params.decay.toString();
+                manager.currentDecay = params.decay;
             }
             if (params.factor !== undefined) {
                 setFactor(params.factor);
-                const factorEl = typeof document !== 'undefined' ? (document.getElementById('factor-input') as HTMLInputElement | null) : null;
-                if (factorEl) factorEl.value = params.factor.toString();
+                manager.currentFactor = params.factor;
             }
             if (params.w && Array.isArray(params.w) && params.w.length === 17) {
                 setWeights([...params.w]);
@@ -509,8 +502,7 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
             setTopicWeights(topics);
 
             const cards = result?.fsrsCards || [];
-            const thresholdInput = typeof document !== 'undefined' ? (document.getElementById('opt-threshold-input') as HTMLInputElement | null) : null;
-            const currentThreshold = thresholdInput ? (parseInt(thresholdInput.value, 10) || 1000) : threshold;
+            const currentThreshold = manager.currentThreshold ?? threshold;
             const eligibility = manager.computeEligibility(cards, currentThreshold);
             setReviewCount(eligibility.count);
             setIsEligible(eligibility.eligible);
@@ -534,21 +526,21 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
     }, [showToast]);
 
     const handleSaveGlobal = useCallback(() => {
-        const slider = typeof document !== 'undefined' ? (document.getElementById('retention-slider') as HTMLInputElement | null) : null;
-        const decayInput = typeof document !== 'undefined' ? (document.getElementById('decay-input') as HTMLInputElement | null) : null;
-        const factorInput = typeof document !== 'undefined' ? (document.getElementById('factor-input') as HTMLInputElement | null) : null;
+        const currentDecay = manager.currentDecay !== undefined ? manager.currentDecay : decay;
+        const currentFactor = manager.currentFactor !== undefined ? manager.currentFactor : factor;
 
-        const currentRetention = slider ? parseFloat(slider.value) : retention;
-        const currentDecay = decayInput ? parseFloat(decayInput.value) : decay;
-        const currentFactor = factorInput ? parseFloat(factorInput.value) : factor;
+        if (isNaN(currentDecay) || isNaN(currentFactor)) {
+            showToast("Decay and Factor must be valid numbers.", true);
+            return;
+        }
 
         saveParamsToStorage({
             w: weights,
             decay: currentDecay,
             factor: currentFactor,
-            requestRetention: currentRetention
+            requestRetention: retention
         });
-    }, [weights, decay, factor, retention, saveParamsToStorage]);
+    }, [manager, weights, decay, factor, retention, saveParamsToStorage, showToast]);
 
     const handleResetGlobal = useCallback(() => {
         if (confirm("Reset Request Retention, Decay, and Factor to defaults? (Weights will be kept)")) {
@@ -615,22 +607,12 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
     }, [manager, showToast]);
 
     const handleAddProfile = useCallback((tagArg?: string, weightsArg?: number[]) => {
-        let tag = tagArg;
+        let tag = tagArg !== undefined ? tagArg : (manager.pendingTagName !== undefined ? manager.pendingTagName : newTagName);
         let weightsArray = weightsArg;
 
-        if (tag === undefined && typeof document !== 'undefined') {
-            const tagInput = document.getElementById('new-tag-name') as HTMLInputElement | null;
-            tag = tagInput ? tagInput.value : newTagName;
-        } else if (tag === undefined) {
-            tag = newTagName;
-        }
-
-        if (weightsArray === undefined && typeof document !== 'undefined') {
-            const weightsInput = document.getElementById('new-tag-weights') as HTMLInputElement | null;
-            const wStr = weightsInput ? weightsInput.value : newTagWeights;
+        if (weightsArray === undefined) {
+            const wStr = manager.pendingTagWeights !== undefined ? manager.pendingTagWeights : newTagWeights;
             weightsArray = wStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
-        } else if (weightsArray === undefined) {
-            weightsArray = newTagWeights.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
         }
 
         tag = tag.trim().toLowerCase();
@@ -653,11 +635,13 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
                     setTopicWeights({ ...nextTopics });
                     setNewTagName('');
                     setNewTagWeights('');
+                    manager.pendingTagName = '';
+                    manager.pendingTagWeights = '';
                     showToast(`Custom profile saved for tag: ${tag}`);
                 });
             });
         }
-    }, [newTagName, newTagWeights, showToast]);
+    }, [manager, newTagName, newTagWeights, showToast]);
 
     const handleDeleteProfile = useCallback((tag: string) => {
         if (confirm(`Delete custom weights profile for tag "${tag}"?`)) {
@@ -737,14 +721,8 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
                 w: weights
             }, null, 2));
 
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `fsrs_weights_${Date.now()}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-
-            showToast("Weights exported to JSON!");
+            ActionService.triggerDomDownload(dataStr, `fsrs_weights_${Date.now()}.json`);
+            // showToast("Weights exported to JSON!");
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('FSRSConfig', `Failed to export weights: ${errorMessage}`, { err });
@@ -779,6 +757,15 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
         refreshFromStorage();
     }, [refreshFromStorage]);
 
+    // Cleanup pending toast timer on unmount
+    useEffect(() => {
+        return () => {
+            if (toastTimerRef.current) {
+                clearTimeout(toastTimerRef.current);
+            }
+        };
+    }, []);
+
     useEffect(() => {
         if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
         chrome.storage.local.get(['fsrsCards'], (result: any) => {
@@ -796,20 +783,6 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
 
     const handleSelectRetention = (ret: number) => {
         setRetention(ret);
-        const slider = typeof document !== 'undefined' ? (document.getElementById('retention-slider') as HTMLInputElement | null) : null;
-        const badge = typeof document !== 'undefined' ? document.getElementById('retention-val') : null;
-        if (slider) slider.value = ret.toString();
-        if (badge) badge.textContent = `${Math.round(ret * 100)}%`;
-        if (typeof document !== 'undefined') {
-            document.querySelectorAll('.preset-chip').forEach(c => {
-                const chipRet = parseFloat(c.getAttribute('data-retention') || '');
-                if (Math.abs(chipRet - ret) < 0.005) {
-                    c.classList.add('active');
-                } else {
-                    c.classList.remove('active');
-                }
-            });
-        }
         saveParamsToStorage({
             w: weights,
             decay,
@@ -886,8 +859,6 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
                             onInput={(e) => {
                                 const val = parseFloat((e.target as HTMLInputElement).value);
                                 setRetention(val);
-                                const badge = document.getElementById('retention-val');
-                                if (badge) badge.textContent = `${Math.round(val * 100)}%`;
                             }}
                             onChange={handleSaveGlobal}
                         />
@@ -955,7 +926,9 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
                                 style={{ width: '100px' }}
                                 onInput={(e) => {
                                     const parsed = parseInt((e.target as HTMLInputElement).value, 10);
-                                    setThreshold(isNaN(parsed) ? 1000 : parsed);
+                                    const val = isNaN(parsed) ? 1000 : parsed;
+                                    setThreshold(val);
+                                    manager.currentThreshold = val;
                                 }}
                             />
                             <span className="input-hint">Threshold required to unlock optimization.</span>
@@ -985,11 +958,23 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
                     topicWeights={topicWeights}
                     newTagName={newTagName}
                     newTagWeights={newTagWeights}
-                    onDecayChange={setDecay}
-                    onFactorChange={setFactor}
+                    onDecayChange={(val) => {
+                        setDecay(val);
+                        manager.currentDecay = val;
+                    }}
+                    onFactorChange={(val) => {
+                        setFactor(val);
+                        manager.currentFactor = val;
+                    }}
                     onWeightChange={handleWeightChange}
-                    onNewTagNameChange={setNewTagName}
-                    onNewTagWeightsChange={setNewTagWeights}
+                    onNewTagNameChange={(val) => {
+                        setNewTagName(val);
+                        manager.pendingTagName = val;
+                    }}
+                    onNewTagWeightsChange={(val) => {
+                        setNewTagWeights(val);
+                        manager.pendingTagWeights = val;
+                    }}
                     onSaveGlobal={handleSaveGlobal}
                     onResetWeights={handleResetWeights}
                     onAddProfile={handleAddProfile}
@@ -1027,6 +1012,11 @@ export class FSRSConfigManager {
     public weightsHelp: string[];
     /** Current view mode: 'simple' for basic retention slider, 'advanced' for all coefficients. */
     public currentMode: 'simple' | 'advanced';
+    public currentThreshold?: number;
+    public pendingTagName?: string;
+    public pendingTagWeights?: string;
+    public currentDecay?: number;
+    public currentFactor?: number;
     /** Observer callback notifying root component of state updates. */
     public onUpdate?: () => void;
     /** Observer callbacks wired by active FSRSConfigApp instance. */
@@ -1167,59 +1157,29 @@ export class FSRSConfigManager {
      */
     setMode(mode: 'simple' | 'advanced'): void {
         this.currentMode = mode;
-        const simpleBtn = document.getElementById('mode-simple-btn');
-        const advancedBtn = document.getElementById('mode-advanced-btn');
-        const advSection = document.querySelector('.advanced-config-only') as HTMLElement | null;
-
-        if (mode === 'simple') {
-            simpleBtn?.classList.add('active');
-            advancedBtn?.classList.remove('active');
-            if (advSection) advSection.style.display = 'none';
-        } else {
-            advancedBtn?.classList.add('active');
-            simpleBtn?.classList.remove('active');
-            if (advSection) advSection.style.display = '';
-        }
-
         if (this.onSetMode) {
             this.onSetMode(mode);
-        }
-        if (this.onUpdate) {
-            this.onUpdate();
         }
     }
 
     bindEvents(): void {}
 
     async checkOptimizationEligibility(): Promise<void> {
-        const thresholdInput = document.getElementById('opt-threshold-input') as HTMLInputElement | null;
-        const thresh = parseInt(thresholdInput ? thresholdInput.value : '1000', 10) || 1000;
-        const warning = document.getElementById('opt-threshold-warning');
-        if (warning) {
-            warning.style.display = thresh < 1000 ? 'flex' : 'none';
-        }
-        const statusMsg = document.getElementById('opt-status-msg');
-        if (statusMsg) {
-            statusMsg.textContent = thresh <= 2
-                ? 'Eligible! You have enough history to train personalized weights.'
-                : 'Keep reviewing to unlock personalized optimization.';
-        }
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onCheckEligibility) {
             await this.onCheckEligibility();
         }
     }
 
     async handleAutoTrain(): Promise<void> {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onAutoTrain) {
             await this.onAutoTrain();
-        }
-        const statusMsg = document.getElementById('opt-status-msg');
-        if (statusMsg) {
-            statusMsg.textContent = 'Scheduler optimized successfully using your personal history!';
         }
     }
 
     handleExportWeights(): void {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onExportWeights) {
             this.onExportWeights();
             return;
@@ -1231,16 +1191,12 @@ export class FSRSConfigManager {
                 w: this.defaultWeights
             }, null, 2));
 
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `fsrs_weights_${Date.now()}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
+            ActionService.triggerDomDownload(dataStr, `fsrs_weights_${Date.now()}.json`);
         } catch (err) {}
     }
 
     loadFSRSConfig(): void {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onLoadConfig) {
             this.onLoadConfig();
             return;
@@ -1255,6 +1211,7 @@ export class FSRSConfigManager {
     }
 
     injectWeightsInputs(weightsArray: number[]): void {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onInjectWeights) {
             this.onInjectWeights(weightsArray);
         }
@@ -1288,26 +1245,26 @@ export class FSRSConfigManager {
     }
 
     renderTagProfiles(topicWeights: { [tag: string]: number[] }): void {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onRenderTagProfiles) {
             this.onRenderTagProfiles(topicWeights);
         }
     }
 
     saveGlobalConfig(): void {
-        const decayInput = document.getElementById('decay-input') as HTMLInputElement | null;
-        const factorInput = document.getElementById('factor-input') as HTMLInputElement | null;
-        const decay = decayInput ? parseFloat(decayInput.value) : this.defaultDecay;
-        const factor = factorInput ? parseFloat(factorInput.value) : this.defaultFactor;
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
+        if (this.onSaveGlobalConfig) {
+            this.onSaveGlobalConfig();
+            return;
+        }
+        const decay = this.currentDecay !== undefined ? this.currentDecay : this.defaultDecay;
+        const factor = this.currentFactor !== undefined ? this.currentFactor : this.defaultFactor;
 
         if (isNaN(decay) || isNaN(factor)) {
             this.showToast("Decay and Factor must be valid numbers.", true);
             return;
         }
 
-        if (this.onSaveGlobalConfig) {
-            this.onSaveGlobalConfig();
-            return;
-        }
         if (typeof chrome !== 'undefined' && chrome.storage?.local) {
             chrome.storage.local.set({
                 fsrsGlobalParams: {
@@ -1321,6 +1278,7 @@ export class FSRSConfigManager {
     }
 
     restoreDefaults(): void {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onRestoreDefaults) {
             this.onRestoreDefaults();
             return;
@@ -1341,6 +1299,7 @@ export class FSRSConfigManager {
     }
 
     restoreGlobalParameters(): void {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onRestoreGlobalParameters) {
             this.onRestoreGlobalParameters();
             return;
@@ -1351,6 +1310,7 @@ export class FSRSConfigManager {
     }
 
     resetOptimization(): void {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onResetOptimization) {
             this.onResetOptimization();
             return;
@@ -1361,6 +1321,7 @@ export class FSRSConfigManager {
     }
 
     restoreWeights(): void {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onRestoreWeights) {
             this.onRestoreWeights();
             return;
@@ -1371,14 +1332,16 @@ export class FSRSConfigManager {
     }
 
     handleAddTagProfile(tag?: string, weights?: number[]): void {
-        const tagInput = document.getElementById('new-tag-name') as HTMLInputElement | null;
-        const weightsInput = document.getElementById('new-tag-weights') as HTMLInputElement | null;
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
+        if (this.onAddTagProfile) {
+            this.onAddTagProfile(tag, weights);
+            return;
+        }
 
-        const tagName = (tag !== undefined ? tag : (tagInput ? tagInput.value : '')).trim().toLowerCase();
+        const tagName = (tag !== undefined ? tag : (this.pendingTagName || '')).trim().toLowerCase();
         let weightsArray = weights;
-        if (weightsArray === undefined) {
-            const wStr = weightsInput ? weightsInput.value : '';
-            weightsArray = wStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+        if (weightsArray === undefined && this.pendingTagWeights) {
+            weightsArray = this.pendingTagWeights.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
         }
 
         if (!tagName) {
@@ -1386,13 +1349,8 @@ export class FSRSConfigManager {
             return;
         }
 
-        if (weightsArray.length !== 17) {
-            this.showToast(`Weights must contain exactly 17 coefficients. Found ${weightsArray.length}.`, true);
-            return;
-        }
-
-        if (this.onAddTagProfile) {
-            this.onAddTagProfile(tagName, weightsArray);
+        if (!weightsArray || weightsArray.length !== 17) {
+            this.showToast(`Weights must contain exactly 17 coefficients. Found ${weightsArray ? weightsArray.length : 0}.`, true);
             return;
         }
 
@@ -1406,6 +1364,7 @@ export class FSRSConfigManager {
     }
 
     handleDeleteTagProfile(tag: string): void {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onDeleteTagProfile) {
             this.onDeleteTagProfile(tag);
             return;
@@ -1422,16 +1381,9 @@ export class FSRSConfigManager {
     }
 
     showToast(msg: string, isError: boolean = false): void {
+        if (typeof document !== 'undefined' && !document.getElementById('root')) return;
         if (this.onShowToast) {
             this.onShowToast(msg, isError);
-        }
-        const toast = document.getElementById('status-toast');
-        if (toast) {
-            toast.textContent = msg;
-            toast.className = 'toast show ' + (isError ? 'error' : 'success');
-            setTimeout(() => {
-                toast.className = 'toast';
-            }, 2500);
         }
     }
 }

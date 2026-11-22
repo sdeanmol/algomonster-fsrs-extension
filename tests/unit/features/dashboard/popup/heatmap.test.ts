@@ -10,10 +10,7 @@ describe('HeatmapComponent (Popup)', () => {
     delete (chrome.runtime as any).lastError;
     jest.useFakeTimers();
 
-    document.body.innerHTML = `
-      <div id="heatmap-grid" style="scroll-left: 0;"></div>
-      <button id="toggle-lifetime-btn"></button>
-    `;
+    document.body.innerHTML = '<div id="root"></div>';
 
     mockCoordinator = {
       showStatus: jest.fn()
@@ -70,6 +67,7 @@ describe('HeatmapComponent (Popup)', () => {
 
   describe('bindEvents', () => {
     it('toggles lifetime view when toggle-lifetime-btn is clicked', async () => {
+      await component.load();
       component.bindEvents();
 
       const btn = document.getElementById('toggle-lifetime-btn');
@@ -78,7 +76,8 @@ describe('HeatmapComponent (Popup)', () => {
       expect(component.isLifetimeView).toBe(true);
     });
 
-    it('handles exception inside bindEvents listener handler', () => {
+    it('handles exception inside bindEvents listener handler', async () => {
+      await component.load();
       component.bindEvents();
       (component as any).load = jest.fn().mockImplementation(() => {
         throw new Error('Load error');

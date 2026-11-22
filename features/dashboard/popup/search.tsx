@@ -13,13 +13,22 @@
  * - `QuickSearchComponent`: Sub-view component class managing the quick search input and result list.
  */
 
-import { h, VNode } from 'preact';
+import { h, Fragment, VNode, render } from 'preact';
+import { flushSync } from 'preact/compat';
 import { useState, useMemo } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
 import { Card, StorageData } from '../../../types/domain';
 import { SEARCH_DEBOUNCE_MS, SEARCH_MAX_RESULTS } from '../../common/constants';
+
+function safeFlushSync(fn: () => void): void {
+    try {
+        flushSync(fn);
+    } catch (_) {
+        fn();
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PREACT UI COMPONENTS
@@ -258,8 +267,155 @@ export function PopupSearchResultsList({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SEARCH CONTROLLER COMPONENT
+// SEARCH CONTROLLER COMPONENT & APP
 // ─────────────────────────────────────────────────────────────────────────────
+
+export interface QuickSearchAppProps {
+    component: QuickSearchComponent;
+}
+
+/**
+ * Declarative Preact component governing the Quick Search interactive view.
+ */
+export function QuickSearchApp({ component }: QuickSearchAppProps): VNode {
+    const [query, setQuery] = useState<string>(component.searchQuery);
+    const [tag, setTag] = useState<string>(component.selectedTag);
+
+    component._setQuery = setQuery;
+    component._setTag = setTag;
+
+    const availableTags = useMemo(() => {
+        const set = new Set<string>();
+        for (const c of component.quickSearchCards) {
+            if (c.tags && Array.isArray(c.tags)) {
+                for (const t of c.tags) set.add(t);
+            }
+        }
+        return Array.from(set).sort();
+    }, [component.quickSearchCards]);
+
+    const filteredCards = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q && tag === 'all') return [];
+        return component.quickSearchCards.filter((c) => {
+            if (tag !== 'all' && !(c.tags && c.tags.includes(tag))) return false;
+            if (q) {
+                const titleMatch = c.problemTitle && c.problemTitle.toLowerCase().includes(q);
+                const urlMatch = c.problemUrl && c.problemUrl.toLowerCase().includes(q);
+                const tagMatch = c.tags && c.tags.some((t: string) => t.toLowerCase().includes(q));
+                const approachMatch = c.approach && c.approach.toLowerCase().includes(q);
+                if (!titleMatch && !urlMatch && !tagMatch && !approachMatch) return false;
+            }
+            return true;
+        });
+    }, [component.quickSearchCards, query, tag]);
+
+    const totalMatches = filteredCards.length;
+    const now = Date.now();
+    const displayCards = filteredCards.slice(0, SEARCH_MAX_RESULTS);
+
+    const dataUrl = useMemo(() => {
+        if (typeof chrome === 'undefined' || !chrome.runtime?.getURL) return '';
+        const urlParams = new URLSearchParams();
+        urlParams.append('view', 'total');
+        if (query.trim()) urlParams.append('search', query.trim());
+        if (tag && tag !== 'all') urlParams.append('tag', tag);
+        return chrome.runtime.getURL(`features/common/data/data.html?${urlParams.toString()}`);
+    }, [query, tag]);
+
+    const handleSearchInput = (val: string) => {
+        try {
+            component.searchQuery = val;
+            if (component.quickSearchDebounce) clearTimeout(component.quickSearchDebounce);
+            component.quickSearchDebounce = setTimeout(() => {
+                try {
+                    safeFlushSync(() => {
+                        setQuery(val);
+                    });
+                } catch (renderErr) {
+                    UIUtils.catchError('QuickSearchComponent', 'Error in debounced quick search render', renderErr);
+                }
+            }, SEARCH_DEBOUNCE_MS);
+        } catch (err) {
+            UIUtils.catchError('QuickSearchComponent', 'Error in quick search input listener', err);
+        }
+    };
+
+    const handleTagChange = (newTag: string) => {
+        try {
+            component.selectedTag = newTag;
+            safeFlushSync(() => {
+                setTag(newTag);
+            });
+        } catch (err) {
+            UIUtils.catchError('QuickSearchComponent', 'Error in tag filter change listener', err);
+        }
+    };
+
+    const hasActiveFilter = Boolean(query.trim() || tag !== 'all');
+
+    return (
+        <div className="quick-search-section">
+            <div className="search-compact">
+                <div className="search-input-wrapper">
+                    <input
+                        type="text"
+                        id="popup-search-input"
+                        className="search-input"
+                        placeholder="Search patterns..."
+                        value={query}
+                        onInput={(e) => handleSearchInput((e.target as HTMLInputElement).value)}
+                    />
+                </div>
+                <select
+                    id="popup-tag-filter"
+                    className="tag-filter-select"
+                    aria-label="Filter by tag"
+                    value={tag}
+                    onChange={(e) => handleTagChange((e.target as HTMLSelectElement).value)}
+                >
+                    <option value="all">All Tags</option>
+                    {availableTags.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                    ))}
+                </select>
+            </div>
+            <div
+                id="popup-search-results"
+                className="popup-search-results"
+                style={{ display: hasActiveFilter ? 'block' : 'none' }}
+            >
+                {hasActiveFilter && (
+                    displayCards.length === 0 ? (
+                        <div className="popup-search-empty">No matching patterns found.</div>
+                    ) : (
+                        <Fragment>
+                            {displayCards.map((card) => (
+                                <PopupSearchResultItem
+                                    key={card.id}
+                                    problemTitle={card.problemTitle}
+                                    problemUrl={card.problemUrl}
+                                    isDue={card.due <= now}
+                                    tags={card.tags || []}
+                                />
+                            ))}
+                            {totalMatches > SEARCH_MAX_RESULTS && (
+                                <a
+                                    href={dataUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="popup-search-view-all"
+                                >
+                                    View all {totalMatches} results →
+                                </a>
+                            )}
+                        </Fragment>
+                    )
+                )}
+            </div>
+        </div>
+    );
+}
 
 /**
  * Sub-component for the popup dashboard providing debounced problem search
@@ -270,90 +426,70 @@ export class QuickSearchComponent extends DashboardComponent {
     quickSearchCards: Card[];
     /** Timeout handle for debouncing user input keystrokes. */
     quickSearchDebounce: ReturnType<typeof setTimeout> | null;
+    /** Target container element for mounting Preact component. */
+    container: HTMLElement | null;
+    /** Current search query string. */
+    searchQuery: string;
+    /** Current selected topic tag filter. */
+    selectedTag: string;
+    /** Registered state dispatch hook for search query. */
+    _setQuery?: (q: string) => void;
+    /** Registered state dispatch hook for tag filter. */
+    _setTag?: (t: string) => void;
 
     /**
      * Initializes the quick search component with a coordinator reference.
      * @param coordinator - Parent dashboard coordinator.
+     * @param container - Optional container element for mounting Preact component.
      */
-    constructor(coordinator: DashboardCoordinator) {
+    constructor(coordinator: DashboardCoordinator, container?: HTMLElement | null) {
         super(coordinator);
         this.quickSearchCards = [];
         this.quickSearchDebounce = null;
+        this.container = container || null;
+        this.searchQuery = '';
+        this.selectedTag = 'all';
     }
 
     /**
      * Initializes quick search input and tag selectors from the dashboard.
-     * Loads cards from storage and populates unique tags into dropdown options.
+     * Loads cards from storage and renders the declarative Preact search app.
      * @async
-     * @returns Promise resolving when cards and tag dropdown options have loaded.
+     * @returns Promise resolving when cards and Preact components have loaded.
      */
     async load(): Promise<void> {
         try {
-            const searchInput = document.getElementById('popup-search-input') as HTMLInputElement | null;
-            const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement | null;
-            const resultsContainer = document.getElementById('popup-search-results');
+            const root = this.container || (typeof document !== 'undefined' ? document.getElementById('root') : null);
+            if (!root) return;
 
-            if (!searchInput || !tagFilter || !resultsContainer) return;
-
-            // Load cards and populate tag filter
             const result = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
-            this.quickSearchCards = result.fsrsCards || [];
+            this.quickSearchCards = result?.fsrsCards || [];
 
-            // Populate tag dropdown (keep the 'All Tags' option)
-            while (tagFilter.options.length > 1) {
-                tagFilter.remove(1);
-            }
-
-            const tagsSet = new Set<string>();
-            this.quickSearchCards.forEach(card => {
-                if (card.tags && Array.isArray(card.tags)) {
-                    card.tags.forEach((t: string) => tagsSet.add(t));
-                }
-            });
-            [...tagsSet].sort().forEach(tag => {
-                const option = document.createElement('option');
-                option.value = tag;
-                option.textContent = tag;
-                tagFilter.appendChild(option);
-            });
+            this.render(root);
         } catch (error) {
             UIUtils.catchError('QuickSearchComponent', 'Error loading quick search cards', error);
         }
     }
 
     /**
+     * Mounts or updates the declarative QuickSearchApp inside target root.
+     * @param [container] - Target container element.
+     */
+    render(container?: HTMLElement | null): void {
+        const root = container || this.container || (typeof document !== 'undefined' ? document.getElementById('root') : null);
+        if (!root) return;
+        render(<QuickSearchApp component={this} />, root);
+    }
+
+    /**
      * Binds input and selection events for quick search filters.
+     * Kept for lifecycle interface conformance; events are bound declaratively in Preact JSX.
      */
     bindEvents(): void {
         try {
-            const searchInput = document.getElementById('popup-search-input');
-            const tagFilter = document.getElementById('popup-tag-filter');
-
-            if (searchInput) {
-                searchInput.addEventListener('input', () => {
-                    try {
-                        if (this.quickSearchDebounce) clearTimeout(this.quickSearchDebounce);
-                        this.quickSearchDebounce = setTimeout(() => {
-                            try {
-                                this.renderQuickSearch();
-                            } catch (renderErr) {
-            UIUtils.catchError('QuickSearchComponent', 'Error in debounced quick search render', renderErr);
-        }
-                        }, SEARCH_DEBOUNCE_MS);
-                    } catch (err) {
-            UIUtils.catchError('QuickSearchComponent', 'Error in quick search input listener', err);
-        }
-                });
-            }
-
-            if (tagFilter) {
-                tagFilter.addEventListener('change', () => {
-                    try {
-                        this.renderQuickSearch();
-                    } catch (err) {
-            UIUtils.catchError('QuickSearchComponent', 'Error in tag filter change listener', err);
-        }
-                });
+            const root = this.container || (typeof document !== 'undefined' ? document.getElementById('root') : null);
+            if (root && this.quickSearchCards.length > 0) {
+                this.render(root);
             }
         } catch (err) {
             UIUtils.catchError('QuickSearchComponent', 'Error binding quick search events', err);
@@ -365,77 +501,16 @@ export class QuickSearchComponent extends DashboardComponent {
      */
     renderQuickSearch(): void {
         try {
-            const searchInput = document.getElementById('popup-search-input') as HTMLInputElement | null;
-            const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement | null;
-            const resultsContainer = document.getElementById('popup-search-results');
-
-            if (!searchInput || !resultsContainer) return;
-
-            const query = searchInput.value.trim().toLowerCase();
-            const selectedTag = tagFilter ? tagFilter.value : 'all';
-
-            // Hide results if no query and no tag filter
-            if (!query && selectedTag === 'all') {
-                resultsContainer.innerHTML = '';
-                resultsContainer.style.display = 'none';
-                return;
-            }
-
-            const now = Date.now();
-            const filtered = this.quickSearchCards.filter(card => {
-                // Tag filter
-                if (selectedTag !== 'all' && !(card.tags && card.tags.includes(selectedTag))) return false;
-
-                // Search query
-                if (query) {
-                    const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(query);
-                    const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(query);
-                    const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(query));
-                    const approachMatch = card.approach && card.approach.toLowerCase().includes(query);
-                    if (!titleMatch && !urlMatch && !tagMatch && !approachMatch) return false;
+            const root = this.container || (typeof document !== 'undefined' ? document.getElementById('root') : null);
+            if (!root) return;
+            safeFlushSync(() => {
+                if (this._setQuery) {
+                    this._setQuery(this.searchQuery);
                 }
-
-                return true;
+                if (this._setTag) {
+                    this._setTag(this.selectedTag);
+                }
             });
-
-            const totalMatches = filtered.length;
-            const maxDisplay = SEARCH_MAX_RESULTS;
-            const displayCards = filtered.slice(0, maxDisplay);
-
-            if (displayCards.length === 0) {
-                resultsContainer.style.display = 'block';
-                resultsContainer.innerHTML = `<div class="popup-search-empty">No matching patterns found.</div>`;
-                return;
-            }
-
-            let html = displayCards.map(card => {
-                const isDue = card.due <= now;
-                const statusBadge = isDue
-                    ? '<span class="popup-badge popup-badge-due">Due</span>'
-                    : '<span class="popup-badge popup-badge-safe">Safe</span>';
-                const tagsHtml = (card.tags || []).slice(0, 3).map((t: string) => `<span class="popup-tag">${t}</span>`).join('');
-                const title = card.problemTitle || 'Untitled';
-
-                return `<a href="${card.problemUrl}" target="_blank" class="popup-search-item" title="${title}" aria-label="${title}">
-                    <div class="popup-search-item-top">
-                        <span class="popup-search-title">${title}</span>
-                        ${statusBadge}
-                    </div>
-                    <div class="popup-search-item-tags">${tagsHtml}</div>
-                </a>`;
-            }).join('');
-
-            if (totalMatches > maxDisplay) {
-                const urlParams = new URLSearchParams();
-                urlParams.append('view', 'total');
-                if (query) urlParams.append('search', query);
-                if (selectedTag && selectedTag !== 'all') urlParams.append('tag', selectedTag);
-                const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?${urlParams.toString()}`);
-                html += `<a href="${dataUrl}" target="_blank" class="popup-search-view-all">View all ${totalMatches} results →</a>`;
-            }
-
-            resultsContainer.style.display = 'block';
-            resultsContainer.innerHTML = html;
         } catch (err) {
             UIUtils.catchError('QuickSearchComponent', 'Error rendering quick search results', err);
         }
@@ -444,6 +519,7 @@ export class QuickSearchComponent extends DashboardComponent {
 
 if (typeof module !== 'undefined' && module.exports) {
     (module.exports as any).QuickSearchComponent = QuickSearchComponent;
+    (module.exports as any).QuickSearchApp = QuickSearchApp;
     (module.exports as any).PopupSearchResultItem = PopupSearchResultItem;
     (module.exports as any).PopupSearchResultsList = PopupSearchResultsList;
 }

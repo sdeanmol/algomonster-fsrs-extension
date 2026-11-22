@@ -35,35 +35,16 @@ describe('StatsComponent (Popup)', () => {
     jest.useFakeTimers();
 
     document.body.innerHTML = `
-      <span id="total-cards"></span>
-      <span id="due-cards"></span>
-      <span id="retention-rate"></span>
-
-      <div id="box-due"></div>
-      <div id="box-retention"></div>
-
-      <div id="gamification-panel">
-        <button id="goal-edit-btn"></button>
-        <div id="goal-editor" style="display: none;">
-          <input id="goal-input" value="10" />
-          <button id="goal-save-btn">Save</button>
-        </div>
-      </div>
-
-      <span id="goal-progress-text"></span>
-      <circle id="goal-progress-ring"></circle>
-
-      <span id="streak-days"></span>
-      <span id="longest-streak"></span>
-
-      <div id="milestone-toast"><span id="milestone-toast-text"></span></div>
-      <canvas id="confetti-canvas" style="width: 100px; height: 100px;"></canvas>
-      <div id="user-level-badge"></div>
-      <span id="level-num"></span>
-      <span id="level-title"></span>
-      <div id="xp-bar-fill"></div>
-      <span id="xp-text"></span>
+      <div id="root"></div>
     `;
+
+    if (!('innerText' in HTMLElement.prototype)) {
+      Object.defineProperty(HTMLElement.prototype, 'innerText', {
+        get() { return this.textContent || ''; },
+        set(v) { this.textContent = v; },
+        configurable: true
+      });
+    }
 
     // Mock global FsrsScheduler class on window
     (window as any).FsrsScheduler = jest.fn().mockImplementation(() => ({
@@ -248,7 +229,8 @@ describe('StatsComponent (Popup)', () => {
       expect(chrome.storage.local.set).toHaveBeenCalled();
     });
 
-    it('handles bindEvents and exceptions inside bindEditorEvents callbacks', () => {
+    it('handles bindEvents and exceptions inside bindEditorEvents callbacks', async () => {
+      await component.load();
       const gamificationPanel = document.getElementById('gamification-panel') as HTMLElement;
       component.bindEditorEvents(gamificationPanel);
       component.bindEvents();
@@ -282,7 +264,8 @@ describe('StatsComponent (Popup)', () => {
       expect(streakEmpty).toBe('');
     });
 
-    it('shows milestone toast and handles timer callback errors', () => {
+    it('shows milestone toast and handles timer callback errors', async () => {
+      await component.load();
       component.showMilestoneToast('Test Toast');
       const toastText = document.getElementById('milestone-toast-text');
       expect(toastText?.textContent).toBe('Test Toast');
@@ -376,15 +359,7 @@ describe('StatsComponent (Popup)', () => {
       expect(html).toContain('1/2');
     });
 
-    it('opens and closes achievements modal on click and Escape key', () => {
-      document.body.innerHTML += `
-        <button id="achievements-btn"></button>
-        <div id="achievements-modal" class="modal-overlay hide-panel">
-          <button id="close-achievements-btn"></button>
-          <div id="achievements-modal-body"></div>
-        </div>
-      `;
-
+    it('opens and closes achievements modal on click and Escape key', async () => {
       component.cachedRecords = {
         currentStreak: 2,
         longestStreak: 5,
@@ -393,6 +368,7 @@ describe('StatsComponent (Popup)', () => {
         totalCards: 15
       };
 
+      await component.load();
       component.bindAchievementsModal();
 
       const modal = document.getElementById('achievements-modal');
@@ -411,7 +387,7 @@ describe('StatsComponent (Popup)', () => {
       openBtn?.click();
       expect(modal?.classList.contains('hide-panel')).toBe(false);
 
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       expect(modal?.classList.contains('hide-panel')).toBe(true);
     });
   });

@@ -7,7 +7,8 @@
  * Eliminates all imperative DOM querying and mutations.
  */
 
-import { h, Fragment, VNode, render, FunctionalComponent } from 'preact';
+import { h, Fragment, VNode, render, FunctionalComponent, options } from 'preact';
+import { flushSync } from 'preact/compat';
 import { useState, useEffect, useMemo, useCallback } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
@@ -16,6 +17,16 @@ import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
 import { calculateStreaks, triggerConfetti } from './stats';
 import { DEFAULT_EXTENSION_SETTINGS } from '../../common/constants';
+import { ThemeSync } from '../../common/theme-sync';
+import { ActionService } from '../../common/services/actionService';
+
+function safeFlushSync(fn: () => void): void {
+    try {
+        flushSync(fn);
+    } catch (_) {
+        fn();
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PREACT CHILD COMPONENTS
@@ -614,20 +625,13 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
 
     // ── 4. Action Handlers ──
     const showStatus = useCallback((message: string, isError = false) => {
-        setStatusToast({ message, isError });
-        try {
-            const el = document.getElementById('status-msg');
-            if (el) {
-                el.textContent = message;
-                el.className = `toast modern-toast status-toast show ${isError ? 'error' : 'success'}`;
-            }
-        } catch (_) {}
+        safeFlushSync(() => {
+            setStatusToast({ message, isError });
+        });
         setTimeout(() => {
-            setStatusToast(prev => (prev?.message === message ? null : prev));
-            try {
-                const el = document.getElementById('status-msg');
-                if (el) el.classList.remove('show');
-            } catch (_) {}
+            safeFlushSync(() => {
+                setStatusToast(prev => (prev?.message === message ? null : prev));
+            });
         }, 2600);
     }, []);
 
@@ -655,9 +659,15 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
 
     const handleThemeToggle = useCallback(async () => {
         try {
-            const isDark = document.documentElement.classList.toggle('dark');
             if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-                await chrome.storage.local.set({ theme: isDark ? 'dark' : 'light' });
+                chrome.storage.local.get(['theme'], (result) => {
+                    const currentTheme = result?.theme || 'dark';
+                    const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
+                    ThemeSync.applyTheme(nextTheme);
+                    chrome.storage.local.set({ theme: nextTheme });
+                });
+            } else {
+                ThemeSync.applyTheme('light');
             }
         } catch (err) {
             UIUtils.catchError('PopupApp', 'Error toggling theme', err);
@@ -699,10 +709,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                 } else {
                     const blob = new Blob([jsonStr], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `algorecall-debug-${Date.now()}.json`;
-                    a.click();
+                    ActionService.triggerDomDownload(url, `algorecall-debug-${Date.now()}.json`);
                     showStatus('Debug logs exported.', false);
                 }
             }
