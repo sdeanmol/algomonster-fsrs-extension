@@ -165,6 +165,16 @@ describe('Popup Preact Components', () => {
             render(<PopupSearchResultsList cards={[]} totalMatches={0} />, container);
             expect(container.querySelector('.popup-search-empty')?.textContent).toContain('No matching patterns found');
         });
+
+        it('renders view-all overflow link when totalMatches exceeds maxDisplay', () => {
+            const cards = [
+                { id: '1', problemTitle: 'Two Sum', problemUrl: 'https://leetcode.com/1', isDue: true, tags: ['Array'] }
+            ];
+            render(<PopupSearchResultsList cards={cards} totalMatches={10} maxDisplay={1} viewAllUrl="https://viewall.url" />, container);
+            const viewAllLink = container.querySelector('.popup-search-view-all') as HTMLAnchorElement;
+            expect(viewAllLink).not.toBeNull();
+            expect(viewAllLink.textContent).toContain('View all 10 results →');
+        });
     });
 
     describe('PopupRatingPromptCard', () => {
@@ -353,6 +363,24 @@ describe('Popup Preact Components', () => {
 
             (container.querySelector('#close-achievements-btn') as HTMLElement).click();
             expect(onClose).toHaveBeenCalledTimes(1);
+        });
+
+        it('renders records and milestones when achievements and records are provided', () => {
+            const achievements = [
+                { id: 'a1', title: 'First Review', description: 'Complete 1 review', icon: '🌱', unlocked: true }
+            ];
+            const records = {
+                currentStreak: 5,
+                longestStreak: 10,
+                maxDailyReviews: 25,
+                totalReviews: 100,
+                totalCards: 50
+            };
+            render(<AchievementsModal isOpen={true} achievements={achievements} records={records} />, container);
+            expect(container.querySelector('.records-card')).not.toBeNull();
+            expect(container.querySelector('.achievements-section')).not.toBeNull();
+            expect(container.textContent).toContain('Active Streak');
+            expect(container.textContent).toContain('First Review');
         });
     });
 

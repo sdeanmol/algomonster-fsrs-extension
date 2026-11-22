@@ -241,14 +241,14 @@ export function PopupSearchResultsList({
 }: PopupSearchResultsListProps): VNode {
     if (cards.length === 0) {
         return (
-            <div id="popup-search-results" className="popup-search-results" style={{ display: 'block' }}>
+            <div id="popup-search-results" className="search-results-container popup-search-results" style={{ display: 'block' }}>
                 <div className="popup-search-empty">No matching patterns found.</div>
             </div>
         );
     }
 
     return (
-        <div id="popup-search-results" className="popup-search-results" style={{ display: 'block' }}>
+        <div id="popup-search-results" className="search-results-container popup-search-results" style={{ display: 'block' }}>
             {cards.slice(0, maxDisplay).map((card) => (
                 <PopupSearchResultItem key={card.id} {...card} />
             ))}

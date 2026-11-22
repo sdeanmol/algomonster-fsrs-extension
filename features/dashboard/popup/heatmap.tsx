@@ -72,7 +72,7 @@ export function PopupHeatmapGrid({
                     {isLifetime ? 'Show Last 12 Weeks' : 'Show Lifetime'}
                 </button>
             </div>
-            <div id="heatmap-grid" className="heatmap-grid">
+            <div id="heatmap-grid" className="heatmap heatmap-grid">
                 {cells.map((cell) => (
                     <PopupHeatmapCell key={cell.dateString} {...cell} />
                 ))}

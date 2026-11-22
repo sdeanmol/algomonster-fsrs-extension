@@ -27,7 +27,10 @@ describe('PopupApp (Declarative Preact Popup)', () => {
         },
         fsrsCards: [],
         reviewLogs: [],
-        fsrsActivity: { '2026-11-20': 5 }
+        fsrsActivity: { '2026-11-20': 5 },
+        dailyGoalTarget: 10,
+        longestStreak: 3,
+        ratingPromptState: { status: 'unrated', snoozedUntil: 0 }
       };
       if (typeof cb === 'function') cb(result);
       return Promise.resolve(result);
@@ -75,7 +78,7 @@ describe('PopupApp (Declarative Preact Popup)', () => {
       expect(statusMsg?.classList.contains('show')).toBe(true);
 
       // Fast-forward auto-dismiss timer
-      jest.advanceTimersByTime(3000);
+      jest.advanceTimersByTime(3500);
       expect(statusMsg?.classList.contains('show')).toBe(false);
     });
 
@@ -84,54 +87,101 @@ describe('PopupApp (Declarative Preact Popup)', () => {
     });
   });
 
-  describe('navigation button clicks and links', () => {
-    it('binds navigation button click listeners to open option tabs', () => {
-      const helpBtn = document.getElementById('help-btn');
-      helpBtn?.click();
+  describe('navigation button clicks and exact canonical destinations (R2)', () => {
+    it('binds navigation button click listeners to open canonical option tabs', () => {
+      const tabsCreateSpy = jest.spyOn(chrome.tabs, 'create');
 
-      const historyBtn = document.getElementById('history-btn');
-      historyBtn?.click();
+      // 1. Help
+      document.getElementById('help-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/common/help/help.html'
+      });
 
-      const heatmapBtn = document.getElementById('open-heatmap-tab-btn');
-      heatmapBtn?.click();
+      // 2. History (Bento)
+      document.getElementById('history-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/dashboard/history/history.html'
+      });
 
-      const forecastBtn = document.getElementById('forecast-btn');
-      forecastBtn?.click();
+      // 3. Heatmap full screen
+      document.getElementById('open-heatmap-tab-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/dashboard/heatmap/heatmap.html'
+      });
 
-      const pomodoroBtn = document.getElementById('pomodoro-btn');
-      pomodoroBtn?.click();
+      // 4. Forecast
+      document.getElementById('forecast-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/dashboard/forecast/forecast.html'
+      });
 
-      const studyplanBtn = document.getElementById('studyplan-btn');
-      studyplanBtn?.click();
+      // 5. Pomodoro
+      document.getElementById('pomodoro-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/dashboard/pomodoro/pomodoro.html'
+      });
 
-      const summaryBtn = document.getElementById('open-summary-page-btn');
-      summaryBtn?.click();
+      // 6. Study Plan / Exam Mode
+      document.getElementById('studyplan-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/dashboard/studyplan/studyplan.html'
+      });
 
-      const settingsHubBtn = document.getElementById('settings-hub-btn');
-      settingsHubBtn?.click();
+      // 7. Summary
+      document.getElementById('open-summary-page-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/dashboard/summary/summary.html'
+      });
 
-      const boxTotal = document.getElementById('box-total');
-      boxTotal?.click();
+      // 8. Settings Hub (Bento)
+      document.getElementById('settings-hub-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/common/settings/settings.html'
+      });
 
-      const boxDue = document.getElementById('box-due');
-      boxDue?.click();
+      // 9. Total Cards view
+      document.getElementById('box-total')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/common/data/data.html?view=total'
+      });
 
-      const boxRetention = document.getElementById('box-retention');
-      boxRetention?.click();
+      // 10. Due Cards view
+      document.getElementById('box-due')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/common/data/data.html?view=due'
+      });
 
-      const manageHighlightsBtn = document.getElementById('manage-highlights-btn');
-      manageHighlightsBtn?.click();
+      // 11. Retention Cards view
+      document.getElementById('box-retention')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/common/data/data.html?view=retention'
+      });
 
-      const openOptionsBtn = document.getElementById('open-options-btn');
-      openOptionsBtn?.click();
+      // 12. Highlights Manager
+      document.getElementById('manage-highlights-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/highlighter/manager/highlights.html'
+      });
 
-      const analyticsBtn = document.getElementById('analytics-btn');
-      analyticsBtn?.click();
+      // 13. Highlighter Options / Colors
+      document.getElementById('open-options-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/highlighter/options/highlightOptions.html'
+      });
 
-      const headerAnalyticsBtn = document.getElementById('header-analytics-btn');
-      headerAnalyticsBtn?.click();
+      // 14. Bento Analytics
+      document.getElementById('analytics-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/dashboard/analytics/analytics.html'
+      });
 
-      expect(chrome.tabs.create).toHaveBeenCalled();
+      // 15. Header Analytics
+      document.getElementById('header-analytics-btn')?.click();
+      expect(tabsCreateSpy).toHaveBeenCalledWith({
+        url: 'chrome-extension://mock-id/features/dashboard/analytics/analytics.html'
+      });
+
+      expect(tabsCreateSpy).toHaveBeenCalledTimes(15);
     });
   });
 
@@ -197,6 +247,149 @@ describe('PopupApp (Declarative Preact Popup)', () => {
       await Promise.resolve();
 
       expect(chrome.downloads.download).toHaveBeenCalled();
+    });
+  });
+
+  describe('Background messaging & Event handler parity', () => {
+    it('sends check_due_cards_now action to background worker', () => {
+      chrome.runtime.sendMessage = jest.fn((msg: any, cb?: any) => {
+        if (cb) cb({ success: true, dueCount: 5 });
+      }) as any;
+
+      const checkNowBtn = document.getElementById('check-now-btn') as HTMLElement;
+      checkNowBtn.click();
+
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        { action: 'check_due_cards_now' },
+        expect.any(Function)
+      );
+
+      const statusMsg = document.getElementById('status-msg');
+      expect(statusMsg?.textContent).toContain('Checked! 5 reviews due.');
+    });
+
+    it('toggles heatmap lifetime view when toggle-lifetime-btn is clicked', () => {
+      const toggleBtn = document.getElementById('toggle-lifetime-btn') as HTMLElement;
+      expect(toggleBtn.textContent).toBe('Show Lifetime');
+
+      toggleBtn.click();
+      expect(toggleBtn.textContent).toBe('Show Last 12 Weeks');
+
+      toggleBtn.click();
+      expect(toggleBtn.textContent).toBe('Show Lifetime');
+    });
+
+    it('sends test_notification and test_summary_notification actions in dev mode', () => {
+      chrome.runtime.sendMessage = jest.fn((msg: any, cb?: any) => {
+        if (cb) cb({ success: true });
+      }) as any;
+
+      const testNotifBtn = document.getElementById('test-notification-btn') as HTMLElement;
+      testNotifBtn.click();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        { action: 'test_notification' },
+        expect.any(Function)
+      );
+
+      const testSummaryBtn = document.getElementById('test-summary-notification-btn') as HTMLElement;
+      testSummaryBtn.click();
+      expect(chrome.runtime.sendMessage).toHaveBeenCalledWith(
+        { action: 'test_summary_notification' },
+        expect.any(Function)
+      );
+    });
+  });
+
+  describe('Rating prompt & Chrome review URL replacement', () => {
+    it('substitutes chrome.runtime.id into store review URLs on Chrome build', () => {
+      const staticReviewLink = document.getElementById('static-review-link') as HTMLAnchorElement;
+      if (BROWSER_CONFIG.target === 'chrome') {
+        expect(staticReviewLink.href).not.toContain('YOUR_EXTENSION_ID');
+      }
+    });
+
+    it('persists rating snooze and rated state to chrome.storage.local', async () => {
+      const snoozeBtn = document.getElementById('snooze-rate-btn') as HTMLElement;
+      snoozeBtn.click();
+      expect(chrome.storage.local.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ratingPromptState: expect.objectContaining({ status: 'snoozed' })
+        })
+      );
+
+      const alreadyBtn = document.getElementById('already-rated-btn') as HTMLElement;
+      alreadyBtn.click();
+      expect(chrome.storage.local.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ratingPromptState: expect.objectContaining({ status: 'rated' })
+        })
+      );
+    });
+
+    it('handles edit rating click by opening store review URL and resetting status', async () => {
+      const editBtn = document.getElementById('edit-rating-btn') as HTMLElement;
+      editBtn.click();
+
+      expect(chrome.tabs.create).toHaveBeenCalledWith(
+        expect.objectContaining({ url: expect.any(String) })
+      );
+      expect(chrome.storage.local.set).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ratingPromptState: expect.objectContaining({ status: 'unrated' })
+        })
+      );
+    });
+  });
+
+  describe('Header, Layout, and Modal Parity', () => {
+    it('header has exactly the 5 canonical action controls and 0 rogue buttons', () => {
+      const headerControls = document.querySelector('.header-controls') as HTMLElement;
+      expect(headerControls).not.toBeNull();
+
+      expect(headerControls.querySelector('#user-level-badge')).not.toBeNull();
+      expect(headerControls.querySelector('#check-now-btn')).not.toBeNull();
+      expect(headerControls.querySelector('#header-analytics-btn')).not.toBeNull();
+      expect(headerControls.querySelector('#theme-toggle-btn')).not.toBeNull();
+      expect(headerControls.querySelector('#help-btn')).not.toBeNull();
+
+      // Rogue buttons must not exist in header
+      expect(headerControls.querySelector('#history-btn')).toBeNull();
+      expect(headerControls.querySelector('#open-heatmap-tab-btn')).toBeNull();
+      expect(headerControls.querySelector('#settings-hub-btn')).toBeNull();
+      expect(headerControls.querySelector('#achievements-btn')).toBeNull();
+    });
+
+    it('contains only 1 details accordion (advanced-tools-drawer) and static card divs', () => {
+      const detailsElements = document.querySelectorAll('details');
+      expect(detailsElements.length).toBe(1);
+      expect(detailsElements[0].id).toBe('advanced-tools-drawer');
+
+      // Static div cards
+      const dailyFocusCard = document.getElementById('daily-focus-card');
+      expect(dailyFocusCard?.tagName.toLowerCase()).toBe('div');
+
+      const bentoCard = document.getElementById('bento-command-center');
+      expect(bentoCard?.tagName.toLowerCase()).toBe('div');
+
+      const heatmapCard = document.getElementById('activity-charts-card');
+      expect(heatmapCard?.tagName.toLowerCase()).toBe('div');
+
+      // Rogue duplicate cards must not exist
+      expect(document.getElementById('study-tools-card')).toBeNull();
+      expect(document.getElementById('highlighter-settings-card')).toBeNull();
+    });
+
+    it('clicking user-level-badge opens achievements modal', () => {
+      const levelBadge = document.getElementById('user-level-badge') as HTMLElement;
+      const modal = document.getElementById('achievements-modal') as HTMLElement;
+
+      expect(modal.classList.contains('hide-panel')).toBe(true);
+      levelBadge.click();
+      expect(modal.classList.contains('hide-panel')).toBe(false);
+
+      const closeBtn = document.getElementById('close-achievements-btn') as HTMLElement;
+      closeBtn.click();
+      expect(modal.classList.contains('hide-panel')).toBe(true);
     });
   });
 

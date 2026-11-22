@@ -4,21 +4,37 @@
  * @context Browser Action Popup UI (`features/dashboard/popup/popup.html`)
  * @description Master entry point and single-page application for the browser action popup.
  * Pure declarative Preact functional architecture mounting once at `<div id="root"></div>`.
- * Eliminates all imperative DOM querying and mutations.
+ * Eliminates all imperative DOM querying and mutations, restoring 100% visual parity and
+ * canonical navigation link destinations matching the main reference commit.
  */
 
-import { h, Fragment, VNode, render, FunctionalComponent, options } from 'preact';
+import { h, Fragment, VNode, render, FunctionalComponent } from 'preact';
 import { flushSync } from 'preact/compat';
-import { useState, useEffect, useMemo, useCallback } from 'preact/hooks';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { withErrorHandling } from '../../../decorators';
-import { Card, StorageData, ExtensionSettings } from '../../../types/domain';
+import { Card, StorageData, ExtensionSettings, Achievement, PersonalRecords } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
 import { calculateStreaks, triggerConfetti } from './stats';
-import { DEFAULT_EXTENSION_SETTINGS } from '../../common/constants';
+import {
+    DEFAULT_DAILY_GOAL,
+    DEFAULT_EXTENSION_SETTINGS,
+    MS_PER_DAY,
+    DAYS_PER_WEEK,
+    HEATMAP_LEVEL_THRESHOLDS,
+    SEARCH_MAX_RESULTS,
+    RECALL_THRESHOLD_GOOD,
+    RECALL_THRESHOLD_WARNING,
+    DUE_CARDS_THRESHOLD_WARNING,
+    STREAK_MILESTONES,
+    REVIEW_MILESTONES
+} from '../../common/constants';
 import { ThemeSync } from '../../common/theme-sync';
 import { ActionService } from '../../common/services/actionService';
+import { getLastReviewDate } from '../../common/utils/cardUtils';
+import AbstractScheduler from '../../tracker/scheduler/scheduler';
+import { evaluateAchievements } from './achievements';
 
 function safeFlushSync(fn: () => void): void {
     try {
@@ -29,7 +45,7 @@ function safeFlushSync(fn: () => void): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PREACT CHILD COMPONENTS
+// PREACT CHILD COMPONENTS (EXPORTED FOR UNIT TESTS & MODULAR RENDERING)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PopupHeaderProps {
@@ -206,9 +222,77 @@ export function PopupStatusToast({ message }: PopupStatusToastProps): VNode | nu
     );
 }
 
-export function DailyFocusCard(): VNode {
+export interface DailyFocusCardProps {
+    completedToday?: number;
+    dailyGoalTarget?: number;
+    currentStreak?: number;
+    longestStreak?: number;
+    activity?: Record<string, number>;
+    achievements?: Achievement[];
+    studyPlanDaysLeft?: number | null;
+    isEditingGoal?: boolean;
+    goalInputVal?: string;
+    onToggleGoalEdit?: () => void;
+    onGoalInputChange?: (val: string) => void;
+    onSaveGoal?: () => void;
+    onOpenAchievements?: () => void;
+    style?: any;
+    hasCards?: boolean;
+}
+
+export function DailyFocusCard({
+    completedToday = 0,
+    dailyGoalTarget = DEFAULT_DAILY_GOAL,
+    currentStreak = 0,
+    longestStreak = 0,
+    activity = {},
+    achievements = [],
+    studyPlanDaysLeft = null,
+    isEditingGoal = false,
+    goalInputVal = String(DEFAULT_DAILY_GOAL),
+    onToggleGoalEdit,
+    onGoalInputChange,
+    onSaveGoal,
+    onOpenAchievements,
+    style,
+    hasCards = true
+}: DailyFocusCardProps = {}): VNode {
+    const isGoalMet = dailyGoalTarget > 0 && completedToday >= dailyGoalTarget;
+    const progress = dailyGoalTarget > 0 ? completedToday / dailyGoalTarget : 0;
+    const circumference = 2 * Math.PI * 42;
+    const offset = circumference - (Math.min(Math.max(progress, 0), 1) * circumference);
+
+    // 7-day rolling momentum calculation
+    const today = new Date();
+    const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const momentumDays: Array<{ day: string; count: number; goalMet: boolean; isToday: boolean; dateKey: string; tooltip: string }> = [];
+    let activeDaysCount = 0;
+
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateKey = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const count = activity[dateKey] || 0;
+        const isToday = i === 0;
+        const goalMet = count >= dailyGoalTarget && dailyGoalTarget > 0;
+        if (count > 0) activeDaysCount++;
+
+        const tooltip = `${dateKey}: ${count} review${count === 1 ? '' : 's'}${goalMet ? ' (Goal reached!)' : ''}`;
+        momentumDays.push({
+            day: dayNames[d.getDay()],
+            count,
+            goalMet,
+            isToday,
+            dateKey,
+            tooltip
+        });
+    }
+
+    const unlockedCount = achievements.filter(a => a.unlocked).length;
+    const totalCount = achievements.length || 8;
+
     return (
-        <div id="daily-focus-card" className="card activity-focus-card details-card">
+        <div id="daily-focus-card" className="card activity-focus-card" style={style}>
             <div className="card-header-clean">
                 <div className="header-label-group">
                     <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -217,17 +301,220 @@ export function DailyFocusCard(): VNode {
                     <span className="card-title">Daily Focus & Momentum</span>
                 </div>
             </div>
+
             <div id="gamification-panel" className="gamification-wrapper">
-                <div id="daily-goal-progress" className="daily-goal-progress" />
-                <span id="study-streak-count" className="study-streak-count">0</span>
-                <span id="momentum-days" className="momentum-days">0</span>
-                <span id="streak-days">0</span>
-                <span id="longest-streak">0</span>
-                <span id="goal-progress-text">0 / 10</span>
-                <svg viewBox="0 0 100 100" style={{ width: '0px', height: '0px', display: 'none' }}>
-                    <circle id="goal-progress-ring" cx="50" cy="50" r="42" />
-                </svg>
-                <input type="hidden" id="daily-goal-target" value="10" />
+                {!hasCards ? (
+                    <div className="achievement-state">
+                        <div className="achievement-title" style={{ color: 'var(--md-text-low)' }}>
+                            <svg className="svg-icon" style={{ stroke: 'var(--md-text-low)', marginRight: '4px' }} viewBox="0 0 24 24">
+                                <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
+                                <circle cx="12" cy="10" r="3" />
+                            </svg>
+                            Welcome to Spaced Repetitions!
+                        </div>
+                        <div className="achievement-subtitle">
+                            Highlight text or open the review widget on problems to save your first pattern.
+                        </div>
+                    </div>
+                ) : (
+                    <Fragment>
+                        {/* Circular SVG Goal Progress Ring */}
+                        <div className="goal-ring-container">
+                            <div className={`goal-ring-wrap ${isGoalMet ? 'goal-ring-complete' : ''}`}>
+                                <svg className="goal-ring-svg" viewBox="0 0 100 100">
+                                    <circle className="goal-ring-bg" cx="50" cy="50" r="42" />
+                                    <circle
+                                        id="goal-progress-ring"
+                                        className={`goal-ring-fill ${isGoalMet ? 'goal-ring-fill-complete' : ''}`}
+                                        cx="50"
+                                        cy="50"
+                                        r="42"
+                                        strokeDasharray={String(circumference)}
+                                        strokeDashoffset={String(offset)}
+                                    />
+                                </svg>
+                                <div className="goal-ring-text">
+                                    {isGoalMet ? (
+                                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '22px', height: '22px', stroke: 'var(--md-success)' }}>
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                            <polyline points="22 4 12 14.01 9 11.01" />
+                                        </svg>
+                                    ) : (
+                                        <Fragment>
+                                            <span id="daily-goal-count" className="goal-ring-count">{completedToday}</span>
+                                            <span className="goal-ring-label">of <span id="daily-goal-target">{dailyGoalTarget}</span></span>
+                                        </Fragment>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="goal-info">
+                                <div className="gamification-header">
+                                    <span className="gamification-title" style={isGoalMet ? { color: 'var(--md-success)' } : {}}>
+                                        <svg className="svg-icon" style={{ stroke: isGoalMet ? 'var(--md-success)' : 'var(--md-warning)', marginRight: '3px' }} viewBox="0 0 24 24">
+                                            {isGoalMet ? (
+                                                <Fragment>
+                                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                                    <polyline points="22 4 12 14.01 9 11.01" />
+                                                </Fragment>
+                                            ) : (
+                                                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                                            )}
+                                        </svg>
+                                        {isGoalMet ? 'Goal Complete!' : 'Daily Goal'}
+                                    </span>
+                                    <button
+                                        id="goal-edit-btn"
+                                        className="goal-edit-btn"
+                                        title="Change daily goal"
+                                        aria-label="Change daily goal"
+                                        onClick={onToggleGoalEdit}
+                                    >
+                                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '11px', height: '11px' }}>
+                                            <circle cx="12" cy="12" r="3" />
+                                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <div
+                                    id="goal-editor"
+                                    className="goal-editor"
+                                    style={{ display: isEditingGoal ? 'flex' : 'none' }}
+                                >
+                                    <input
+                                        type="number"
+                                        id="goal-input"
+                                        className="goal-input"
+                                        value={goalInputVal}
+                                        min="1"
+                                        max="999"
+                                        onInput={(e) => onGoalInputChange && onGoalInputChange((e.target as HTMLInputElement).value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') onSaveGoal && onSaveGoal();
+                                        }}
+                                    />
+                                    <button
+                                        id="goal-save-btn"
+                                        className="goal-save-btn"
+                                        onClick={onSaveGoal}
+                                    >
+                                        Set
+                                    </button>
+                                </div>
+
+                                {/* Streak Badge */}
+                                {(currentStreak > 0 || longestStreak > 0) && (
+                                    <div className="streak-badge">
+                                        <svg
+                                            className="svg-icon streak-fire"
+                                            style={{
+                                                stroke: currentStreak > 0 ? 'var(--md-warning)' : 'var(--md-text-low)',
+                                                fill: currentStreak > 0 ? 'rgba(249,171,0,0.2)' : 'none'
+                                            }}
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                                        </svg>
+                                        <span id="streak-days" className="streak-text">
+                                            {currentStreak > 0 ? `${currentStreak}-day streak` : 'No active streak'}
+                                        </span>
+                                        {longestStreak > 0 && (
+                                            <span id="longest-streak" className="streak-best">
+                                                Best: {longestStreak}
+                                            </span>
+                                        )}
+                                        <span id="study-streak-count" style={{ display: 'none' }}>{currentStreak}</span>
+                                        <span id="momentum-days" style={{ display: 'none' }}>{currentStreak > 0 ? `${currentStreak}d Active` : '0d'}</span>
+                                    </div>
+                                )}
+
+                                {/* Motivational Text */}
+                                <div id="daily-goal-status" className="gamification-msg">
+                                    {isGoalMet ? (
+                                        <Fragment>
+                                            <svg className="svg-icon" style={{ stroke: 'var(--md-success)', marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} viewBox="0 0 24 24">
+                                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                                <polyline points="22 4 12 14.01 9 11.01" />
+                                            </svg>
+                                            All {completedToday} reviews done! Inbox Zero achieved!
+                                        </Fragment>
+                                    ) : completedToday > 0 ? (
+                                        <Fragment>
+                                            <svg className="svg-icon" style={{ stroke: 'var(--md-success)', marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} viewBox="0 0 24 24">
+                                                <polyline points="20 6 9 17 4 12" />
+                                            </svg>
+                                            Keep going! {Math.max(0, dailyGoalTarget - completedToday)} more to hit your goal!
+                                        </Fragment>
+                                    ) : (
+                                        <Fragment>
+                                            <svg className="svg-icon" style={{ stroke: 'var(--md-primary)', marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} viewBox="0 0 24 24">
+                                                <circle cx="12" cy="12" r="10" />
+                                                <circle cx="12" cy="12" r="6" />
+                                                <circle cx="12" cy="12" r="2" />
+                                            </svg>
+                                            Start your daily streak today!
+                                        </Fragment>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Exam Countdown Pill (if study plan active) */}
+                        {studyPlanDaysLeft !== null && (
+                            <div className={`exam-countdown-pill ${studyPlanDaysLeft <= 3 ? '' : 'safe'}`}>
+                                <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '12px', height: '12px' }}>
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                    <line x1="16" y1="2" x2="16" y2="6" />
+                                    <line x1="8" y1="2" x2="8" y2="6" />
+                                    <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg>
+                                {studyPlanDaysLeft === 0 ? 'Exam is today!' : `${studyPlanDaysLeft} day${studyPlanDaysLeft !== 1 ? 's' : ''} until exam`}
+                            </div>
+                        )}
+
+                        {/* 7-Day Momentum Calendar Row */}
+                        <div className="weekly-progress-container" aria-label="7-Day Review Momentum">
+                            <div className="weekly-progress-header">
+                                <span className="weekly-progress-title">7-Day Momentum</span>
+                                <span className="weekly-progress-badge">{activeDaysCount}/7 active</span>
+                            </div>
+                            <div className="weekly-days-row">
+                                {momentumDays.map(day => (
+                                    <div
+                                        key={day.dateKey}
+                                        className={`weekly-day-col ${day.goalMet ? 'goal-met' : day.count > 0 ? 'active' : 'empty'} ${day.isToday ? 'is-today' : ''}`}
+                                        title={day.tooltip}
+                                        tabIndex={0}
+                                        role="img"
+                                        aria-label={day.tooltip}
+                                    >
+                                        <span className="weekly-day-name">{day.day}</span>
+                                        <div className="weekly-day-dot">
+                                            {day.goalMet ? '✓' : (day.count > 0 ? day.count : '')}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Achievements Pill Button */}
+                        <div className="achievements-pill-container">
+                            <button
+                                id="achievements-open-btn"
+                                className="achievements-pill-btn"
+                                type="button"
+                                aria-haspopup="dialog"
+                                aria-expanded="false"
+                                title="View unlocked milestones and personal records"
+                                onClick={onOpenAchievements}
+                            >
+                                <span className="achievements-pill-icon">🏆</span>
+                                <span className="achievements-pill-text">Milestones & Records</span>
+                                <span className="achievements-pill-count">{unlockedCount}/{totalCount}</span>
+                            </button>
+                        </div>
+                    </Fragment>
+                )}
             </div>
         </div>
     );
@@ -256,12 +543,10 @@ export function BentoCommandCenter({
     onOpenHistory,
     onOpenHighlights,
     onOpenColors,
-    onOpenSettings,
-    onPracticeDue,
-    onOpenHeatmap
+    onOpenSettings
 }: BentoCommandCenterProps = {}): VNode {
     return (
-        <div id="bento-command-center" className="card details-card quick-launchpad-card">
+        <div id="bento-command-center" className="card quick-launchpad-card">
             <div className="card-header-clean launchpad-header">
                 <div className="header-label-group">
                     <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -269,18 +554,6 @@ export function BentoCommandCenter({
                     </svg>
                     <span className="card-title">Command Center</span>
                 </div>
-            </div>
-
-            {/* Bento Hero Practice */}
-            <div className="bento-row bento-row-practice">
-                <button
-                    id="practice-due-btn"
-                    className="launch-tile launch-tile-practice"
-                    title="Practice All Due Reviews"
-                    onClick={onPracticeDue || onOpenStudyPlan}
-                >
-                    <span className="tile-headline">Start Daily Review Session</span>
-                </button>
             </div>
 
             {/* Bento Tier 1: Primary Focus Engines */}
@@ -441,20 +714,10 @@ export function BentoCommandCenter({
                     <div className="tile-icon-wrap settings-color">
                         <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="12" r="3" />
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1 2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                         </svg>
                     </div>
                     <span className="tile-title">Settings</span>
-                </button>
-
-                <button
-                    id="configure-fsrs-btn"
-                    className="launch-tile launch-tile-compact"
-                    title="Configure FSRS Algorithm Parameters"
-                    onClick={onOpenSettings}
-                    style={{ display: 'none' }}
-                >
-                    <span className="tile-title">FSRS Config</span>
                 </button>
             </div>
         </div>
@@ -464,9 +727,29 @@ export function BentoCommandCenter({
 export interface AchievementsModalProps {
     isOpen?: boolean;
     onClose?: () => void;
+    achievements?: Achievement[];
+    records?: PersonalRecords | null;
 }
 
-export function AchievementsModal({ isOpen, onClose }: AchievementsModalProps = {}): VNode {
+export function AchievementsModal({
+    isOpen = false,
+    onClose,
+    achievements = [],
+    records = null
+}: AchievementsModalProps = {}): VNode {
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose?.();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
+
+    const unlockedCount = achievements.filter(a => a.unlocked).length;
+
     return (
         <div
             id="achievements-modal"
@@ -474,6 +757,11 @@ export function AchievementsModal({ isOpen, onClose }: AchievementsModalProps = 
             role="dialog"
             aria-modal="true"
             aria-labelledby="achievements-modal-title"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                    onClose?.();
+                }
+            }}
         >
             <div className="modal-card">
                 <div className="modal-header">
@@ -502,9 +790,93 @@ export function AchievementsModal({ isOpen, onClose }: AchievementsModalProps = 
                     </button>
                 </div>
                 <div id="achievements-modal-body" className="modal-body">
-                    <p style={{ fontSize: '13px', color: 'var(--md-text-low)' }}>
-                        Track your spaced repetition streaks, consistency milestones, and mastery level badges!
-                    </p>
+                    {records && (
+                        <div className="records-card">
+                            <h4 className="records-card-title">
+                                <svg
+                                    className="svg-icon"
+                                    viewBox="0 0 24 24"
+                                    style={{ stroke: 'var(--md-primary)', width: '15px', height: '15px', marginRight: '6px' }}
+                                >
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+                                Personal Records
+                            </h4>
+                            <div className="records-grid">
+                                <div className="record-stat-box">
+                                    <span className="record-stat-label">Active Streak</span>
+                                    <span
+                                        className="record-stat-value"
+                                        style={{ color: records.currentStreak > 0 ? 'var(--md-warning)' : 'var(--md-text-med)' }}
+                                    >
+                                        🔥 {records.currentStreak}d
+                                    </span>
+                                </div>
+                                <div className="record-stat-box">
+                                    <span className="record-stat-label">Longest Streak</span>
+                                    <span className="record-stat-value">
+                                        🏆 {records.longestStreak}d
+                                    </span>
+                                </div>
+                                <div className="record-stat-box">
+                                    <span className="record-stat-label">Most in 1 Day</span>
+                                    <span className="record-stat-value" style={{ color: 'var(--md-success)' }}>
+                                        ⚡ {records.maxDailyReviews}
+                                    </span>
+                                </div>
+                                <div className="record-stat-box">
+                                    <span className="record-stat-label">Total Reviews</span>
+                                    <span className="record-stat-value">
+                                        📚 {records.totalReviews}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <div className="achievements-section">
+                        <div className="achievements-section-header">
+                            <h4 className="achievements-section-title">
+                                Milestones ({unlockedCount} of {achievements.length || 8} Unlocked)
+                            </h4>
+                        </div>
+                        <div className="achievements-list">
+                            {achievements.length === 0 ? (
+                                <p style={{ fontSize: '13px', color: 'var(--md-text-low)' }}>
+                                    Track your spaced repetition streaks, consistency milestones, and mastery level badges!
+                                </p>
+                            ) : (
+                                achievements.map((a) => (
+                                    <div key={a.id} className={`achievement-row ${a.unlocked ? 'is-unlocked' : 'is-locked'}`}>
+                                        <div className="achievement-icon-wrap" aria-hidden="true">
+                                            <span className="achievement-icon">{a.icon}</span>
+                                        </div>
+                                        <div className="achievement-details">
+                                            <div className="achievement-header-row">
+                                                <span className="achievement-title">{a.title}</span>
+                                                {a.unlocked ? (
+                                                    <span className="achievement-badge unlocked">✓ Unlocked</span>
+                                                ) : (
+                                                    <span className="achievement-badge in-progress">{a.progress || 'In progress'}</span>
+                                                )}
+                                            </div>
+                                            <p className="achievement-desc">{a.description}</p>
+                                            {!a.unlocked && a.progressPercent !== undefined && (
+                                                <div
+                                                    className="achievement-progress-bar"
+                                                    role="progressbar"
+                                                    aria-valuenow={a.progressPercent}
+                                                    aria-valuemin={0}
+                                                    aria-valuemax={100}
+                                                >
+                                                    <div className="achievement-progress-fill" style={{ width: `${a.progressPercent}%` }} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -532,6 +904,10 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
 
     const [cards, setCards] = useState<Card[]>(() => initialCards || []);
     const [activity, setActivity] = useState<Record<string, number>>({});
+    const [dailyGoalTarget, setDailyGoalTarget] = useState<number>(DEFAULT_DAILY_GOAL);
+    const [longestStreak, setLongestStreak] = useState<number>(0);
+    const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
+    const [studyPlanSettings, setStudyPlanSettings] = useState<{ isActive?: boolean; examDate?: string } | null>(null);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedTag, setSelectedTag] = useState<string>('all');
     const [statusToast, setStatusToast] = useState<{ message: string; isError: boolean } | null>(null);
@@ -539,69 +915,195 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
     const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
     const [ratingStatus, setRatingStatus] = useState<'unrated' | 'snoozed' | 'rated'>('unrated');
     const [notificationPermission, setNotificationPermission] = useState<'default' | 'granted' | 'denied'>('default');
+    const [isLifetimeView, setIsLifetimeView] = useState<boolean>(false);
+    const [isEditingGoal, setIsEditingGoal] = useState<boolean>(false);
+    const [goalInputVal, setGoalInputVal] = useState<string>(String(DEFAULT_DAILY_GOAL));
+    const heatmapGridRef = useRef<HTMLDivElement>(null);
 
-    // ── 2. Load Stored Data on Mount ──
-    useEffect(() => {
-        const loadInitialData = async () => {
-            try {
-                if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-                    const result = await chrome.storage.local.get([
-                        'extensionSettings',
-                        'fsrsCards',
-                        'fsrsActivity',
-                        'ratingSnoozedUntil',
-                        'hasRatedStore'
-                    ]) as StorageData & { hasRatedStore?: boolean; ratingSnoozedUntil?: number };
+    // ── 2. Load Stored Data on Mount & Reloads ──
+    const loadInitialData = useCallback(async () => {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                const result = (await chrome.storage.local.get([
+                    'extensionSettings',
+                    'fsrsCards',
+                    'fsrsActivity',
+                    'ratingPromptState',
+                    'dailyGoalTarget',
+                    'longestStreak',
+                    'lastCelebratedMilestone',
+                    'unlockedAchievements',
+                    'studyPlanSettings'
+                ])) as StorageData & {
+                    ratingPromptState?: { status?: string; snoozedUntil?: number };
+                    dailyGoalTarget?: number;
+                    longestStreak?: number;
+                    lastCelebratedMilestone?: number;
+                    unlockedAchievements?: string[];
+                    studyPlanSettings?: { isActive?: boolean; examDate?: string };
+                };
 
-                    if (result.extensionSettings) {
-                        setSettings(prev => ({ ...prev, ...result.extensionSettings }));
-                    }
-                    if (result.fsrsCards) {
-                        setCards(result.fsrsCards);
-                    }
-                    if (result.fsrsActivity) {
-                        setActivity(result.fsrsActivity);
-                    }
-                    if (result.hasRatedStore) {
-                        setRatingStatus('rated');
-                    } else if (result.ratingSnoozedUntil && result.ratingSnoozedUntil > Date.now()) {
-                        setRatingStatus('snoozed');
-                    }
+                if (result.extensionSettings) {
+                    setSettings(prev => ({ ...prev, ...result.extensionSettings }));
                 }
-            } catch (err) {
-                UIUtils.catchError('PopupApp', 'Error loading storage data', err);
-            }
-        };
+                if (result.fsrsCards) {
+                    setCards(result.fsrsCards);
+                }
+                if (result.fsrsActivity) {
+                    setActivity(result.fsrsActivity);
+                }
+                if (typeof result.dailyGoalTarget === 'number') {
+                    setDailyGoalTarget(result.dailyGoalTarget);
+                    setGoalInputVal(String(result.dailyGoalTarget));
+                }
+                if (typeof result.longestStreak === 'number') {
+                    setLongestStreak(result.longestStreak);
+                }
+                if (result.unlockedAchievements) {
+                    setUnlockedAchievements(result.unlockedAchievements);
+                }
+                if (result.studyPlanSettings) {
+                    setStudyPlanSettings(result.studyPlanSettings);
+                }
 
-        loadInitialData();
+                // Rating Prompt State
+                const rating = result.ratingPromptState || { status: 'unrated', snoozedUntil: 0 };
+                const now = Date.now();
+                if (rating.status === 'snoozed' && rating.snoozedUntil && now >= rating.snoozedUntil) {
+                    rating.status = 'unrated';
+                    await chrome.storage.local.set({ ratingPromptState: rating });
+                }
+                setRatingStatus((rating.status as 'unrated' | 'snoozed' | 'rated') || 'unrated');
+            }
+
+            if (typeof Notification !== 'undefined') {
+                setNotificationPermission(Notification.permission);
+            }
+        } catch (err) {
+            UIUtils.catchError('PopupApp', 'Error loading storage data', err);
+        }
     }, []);
 
+    useEffect(() => {
+        loadInitialData();
+    }, [loadInitialData]);
+
     // ── 3. Derived Statistics & Metrics ──
+    const now = Date.now();
     const totalCount = cards.length;
-    const dueCards = useMemo(() => {
-        const now = Date.now();
-        return cards.filter(c => c.due <= now);
-    }, [cards]);
+    const dueCards = useMemo(() => cards.filter(c => c.due <= now), [cards, now]);
     const dueCount = dueCards.length;
 
+    // FSRS Retrievability and Overall Retention Calculation
     const retentionRate = useMemo(() => {
         if (cards.length === 0) return 0;
-        const totalReps = cards.reduce((sum, c) => sum + (c.reps || 0), 0);
-        const totalLapses = cards.reduce((sum, c) => sum + (c.lapses || 0), 0);
-        if (totalReps === 0) return 100;
-        return Math.max(0, Math.min(100, Math.round(((totalReps - totalLapses) / totalReps) * 100)));
-    }, [cards]);
 
-    const { current: currentStreak, longest: longestStreak } = useMemo(() => {
+        let totalRetrievability = 0;
+        let retrievabilityCount = 0;
+        const SchedulerClass = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
+        const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass() : null;
+
+        let totalReps = 0;
+        let totalLapses = 0;
+
+        cards.forEach((card) => {
+            totalReps += card.reps || 0;
+            totalLapses += card.lapses || 0;
+
+            if (card.stability > 0 && scheduler) {
+                const lastReview = getLastReviewDate(card);
+                if (lastReview) {
+                    const r = scheduler.getRetrievability(card, now);
+                    totalRetrievability += r;
+                    retrievabilityCount++;
+                }
+            }
+        });
+
+        if (retrievabilityCount > 0) {
+            return Math.round((totalRetrievability / retrievabilityCount) * 100);
+        } else if (totalReps > 0) {
+            return Math.max(0, Math.min(100, Math.round(((totalReps - totalLapses) / totalReps) * 100)));
+        }
+        return 0;
+    }, [cards, now]);
+
+    // Consecutive Study Streaks
+    const { current: currentStreak, longest: calculatedLongestStreak } = useMemo(() => {
         return calculateStreaks(activity);
     }, [activity]);
+    const effectiveLongestStreak = Math.max(longestStreak, calculatedLongestStreak);
 
-    const xp = useMemo(() => {
-        return cards.reduce((sum, c) => sum + (c.reps || 0) * 10, 0);
+    // Activity Reviews, Gamification Level & XP Progress
+    const totalActivityReviews = useMemo(() => {
+        return Object.values(activity).reduce((sum, count) => sum + (count || 0), 0);
+    }, [activity]);
+
+    const level = useMemo(() => {
+        return Math.floor(1 + 0.6 * Math.sqrt(totalActivityReviews));
+    }, [totalActivityReviews]);
+
+    const { xpPercent, levelBadgeTitle } = useMemo(() => {
+        const currentLevelReviews = Math.pow((level - 1) / 0.6, 2);
+        const nextLevelReviews = Math.pow(level / 0.6, 2);
+        const progressRange = nextLevelReviews - currentLevelReviews;
+        const progressMade = totalActivityReviews - currentLevelReviews;
+        const pct = progressRange > 0 ? Math.max(0, Math.min(100, Math.round((progressMade / progressRange) * 100))) : 0;
+
+        let levelTitle = 'Novice';
+        if (level >= 35) levelTitle = 'Grandmaster';
+        else if (level >= 20) levelTitle = 'Expert';
+        else if (level >= 10) levelTitle = 'Specialist';
+        else if (level >= 5) levelTitle = 'Apprentice';
+
+        const reviewsToNext = Math.ceil(nextLevelReviews - totalActivityReviews);
+        const title = `${levelTitle} (${totalActivityReviews} Total Reviews) - ${reviewsToNext} until Lv. ${level + 1}`;
+        return { xpPercent: pct, levelBadgeTitle: title };
+    }, [level, totalActivityReviews]);
+
+    // Completed reviews today
+    const completedToday = useMemo(() => {
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+        const todayEndTime = todayEnd.getTime();
+        let count = 0;
+
+        cards.forEach((card) => {
+            const lastReview = getLastReviewDate(card);
+            const isReviewedToday = lastReview ? new Date(lastReview).toDateString() === new Date().toDateString() : false;
+            const wasDueTodayOrEarlier = !card.previousDue || card.previousDue <= todayEndTime;
+            if (isReviewedToday && wasDueTodayOrEarlier) {
+                count++;
+            }
+        });
+        return count;
     }, [cards]);
-    const level = Math.max(1, Math.floor(xp / 100) + 1);
-    const xpPercent = xp % 100;
 
+    // Achievements Evaluation & Personal Records
+    const { evaluatedAchievements, evaluatedRecords } = useMemo(() => {
+        const evalResult = evaluateAchievements({
+            cards,
+            activity,
+            dailyGoalTarget,
+            currentStreak,
+            longestStreak: effectiveLongestStreak,
+            completedToday,
+            unlockedIds: unlockedAchievements
+        });
+        return {
+            evaluatedAchievements: evalResult.achievements,
+            evaluatedRecords: evalResult.records
+        };
+    }, [cards, activity, dailyGoalTarget, currentStreak, effectiveLongestStreak, completedToday, unlockedAchievements]);
+
+    // Study Plan Days Left
+    const studyPlanDaysLeft = useMemo(() => {
+        if (!studyPlanSettings?.isActive || !studyPlanSettings?.examDate) return null;
+        const examTime = new Date(studyPlanSettings.examDate + 'T23:59:59').getTime();
+        return Math.max(0, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
+    }, [studyPlanSettings, now]);
+
+    // Tag list for dropdown
     const allTags = useMemo(() => {
         const set = new Set<string>();
         for (const c of cards) {
@@ -612,16 +1114,94 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
         return Array.from(set).sort();
     }, [cards]);
 
+    // Quick Search Filtering (Searches 4 fields: problemTitle, problemUrl, tags, approach)
     const filteredCards = useMemo(() => {
-        if (!searchQuery.trim() && selectedTag === 'all') return [];
-        return cards.filter(c => {
-            const matchesQuery = !searchQuery.trim() ||
-                (c.problemTitle && c.problemTitle.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                (c.tags && c.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())));
-            const matchesTag = selectedTag === 'all' || (c.tags && c.tags.includes(selectedTag));
-            return matchesQuery && matchesTag;
+        const query = searchQuery.trim().toLowerCase();
+        if (!query && selectedTag === 'all') return [];
+
+        return cards.filter(card => {
+            if (selectedTag !== 'all' && !(card.tags && card.tags.includes(selectedTag))) {
+                return false;
+            }
+            if (query) {
+                const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(query);
+                const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(query);
+                const tagMatch = card.tags && card.tags.some(t => t.toLowerCase().includes(query));
+                const approachMatch = card.approach && card.approach.toLowerCase().includes(query);
+                if (!titleMatch && !urlMatch && !tagMatch && !approachMatch) return false;
+            }
+            return true;
         });
     }, [cards, searchQuery, selectedTag]);
+
+    // View All Search URL
+    const searchViewAllUrl = useMemo(() => {
+        const urlParams = new URLSearchParams();
+        urlParams.append('view', 'total');
+        if (searchQuery.trim()) urlParams.append('search', searchQuery.trim());
+        if (selectedTag && selectedTag !== 'all') urlParams.append('tag', selectedTag);
+        return chrome.runtime?.getURL
+            ? chrome.runtime.getURL(`features/common/data/data.html?${urlParams.toString()}`)
+            : `features/common/data/data.html?${urlParams.toString()}`;
+    }, [searchQuery, selectedTag]);
+
+    // Heatmap Cells Generation
+    const heatmapCells = useMemo(() => {
+        const todayDate = new Date();
+        const dayOfWeek = todayDate.getDay();
+        let totalDays = 0;
+        let startDate = new Date(todayDate);
+
+        if (isLifetimeView && Object.keys(activity).length > 0) {
+            const dateKeys = Object.keys(activity).sort();
+            const oldestDateParts = dateKeys[0].split('-');
+            const oldestDate = new Date(parseInt(oldestDateParts[0], 10), parseInt(oldestDateParts[1], 10) - 1, parseInt(oldestDateParts[2], 10));
+            oldestDate.setDate(oldestDate.getDate() - oldestDate.getDay());
+            const diffTime = todayDate.getTime() - oldestDate.getTime();
+            totalDays = Math.floor(diffTime / MS_PER_DAY) + 1;
+            startDate = oldestDate;
+        } else {
+            totalDays = (11 * DAYS_PER_WEEK) + (dayOfWeek + 1);
+            startDate.setDate(todayDate.getDate() - totalDays + 1);
+        }
+
+        const cells: Array<{ dateString: string; count: number; level: 0 | 1 | 2 | 3 | 4 }> = [];
+        for (let i = 0; i < totalDays; i++) {
+            const cellDate = new Date(startDate);
+            cellDate.setDate(startDate.getDate() + i);
+            const dateString = new Date(cellDate.getTime() - (cellDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            const count = activity[dateString] || 0;
+
+            let cellLevel: 0 | 1 | 2 | 3 | 4 = 0;
+            if (count === HEATMAP_LEVEL_THRESHOLDS[0]) cellLevel = 0;
+            else if (count <= HEATMAP_LEVEL_THRESHOLDS[1]) cellLevel = 1;
+            else if (count <= HEATMAP_LEVEL_THRESHOLDS[2]) cellLevel = 2;
+            else if (count <= HEATMAP_LEVEL_THRESHOLDS[3]) cellLevel = 3;
+            else cellLevel = 4;
+
+            cells.push({ dateString, count, level: cellLevel });
+        }
+        return cells;
+    }, [activity, isLifetimeView]);
+
+    // Auto-scroll heatmap to right on render
+    useEffect(() => {
+        if (heatmapGridRef.current) {
+            heatmapGridRef.current.scrollLeft = heatmapGridRef.current.scrollWidth;
+        }
+    }, [heatmapCells]);
+
+    // Store Review URL with extension ID substitution on Chrome
+    const resolvedReviewUrl = useMemo(() => {
+        const raw = BROWSER_CONFIG.reviewUrl;
+        if (BROWSER_CONFIG.target === 'chrome' && typeof chrome !== 'undefined' && chrome.runtime?.id) {
+            return raw.replace('YOUR_EXTENSION_ID', chrome.runtime.id);
+        }
+        return raw;
+    }, []);
+
+    // Engagement gate for Rating Prompt Card: Only show when >= 1 cards saved and not snoozed
+    const isPromptCardVisible = cards.length >= 1 && ratingStatus !== 'snoozed';
 
     // ── 4. Action Handlers ──
     const showStatus = useCallback((message: string, isError = false) => {
@@ -632,7 +1212,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
             safeFlushSync(() => {
                 setStatusToast(prev => (prev?.message === message ? null : prev));
             });
-        }, 2600);
+        }, 3000);
     }, []);
 
     const openTab = useCallback((urlPath: string) => {
@@ -645,6 +1225,13 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
         }
     }, []);
 
+    const handleKeyDownNavigate = useCallback((e: KeyboardEvent, urlPath: string) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openTab(urlPath);
+        }
+    }, [openTab]);
+
     const handleSettingChange = useCallback(async (key: keyof ExtensionSettings, val: boolean) => {
         try {
             const next = { ...settings, [key]: val };
@@ -652,44 +1239,159 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
             if (typeof chrome !== 'undefined' && chrome.storage?.local) {
                 await chrome.storage.local.set({ extensionSettings: next });
             }
+
+            // Status toasts matching main reference feedback
+            if (key === 'showMarkerPopup') {
+                showStatus(val ? 'Highlighter enabled!' : 'Highlighter disabled!');
+            } else if (key === 'showLauncher') {
+                showStatus(val ? 'Problem tracker launcher enabled!' : 'Problem tracker launcher disabled!');
+            } else if (key === 'showCharts') {
+                showStatus(val ? 'Visual charts enabled!' : 'Visual charts hidden!');
+            } else if (key === 'showDailyFocus') {
+                showStatus(val ? 'Daily Focus & Momentum enabled!' : 'Daily Focus & Momentum hidden!');
+            } else if (key === 'developerMode') {
+                showStatus(val ? 'Developer mode enabled!' : 'Developer mode disabled!');
+            }
         } catch (err) {
             UIUtils.catchError('PopupApp', `Error saving setting ${String(key)}`, err);
         }
-    }, [settings]);
+    }, [settings, showStatus]);
 
-    const handleThemeToggle = useCallback(async () => {
+    const handleThemeToggle = useCallback(() => {
         try {
             if (typeof chrome !== 'undefined' && chrome.storage?.local) {
                 chrome.storage.local.get(['theme'], (result) => {
                     const currentTheme = result?.theme || 'dark';
                     const nextTheme = currentTheme === 'light' ? 'dark' : 'light';
                     ThemeSync.applyTheme(nextTheme);
-                    chrome.storage.local.set({ theme: nextTheme });
+                    chrome.storage.local.set({ theme: nextTheme }, () => {
+                        showStatus(`Switched to ${nextTheme === 'dark' ? 'Dark' : 'Light'} Mode!`);
+                    });
                 });
             } else {
                 ThemeSync.applyTheme('light');
+                showStatus('Switched to Light Mode!');
             }
         } catch (err) {
             UIUtils.catchError('PopupApp', 'Error toggling theme', err);
         }
-    }, []);
+    }, [showStatus]);
 
+    // Manual review check via check_due_cards_now
     const handleCheckNow = useCallback(() => {
         try {
             if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-                chrome.runtime.sendMessage({ action: 'checkDueReviews' }, (response) => {
+                chrome.runtime.sendMessage({ action: 'check_due_cards_now' }, (response) => {
                     if (response && response.success) {
-                        showStatus(`Checked! ${response.dueCount} reviews due.`, false);
+                        const count = typeof response.dueCount === 'number' ? response.dueCount : 0;
+                        showStatus(`Checked! ${count} review${count === 1 ? '' : 's'} due.`, false);
                     } else {
                         showStatus('Checked for due reviews.', false);
                     }
+                    loadInitialData();
                 });
             }
         } catch (err) {
             UIUtils.catchError('PopupApp', 'Error checking due reviews', err);
         }
+    }, [showStatus, loadInitialData]);
+
+    // Save Daily Goal
+    const handleSaveGoal = useCallback(async () => {
+        const val = parseInt(goalInputVal, 10);
+        if (val && val > 0 && val <= 999) {
+            setDailyGoalTarget(val);
+            setIsEditingGoal(false);
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                await chrome.storage.local.set({ dailyGoalTarget: val });
+            }
+            showStatus(`Daily goal set to ${val} reviews!`);
+            loadInitialData();
+        }
+    }, [goalInputVal, showStatus, loadInitialData]);
+
+    // Notification Permission Request
+    const handleEnableNotifications = useCallback(() => {
+        if (typeof Notification !== 'undefined') {
+            Notification.requestPermission().then((permission) => {
+                setNotificationPermission(permission as any);
+                if (permission === 'granted') {
+                    showStatus('Notifications enabled successfully!');
+                } else {
+                    showStatus('Notifications were not allowed.', true);
+                }
+            });
+        }
     }, [showStatus]);
 
+    // Rating Prompt Actions
+    const handleSnoozeRating = useCallback(async () => {
+        const snoozedUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
+        setRatingStatus('snoozed');
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+            await chrome.storage.local.set({
+                ratingPromptState: { status: 'snoozed', snoozedUntil }
+            });
+        }
+        showStatus('Notification paused for 7 days!');
+    }, [showStatus]);
+
+    const handleAlreadyRated = useCallback(async () => {
+        setRatingStatus('rated');
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+            await chrome.storage.local.set({
+                ratingPromptState: { status: 'rated', snoozedUntil: 0 }
+            });
+        }
+        showStatus('Thank you for your rating!');
+    }, [showStatus]);
+
+    const handleEditRating = useCallback(async () => {
+        if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
+            chrome.tabs.create({ url: resolvedReviewUrl });
+        }
+        setRatingStatus('unrated');
+        if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+            await chrome.storage.local.set({
+                ratingPromptState: { status: 'unrated', snoozedUntil: 0 }
+            });
+        }
+    }, [resolvedReviewUrl]);
+
+    // Dev Mode Test Notifications
+    const handleTestNotification = useCallback(() => {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+                chrome.runtime.sendMessage({ action: 'test_notification' }, (response) => {
+                    if (response && response.success) {
+                        showStatus('Test notification sent!');
+                    } else {
+                        showStatus('Failed to send test notification.', true);
+                    }
+                });
+            }
+        } catch (err) {
+            UIUtils.catchError('PopupApp', 'Error sending test notification', err);
+        }
+    }, [showStatus]);
+
+    const handleTestSummaryNotification = useCallback(() => {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+                chrome.runtime.sendMessage({ action: 'test_summary_notification' }, (response) => {
+                    if (response && response.success) {
+                        showStatus('Test weekly summary notification sent!');
+                    } else {
+                        showStatus('Failed to send test summary notification.', true);
+                    }
+                });
+            }
+        } catch (err) {
+            UIUtils.catchError('PopupApp', 'Error sending test summary notification', err);
+        }
+    }, [showStatus]);
+
+    // Export Debug Logs
     const handleExportLogs = useCallback(async () => {
         try {
             if (typeof chrome !== 'undefined' && chrome.storage?.local) {
@@ -718,12 +1420,11 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
         }
     }, [showStatus]);
 
-    const handleKeyDownNavigate = useCallback((e: KeyboardEvent, urlPath: string) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            openTab(urlPath);
-        }
-    }, [openTab]);
+    // CSS class for due stat box
+    const dueClass = dueCount === 0 ? 'success' : (dueCount <= DUE_CARDS_THRESHOLD_WARNING ? 'warning' : 'danger');
+    const retentionClass = retentionRate >= RECALL_THRESHOLD_GOOD
+        ? 'success'
+        : (retentionRate >= RECALL_THRESHOLD_WARNING ? 'warning' : 'danger');
 
     return (
         <div id="popup-app-container">
@@ -731,7 +1432,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
             <canvas id="confetti-canvas" className="confetti-canvas" />
             <div id="celebration-confetti-canvas" style={{ display: 'none' }} />
 
-            {/* Header: Branding, Level, Controls, and XP Bar */}
+            {/* Header: Branding, Level Badge, and Top-5 Action Controls */}
             <header className="header-modern">
                 <div className="header-main">
                     <h1 className="app-title">
@@ -742,21 +1443,19 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                         </svg>
                         <span className="algorecall-brand-name">AlgoRecall</span>
                     </h1>
+
                     <div className="header-controls">
-                        {/* Gamification Level Badge */}
+                        {/* 1. Gamification Level Badge: Click opens achievements modal */}
                         <div
                             id="user-level-badge"
                             className="level-badge"
-                            title="Current Gamification Level"
-                            onClick={() => setIsAchievementsOpen(true)}
+                            title={levelBadgeTitle}
+                            onClick={() => safeFlushSync(() => setIsAchievementsOpen(true))}
                         >
                             Lv. {level}
                         </div>
-                        <span id="level-badge" style={{ display: 'none' }}>Lv. {level}</span>
-                        <span id="level-num" style={{ display: 'none' }}>{level}</span>
-                        <span id="level-title" style={{ display: 'none' }}>Apprentice</span>
 
-                        {/* Quick Check Button */}
+                        {/* 2. Quick Check Due Reviews Trigger */}
                         <button
                             id="check-now-btn"
                             className="icon-btn check-now-header-btn"
@@ -770,7 +1469,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                             </svg>
                         </button>
 
-                        {/* Header Analytics Button */}
+                        {/* 3. Header Analytics Button: Opens dedicated analytics tab */}
                         <button
                             id="header-analytics-btn"
                             className="icon-btn analytics-header-btn"
@@ -785,7 +1484,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                             </svg>
                         </button>
 
-                        {/* Theme Toggle Button */}
+                        {/* 4. Theme Switcher Button */}
                         <button
                             id="theme-toggle-btn"
                             className="icon-btn theme-toggle-btn"
@@ -809,62 +1508,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                             </svg>
                         </button>
 
-                        {/* History Navigation Button */}
-                        <button
-                            id="history-btn"
-                            className="icon-btn history-header-btn"
-                            title="Open Review History"
-                            aria-label="Open Review History"
-                            onClick={() => openTab('features/dashboard/analytics/analytics.html?tab=performance')}
-                        >
-                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <circle cx="12" cy="12" r="10" />
-                                <polyline points="12 6 12 12 14 14" />
-                            </svg>
-                        </button>
-
-                        {/* Heatmap Full Screen Button */}
-                        <button
-                            id="open-heatmap-tab-btn"
-                            className="icon-btn heatmap-header-btn"
-                            title="Open full screen heatmap"
-                            aria-label="Open full screen heatmap"
-                            onClick={() => openTab('features/dashboard/analytics/analytics.html?tab=overview')}
-                        >
-                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <rect x="3" y="3" width="7" height="7" />
-                                <rect x="14" y="3" width="7" height="7" />
-                                <rect x="14" y="14" width="7" height="7" />
-                                <rect x="3" y="14" width="7" height="7" />
-                            </svg>
-                        </button>
-
-                        {/* Settings Hub Button */}
-                        <button
-                            id="settings-hub-btn"
-                            className="icon-btn settings-header-btn"
-                            title="Open Settings & Preferences Hub"
-                            aria-label="Open Settings & Preferences Hub"
-                            onClick={() => openTab('features/tracker/config/fsrsConfig.html')}
-                        >
-                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <circle cx="12" cy="12" r="3" />
-                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                            </svg>
-                        </button>
-
-                        {/* Achievements Button */}
-                        <button
-                            id="achievements-btn"
-                            className="icon-btn achievements-header-btn"
-                            title="View unlocked milestones and records"
-                            aria-label="View unlocked milestones and records"
-                            onClick={() => setIsAchievementsOpen(true)}
-                        >
-                            🏆
-                        </button>
-
-                        {/* Help Button */}
+                        {/* 5. Documentation Help Trigger */}
                         <button
                             id="help-btn"
                             className="icon-btn help-btn"
@@ -881,7 +1525,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                     </div>
                 </div>
 
-                {/* XP Progress Bar */}
+                {/* Level XP Progress Bar */}
                 <div
                     className="xp-bar-container"
                     id="xp-progress-bar-container"
@@ -893,13 +1537,15 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                     aria-valuenow={xpPercent}
                 >
                     <div id="xp-bar-fill" className="xp-bar-fill" style={{ width: `${xpPercent}%` }} />
-                    <span id="xp-text" style={{ display: 'none' }}>{xp} XP</span>
                 </div>
             </header>
 
             <div className="main-content">
                 {/* Notification Permission Warning Banner */}
-                <div id="permission-warning-banner" className={`banner warning-banner ${notificationPermission === 'granted' ? 'hide-panel' : ''}`}>
+                <div
+                    id="permission-warning-banner"
+                    className={`banner warning-banner ${notificationPermission === 'granted' || !BROWSER_CONFIG.supportsNotifications ? 'hide-panel' : ''}`}
+                >
                     <div className="banner-content">
                         <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -908,24 +1554,36 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                         </svg>
                         <span>Reminders work best with notifications enabled.</span>
                     </div>
-                    <button id="enable-notifications-btn" className="btn-text-accent" onClick={() => setNotificationPermission('granted')}>Enable</button>
+                    <button
+                        id="enable-notifications-btn"
+                        className="btn-text-accent"
+                        onClick={handleEnableNotifications}
+                    >
+                        Enable
+                    </button>
                 </div>
 
-                {/* Rating Prompt Card */}
-                <div id="rating-prompt-card" className={`card rating-card ${ratingStatus === 'snoozed' ? 'hide-panel' : ''}`}>
-                    <div id="rating-prompt-state" className={`rating-state ${ratingStatus === 'rated' ? 'hide-panel' : ''}`}>
+                {/* Rating Prompt Card: Engagement gated (>= 1 cards saved) */}
+                <div
+                    id="rating-prompt-card"
+                    className={`card rating-card ${!isPromptCardVisible ? 'hide-panel' : ''}`}
+                >
+                    <div
+                        id="rating-prompt-state"
+                        className={`rating-state ${ratingStatus === 'rated' ? 'hide-panel' : ''}`}
+                    >
                         <div className="rating-text-group">
                             <h3 className="rating-title">Enjoying AlgoRecall? 🌟</h3>
                             <p className="rating-desc" id="rating-prompt-text">Rate us 5 stars to help us grow!</p>
                         </div>
                         <div className="rating-actions-v">
                             <a
-                                href={BROWSER_CONFIG.reviewUrl}
+                                href={resolvedReviewUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 id="rate-store-btn"
                                 className="btn btn-primary rating-btn"
-                                data-review-url={BROWSER_CONFIG.reviewUrl}
+                                data-review-url={resolvedReviewUrl}
                             >
                                 <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -933,31 +1591,28 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                                 <span id="rate-store-label">Rate on {BROWSER_CONFIG.storeName}</span>
                             </a>
                             <div className="rating-sub-actions">
-                                <button id="snooze-rate-btn" className="btn-link" onClick={() => setRatingStatus('snoozed')}>Snooze (7 days)</button>
-                                <button id="already-rated-btn" className="btn-link" onClick={() => setRatingStatus('rated')}>Already Rated</button>
+                                <button id="snooze-rate-btn" className="btn-link" onClick={handleSnoozeRating}>
+                                    Snooze (7 days)
+                                </button>
+                                <button id="already-rated-btn" className="btn-link" onClick={handleAlreadyRated}>
+                                    Already Rated
+                                </button>
                             </div>
                         </div>
                     </div>
-                    <div id="rating-thanks-state" className={`rating-state ${ratingStatus !== 'rated' ? 'hide-panel' : ''}`}>
+                    <div
+                        id="rating-thanks-state"
+                        className={`rating-state ${ratingStatus !== 'rated' ? 'hide-panel' : ''}`}
+                    >
                         <span className="thanks-text">Thank you for supporting us! ❤️</span>
-                        <button id="edit-rating-btn" className="btn-link" onClick={() => setRatingStatus('unrated')}>Edit Rating</button>
+                        <button id="edit-rating-btn" className="btn-link" onClick={handleEditRating}>
+                            Edit Rating
+                        </button>
                     </div>
                 </div>
 
-                {/* Hero Section: Stat Boxes, Due Banner, and Search */}
+                {/* Hero Section: Stat Boxes & Quick Search */}
                 <div className="card stats-hero">
-                    {dueCount > 0 && (
-                        <div id="due-banner" className="due-banner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                            <span>You have <strong>{dueCount} patterns</strong> due for review!</span>
-                            <button
-                                id="due-cards-btn"
-                                className="btn btn-primary btn-sm"
-                                onClick={() => openTab('features/tracker/tracker.html?mode=due')}
-                            >
-                                Review Now
-                            </button>
-                        </div>
-                    )}
                     <div className="stats-grid">
                         <div
                             className="stat-box"
@@ -965,40 +1620,40 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                             title="View all saved patterns"
                             role="button"
                             tabIndex={0}
-                            onClick={() => openTab('features/common/data/data.html')}
-                            onKeyDown={(e) => handleKeyDownNavigate(e as unknown as KeyboardEvent, 'features/common/data/data.html')}
+                            onClick={() => openTab('features/common/data/data.html?view=total')}
+                            onKeyDown={(e) => handleKeyDownNavigate(e as unknown as KeyboardEvent, 'features/common/data/data.html?view=total')}
                         >
                             <span className="stat-value" id="total-cards">{totalCount}</span>
                             <span className="stat-label">Patterns</span>
                         </div>
                         <div
-                            className={`stat-box stat-box-due ${dueCount > 20 ? 'danger' : dueCount > 0 ? 'warning' : ''}`}
+                            className={`stat-box stat-box-due ${dueClass}`}
                             id="box-due"
                             title="View patterns due today"
                             role="button"
                             tabIndex={0}
-                            onClick={() => openTab('features/tracker/tracker.html?mode=due')}
-                            onKeyDown={(e) => handleKeyDownNavigate(e as unknown as KeyboardEvent, 'features/tracker/tracker.html?mode=due')}
+                            onClick={() => openTab('features/common/data/data.html?view=due')}
+                            onKeyDown={(e) => handleKeyDownNavigate(e as unknown as KeyboardEvent, 'features/common/data/data.html?view=due')}
                         >
                             <span className="stat-value" id="due-cards">{dueCount}</span>
                             <span className="stat-label">Due Today</span>
                         </div>
                         <div
-                            className="stat-box"
+                            className={`stat-box ${retentionClass}`}
                             id="box-retention"
                             title="View lapsed cards"
                             role="button"
                             tabIndex={0}
-                            onClick={() => openTab('features/dashboard/analytics/analytics.html?tab=memory')}
-                            onKeyDown={(e) => handleKeyDownNavigate(e as unknown as KeyboardEvent, 'features/dashboard/analytics/analytics.html?tab=memory')}
+                            onClick={() => openTab('features/common/data/data.html?view=retention')}
+                            onKeyDown={(e) => handleKeyDownNavigate(e as unknown as KeyboardEvent, 'features/common/data/data.html?view=retention')}
                         >
                             <span className="stat-value" id="retention-rate">{retentionRate}%</span>
                             <span className="stat-label">Retention</span>
                         </div>
                     </div>
 
-                    {/* Quick Search & Tag Filter */}
-                    <div className="search-compact" style={{ marginTop: '12px' }}>
+                    {/* Quick Search & Tag Filter: Exact main structure, no rogue clear button or tag pills */}
+                    <div className="search-compact">
                         <div className="search-input-wrapper">
                             <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                                 <circle cx="11" cy="11" r="8" />
@@ -1006,27 +1661,12 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                             </svg>
                             <input
                                 type="text"
-                                id="search-input"
+                                id="popup-search-input"
                                 className="search-input"
                                 placeholder="Search patterns..."
                                 value={searchQuery}
                                 onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
                             />
-                            <input
-                                type="hidden"
-                                id="popup-search-input"
-                                value={searchQuery}
-                            />
-                            {searchQuery && (
-                                <button
-                                    id="search-clear-btn"
-                                    className="search-clear-btn"
-                                    title="Clear search"
-                                    onClick={() => setSearchQuery('')}
-                                >
-                                    ×
-                                </button>
-                            )}
                         </div>
                         <select
                             id="popup-tag-filter"
@@ -1042,171 +1682,161 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                         </select>
                     </div>
 
-                    {/* Tag Filter Pills */}
-                    <div id="tag-pills-container" className="tag-pills-container" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                        {allTags.slice(0, 6).map(tag => (
-                            <button
-                                key={tag}
-                                className={`tag-pill ${selectedTag === tag ? 'active' : ''}`}
-                                onClick={() => setSelectedTag(selectedTag === tag ? 'all' : tag)}
-                            >
-                                {tag}
-                            </button>
-                        ))}
-                    </div>
-
                     {/* Search Results Dropdown List */}
-                    <div id="search-results">
-                        <div id="popup-search-results" className="search-results-container" style={{ display: searchQuery.trim() || selectedTag !== 'all' ? 'block' : 'none' }}>
-                            {filteredCards.length === 0 ? (
-                                <div className="search-empty-state">No matching patterns found.</div>
-                            ) : (
-                                filteredCards.slice(0, 10).map(card => (
+                    <div
+                        id="popup-search-results"
+                        className="search-results-container"
+                        style={{ display: searchQuery.trim() || selectedTag !== 'all' ? 'block' : 'none' }}
+                    >
+                        {filteredCards.length === 0 ? (
+                            <div className="popup-search-empty">No matching patterns found.</div>
+                        ) : (
+                            <Fragment>
+                                {filteredCards.slice(0, SEARCH_MAX_RESULTS).map(card => (
                                     <a
                                         key={card.id}
                                         href={card.problemUrl || '#'}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="search-result-item"
+                                        className="popup-search-item"
+                                        title={card.problemTitle || 'Untitled'}
+                                        aria-label={card.problemTitle || 'Untitled'}
                                     >
-                                        <span className="search-result-title">{card.problemTitle || 'Untitled'}</span>
-                                        <span className={`search-badge ${card.due <= Date.now() ? 'due' : 'safe'}`}>
-                                            {card.due <= Date.now() ? 'Due' : 'Safe'}
-                                        </span>
+                                        <div className="popup-search-item-top">
+                                            <span className="popup-search-title">{card.problemTitle || 'Untitled'}</span>
+                                            <span className={`popup-badge ${card.due <= now ? 'popup-badge-due' : 'popup-badge-safe'}`}>
+                                                {card.due <= now ? 'Due' : 'Safe'}
+                                            </span>
+                                        </div>
+                                        <div className="popup-search-item-tags">
+                                            {(card.tags || []).slice(0, 3).map((tag, idx) => (
+                                                <span key={idx} className="popup-tag">{tag}</span>
+                                            ))}
+                                        </div>
                                     </a>
-                                ))
-                            )}
-                        </div>
+                                ))}
+                                {filteredCards.length > SEARCH_MAX_RESULTS && (
+                                    <a
+                                        href={searchViewAllUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="popup-search-view-all"
+                                    >
+                                        View all {filteredCards.length} results →
+                                    </a>
+                                )}
+                            </Fragment>
+                        )}
                     </div>
                 </div>
 
-                {/* Collapsible Card 1: Daily Focus & Momentum */}
-                <details
-                    id="daily-focus-card"
-                    className="card details-card activity-focus-card"
-                    open
+                {/* Static Card 1: Daily Focus & Momentum (Div card, NOT details) */}
+                <DailyFocusCard
+                    completedToday={completedToday}
+                    dailyGoalTarget={dailyGoalTarget}
+                    currentStreak={currentStreak}
+                    longestStreak={effectiveLongestStreak}
+                    activity={activity}
+                    achievements={evaluatedAchievements}
+                    studyPlanDaysLeft={studyPlanDaysLeft}
+                    isEditingGoal={isEditingGoal}
+                    goalInputVal={goalInputVal}
+                    onToggleGoalEdit={() => safeFlushSync(() => setIsEditingGoal(!isEditingGoal))}
+                    onGoalInputChange={(val) => setGoalInputVal(val)}
+                    onSaveGoal={handleSaveGoal}
+                    onOpenAchievements={() => safeFlushSync(() => setIsAchievementsOpen(true))}
                     style={{ display: settings.showDailyFocus !== false ? '' : 'none' }}
-                >
-                    <summary className="details-summary">
-                        <div className="summary-content">
-                            <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
-                            </svg>
-                            <span className="card-title">Daily Focus & Momentum</span>
-                        </div>
-                    </summary>
-                    <div className="details-body">
-                        <div id="gamification-panel" className="gamification-wrapper">
-                            <div id="daily-goal-progress" className="daily-goal-progress">
-                                <span id="goal-progress-text">Daily Goal</span>
-                                <svg viewBox="0 0 100 100" style={{ width: '0px', height: '0px', display: 'none' }}>
-                                    <circle id="goal-progress-ring" cx="50" cy="50" r="42" />
-                                </svg>
-                            </div>
-                            <div className="streak-stats-row" style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
-                                <div>Streak: <strong id="study-streak-count">{currentStreak}</strong>d (Best: <strong id="longest-streak">{longestStreak}</strong>d)</div>
-                                <div>Momentum: <strong id="momentum-days">{currentStreak > 0 ? `${currentStreak}d Active` : '0d'}</strong></div>
-                                <span id="streak-days" style={{ display: 'none' }}>{currentStreak}</span>
-                            </div>
-                            <input type="hidden" id="daily-goal-target" value="10" />
-                        </div>
-                    </div>
-                </details>
+                    hasCards={cards.length > 0}
+                />
 
-                {/* Collapsible Card 2: Bento Command Center */}
-                <details
-                    id="bento-command-center"
-                    className="card details-card quick-launchpad-card"
-                    open
-                >
-                    <summary className="details-summary">
-                        <div className="summary-content">
-                            <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                            </svg>
-                            <span className="card-title">Command Center</span>
-                        </div>
-                    </summary>
-                    <div className="details-body">
-                        <BentoCommandCenter
-                            onOpenStudyPlan={() => openTab('features/tracker/tracker.html?mode=exam')}
-                            onOpenPomodoro={() => openTab('features/tracker/tracker.html?mode=pomodoro')}
-                            onOpenAnalytics={() => openTab('features/dashboard/analytics/analytics.html')}
-                            onOpenForecast={() => openTab('features/dashboard/analytics/analytics.html?tab=simulation')}
-                            onOpenSummary={() => openTab('features/dashboard/analytics/analytics.html?tab=performance')}
-                            onOpenHistory={() => openTab('features/dashboard/analytics/analytics.html?tab=insights')}
-                            onOpenHighlights={() => openTab('features/highlighter/manager/highlights.html')}
-                            onOpenColors={() => openTab('features/highlighter/options/highlightOptions.html')}
-                            onOpenSettings={() => openTab('features/tracker/config/fsrsConfig.html')}
-                            onPracticeDue={() => openTab('features/tracker/tracker.html?mode=due')}
-                        />
-                    </div>
-                </details>
+                {/* Static Card 2: Bento Command Center (Div card, NOT details) */}
+                <BentoCommandCenter
+                    onOpenStudyPlan={() => openTab('features/dashboard/studyplan/studyplan.html')}
+                    onOpenPomodoro={() => openTab('features/dashboard/pomodoro/pomodoro.html')}
+                    onOpenAnalytics={() => openTab('features/dashboard/analytics/analytics.html')}
+                    onOpenForecast={() => openTab('features/dashboard/forecast/forecast.html')}
+                    onOpenSummary={() => openTab('features/dashboard/summary/summary.html')}
+                    onOpenHistory={() => openTab('features/dashboard/history/history.html')}
+                    onOpenHighlights={() => openTab('features/highlighter/manager/highlights.html')}
+                    onOpenColors={() => openTab('features/highlighter/options/highlightOptions.html')}
+                    onOpenSettings={() => openTab('features/common/settings/settings.html')}
+                />
 
-                {/* Collapsible Card 3: Study Tools */}
-                <details id="study-tools-card" className="card details-card">
-                    <summary className="details-summary">
-                        <div className="summary-content">
-                            <span className="card-title">Study Tools</span>
-                        </div>
-                    </summary>
-                    <div className="details-body" style={{ display: 'flex', gap: '8px' }}>
-                        <button id="studyplan-btn" className="btn btn-secondary flex-1" onClick={() => openTab('features/tracker/tracker.html?mode=exam')}>
-                            Study Plan
-                        </button>
-                        <button id="pomodoro-btn" className="btn btn-secondary flex-1" onClick={() => openTab('features/tracker/tracker.html?mode=pomodoro')}>
-                            Pomodoro
-                        </button>
-                    </div>
-                </details>
-
-                {/* Collapsible Card 4: Activity Charts */}
-                <details
+                {/* Static Card 3: Activity Heatmap Section (Div card, NOT details) */}
+                <div
                     id="activity-charts-card"
-                    className="card details-card heatmap-card heatmap-section"
-                    open
+                    className="card heatmap-card heatmap-section"
                     style={{ display: settings.showCharts !== false ? '' : 'none' }}
                 >
-                    <summary className="details-summary">
-                        <div className="summary-content">
+                    <div className="heatmap-header">
+                        <div className="heatmap-title-wrap">
                             <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
                                 <rect x="3" y="3" width="7" height="7" />
                                 <rect x="14" y="3" width="7" height="7" />
                                 <rect x="14" y="14" width="7" height="7" />
                                 <rect x="3" y="14" width="7" height="7" />
                             </svg>
-                            <span className="card-title">Contributions</span>
+                            <span className="heatmap-label">Contributions</span>
                         </div>
-                    </summary>
-                    <div className="details-body">
-                        <div className="heatmap-actions-group" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                            <button id="toggle-lifetime-btn" className="btn-text-subtle">Show Lifetime</button>
+                        <div className="heatmap-actions-group">
+                            <button
+                                id="toggle-lifetime-btn"
+                                className="btn-text-subtle"
+                                onClick={() => safeFlushSync(() => setIsLifetimeView(prev => !prev))}
+                            >
+                                {isLifetimeView ? 'Show Last 12 Weeks' : 'Show Lifetime'}
+                            </button>
                             <button
                                 id="open-heatmap-tab-btn"
                                 className="btn-icon-text"
                                 title="Open full screen heatmap"
                                 aria-label="Open full screen heatmap"
-                                onClick={() => openTab('features/dashboard/analytics/analytics.html?tab=overview')}
+                                onClick={() => openTab('features/dashboard/heatmap/heatmap.html')}
                             >
+                                <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                    <polyline points="15 3 21 3 21 9" />
+                                    <line x1="10" y1="14" x2="21" y2="3" />
+                                </svg>
                                 Full Screen
                             </button>
                         </div>
-                        <div className="heatmap-container">
-                            <div id="heatmap-grid" className="heatmap" />
+                    </div>
+                    <div className="heatmap-container">
+                        <div id="heatmap-grid" className="heatmap" ref={heatmapGridRef}>
+                            {heatmapCells.map((cell) => (
+                                <div
+                                    key={cell.dateString}
+                                    className={`heatmap-cell level-${cell.level}`}
+                                    role="img"
+                                    aria-label={cell.count === 1 ? `1 review on ${cell.dateString}` : `${cell.count} reviews on ${cell.dateString}`}
+                                    title={cell.count === 1 ? `1 review on ${cell.dateString}` : `${cell.count} reviews on ${cell.dateString}`}
+                                    tabIndex={0}
+                                />
+                            ))}
                         </div>
                     </div>
-                </details>
+                </div>
 
-                {/* Collapsible Card 5: Highlighter Settings */}
-                <details id="highlighter-settings-card" className="card details-card">
+                {/* Progressive Disclosure Drawer: ONLY details accordion in the file */}
+                <details id="advanced-tools-drawer" className="card details-card advanced-drawer">
                     <summary className="details-summary">
                         <div className="summary-content">
-                            <span className="card-title">Highlighter Settings</span>
+                            <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="1" />
+                                <circle cx="19" cy="12" r="1" />
+                                <circle cx="5" cy="12" r="1" />
+                            </svg>
+                            <span className="card-title">Advanced Options</span>
                         </div>
+                        <svg className="svg-icon chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9" />
+                        </svg>
                     </summary>
                     <div className="details-body">
+                        {/* Floating Highlighter Toggle */}
                         <div className="setting-row">
-                            <label htmlFor="toggle-marker-popup" className="setting-label">Floating Marker</label>
+                            <label htmlFor="toggle-marker-popup" className="setting-label">Floating Highlighter</label>
                             <label className="switch">
                                 <input
                                     type="checkbox"
@@ -1219,8 +1849,10 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                                 <span className="slider" />
                             </label>
                         </div>
+
+                        {/* Problem Tracker Launcher Toggle */}
                         <div className="setting-row">
-                            <label htmlFor="toggle-algo-launcher" className="setting-label">Tracker Launcher</label>
+                            <label htmlFor="toggle-algo-launcher" className="setting-label">Problem Tracker Button</label>
                             <label className="switch">
                                 <input
                                     type="checkbox"
@@ -1233,37 +1865,8 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                                 <span className="slider" />
                             </label>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                            <button id="manage-highlights-btn" className="btn btn-secondary btn-sm" onClick={() => openTab('features/highlighter/manager/highlights.html')}>
-                                Manage Highlights
-                            </button>
-                            <button id="open-options-btn" className="btn btn-secondary btn-sm" onClick={() => openTab('features/highlighter/options/highlightOptions.html')}>
-                                Options
-                            </button>
-                        </div>
-                        <div className="color-swatches" id="marker-color-swatches" style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-                            <span className="color-swatch" style={{ background: '#fff176', width: '18px', height: '18px', borderRadius: '50%', display: 'inline-block' }} />
-                            <span className="color-swatch" style={{ background: '#a7ffeb', width: '18px', height: '18px', borderRadius: '50%', display: 'inline-block' }} />
-                            <span className="color-swatch" style={{ background: '#ffd180', width: '18px', height: '18px', borderRadius: '50%', display: 'inline-block' }} />
-                            <span className="color-swatch" style={{ background: '#ff80ab', width: '18px', height: '18px', borderRadius: '50%', display: 'inline-block' }} />
-                            <span className="color-swatch" style={{ background: '#b388ff', width: '18px', height: '18px', borderRadius: '50%', display: 'inline-block' }} />
-                        </div>
-                    </div>
-                </details>
 
-                {/* Collapsible Card 6: Advanced Settings */}
-                <details id="advanced-settings-card" className="card details-card advanced-drawer">
-                    <summary className="details-summary">
-                        <div className="summary-content">
-                            <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <circle cx="12" cy="12" r="1" />
-                                <circle cx="19" cy="12" r="1" />
-                                <circle cx="5" cy="12" r="1" />
-                            </svg>
-                            <span className="card-title">Advanced Settings</span>
-                        </div>
-                    </summary>
-                    <div className="details-body">
+                        {/* Show Analytics & Charts Toggle */}
                         <div className="setting-row">
                             <label htmlFor="toggle-show-charts" className="setting-label">Show Analytics & Charts</label>
                             <label className="switch">
@@ -1278,6 +1881,8 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                                 <span className="slider" />
                             </label>
                         </div>
+
+                        {/* Daily Focus & Momentum Toggle */}
                         <div className="setting-row">
                             <label htmlFor="toggle-daily-focus" className="setting-label">Daily Focus & Momentum</label>
                             <label className="switch">
@@ -1292,6 +1897,8 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                                 <span className="slider" />
                             </label>
                         </div>
+
+                        {/* Developer Mode Toggle */}
                         <div className="setting-row">
                             <label htmlFor="toggle-dev-mode" className="setting-label">Developer Mode</label>
                             <label className="switch">
@@ -1306,6 +1913,8 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                                 <span className="slider" />
                             </label>
                         </div>
+
+                        {/* Developer Mode Action Buttons */}
                         <div
                             id="dev-mode-actions"
                             style={{ display: settings.developerMode ? 'block' : 'none', marginTop: '8px', textAlign: 'right' }}
@@ -1314,6 +1923,8 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                                 Export Debug Logs
                             </button>
                         </div>
+
+                        {/* Notification Controls: Dev Mode Test Buttons */}
                         <div
                             id="notification-settings-card"
                             className="card notification-card"
@@ -1322,12 +1933,17 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                             <div
                                 id="test-notifications-container"
                                 className="button-row"
-                                style={{ display: settings.developerMode ? 'flex' : 'none', flexDirection: 'column', gap: '8px', marginTop: '8px' }}
+                                style={{
+                                    display: settings.developerMode ? 'flex' : 'none',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    marginTop: '8px'
+                                }}
                             >
-                                <button id="test-notification-btn" className="btn btn-secondary flex-1">
+                                <button id="test-notification-btn" className="btn btn-secondary flex-1" onClick={handleTestNotification}>
                                     Send Test Notification
                                 </button>
-                                <button id="test-summary-notification-btn" className="btn btn-secondary flex-1">
+                                <button id="test-summary-notification-btn" className="btn btn-secondary flex-1" onClick={handleTestSummaryNotification}>
                                     Send Test Summary Notification
                                 </button>
                             </div>
@@ -1335,9 +1951,18 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                     </div>
                 </details>
 
-                {/* Static Review Banner */}
-                <div className="static-review-banner">
-                    <a href={BROWSER_CONFIG.reviewUrl} target="_blank" rel="noopener noreferrer" id="static-review-link" className="static-review-link">
+                {/* Static Review Banner: Hidden when rating prompt card is visible */}
+                <div
+                    className="static-review-banner"
+                    style={{ display: isPromptCardVisible ? 'none' : 'block' }}
+                >
+                    <a
+                        href={resolvedReviewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        id="static-review-link"
+                        className="static-review-link"
+                    >
                         <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                         </svg>
@@ -1347,20 +1972,42 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
 
                 <footer className="footer-modern">
                     <p>AlgoRecall: 100% Private, Local-First.</p>
-                    <a href="../../common/help/help.html?tab=privacy" target="_blank" rel="noopener noreferrer">Help & Privacy</a>
+                    <a href="../../common/help/help.html?tab=privacy" target="_blank" rel="noopener noreferrer">
+                        Help & Privacy
+                    </a>
                 </footer>
             </div>
 
             {/* Achievements Modal Dialog */}
-            <AchievementsModal isOpen={isAchievementsOpen} onClose={() => setIsAchievementsOpen(false)} />
+            <AchievementsModal
+                isOpen={isAchievementsOpen}
+                onClose={() => safeFlushSync(() => setIsAchievementsOpen(false))}
+                achievements={evaluatedAchievements}
+                records={evaluatedRecords}
+            />
 
-            {/* Status & Milestone Toasts */}
+            {/* Status & Milestone Feedback Toasts */}
             <div
                 id="status-msg"
                 className={`toast modern-toast status-toast ${statusToast ? `show ${statusToast.isError ? 'error' : 'success'}` : ''}`}
             >
-                {statusToast?.message || ''}
+                {statusToast && (
+                    <Fragment>
+                        <svg className="svg-icon toast-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            {statusToast.isError ? (
+                                <Fragment>
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </Fragment>
+                            ) : (
+                                <polyline points="20 6 9 17 4 12" />
+                            )}
+                        </svg>
+                        <span>{statusToast.message}</span>
+                    </Fragment>
+                )}
             </div>
+
             <div id="milestone-toast" className={`toast milestone-toast ${milestoneToast ? 'show' : ''}`}>
                 <span id="milestone-toast-text">{milestoneToast || ''}</span>
             </div>

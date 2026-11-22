@@ -176,11 +176,11 @@ export function PopupRatingPromptCard({
     return (
         <div
             id="rating-prompt-card"
-            className={`rating-card ${isHidden ? 'hide-panel' : ''}`}
+            className={`card rating-card ${isHidden ? 'hide-panel' : ''}`}
         >
             <div
                 id="rating-prompt-state"
-                className={`rating-state-content ${isRated ? 'hide-panel' : ''}`}
+                className={`rating-state rating-state-content ${isRated ? 'hide-panel' : ''}`}
             >
                 <p id="rating-prompt-text">{promptText}</p>
                 <div className="rating-actions">
@@ -212,7 +212,7 @@ export function PopupRatingPromptCard({
 
             <div
                 id="rating-thanks-state"
-                className={`rating-state-content ${!isRated ? 'hide-panel' : ''}`}
+                className={`rating-state rating-state-content ${!isRated ? 'hide-panel' : ''}`}
             >
                 <p>Thank you for supporting AlgoRecall!</p>
                 <button

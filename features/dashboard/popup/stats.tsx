@@ -139,31 +139,6 @@ export function PopupStatsOverview({
                     <span className="stat-label">Retention</span>
                 </div>
             </div>
-
-            {/* Due Reviews Practice Banner */}
-            {dueCards > 0 ? (
-                <div id="due-banner" className="due-banner">
-                    <span>{dueCards} pattern{dueCards === 1 ? '' : 's'} due for review!</span>
-                    <button
-                        id="due-cards-btn"
-                        className="btn btn-primary btn-sm"
-                        onClick={onViewDue}
-                    >
-                        Review Now
-                    </button>
-                </div>
-            ) : (
-                <div id="due-banner" className="due-banner hide-panel" style={{ display: 'none' }}>
-                    <span>All caught up!</span>
-                    <button
-                        id="due-cards-btn"
-                        className="btn btn-primary btn-sm"
-                        onClick={onViewDue}
-                    >
-                        Practice
-                    </button>
-                </div>
-            )}
         </div>
     );
 }
@@ -456,21 +431,17 @@ export function DailyFocusCard({
     const totalAchievements = achievements.length || 8;
 
     return (
-        <details id="daily-focus-card" className="card details-card activity-focus-card" open>
-            <summary className="details-summary card-header-clean">
-                <div className="summary-content header-label-group">
+        <div id="daily-focus-card" className="card activity-focus-card">
+            <div className="card-header-clean">
+                <div className="header-label-group">
                     <svg className="svg-icon section-title-icon" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
                     </svg>
                     <span className="card-title">Daily Focus & Momentum</span>
                 </div>
-                <svg className="svg-icon chevron" viewBox="0 0 24 24" aria-hidden="true">
-                    <polyline points="6 9 12 15 18 9" />
-                </svg>
-            </summary>
+            </div>
 
-            <div className="details-body">
-                <div id="gamification-panel" className="gamification-wrapper">
+            <div id="gamification-panel" className="gamification-wrapper">
                     {/* Daily Goal Circular SVG Progress */}
                     <PopupDailyGoalRing
                         todayReviewed={completedToday}
@@ -548,7 +519,6 @@ export function DailyFocusCard({
                     </div>
                 </div>
             </div>
-        </details>
     );
 }
 
