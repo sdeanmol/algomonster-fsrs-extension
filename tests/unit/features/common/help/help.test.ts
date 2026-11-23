@@ -66,11 +66,11 @@ describe('HelpCenterSPA & HelpApp', () => {
     });
 
     it('switches to privacy tab on data-switch-tab link click', () => {
-      window.scrollTo = jest.fn();
+      const spyScroll = jest.spyOn(helpCenter, 'smoothScrollToTab');
       helpCenter.switchTab('privacy');
 
       expect(helpCenter.currentTab).toBe('privacy');
-      expect(window.scrollTo).toHaveBeenCalled();
+      expect(spyScroll).toHaveBeenCalledWith('privacy');
     });
 
     it('activates privacy tab directly when ?tab=privacy is in URL', () => {
@@ -83,9 +83,18 @@ describe('HelpCenterSPA & HelpApp', () => {
     });
 
     it('smoothly scrolls the active tab button into view inside role="tablist"', () => {
-      window.scrollTo = jest.fn();
+      const tablist = document.createElement('nav');
+      tablist.className = 'tabs-container';
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn';
+      btn.setAttribute('data-tab', 'privacy');
+      tablist.appendChild(btn);
+      document.body.appendChild(tablist);
+
+      tablist.scrollTo = jest.fn();
       helpCenter.smoothScrollToTab('privacy');
-      expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+      expect(tablist.scrollTo).toHaveBeenCalled();
+      tablist.remove();
     });
 
     it('dynamically renders browser and store specific names on init', async () => {

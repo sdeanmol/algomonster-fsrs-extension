@@ -256,7 +256,8 @@ export function CardsTableRow({
     onDelete
 }: CardsTableRowProps): VNode {
     const now = Date.now();
-    const isPastDue = card.due <= now;
+    const cardDue = typeof card.due === 'number' ? card.due : new Date(card.due).getTime();
+    const isPastDue = !isNaN(cardDue) && cardDue <= now;
     const reps = card.reps || 0;
     const lapses = card.lapses || 0;
     const state = card.state || 0;
@@ -294,7 +295,7 @@ export function CardsTableRow({
                 {isPastDue ? (
                     <span className="badge badge-due">Due Now</span>
                 ) : (
-                    <span className="badge badge-safe">{new Date(card.due).toLocaleDateString()}</span>
+                    <span className="badge badge-safe">{!isNaN(cardDue) ? new Date(cardDue).toLocaleDateString() : 'N/A'}</span>
                 )}
             </td>
             <td>
@@ -668,17 +669,16 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     });
     const sortedPlatforms = Array.from(allPlatforms).sort();
 
+    const isFilterActive = searchQuery !== '' || selectedTag !== 'all' || selectedStatus !== 'all' || selectedPlatform !== 'all' || selectedState !== 'all' || sortBy !== 'due-asc';
+
     // Title & subtitle
     let pageTitle = 'Total Saved Patterns';
     let pageSubtitle = `You have saved ${cards.length} algorithmic patterns.`;
     if (view === 'due') {
-        const now = Date.now();
-        const dueCount = cards.filter(c => {
-            const due = typeof c.due === 'number' ? c.due : new Date(c.due).getTime();
-            return !isNaN(due) && due <= now;
-        }).length;
         pageTitle = dashboard.targetDate ? `Patterns Due on ${dashboard.targetDate}` : 'Patterns Due Today';
-        pageSubtitle = `You have ${dueCount} pattern(s) awaiting review.`;
+        pageSubtitle = isFilterActive
+            ? `Showing ${cards.length} matching due pattern(s).`
+            : `You have ${cards.length} pattern(s) awaiting review.`;
     } else if (view === 'retention') {
         pageTitle = 'Retention';
         pageSubtitle = 'Showing all patterns with at least 1 lapse.';
@@ -687,7 +687,6 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
         pageSubtitle = `Cards scheduled for review on ${dashboard.targetDate}.`;
     }
 
-    const isFilterActive = searchQuery !== '' || selectedTag !== 'all' || selectedStatus !== 'all' || selectedPlatform !== 'all' || selectedState !== 'all' || sortBy !== 'due-asc';
     const showCharts = dashboard.extensionSettings?.showCharts !== false;
     const shouldShowAnalytics = showCharts && cards.length > 0 && (view === 'total' || !view);
 
@@ -751,7 +750,7 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     };
 
     const handleToggleSelectAll = (checked: boolean) => {
-        dashboard.toggleSelectAll(checked);
+        dashboard.toggleSelectAll(checked, cards);
         setSelectedCardIds(new Set(dashboard.selectedCardIds));
     };
 
@@ -1148,10 +1147,11 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Toggles selection state for all tracked cards.
+     * Toggles selection state for tracked cards (or specific subset of cards).
      */
-    toggleSelectAll(checked: boolean): void {
-        this.allCards.forEach(c => {
+    toggleSelectAll(checked: boolean, cardsToToggle?: Card[]): void {
+        const targetCards = cardsToToggle || this.allCards;
+        targetCards.forEach(c => {
             if (c.id) {
                 if (checked) this.selectedCardIds.add(c.id);
                 else this.selectedCardIds.delete(c.id);
@@ -1299,12 +1299,9 @@ export class FSRSDataDashboard {
                         return !isNaN(due) && due >= targetDayStart && due < targetDayEnd;
                     });
                 } else {
-                    const endOfToday = new Date();
-                    endOfToday.setHours(23, 59, 59, 999);
-                    const endOfTodayMs = endOfToday.getTime();
                     baseCards = this.allCards.filter((c: Card) => {
                         const due = typeof c.due === 'number' ? c.due : new Date(c.due).getTime();
-                        return !isNaN(due) && due <= endOfTodayMs;
+                        return !isNaN(due) && due <= now;
                     });
                 }
                 baseCards.sort((a: Card, b: Card) => {

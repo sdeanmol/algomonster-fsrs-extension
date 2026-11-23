@@ -139,15 +139,33 @@ export class HelpCenterSPA {
     }
 
     /**
-     * Smoothly scrolls to the active tab button or view.
+     * Smoothly scrolls the active tab button into center alignment inside the tab bar container horizontally.
+     * @param tabId - Target tab identifier.
      */
     smoothScrollToTab(tabId: string): void {
         try {
-            if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+            const scrollAction = () => {
+                const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`) as HTMLElement | null;
+                const tablist = document.querySelector('.tabs-container') as HTMLElement | null;
+
+                if (!targetBtn || !tablist) return;
+
+                const scrollLeft = targetBtn.offsetLeft - (tablist.clientWidth / 2) + (targetBtn.clientWidth / 2);
+                if (typeof tablist.scrollTo === 'function') {
+                    tablist.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+                } else {
+                    tablist.scrollLeft = Math.max(0, scrollLeft);
+                }
+            };
+
+            scrollAction();
+            if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+                window.requestAnimationFrame(() => {
+                    scrollAction();
+                });
             }
         } catch {
-            // ignore scrollTo errors in non-browser/test environments
+            // ignore scroll errors in test environments
         }
     }
 
@@ -237,16 +255,11 @@ export function HelpApp({ spa: injectedSpa, tabs = DEFAULT_HELP_TABS }: HelpAppP
     }, [spa, currentTab]);
 
     useEffect(() => {
-        if (currentTab === 'privacy' && typeof document !== 'undefined') {
-            const timer = setTimeout(() => {
-                const el = document.getElementById('tab-privacy');
-                if (el && typeof el.scrollIntoView === 'function') {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }, 100);
-            return () => clearTimeout(timer);
-        }
-    }, [currentTab]);
+        const timer = setTimeout(() => {
+            spa.smoothScrollToTab(currentTab);
+        }, 50);
+        return () => clearTimeout(timer);
+    }, [spa, currentTab]);
 
     const handleSelectTab = useCallback((tabId: string) => {
         setCurrentTab(tabId);
