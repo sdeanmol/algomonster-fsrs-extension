@@ -673,8 +673,11 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     let pageSubtitle = `You have saved ${cards.length} algorithmic patterns.`;
     if (view === 'due') {
         const now = Date.now();
-        const dueCount = cards.filter(c => c.due <= now).length;
-        pageTitle = 'Patterns Due Today';
+        const dueCount = cards.filter(c => {
+            const due = typeof c.due === 'number' ? c.due : new Date(c.due).getTime();
+            return !isNaN(due) && due <= now;
+        }).length;
+        pageTitle = dashboard.targetDate ? `Patterns Due on ${dashboard.targetDate}` : 'Patterns Due Today';
         pageSubtitle = `You have ${dueCount} pattern(s) awaiting review.`;
     } else if (view === 'retention') {
         pageTitle = 'Retention';
@@ -1106,12 +1109,21 @@ export class FSRSDataDashboard {
      */
     constructor() {
         this.allCards = [];
-        this.currentView = 'total';
-        this.targetDate = null;
         this.undoTimer = null;
 
-        this.searchQuery = '';
-        this.selectedTag = 'all';
+        if (typeof window !== 'undefined' && window.location?.search) {
+            const urlParams = new URLSearchParams(window.location.search);
+            this.currentView = urlParams.get('view') || 'total';
+            this.targetDate = urlParams.get('date');
+            this.searchQuery = urlParams.get('search') || urlParams.get('q') || urlParams.get('query') || '';
+            this.selectedTag = urlParams.get('tag') || 'all';
+        } else {
+            this.currentView = 'total';
+            this.targetDate = null;
+            this.searchQuery = '';
+            this.selectedTag = 'all';
+        }
+
         this.selectedStatus = 'all';
         this.selectedPlatform = 'all';
         this.selectedState = 'all';
@@ -1278,7 +1290,28 @@ export class FSRSDataDashboard {
                 baseCards = [...this.allCards];
             }
             else if (this.currentView === 'due') {
-                baseCards = this.allCards.filter((c: Card) => c.due <= now).sort((a: Card, b: Card) => a.due - b.due);
+                if (this.targetDate) {
+                    const targetParts = this.targetDate.split('-');
+                    const targetDayStart = new Date(parseInt(targetParts[0], 10), parseInt(targetParts[1], 10) - 1, parseInt(targetParts[2], 10)).getTime();
+                    const targetDayEnd = targetDayStart + 86400000;
+                    baseCards = this.allCards.filter((c: Card) => {
+                        const due = typeof c.due === 'number' ? c.due : new Date(c.due).getTime();
+                        return !isNaN(due) && due >= targetDayStart && due < targetDayEnd;
+                    });
+                } else {
+                    const endOfToday = new Date();
+                    endOfToday.setHours(23, 59, 59, 999);
+                    const endOfTodayMs = endOfToday.getTime();
+                    baseCards = this.allCards.filter((c: Card) => {
+                        const due = typeof c.due === 'number' ? c.due : new Date(c.due).getTime();
+                        return !isNaN(due) && due <= endOfTodayMs;
+                    });
+                }
+                baseCards.sort((a: Card, b: Card) => {
+                    const dueA = typeof a.due === 'number' ? a.due : new Date(a.due).getTime();
+                    const dueB = typeof b.due === 'number' ? b.due : new Date(b.due).getTime();
+                    return dueA - dueB;
+                });
             }
             else if (this.currentView === 'retention') {
                 baseCards = this.allCards.filter((c: Card) => (c.lapses || 0) > 0).sort((a: Card, b: Card) => (b.lapses || 0) - (a.lapses || 0));
@@ -1324,7 +1357,8 @@ export class FSRSDataDashboard {
 
                 const matchesSearch = !this.searchQuery || titleMatch || urlMatch || tagMatch || approachMatch;
                 const matchesTag = this.selectedTag === 'all' || (card.tags && card.tags.includes(this.selectedTag));
-                const isCardDue = card.due <= now;
+                const cardDue = typeof card.due === 'number' ? card.due : new Date(card.due).getTime();
+                const isCardDue = !isNaN(cardDue) && cardDue <= now;
                 const matchesStatus = this.selectedStatus === 'all' ||
                     (this.selectedStatus === 'due' && isCardDue) ||
                     (this.selectedStatus === 'safe' && !isCardDue);
@@ -1344,9 +1378,6 @@ export class FSRSDataDashboard {
 
             const sorted = this.sortCards(filtered);
 
-            if (this.onUpdate) {
-                this.onUpdate();
-            }
             return sorted;
         } catch (err) {
             UIUtils.catchError('DataDashboard', 'Error in filterAndRender', err);

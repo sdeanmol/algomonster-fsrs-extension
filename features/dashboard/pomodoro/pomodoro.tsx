@@ -433,7 +433,7 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
     const circumference = 2 * Math.PI * 88;
     const progress = timer.totalTime > 0 ? (timer.totalTime - timer.timeRemaining) / timer.totalTime : 0;
     const targetOffset = circumference * (1 - progress);
-    const [animatedOffset, setAnimatedOffset] = useState<number>(circumference);
+    const [animatedOffset, setAnimatedOffset] = useState<number>(() => (timer.state === 'running' ? targetOffset : 0));
 
     useEffect(() => {
         const timerId = setTimeout(() => {
@@ -497,7 +497,7 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                                 strokeDashoffset: `${animatedOffset}`,
                                 transition: timer.state === 'running'
                                     ? 'stroke-dashoffset 1s linear, stroke 0.5s ease'
-                                    : 'stroke-dashoffset 0.8s ease-out, stroke 0.5s ease'
+                                    : 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s ease'
                             }}
                         />
                     </svg>

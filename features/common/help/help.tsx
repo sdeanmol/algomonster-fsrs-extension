@@ -236,6 +236,18 @@ export function HelpApp({ spa: injectedSpa, tabs = DEFAULT_HELP_TABS }: HelpAppP
         };
     }, [spa, currentTab]);
 
+    useEffect(() => {
+        if (currentTab === 'privacy' && typeof document !== 'undefined') {
+            const timer = setTimeout(() => {
+                const el = document.getElementById('tab-privacy');
+                if (el && typeof el.scrollIntoView === 'function') {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [currentTab]);
+
     const handleSelectTab = useCallback((tabId: string) => {
         setCurrentTab(tabId);
         spa.switchTab(tabId);

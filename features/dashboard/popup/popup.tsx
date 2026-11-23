@@ -1287,21 +1287,29 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
     // Manual review check via check_due_cards_now
     const handleCheckNow = useCallback(() => {
         try {
+            const calculateLocalDue = () => cards.filter(c => {
+                const due = typeof c.due === 'number' ? c.due : new Date(c.due).getTime();
+                return !isNaN(due) && due <= Date.now();
+            }).length;
+
             if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
                 chrome.runtime.sendMessage({ action: 'check_due_cards_now' }, (response) => {
-                    if (response && response.success) {
-                        const count = typeof response.dueCount === 'number' ? response.dueCount : 0;
-                        showStatus(`Checked! ${count} review${count === 1 ? '' : 's'} due.`, false);
-                    } else {
-                        showStatus('Checked for due reviews.', false);
+                    const localDueCount = calculateLocalDue();
+                    let count = (response && response.success && typeof response.dueCount === 'number') ? response.dueCount : 0;
+                    if (count === 0 && localDueCount > 0) {
+                        count = localDueCount;
                     }
+                    showStatus(`Checked! ${count} review${count === 1 ? '' : 's'} due.`, false);
                     loadInitialData();
                 });
+            } else {
+                const localDueCount = calculateLocalDue();
+                showStatus(`Checked! ${localDueCount} review${localDueCount === 1 ? '' : 's'} due.`, false);
             }
         } catch (err) {
             UIUtils.catchError('PopupApp', 'Error checking due reviews', err);
         }
-    }, [showStatus, loadInitialData]);
+    }, [cards, showStatus, loadInitialData]);
 
     // Save Daily Goal
     const handleSaveGoal = useCallback(async () => {
@@ -1980,10 +1988,10 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                 <footer className="footer-modern">
                     <p>AlgoRecall: 100% Private, Local-First.</p>
                     <a
-                        href="../../common/settings/settings.html#about"
+                        href="../../common/help/help.html?tab=privacy"
                         onClick={(e) => {
                             e.preventDefault();
-                            openTab('features/common/settings/settings.html#about');
+                            openTab('features/common/help/help.html?tab=privacy');
                         }}
                         target="_blank"
                         rel="noopener noreferrer"

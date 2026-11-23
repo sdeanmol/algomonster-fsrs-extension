@@ -835,7 +835,10 @@ export class AlgoRecallBackground {
         const result = (await chrome.storage.local.get(['fsrsCards'])) as { fsrsCards?: Card[] };
         const cards = result.fsrsCards || [];
         const now = Date.now();
-        return cards.filter((c: Card) => typeof c.due === 'number' && c.due <= now).length;
+        return cards.filter((c: Card) => {
+            const due = typeof c.due === 'number' ? c.due : new Date(c.due).getTime();
+            return !isNaN(due) && due <= now;
+        }).length;
     }
 
     /**
