@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 import { h, render } from 'preact';
 import { act } from 'preact/test-utils';
 import { BackupManager, Fnv1aHasher } from '../../features/common/data/backupManager';
+import { freezeTime } from './acceptance/helpers/storageHydrationHelper';
 import FsrsScheduler from '../../features/tracker/scheduler/fsrsScheduler';
 import { DataUtils } from '../../features/dashboard/analytics/utils/dataUtils';
 import { getLastReviewDate } from '../../features/common/utils/cardUtils';
@@ -28,12 +29,21 @@ describe('Milestone 1: Storage & FSRS Hydration Parity (R1)', () => {
     let rawGzipBuffer: Buffer;
     let uncompressedLines: string[];
     let parsedRecords: BackupRecord[];
+    let unfreeze: (() => void) | null = null;
 
     beforeEach(() => {
+        unfreeze = freezeTime(REFERENCE_TIMESTAMP);
         rawGzipBuffer = fs.readFileSync(backupFilePath);
         const decompressed = zlib.gunzipSync(rawGzipBuffer).toString('utf-8');
         uncompressedLines = decompressed.split('\n').filter(Boolean);
         parsedRecords = uncompressedLines.map(line => JSON.parse(line));
+    });
+
+    afterEach(() => {
+        if (unfreeze) {
+            unfreeze();
+            unfreeze = null;
+        }
     });
 
     describe('1. Backup Archive Structure & Integrity Checksum', () => {
@@ -354,20 +364,13 @@ describe('Milestone 1: Storage & FSRS Hydration Parity (R1)', () => {
         });
 
         it('produces summary stats matching overview hero card metrics', () => {
-            // Temporarily freeze Date.now for getSummaryStats comparison
-            const origDateNow = Date.now;
-            Date.now = () => REFERENCE_TIMESTAMP;
-            try {
-                const summary = dataUtils.getSummaryStats();
-                expect(summary.totalCards).toBe(52);
-                expect(summary.dueToday).toBe(35);
-                expect(summary.trueRetention).toBe(63);
-                expect(summary.totalActivityReviews).toBe(112);
-                expect(summary.totalLapses).toBe(3);
-                expect(summary.avgStability).toBeCloseTo(41.8, 1);
-            } finally {
-                Date.now = origDateNow;
-            }
+            const summary = dataUtils.getSummaryStats();
+            expect(summary.totalCards).toBe(52);
+            expect(summary.dueToday).toBe(35);
+            expect(summary.trueRetention).toBe(63);
+            expect(summary.totalActivityReviews).toBe(112);
+            expect(summary.totalLapses).toBe(3);
+            expect(summary.avgStability).toBeCloseTo(41.8, 1);
         });
 
         it('calculates 12-day exam readiness overall expected recall as 59%', () => {
@@ -386,23 +389,17 @@ describe('Milestone 1: Storage & FSRS Hydration Parity (R1)', () => {
         });
 
         it('calculates tag analytics with Linked List at 33% and Sorting at 99%', () => {
-            const origDateNow = Date.now;
-            Date.now = () => REFERENCE_TIMESTAMP;
-            try {
-                const tagStats = dataUtils.getStatsByTag();
-                const linkedList = tagStats.find(t => t.tag === 'Linked List');
-                const sorting = tagStats.find(t => t.tag === 'Sorting');
+            const tagStats = dataUtils.getStatsByTag();
+            const linkedList = tagStats.find(t => t.tag === 'Linked List');
+            const sorting = tagStats.find(t => t.tag === 'Sorting');
 
-                expect(linkedList).toBeDefined();
-                expect(linkedList?.count).toBe(5);
-                expect(linkedList?.trueRetention).toBe(33);
+            expect(linkedList).toBeDefined();
+            expect(linkedList?.count).toBe(5);
+            expect(linkedList?.trueRetention).toBe(33);
 
-                expect(sorting).toBeDefined();
-                expect(sorting?.count).toBe(4);
-                expect(sorting?.trueRetention).toBe(99);
-            } finally {
-                Date.now = origDateNow;
-            }
+            expect(sorting).toBeDefined();
+            expect(sorting?.count).toBe(4);
+            expect(sorting?.trueRetention).toBe(99);
         });
     });
 
@@ -471,37 +468,31 @@ describe('Milestone 1: Storage & FSRS Hydration Parity (R1)', () => {
         });
 
         it('renders exact KPI hero cards: 52 PATTERNS, 35 DUE TODAY, 63% RETENTION, Best: 8', async () => {
-            const origDateNow = Date.now;
-            Date.now = () => REFERENCE_TIMESTAMP;
-            try {
-                await act(async () => {
-                    render(h(PopupApp, {}), container);
-                    await new Promise(r => setTimeout(r, 50));
-                });
+            await act(async () => {
+                render(h(PopupApp, {}), container);
+                await new Promise(r => setTimeout(r, 50));
+            });
 
-                const totalEl = document.getElementById('total-cards');
-                const dueEl = document.getElementById('due-cards');
-                const retentionEl = document.getElementById('retention-rate');
-                const boxDue = document.getElementById('box-due');
-                const boxRetention = document.getElementById('box-retention');
+            const totalEl = document.getElementById('total-cards');
+            const dueEl = document.getElementById('due-cards');
+            const retentionEl = document.getElementById('retention-rate');
+            const boxDue = document.getElementById('box-due');
+            const boxRetention = document.getElementById('box-retention');
 
-                expect(totalEl?.textContent?.trim()).toBe('52');
-                expect(dueEl?.textContent?.trim()).toBe('35');
-                expect(retentionEl?.textContent?.trim()).toBe('63%');
+            expect(totalEl?.textContent?.trim()).toBe('52');
+            expect(dueEl?.textContent?.trim()).toBe('35');
+            expect(retentionEl?.textContent?.trim()).toBe('63%');
 
-                expect(boxDue?.classList.contains('danger')).toBe(true);
-                expect(boxRetention?.classList.contains('danger')).toBe(true);
+            expect(boxDue?.classList.contains('danger')).toBe(true);
+            expect(boxRetention?.classList.contains('danger')).toBe(true);
 
-                // Rating state displays 'Thank you for supporting us! ❤️ Edit Rating'
-                const ratingBanner = document.getElementById('rating-thanks-state');
-                expect(ratingBanner?.textContent).toContain('Thank you for supporting us!');
+            // Rating state displays 'Thank you for supporting us! ❤️ Edit Rating'
+            const ratingBanner = document.getElementById('rating-thanks-state');
+            expect(ratingBanner?.textContent).toContain('Thank you for supporting us!');
 
-                // Streak indicators
-                const longestStreakEl = document.getElementById('longest-streak');
-                expect(longestStreakEl?.textContent).toContain('Best: 8');
-            } finally {
-                Date.now = origDateNow;
-            }
+            // Streak indicators
+            const longestStreakEl = document.getElementById('longest-streak');
+            expect(longestStreakEl?.textContent).toContain('Best: 8');
         });
     });
 });

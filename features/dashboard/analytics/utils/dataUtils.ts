@@ -256,7 +256,7 @@ export class DataUtils {
             this.activity = {};
             this.scheduler = null;
             this.today = new Date();
-            this.todayStart = new Date();
+            this.todayStart = new Date(this.today.getFullYear(), this.today.getMonth(), this.today.getDate());
         }
     }
 
@@ -289,8 +289,8 @@ export class DataUtils {
 
             let dueCount = 0;
             let dueTodayCount = 0;
-            const now = new Date();
-            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const now = this.today ? new Date(this.today) : new Date();
+            const todayStart = this.todayStart ? new Date(this.todayStart) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
             let totalRetrievability = 0;
             let retrievabilityCount = 0;
@@ -357,7 +357,7 @@ export class DataUtils {
      */
     getLearningVelocity(): LearningVelocity {
         try {
-            const now = Date.now();
+            const now = this.today ? this.today.getTime() : Date.now();
             const oneWeekAgo = now - MS_PER_WEEK;
             const twoWeeksAgo = now - (2 * MS_PER_WEEK);
             
@@ -470,6 +470,7 @@ export class DataUtils {
     getStatsByTag(): TagStats[] {
         try {
             const tags: Record<string, { count: number; totalReps: number; totalLapses: number; totalStability: number; reviewed: number; due: number; totalRetrievability: number; retrievabilityCount: number }> = {};
+            const now = this.today ? this.today.getTime() : Date.now();
             
             this.cards.forEach(card => {
                 const cardTags = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
@@ -486,13 +487,13 @@ export class DataUtils {
                         tags[tag].reviewed++;
                     }
                     
-                    if (card.due && card.due <= Date.now()) {
+                    if (card.due && card.due <= now) {
                         tags[tag].due++;
                     }
 
                     const lastReview = card.last_review || getLastReviewDate(card);
                     if (card.stability > 0 && lastReview && this.scheduler) {
-                        const r = this.scheduler.getRetrievability(card, Date.now());
+                        const r = this.scheduler.getRetrievability(card, now);
                         tags[tag].totalRetrievability += r;
                         tags[tag].retrievabilityCount++;
                     }
@@ -587,7 +588,7 @@ export class DataUtils {
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('DataUtils', `Error formatting date key: ${errorMessage}`, { date, err });
-            return new Date().toISOString().split('T')[0];
+            return (this.today ? new Date(this.today) : new Date()).toISOString().split('T')[0];
         }
     }
     
@@ -711,7 +712,7 @@ export class DataUtils {
     getExamReadinessStats(daysAhead: number = 12): ExamReadinessStats {
         try {
             const numDays = Math.max(0, parseInt(String(daysAhead), 10) || 0);
-            const now = Date.now();
+            const now = this.today ? this.today.getTime() : Date.now();
             const targetTime = now + (numDays * MS_PER_DAY);
             
             const tags: Record<string, { count: number; reviewedCount: number; totalStability: number; totalProjectedR: number }> = {};
@@ -805,7 +806,7 @@ export class DataUtils {
             Logger.error('DataUtils', `Error computing exam readiness stats: ${errorMessage}`, { daysAhead, err });
             return {
                 daysAhead: Math.max(0, parseInt(String(daysAhead), 10) || 0),
-                targetDate: new Date(),
+                targetDate: this.today ? new Date(this.today) : new Date(),
                 overallRecall: 0,
                 totalCards: this.cards ? this.cards.length : 0,
                 reviewedCards: 0,
@@ -832,7 +833,7 @@ export class DataUtils {
     getFutureMemorySimulation(customDays: number = 45): FutureMemorySimulationStats {
         try {
             const sliderDays = Math.max(0, parseInt(String(customDays), 10) || 0);
-            const now = Date.now();
+            const now = this.today ? this.today.getTime() : Date.now();
             
             const intervals = [0, 30, 90, 180];
             const retentionByInterval: Record<number, number> = { 0: 0, 30: 0, 90: 0, 180: 0 };
