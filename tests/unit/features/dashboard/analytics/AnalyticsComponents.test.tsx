@@ -262,7 +262,7 @@ describe('Analytics Preact Components', () => {
         expect(container.textContent).toContain('Exam Readiness');
         expect(container.textContent).toContain('Memory Retention');
         expect(container.textContent).toContain('Tag Analytics');
-        expect(container.textContent).toContain('View All Patterns');
+        expect(container.textContent).not.toContain('View All Patterns');
 
         const readinessBtn = container.querySelector('[data-tab="readiness"]') as HTMLButtonElement;
         expect(readinessBtn).not.toBeNull();

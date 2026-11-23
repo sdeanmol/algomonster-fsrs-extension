@@ -1934,7 +1934,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                         {/* Notification Controls: Dev Mode Test Buttons */}
                         <div
                             id="notification-settings-card"
-                            className="card notification-card"
+                            className="notification-card"
                             style={{ display: BROWSER_CONFIG.supportsNotifications ? 'block' : 'none' }}
                         >
                             <div
@@ -1979,7 +1979,15 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
 
                 <footer className="footer-modern">
                     <p>AlgoRecall: 100% Private, Local-First.</p>
-                    <a href="../../common/help/help.html?tab=privacy" target="_blank" rel="noopener noreferrer">
+                    <a
+                        href="../../common/settings/settings.html#about"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            openTab('features/common/settings/settings.html#about');
+                        }}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         Help & Privacy
                     </a>
                 </footer>

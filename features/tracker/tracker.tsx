@@ -177,6 +177,7 @@ export const TrackerFloatingLauncher: FunctionalComponent<TrackerFloatingLaunche
         <div
             ref={launcherRef as any}
             id="algo-fsrs-launcher"
+            className="algo-fsrs-launcher"
             role="button"
             aria-label="Open AlgoRecall Tracker"
             aria-expanded={isOpen ? 'true' : 'false'}

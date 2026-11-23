@@ -1122,13 +1122,36 @@ export interface SettingsAppProps {
  */
 export const SettingsApp: FunctionalComponent<SettingsAppProps> = ({ initialTab }: SettingsAppProps) => {
     const getHashTab = () => {
-        if (typeof window !== 'undefined' && window.location.hash) {
-            return window.location.hash.replace('#', '');
+        if (typeof window !== 'undefined') {
+            const hash = window.location.hash ? window.location.hash.replace('#', '') : '';
+            const searchParams = new URLSearchParams(window.location.search);
+            const tabParam = searchParams.get('tab') || hash;
+            if (tabParam === 'privacy' || tabParam === 'about') {
+                return 'about';
+            }
+            if (tabParam) {
+                return tabParam;
+            }
         }
         return initialTab || 'notifications';
     };
 
     const [activeTab, setActiveTabState] = useState<string>(getHashTab);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const hash = window.location.hash ? window.location.hash.replace('#', '') : '';
+            const searchParams = new URLSearchParams(window.location.search);
+            const tab = searchParams.get('tab') || hash;
+            if (tab === 'privacy' || tab === 'about') {
+                setActiveTabState('about');
+                setTimeout(() => {
+                    const privacyEl = document.querySelector('.privacy-callout') || document.getElementById('panel-about');
+                    privacyEl?.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+            }
+        }
+    }, []);
     const [notifSettings, setNotifSettings] = useState<FullNotificationSettings>({ ...DEFAULT_NOTIFICATION_SETTINGS });
     const [extSettings, setExtSettings] = useState<FullExtensionSettings>({ ...DEFAULT_EXTENSION_SETTINGS });
     const [weeklySummaryEnabled, setWeeklySummaryEnabled] = useState<boolean>(true);

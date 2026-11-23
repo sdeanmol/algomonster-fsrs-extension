@@ -432,15 +432,15 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
 
     const circumference = 2 * Math.PI * 88;
     const progress = timer.totalTime > 0 ? (timer.totalTime - timer.timeRemaining) / timer.totalTime : 0;
-    const offset = circumference * (1 - progress);
+    const targetOffset = circumference * (1 - progress);
     const [animatedOffset, setAnimatedOffset] = useState<number>(circumference);
 
     useEffect(() => {
-        const raf = requestAnimationFrame(() => {
-            setAnimatedOffset(offset);
-        });
-        return () => cancelAnimationFrame(raf);
-    }, [offset]);
+        const timerId = setTimeout(() => {
+            setAnimatedOffset(targetOffset);
+        }, 50);
+        return () => clearTimeout(timerId);
+    }, [targetOffset]);
 
     return (
         <div className={`container ${timer.phase === 'focus' ? 'phase-focus' : 'phase-break'}`}>
@@ -491,11 +491,13 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                             cy="100"
                             r="88"
                             stroke-dasharray={String(circumference)}
-                            stroke-dashoffset={String(offset)}
+                            stroke-dashoffset={String(animatedOffset)}
                             style={{
                                 strokeDasharray: `${circumference}`,
-                                strokeDashoffset: `${offset}`,
-                                transition: timer.state === 'running' ? 'stroke-dashoffset 1s linear, stroke 0.5s ease' : 'none'
+                                strokeDashoffset: `${animatedOffset}`,
+                                transition: timer.state === 'running'
+                                    ? 'stroke-dashoffset 1s linear, stroke 0.5s ease'
+                                    : 'stroke-dashoffset 0.8s ease-out, stroke 0.5s ease'
                             }}
                         />
                     </svg>
@@ -1004,7 +1006,12 @@ export class PomodoroTimer {
      */
     reset(): void {
         try {
-            this.resetState();
+            this.state = 'idle';
+            this.totalTime = this.getPhaseDuration() * 60;
+            this.timeRemaining = this.totalTime;
+            this.targetEndTime = null;
+            this.stopVisualInterval();
+
             const stateObj = this.getStateObj();
             chrome.storage.local.set({ pomodoroState: stateObj }, () => {
                 const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;

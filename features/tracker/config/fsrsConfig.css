@@ -504,6 +504,30 @@ label {
     gap: 4px;
 }
 
+.mode-pill,
+.mode-btn {
+    background: transparent;
+    border: none;
+    color: var(--md-text-med);
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mode-pill:hover,
+.mode-btn:hover {
+    color: var(--md-text-high);
+}
+
+.mode-pill.active,
+.mode-btn.active {
+    background: var(--md-primary);
+    color: #ffffff;
+}
+
 /* Retention Preset Chips */
 .preset-chips {
     display: flex;

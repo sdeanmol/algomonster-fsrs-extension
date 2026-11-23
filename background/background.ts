@@ -441,7 +441,11 @@ export class AlgoRecallBackground {
             (async () => {
                 try {
                     await this.checkDueCards('manual');
-                    const dueCount = await this.updateDueCardsBadge();
+                    const badgeDueCount = (await this.updateDueCardsBadge()) || 0;
+                    let dueCount = badgeDueCount;
+                    if (dueCount === 0) {
+                        dueCount = await this.getDueCardsCount();
+                    }
                     sendResponse({ success: true, dueCount });
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -818,6 +822,20 @@ export class AlgoRecallBackground {
             this.isCheckingDueCards = false;
             await this.updateDueCardsBadge();
         }
+    }
+
+    /**
+     * Calculates the number of cards currently due for review.
+     * Evaluates actual card due dates independent of whether toolbar badge is enabled.
+     * @returns Number of cards currently due.
+     * @async
+     */
+    async getDueCardsCount(): Promise<number> {
+        if (typeof chrome === 'undefined' || !chrome.storage?.local) return 0;
+        const result = (await chrome.storage.local.get(['fsrsCards'])) as { fsrsCards?: Card[] };
+        const cards = result.fsrsCards || [];
+        const now = Date.now();
+        return cards.filter((c: Card) => typeof c.due === 'number' && c.due <= now).length;
     }
 
     /**

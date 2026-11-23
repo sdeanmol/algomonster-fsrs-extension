@@ -384,7 +384,7 @@ export function HistoryApp({ dashboard: initialDashboard }: HistoryAppProps): VN
             forceUpdate();
         };
 
-        if (Object.keys(dashboard.activityData).length === 0) {
+        if (Object.keys(dashboard.activityData).length === 0 || !dashboard.allCards || dashboard.allCards.length === 0) {
             dashboard.init();
         }
     }, [dashboard]);
@@ -838,7 +838,9 @@ export class FSRSHistoryDashboard {
                         activeDays: yearActiveDates[year].size
                     };
                 }
-                return years;
+                if (Object.keys(years).length > 0) {
+                    return years;
+                }
             }
 
             const years: Record<string, { total: number; activeDays: number }> = {};
@@ -889,7 +891,9 @@ export class FSRSHistoryDashboard {
                 for (const [monthKey, cardSet] of Object.entries(monthCardSets)) {
                     months[monthKey] = { total: cardSet.size };
                 }
-                return months;
+                if (Object.keys(months).length > 0) {
+                    return months;
+                }
             }
 
             const months: Record<string, { total: number }> = {};
@@ -940,7 +944,9 @@ export class FSRSHistoryDashboard {
                 for (const [dateString, cardSet] of Object.entries(dayCardSets)) {
                     days[dateString] = cardSet.size;
                 }
-                return days;
+                if (Object.keys(days).length > 0) {
+                    return days;
+                }
             }
 
             const days: Record<string, number> = {};

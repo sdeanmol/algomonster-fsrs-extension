@@ -220,9 +220,7 @@ describe('AnalyticsDashboardSPA (Branch Coverage)', () => {
     const testDiv = document.createElement('div');
     render(h(AnalyticsSidebar, { currentTab: 'overview', onSelectTab: () => {} }), testDiv);
 
-    expect(testDiv.innerHTML).toContain('href="../../common/data/data.html"');
-    expect(testDiv.innerHTML).toContain('View All Patterns');
-    expect(testDiv.innerHTML).not.toContain('href="../popup/popup.html"');
+    expect(testDiv.innerHTML).not.toContain('View All Patterns');
     render(null, testDiv);
     testDiv.remove();
   });

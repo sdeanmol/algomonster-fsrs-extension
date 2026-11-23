@@ -209,16 +209,6 @@ export const AnalyticsSidebar: FunctionalComponent<AnalyticsSidebarProps> = ({ c
                     </button>
                 </li>
             </ul>
-            <div class="sidebar-footer">
-                <a href="../../common/data/data.html" class="btn btn-secondary w-full" style="text-align: center; display: flex; align-items: center; justify-content: center;">
-                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                        <line x1="3" y1="9" x2="21" y2="9" />
-                        <line x1="9" y1="21" x2="9" y2="9" />
-                    </svg>
-                    View All Patterns
-                </a>
-            </div>
         </nav>
     );
 };
@@ -265,7 +255,15 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
     activity: propActivity,
     spa
 }) => {
-    const [currentTab, setCurrentTab] = useState<TabKey>(initialTab);
+    const [currentTab, setCurrentTab] = useState<TabKey>(() => {
+        if (typeof window !== 'undefined' && window.location) {
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get('tab');
+            if (tabParam === 'memory' || tabParam === 'retention') return 'memory';
+            if (tabParam && tabParam in TAB_TITLES) return tabParam as TabKey;
+        }
+        return initialTab;
+    });
     const [cards, setCards] = useState<Card[]>(propCards || []);
     const [activity, setActivity] = useState<Record<string, number>>(propActivity || {});
     const [fsrsGlobalParams, setFsrsGlobalParams] = useState<Partial<FSRSParameters> | null>(null);
@@ -275,13 +273,26 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
 
     const handleSelectTab = useCallback((tab: TabKey) => {
         setCurrentTab(tab);
+        if (typeof window !== 'undefined' && window.history && window.location) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tab);
+            window.history.replaceState(null, '', url.toString());
+        }
     }, []);
+
+    const scheduler = useMemo(() => {
+        const win = window as unknown as { FsrsScheduler?: new (params?: Partial<FSRSParameters> | null) => AbstractScheduler };
+        const SchedulerClass = win.FsrsScheduler || FsrsScheduler;
+        return typeof SchedulerClass === 'function' ? new SchedulerClass(fsrsGlobalParams || null) : new FsrsScheduler(fsrsGlobalParams || null);
+    }, [fsrsGlobalParams]);
+
+    const dataUtils = useMemo(() => new DataUtils(cards, activity, scheduler), [cards, activity, scheduler]);
 
     const computeAndSetStats = useCallback((c: Card[], a: Record<string, number>, globalParams?: Partial<FSRSParameters> | null) => {
         try {
             const SchedulerClass = (window as unknown as { FsrsScheduler?: new (params?: Partial<FSRSParameters> | null) => AbstractScheduler }).FsrsScheduler || FsrsScheduler;
-            const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass(globalParams || null) : new FsrsScheduler(globalParams || null);
-            const utils = new DataUtils(c, a, scheduler);
+            const sched = typeof SchedulerClass === 'function' ? new SchedulerClass(globalParams || null) : new FsrsScheduler(globalParams || null);
+            const utils = new DataUtils(c, a, sched);
             const s = utils.getSummaryStats();
             const r = utils.getExamReadinessStats(12).overallRecall || 0;
             setStats(s);
@@ -362,25 +373,25 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
                 />
                 <div class="tab-content-container">
                     <div id="tab-overview" class={`tab-pane ${currentTab === 'overview' ? 'active' : ''}`}>
-                        {currentTab === 'overview' && <OverviewTab cards={cards} activity={activity} />}
+                        {currentTab === 'overview' && <OverviewTab cards={cards} activity={activity} dataUtils={dataUtils} />}
                     </div>
                     <div id="tab-readiness" class={`tab-pane ${currentTab === 'readiness' ? 'active' : ''}`}>
-                        {currentTab === 'readiness' && <ReadinessTab cards={cards} />}
+                        {currentTab === 'readiness' && <ReadinessTab cards={cards} dataUtils={dataUtils} />}
                     </div>
                     <div id="tab-memory" class={`tab-pane ${currentTab === 'memory' ? 'active' : ''}`}>
-                        {currentTab === 'memory' && <MemoryTab cards={cards} />}
+                        {currentTab === 'memory' && <MemoryTab cards={cards} dataUtils={dataUtils} />}
                     </div>
                     <div id="tab-simulation" class={`tab-pane ${currentTab === 'simulation' ? 'active' : ''}`}>
-                        {currentTab === 'simulation' && <SimulationTab cards={cards} />}
+                        {currentTab === 'simulation' && <SimulationTab cards={cards} dataUtils={dataUtils} />}
                     </div>
                     <div id="tab-tags" class={`tab-pane ${currentTab === 'tags' ? 'active' : ''}`}>
-                        {currentTab === 'tags' && <TagsTab cards={cards} />}
+                        {currentTab === 'tags' && <TagsTab cards={cards} dataUtils={dataUtils} />}
                     </div>
                     <div id="tab-performance" class={`tab-pane ${currentTab === 'performance' ? 'active' : ''}`}>
-                        {currentTab === 'performance' && <PerformanceTab cards={cards} />}
+                        {currentTab === 'performance' && <PerformanceTab cards={cards} dataUtils={dataUtils} />}
                     </div>
                     <div id="tab-insights" class={`tab-pane ${currentTab === 'insights' ? 'active' : ''}`}>
-                        {currentTab === 'insights' && <InsightsTab cards={cards} />}
+                        {currentTab === 'insights' && <InsightsTab cards={cards} dataUtils={dataUtils} />}
                     </div>
                 </div>
             </main>

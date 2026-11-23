@@ -544,7 +544,7 @@ export interface DataAppProps {
  */
 export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     const [dashboard] = useState(() => initialDashboard || new FSRSDataDashboard());
-    const [cards, setCards] = useState<Card[]>(dashboard.allCards || []);
+    const [cards, setCards] = useState<Card[]>(() => dashboard.filterAndRender());
     const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(dashboard.selectedCardIds || new Set());
     const [searchQuery, setSearchQuery] = useState<string>(dashboard.searchQuery || '');
     const [selectedTag, setSelectedTag] = useState<string>(dashboard.selectedTag || 'all');
@@ -553,24 +553,72 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     const [selectedState, setSelectedState] = useState<string>(dashboard.selectedState || 'all');
     const [sortBy, setSortBy] = useState<string>(dashboard.sortBy || 'due-asc');
     const [view, setView] = useState<string>(dashboard.currentView || 'total');
+
+    // Edit modal states
+    const [editingCard, setEditingCard] = useState<Card | null>(null);
+    const [editTitle, setEditTitle] = useState('');
+    const [editTags, setEditTags] = useState('');
+    const [editTimeComplexity, setEditTimeComplexity] = useState('');
+    const [editSpaceComplexity, setEditSpaceComplexity] = useState('');
+    const [editApproach, setEditApproach] = useState('');
+
     const [, setRenderTrigger] = useState(0);
 
     const forceUpdate = () => setRenderTrigger(c => c + 1);
 
+    const openCardEdit = (card: Card) => {
+        setEditingCard(card);
+        setEditTitle(card.problemTitle || '');
+        setEditTags((card.tags || []).join(', '));
+        setEditTimeComplexity(card.timeComplexity || '');
+        setEditSpaceComplexity(card.spaceComplexity || '');
+        setEditApproach(card.approach || '');
+    };
+
+    const handleCloseEdit = () => {
+        setEditingCard(null);
+        dashboard.closeEditModal();
+    };
+
+    const handleSaveEdit = () => {
+        if (!editingCard) return;
+        const tagList = editTags.split(',').map(t => t.trim()).filter(Boolean);
+        const updates: Partial<Card> = {
+            problemTitle: editTitle,
+            tags: tagList,
+            timeComplexity: editTimeComplexity,
+            spaceComplexity: editSpaceComplexity,
+            approach: editApproach
+        };
+        dashboard.saveCardEdit(editingCard.id, updates);
+        setEditingCard(null);
+        setCards(dashboard.filterAndRender());
+        forceUpdate();
+    };
+
     const refreshData = () => {
-        if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+        if (typeof chrome === 'undefined' || !chrome.storage?.local) {
+            setCards(dashboard.filterAndRender());
+            return;
+        }
         chrome.storage.local.get(['fsrsCards', 'extensionSettings'], (result: StorageData) => {
             const loaded = ensureCardIds(result.fsrsCards || []);
             dashboard.allCards = loaded;
             dashboard.extensionSettings = (result.extensionSettings || {}) as UserSettings & { showCharts?: boolean };
-            setCards(loaded);
+            setCards(dashboard.filterAndRender());
             forceUpdate();
         });
     };
 
     useEffect(() => {
+        dashboard.onEditCard = (card: Card) => {
+            openCardEdit(card);
+        };
+        dashboard.onCloseEditModal = () => {
+            setEditingCard(null);
+        };
         dashboard.onUpdate = () => {
-            setCards([...dashboard.allCards]);
+            setCards(dashboard.filterAndRender());
             setSelectedCardIds(new Set(dashboard.selectedCardIds));
             setSearchQuery(dashboard.searchQuery);
             setSelectedTag(dashboard.selectedTag);
@@ -642,47 +690,55 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
 
     const handleClearFilters = () => {
         dashboard.resetFilters();
+        setSearchQuery('');
+        setSelectedTag('all');
+        setSelectedStatus('all');
+        setSelectedPlatform('all');
+        setSelectedState('all');
+        setSortBy('due-asc');
+        setCards(dashboard.filterAndRender());
+        forceUpdate();
     };
 
     const handleSearch = (val: string) => {
         setSearchQuery(val);
         dashboard.searchQuery = val;
-        dashboard.filterAndRender();
+        setCards(dashboard.filterAndRender());
         forceUpdate();
     };
 
     const handleTagChange = (val: string) => {
         setSelectedTag(val);
         dashboard.selectedTag = val;
-        dashboard.filterAndRender();
+        setCards(dashboard.filterAndRender());
         forceUpdate();
     };
 
     const handleStatusChange = (val: string) => {
         setSelectedStatus(val);
         dashboard.selectedStatus = val;
-        dashboard.filterAndRender();
+        setCards(dashboard.filterAndRender());
         forceUpdate();
     };
 
     const handlePlatformChange = (val: string) => {
         setSelectedPlatform(val);
         dashboard.selectedPlatform = val;
-        dashboard.filterAndRender();
+        setCards(dashboard.filterAndRender());
         forceUpdate();
     };
 
     const handleStateChange = (val: string) => {
         setSelectedState(val);
         dashboard.selectedState = val;
-        dashboard.filterAndRender();
+        setCards(dashboard.filterAndRender());
         forceUpdate();
     };
 
     const handleSortChange = (val: string) => {
         setSortBy(val);
         dashboard.sortBy = val;
-        dashboard.filterAndRender();
+        setCards(dashboard.filterAndRender());
         forceUpdate();
     };
 
@@ -697,6 +753,10 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     };
 
     const handleEditCard = (cardId: string) => {
+        const card = dashboard.allCards.find(c => c.id === cardId);
+        if (card) {
+            openCardEdit(card);
+        }
         dashboard.openEditModal(cardId);
     };
 
@@ -905,11 +965,15 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
             </div>
 
             {/* Inline Edit Modal Overlay */}
-            <div id="inline-edit-overlay" className="edit-overlay" style={{ display: 'none' }}>
+            <div
+                id="inline-edit-overlay"
+                className="edit-overlay"
+                style={{ display: editingCard ? 'flex' : 'none' }}
+            >
                 <div className="edit-modal">
                     <div className="edit-modal-header">
                         <h3 style={{ padding: 0, margin: 0, background: 'none' }}>Edit Card</h3>
-                        <button id="edit-close-btn" className="edit-close-btn" onClick={() => dashboard.closeEditModal()}>
+                        <button id="edit-close-btn" className="edit-close-btn" onClick={handleCloseEdit}>
                             <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                                 <line x1="18" y1="6" x2="6" y2="18" />
                                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -917,35 +981,70 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
                         </button>
                     </div>
                     <div className="edit-modal-body">
-                        <input type="hidden" id="edit-card-id" />
+                        <input type="hidden" id="edit-card-id" value={editingCard ? editingCard.id : ''} />
                         <div className="edit-field">
                             <label htmlFor="edit-title">Problem Title</label>
-                            <input type="text" id="edit-title" className="input-field" placeholder="Problem title..." />
+                            <input
+                                type="text"
+                                id="edit-title"
+                                className="input-field"
+                                placeholder="Problem title..."
+                                value={editTitle}
+                                onInput={(e) => setEditTitle((e.target as HTMLInputElement).value)}
+                            />
                         </div>
                         <div className="edit-field">
                             <label htmlFor="edit-tags">Tags (comma-separated)</label>
-                            <input type="text" id="edit-tags" className="input-field" placeholder="Binary Search, DP, Graphs..." />
+                            <input
+                                type="text"
+                                id="edit-tags"
+                                className="input-field"
+                                placeholder="Binary Search, DP, Graphs..."
+                                value={editTags}
+                                onInput={(e) => setEditTags((e.target as HTMLInputElement).value)}
+                            />
                         </div>
                         <div className="edit-field-row">
                             <div className="edit-field">
                                 <label htmlFor="edit-time-complexity">Time Complexity</label>
-                                <input type="text" id="edit-time-complexity" className="input-field" placeholder="O(n log n)" />
+                                <input
+                                    type="text"
+                                    id="edit-time-complexity"
+                                    className="input-field"
+                                    placeholder="O(n log n)"
+                                    value={editTimeComplexity}
+                                    onInput={(e) => setEditTimeComplexity((e.target as HTMLInputElement).value)}
+                                />
                             </div>
                             <div className="edit-field">
                                 <label htmlFor="edit-space-complexity">Space Complexity</label>
-                                <input type="text" id="edit-space-complexity" className="input-field" placeholder="O(n)" />
+                                <input
+                                    type="text"
+                                    id="edit-space-complexity"
+                                    className="input-field"
+                                    placeholder="O(n)"
+                                    value={editSpaceComplexity}
+                                    onInput={(e) => setEditSpaceComplexity((e.target as HTMLInputElement).value)}
+                                />
                             </div>
                         </div>
                         <div className="edit-field">
                             <label htmlFor="edit-approach">Approach Notes</label>
-                            <textarea id="edit-approach" className="input-field edit-textarea" rows={8} placeholder="Your approach notes..." />
+                            <textarea
+                                id="edit-approach"
+                                className="input-field edit-textarea"
+                                rows={8}
+                                placeholder="Your approach notes..."
+                                value={editApproach}
+                                onInput={(e) => setEditApproach((e.target as HTMLTextAreaElement).value)}
+                            />
                         </div>
                     </div>
                     <div className="edit-modal-footer">
-                        <button id="edit-cancel-btn" className="btn btn-secondary" onClick={() => dashboard.closeEditModal()}>
+                        <button id="edit-cancel-btn" className="btn btn-secondary" onClick={handleCloseEdit}>
                             Cancel
                         </button>
-                        <button id="edit-save-btn" className="btn btn-primary" onClick={() => dashboard.saveCardEdit()}>
+                        <button id="edit-save-btn" className="btn btn-primary" onClick={handleSaveEdit}>
                             Save Changes
                         </button>
                     </div>
@@ -991,10 +1090,16 @@ export class FSRSDataDashboard {
 
     /** Set of selected card IDs for bulk actions */
     selectedCardIds: Set<string>;
+    /** Currently active editing card identifier */
+    editingCardId: string | null = null;
     /** Timer reference for auto-dismissing deletion undo toast */
     undoTimer: ReturnType<typeof setTimeout> | null;
     /** Observer callback notifying root component of state updates */
     onUpdate?: () => void;
+    /** Observer callback notifying of card editing request */
+    onEditCard?: (card: Card) => void;
+    /** Observer callback notifying of card edit cancellation/close */
+    onCloseEditModal?: () => void;
 
     /**
      * Initializes default filter selections, views, and bulk selection state.
@@ -1542,22 +1647,54 @@ export class FSRSDataDashboard {
     openEditModal(cardId: string): void {
         const card = this.allCards.find(c => c.id === cardId);
         if (!card) return;
+        this.editingCardId = cardId;
+        if (this.onEditCard) this.onEditCard(card);
+        const overlay = document.getElementById('inline-edit-overlay');
+        if (overlay) overlay.style.display = 'flex';
+        const titleInput = document.getElementById('edit-title') as HTMLInputElement | null;
+        if (titleInput) titleInput.value = card.problemTitle || '';
+        const tagsInput = document.getElementById('edit-tags') as HTMLInputElement | null;
+        if (tagsInput) tagsInput.value = (card.tags || []).join(', ');
+        const tcInput = document.getElementById('edit-time-complexity') as HTMLInputElement | null;
+        if (tcInput) tcInput.value = card.timeComplexity || '';
+        const scInput = document.getElementById('edit-space-complexity') as HTMLInputElement | null;
+        if (scInput) scInput.value = card.spaceComplexity || '';
+        const appInput = document.getElementById('edit-approach') as HTMLTextAreaElement | null;
+        if (appInput) appInput.value = card.approach || '';
+        const cardIdInput = document.getElementById('edit-card-id') as HTMLInputElement | null;
+        if (cardIdInput) cardIdInput.value = card.id;
         if (this.onUpdate) this.onUpdate();
     }
 
     closeEditModal(): void {
+        this.editingCardId = null;
+        const overlay = document.getElementById('inline-edit-overlay');
+        if (overlay) overlay.style.display = 'none';
+        if (this.onCloseEditModal) this.onCloseEditModal();
         if (this.onUpdate) this.onUpdate();
     }
 
     saveCardEdit(cardId?: string, updates?: Partial<Card>): void {
-        if (!cardId && updates?.id) cardId = updates.id;
-        if (!cardId && this.allCards.length > 0) cardId = this.allCards[0].id;
-        const card = this.allCards.find(c => c.id === cardId);
-        if (card && updates) {
-            Object.assign(card, updates);
+        const targetId = cardId || (document.getElementById('edit-card-id') as HTMLInputElement | null)?.value || this.editingCardId || (this.allCards[0] ? this.allCards[0].id : '');
+        const card = this.allCards.find(c => c.id === targetId);
+        if (card) {
+            if (updates) {
+                Object.assign(card, updates);
+            } else {
+                const titleInput = document.getElementById('edit-title') as HTMLInputElement | null;
+                const tagsInput = document.getElementById('edit-tags') as HTMLInputElement | null;
+                const tcInput = document.getElementById('edit-time-complexity') as HTMLInputElement | null;
+                const scInput = document.getElementById('edit-space-complexity') as HTMLInputElement | null;
+                const appInput = document.getElementById('edit-approach') as HTMLTextAreaElement | null;
+                if (titleInput) card.problemTitle = titleInput.value;
+                if (tagsInput) card.tags = tagsInput.value.split(',').map(t => t.trim()).filter(Boolean);
+                if (tcInput) card.timeComplexity = tcInput.value;
+                if (scInput) card.spaceComplexity = scInput.value;
+                if (appInput) card.approach = appInput.value;
+            }
             chrome.storage.local.set({ fsrsCards: this.allCards });
         }
-        if (this.onUpdate) this.onUpdate();
+        this.closeEditModal();
     }
 
     renderAnalyticsPanel(cards?: Card[]): void {}

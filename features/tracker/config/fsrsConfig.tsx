@@ -227,24 +227,26 @@ export interface ModeToggleProps {
  */
 export function ModeToggle({ currentMode, onSelectMode }: ModeToggleProps): VNode {
     return (
-        <div className="mode-toggle-group">
+        <div className="mode-toggle-group" role="tablist" aria-label="Configuration Mode">
             <button
+                type="button"
                 id="mode-simple-btn"
-                className={`mode-btn ${currentMode === 'simple' ? 'active' : ''}`}
+                className={`mode-pill ${currentMode === 'simple' ? 'active' : ''}`}
                 role="tab"
                 aria-selected={currentMode === 'simple'}
                 onClick={() => onSelectMode('simple')}
             >
-                Simple
+                Simple (Recommended)
             </button>
             <button
+                type="button"
                 id="mode-advanced-btn"
-                className={`mode-btn ${currentMode === 'advanced' ? 'active' : ''}`}
+                className={`mode-pill ${currentMode === 'advanced' ? 'active' : ''}`}
                 role="tab"
                 aria-selected={currentMode === 'advanced'}
                 onClick={() => onSelectMode('advanced')}
             >
-                Advanced
+                Advanced (Math &amp; Coefficients)
             </button>
         </div>
     );

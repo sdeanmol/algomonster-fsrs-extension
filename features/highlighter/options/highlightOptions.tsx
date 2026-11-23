@@ -527,7 +527,7 @@ export function HighlightOptionsApp({ manager: initialManager }: HighlightOption
                                     <polyline points="17 21 17 13 7 13 7 21" />
                                     <polyline points="7 3 7 8 15 8" />
                                 </svg>
-                                {editingIndex !== null ? '💾 Update Palette' : '💾 Save Palette'}
+                                {editingIndex !== null ? ' Update Palette' : ' Save Palette'}
                             </button>
                         </div>
                     </div>
@@ -623,11 +623,15 @@ export class HighlightOptionsManager {
                         this.editorColors = [...this.extensionSettings.recentColors];
                     }
 
-                    const root = document.getElementById('root');
-                    if (root) {
-                        safeFlushSync(() => {
-                            render(<HighlightOptionsApp manager={this} />, root);
-                        });
+                    if (this.onUpdate) {
+                        this.onUpdate();
+                    } else {
+                        const root = document.getElementById('root');
+                        if (root) {
+                            safeFlushSync(() => {
+                                render(<HighlightOptionsApp manager={this} />, root);
+                            });
+                        }
                     }
                 } catch (innerErr) {
                     const errorMessage = innerErr instanceof Error ? innerErr.message : String(innerErr);
@@ -644,7 +648,10 @@ export class HighlightOptionsManager {
      * Helper to render slots declaratively into slots container.
      */
     renderEditorSlots(): void {
-        if (this.onUpdate) this.onUpdate();
+        if (this.onUpdate) {
+            this.onUpdate();
+            return;
+        }
         try {
             if (typeof document !== 'undefined') {
                 const root = document.getElementById('root');
@@ -661,7 +668,10 @@ export class HighlightOptionsManager {
      * Helper to render palettes list declaratively into container.
      */
     renderPalettesList(): void {
-        if (this.onUpdate) this.onUpdate();
+        if (this.onUpdate) {
+            this.onUpdate();
+            return;
+        }
         try {
             if (typeof document !== 'undefined') {
                 const root = document.getElementById('root');
@@ -733,13 +743,8 @@ export class HighlightOptionsManager {
 
 export function initHighlightOptions(): void {
     try {
-        const root = document.getElementById('root');
         const manager = new HighlightOptionsManager();
-        if (root) {
-            render(<HighlightOptionsApp manager={manager} />, root);
-        } else {
-            manager.init();
-        }
+        manager.init();
     } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         Logger.error('HighlightOptions', `Initialization failed: ${errorMessage}`, { err });
