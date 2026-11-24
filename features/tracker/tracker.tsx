@@ -192,9 +192,9 @@ export const TrackerFloatingLauncher: FunctionalComponent<TrackerFloatingLaunche
             onContextMenu={onContextMenu}
         >
             <svg class="launcher-svg" viewBox="0 0 24 24" style={{ width: '26px', height: '26px', stroke: 'currentColor', fill: 'none', strokeWidth: 2 }}>
-                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1 1-2 1-3.5 0-2.5 2-5 5.5-6z" />
-                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z" />
-                <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2" />
+                <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1-1-2-1-3.5 0-2.5 2-5 5.5-6z"></path>
+                <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path>
+                <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path>
             </svg>
         </div>
     );
@@ -801,7 +801,7 @@ export const TrackerApp: FunctionalComponent<TrackerAppProps> = ({ tracker }) =>
                 TagInputControl.attach(tagsRef.current, {
                     getSuggestions: () => tracker.getDatabaseTags()
                 });
-            } catch (_) {}
+            } catch (_) { }
         }
     }, [tracker]);
 
@@ -836,7 +836,7 @@ export const TrackerApp: FunctionalComponent<TrackerAppProps> = ({ tracker }) =>
                 if (launcherRef.current && (launcherRef.current as any).releasePointerCapture && (e as PointerEvent).pointerId !== undefined) {
                     try {
                         (launcherRef.current as any).releasePointerCapture((e as PointerEvent).pointerId);
-                    } catch (_) {}
+                    } catch (_) { }
                 }
                 dragStart.current = { x: 0, y: 0 };
                 setTimeout(() => {
@@ -930,7 +930,7 @@ export const TrackerApp: FunctionalComponent<TrackerAppProps> = ({ tracker }) =>
                 if ((launcherRef.current as any).setPointerCapture && (e as PointerEvent).pointerId !== undefined) {
                     try {
                         (launcherRef.current as any).setPointerCapture((e as PointerEvent).pointerId);
-                    } catch (_) {}
+                    } catch (_) { }
                 }
             }
         } catch (err) {
