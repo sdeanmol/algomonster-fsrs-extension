@@ -338,9 +338,21 @@ export class TagInputControl {
             }
         });
 
-        // Input event for autocomplete search
+        // Input and focus events for autocomplete search
         this.inlineInputEl.addEventListener('input', () => {
             this.triggerAutocomplete();
+        });
+
+        this.inlineInputEl.addEventListener('focus', () => {
+            this.triggerAutocomplete();
+        });
+
+        this.inlineInputEl.addEventListener('blur', () => {
+            const val = this.inlineInputEl.value.trim();
+            if (val) {
+                this.addTag(val);
+            }
+            this.closeDropdown();
         });
 
         // Paste event handling for comma separated strings
@@ -374,47 +386,61 @@ export class TagInputControl {
         }
     })
     private async triggerAutocomplete(): Promise<void> {
-        const query = this.inlineInputEl.value.trim().toLowerCase();
-        if (!query || !this.options.getSuggestions) {
+        const rawQuery = this.inlineInputEl.value.trim();
+        const query = rawQuery.toLowerCase();
+        if (!this.options.getSuggestions && !rawQuery) {
             this.closeDropdown();
             return;
         }
 
-        const rawSuggestions = await Promise.resolve(this.options.getSuggestions());
+        const rawSuggestions = this.options.getSuggestions
+            ? await Promise.resolve(this.options.getSuggestions())
+            : [];
         const currentTagSet = new Set(this.tags.map(t => t.toLowerCase()));
 
         this.suggestions = (rawSuggestions || []).filter(tag => {
             const trimmed = tag.trim();
             return trimmed.length > 0 &&
                 !currentTagSet.has(trimmed.toLowerCase()) &&
-                trimmed.toLowerCase().includes(query);
+                (!query || trimmed.toLowerCase().includes(query));
         }).slice(0, 8); // Top 8 suggestions
 
-        if (this.suggestions.length > 0) {
-            this.highlightedIndex = 0;
-            this.renderDropdown(query);
+        const hasExactMatch = (rawSuggestions || []).some(
+            t => t.trim().toLowerCase() === query
+        ) || currentTagSet.has(query);
+
+        if (this.suggestions.length > 0 || (rawQuery && !hasExactMatch)) {
+            this.highlightedIndex = this.suggestions.length > 0 ? 0 : -1;
+            this.renderDropdown(rawQuery, !hasExactMatch && rawQuery.length > 0);
         } else {
             this.closeDropdown();
         }
     }
 
     /**
-     * Renders autocomplete suggestion items with matched text highlighting.
-     * @param query - Search substring being matched.
+     * Renders autocomplete suggestion items with matched text highlighting
+     * and an optional "+ Create" row for brand-new tags.
+     * @param rawQuery - Trimmed query string.
+     * @param showCreateOption - Whether to render a "+ Create" action row.
      */
-    private renderDropdown(query: string): void {
+    private renderDropdown(rawQuery: string, showCreateOption: boolean = false): void {
+        const query = rawQuery.toLowerCase();
         this.dropdownEl.innerHTML = '';
         this.suggestions.forEach((suggestion, idx) => {
             const item = document.createElement('div');
             item.className = `tag-suggestion-item ${idx === this.highlightedIndex ? 'highlighted' : ''}`;
             
             // Highlight matching portion
-            const matchPos = suggestion.toLowerCase().indexOf(query.toLowerCase());
-            if (matchPos >= 0) {
-                const before = suggestion.substring(0, matchPos);
-                const match = suggestion.substring(matchPos, matchPos + query.length);
-                const after = suggestion.substring(matchPos + query.length);
-                item.innerHTML = `${this.escapeHtml(before)}<strong class="tag-match">${this.escapeHtml(match)}</strong>${this.escapeHtml(after)}`;
+            if (query) {
+                const matchPos = suggestion.toLowerCase().indexOf(query);
+                if (matchPos >= 0) {
+                    const before = suggestion.substring(0, matchPos);
+                    const match = suggestion.substring(matchPos, matchPos + query.length);
+                    const after = suggestion.substring(matchPos + query.length);
+                    item.innerHTML = `${this.escapeHtml(before)}<strong class="tag-match">${this.escapeHtml(match)}</strong>${this.escapeHtml(after)}`;
+                } else {
+                    item.textContent = suggestion;
+                }
             } else {
                 item.textContent = suggestion;
             }
@@ -424,13 +450,26 @@ export class TagInputControl {
                 this.updateDropdownHighlight();
             });
 
-            item.addEventListener('click', (e) => {
+            item.addEventListener('mousedown', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 this.addTag(suggestion);
             });
 
             this.dropdownEl.appendChild(item);
         });
+
+        if (showCreateOption) {
+            const createItem = document.createElement('div');
+            createItem.className = 'tag-create-item';
+            createItem.innerHTML = `<span class="tag-create-plus">+</span> Create <strong>"${this.escapeHtml(rawQuery)}"</strong>`;
+            createItem.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.addTag(rawQuery);
+            });
+            this.dropdownEl.appendChild(createItem);
+        }
 
         this.dropdownEl.style.display = 'block';
         this.isOpen = true;

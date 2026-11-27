@@ -245,6 +245,14 @@ export class FSRSDataDashboard {
             editOverlay.addEventListener('click', (e: Event) => {
                 if (e.target === editOverlay) this.closeEditModal();
             });
+            editOverlay.addEventListener('keydown', (e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                    this.closeEditModal();
+                } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    this.saveCardEdit();
+                }
+            });
         }
     }
 
