@@ -18,7 +18,7 @@ import { PerformanceTab } from './performance/performance';
 import { InsightsTab } from './insights/insights';
 import { ReadinessTab } from './readiness/readiness';
 import { SimulationTab } from './memory/futureMemorySimulation';
-import { Card, StorageData, FSRSParameters } from '../../../types/domain';
+import { Card, StorageData, FSRSParameters, TagEntry } from '../../../types/domain';
 import AbstractScheduler from '../../tracker/scheduler/scheduler';
 import FsrsScheduler from '@tracker/scheduler/fsrsScheduler';
 
@@ -266,6 +266,7 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
     });
     const [cards, setCards] = useState<Card[]>(propCards || []);
     const [activity, setActivity] = useState<Record<string, number>>(propActivity || {});
+    const [tagRegistry, setTagRegistry] = useState<TagEntry[]>([]);
     const [fsrsGlobalParams, setFsrsGlobalParams] = useState<Partial<FSRSParameters> | null>(null);
     const [stats, setStats] = useState<SummaryStats>(() => new DataUtils([], {}, null).getSummaryStats());
     const [examRecall, setExamRecall] = useState<number>(0);
@@ -286,13 +287,13 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
         return typeof SchedulerClass === 'function' ? new SchedulerClass(fsrsGlobalParams || null) : new FsrsScheduler(fsrsGlobalParams || null);
     }, [fsrsGlobalParams]);
 
-    const dataUtils = useMemo(() => new DataUtils(cards, activity, scheduler), [cards, activity, scheduler]);
+    const dataUtils = useMemo(() => new DataUtils(cards, activity, scheduler, tagRegistry), [cards, activity, scheduler, tagRegistry]);
 
-    const computeAndSetStats = useCallback((c: Card[], a: Record<string, number>, globalParams?: Partial<FSRSParameters> | null) => {
+    const computeAndSetStats = useCallback((c: Card[], a: Record<string, number>, globalParams?: Partial<FSRSParameters> | null, registry: TagEntry[] = []) => {
         try {
             const SchedulerClass = (window as unknown as { FsrsScheduler?: new (params?: Partial<FSRSParameters> | null) => AbstractScheduler }).FsrsScheduler || FsrsScheduler;
             const sched = typeof SchedulerClass === 'function' ? new SchedulerClass(globalParams || null) : new FsrsScheduler(globalParams || null);
-            const utils = new DataUtils(c, a, sched);
+            const utils = new DataUtils(c, a, sched, registry);
             const s = utils.getSummaryStats();
             const r = utils.getExamReadinessStats(12).overallRecall || 0;
             setStats(s);
@@ -311,7 +312,7 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
         const loadData = () => {
             try {
                 if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-                    chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'fsrsGlobalParams'], (result: StorageData) => {
+                    chrome.storage.local.get(['fsrsCards', 'tagRegistry', 'fsrsActivity', 'fsrsGlobalParams'], (result: StorageData) => {
                         const lastError = chrome.runtime?.lastError;
                         if (lastError) {
                             Logger.error('AnalyticsApp', `Storage error: ${lastError.message}`, { lastError });
@@ -322,9 +323,11 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
 
                         const loadedCards = result?.fsrsCards || propCards || [];
                         const loadedActivity = result?.fsrsActivity || propActivity || {};
+                        const loadedRegistry = Array.isArray(result?.tagRegistry) ? result.tagRegistry : [];
                         const loadedParams = result?.fsrsGlobalParams || null;
                         setCards(loadedCards);
                         setActivity(loadedActivity);
+                        setTagRegistry(loadedRegistry);
                         setFsrsGlobalParams(loadedParams);
 
                         // If FsrsScheduler is loading asynchronously, wait for it
@@ -335,13 +338,13 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
                                 if (win.FsrsScheduler !== undefined || retries > 50) {
                                     clearInterval(interval);
                                     if (isSubscribed) {
-                                        computeAndSetStats(loadedCards, loadedActivity, loadedParams);
+                                        computeAndSetStats(loadedCards, loadedActivity, loadedParams, loadedRegistry);
                                     }
                                 }
                                 retries++;
                             }, 100);
                         } else {
-                            computeAndSetStats(loadedCards, loadedActivity, loadedParams);
+                            computeAndSetStats(loadedCards, loadedActivity, loadedParams, loadedRegistry);
                         }
                     });
                 } else if (propCards) {

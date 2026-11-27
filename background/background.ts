@@ -18,8 +18,10 @@ import {
     WhitelistedWebsite,
     PomodoroState,
     PomodoroSettings,
-    PomodoroStats
+    PomodoroStats,
+    TagEntry
 } from '../types/domain';
+import { TagRegistry } from '../features/common/tags/tagRegistry';
 import {
     MS_PER_MINUTE,
     MS_PER_DAY,
@@ -728,7 +730,7 @@ export class AlgoRecallBackground {
         }
         this.isCheckingDueCards = true;
         try {
-            const result = (await chrome.storage.local.get(['fsrsCards', 'notificationSettings', 'whitelistedWebsites', 'lastNotificationTime'])) as StorageData & {
+            const result = (await chrome.storage.local.get(['fsrsCards', 'tagRegistry', 'notificationSettings', 'whitelistedWebsites', 'lastNotificationTime'])) as StorageData & {
                 notificationSettings?: NotificationSettings;
                 whitelistedWebsites?: WhitelistedWebsite[];
                 lastNotificationTime?: number;
@@ -790,10 +792,12 @@ export class AlgoRecallBackground {
 
             if (dueCards.length > 0) {
                 // R8.2: Notification grouping by tags
+                const tagRegistry: TagEntry[] = Array.isArray(result.tagRegistry) ? result.tagRegistry : [];
                 const tagCounts: Record<string, number> = {};
                 dueCards.forEach((c: Card) => {
                     if (c.tags && c.tags.length > 0) {
-                        c.tags.forEach((t: string) => {
+                        const resolvedTags = tagRegistry.length > 0 ? TagRegistry.hydrate(c.tags, tagRegistry) : c.tags;
+                        resolvedTags.forEach((t: string) => {
                             tagCounts[t] = (tagCounts[t] || 0) + 1;
                         });
                     } else {

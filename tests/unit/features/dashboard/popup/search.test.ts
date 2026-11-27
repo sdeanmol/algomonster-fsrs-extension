@@ -93,11 +93,11 @@ describe('QuickSearchComponent (Popup)', () => {
       await expect(component.load()).resolves.not.toThrow();
     });
 
-    it('loads cards, clears previous option elements, and populates tag filter select options', async () => {
+    it('loads cards and populates multi-select tag filter options', async () => {
       await component.load();
 
-      const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement;
-      expect(tagFilter.options.length).toBe(5); // 'All Tags', 'Array', 'Hash Table', 'Tree', 'Two Pointers'
+      const tagCheckboxes = document.querySelectorAll('#popup-tag-filter input[type="checkbox"]');
+      expect(tagCheckboxes.length).toBe(4); // 'Array', 'Hash Table', 'Tree', 'Two Pointers'
     });
 
     it('handles storage load error gracefully', async () => {
@@ -124,13 +124,13 @@ describe('QuickSearchComponent (Popup)', () => {
       expect(results?.children.length).toBeGreaterThan(0);
     });
 
-    it('triggers tag filter change listener on select change', async () => {
+    it('triggers tag filter change listener on multi-select checkbox change', async () => {
       await component.load();
       component.bindEvents();
 
-      const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement;
-      tagFilter.value = 'Tree';
-      tagFilter.dispatchEvent(new Event('change'));
+      const treeCheckbox = document.querySelector('#popup-tag-filter input[type="checkbox"][value="Tree"]') as HTMLInputElement;
+      expect(treeCheckbox).not.toBeNull();
+      treeCheckbox.click();
 
       const results = document.getElementById('popup-search-results');
       expect(results?.children.length).toBe(1);
@@ -171,10 +171,10 @@ describe('QuickSearchComponent (Popup)', () => {
   });
 
   describe('renderQuickSearch branches', () => {
-    it('clears container and returns early when query is empty and selectedTag is all', async () => {
+    it('clears container and returns early when query is empty and selectedTags is empty', async () => {
       await component.load();
       component.searchQuery = '';
-      component.selectedTag = 'all';
+      component.selectedTags = [];
 
       component.renderQuickSearch();
       const resultsContainer = document.getElementById('popup-search-results') as HTMLElement;

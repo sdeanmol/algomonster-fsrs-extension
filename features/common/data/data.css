@@ -445,39 +445,87 @@ td a:hover {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: rgba(0, 0, 0, 0.65);
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
     z-index: 1000;
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(6px);
+    animation: editOverlayFade 0.16s ease-out;
+}
+
+@keyframes editOverlayFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .edit-modal {
     background-color: var(--md-surface);
     border: 1px solid var(--md-border);
-    border-radius: 14px;
-    width: 90%;
-    max-width: 550px;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 620px;
     max-height: 90vh;
-    overflow-y: auto;
+    overflow: hidden;
     box-shadow: var(--shadow-3);
     display: flex;
     flex-direction: column;
+    animation: editModalSlide 0.18s ease-out;
+}
+
+@keyframes editModalSlide {
+    from { opacity: 0; transform: translateY(8px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .edit-modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px;
+    padding: 18px 24px;
     border-bottom: 1px solid var(--md-border);
+    background-color: var(--md-surface);
+}
+
+.edit-modal-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.edit-modal-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background-color: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.edit-modal-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
 }
 
 .edit-modal-header h3 {
     color: var(--md-text-high);
     font-size: 16px;
     font-weight: 700;
+    margin: 0;
+    padding: 0;
+    background: none;
+}
+
+.edit-modal-subtitle {
+    margin: 2px 0 0 0;
+    font-size: 12px;
+    color: var(--md-text-low);
 }
 
 .edit-close-btn {
@@ -485,8 +533,9 @@ td a:hover {
     border: none;
     color: var(--md-text-low);
     cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -499,16 +548,24 @@ td a:hover {
 }
 
 .edit-modal-body {
-    padding: 20px;
+    padding: 22px 24px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
+    overflow-y: auto;
 }
 
 .edit-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 7px;
+}
+
+.edit-field-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
 }
 
 .edit-field label {
@@ -519,27 +576,71 @@ td a:hover {
     letter-spacing: 0.5px;
 }
 
-.edit-field-row {
-    display: flex;
-    gap: 12px;
+.edit-field-hint {
+    font-size: 11.5px;
+    color: var(--md-text-low);
 }
 
-.edit-field-row .edit-field {
-    flex: 1;
+.edit-field .input-field {
+    background-color: var(--md-surface-variant);
+    border: 1px solid var(--md-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    color: var(--md-text-high);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.edit-field .input-field:hover {
+    border-color: var(--md-border-hover);
+}
+
+.edit-field .input-field:focus {
+    outline: none;
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 3px rgba(168, 199, 250, 0.18);
+}
+
+.edit-field-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+@media (max-width: 520px) {
+    .edit-field-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .edit-textarea {
     resize: vertical;
-    min-height: 80px;
+    min-height: 110px;
+    line-height: 1.55;
     font-family: inherit;
 }
 
 .edit-modal-footer {
     display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 16px 20px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
     border-top: 1px solid var(--md-border);
+    background-color: var(--md-surface);
+    flex-wrap: wrap;
+}
+
+.edit-modal-shortcut {
+    font-size: 11.5px;
+    color: var(--md-text-low);
+}
+
+.edit-modal-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
 }
 
 /* Toast Notifications */

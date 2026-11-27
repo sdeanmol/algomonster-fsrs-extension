@@ -141,16 +141,27 @@ describe('Keyboard Shortcuts & Command Dispatcher', () => {
       expect(BackupManager.exportBackup).toHaveBeenCalled();
     });
 
-    it('executes export-anki and formats card deck properly', async () => {
-      const cards = getMockCards();
-      const ankiText = ActionService.formatCardsForAnki(cards);
+    it('executes export-anki and formats card deck properly with hydrated tags and HTML links', async () => {
+      const registry = [
+        { id: 't-arr', name: 'Array' },
+        { id: 't-ll', name: 'Linked List' }
+      ];
+      const cards = [
+        { ...getMockCards()[0], tags: ['t-arr'], approach: 'Use x < y && z > 0' },
+        { ...getMockCards()[1], tags: ['t-ll', 'missing-id'] }
+      ];
+      const ankiText = ActionService.formatCardsForAnki(cards, registry);
 
       expect(ankiText).toContain('#deck:AlgoRecall');
       expect(ankiText).toContain('#separator:tab');
+      expect(ankiText).toContain('#html:true');
       expect(ankiText).toContain('Two Sum');
+      expect(ankiText).toContain('<a href="');
+      expect(ankiText).toContain('Use x &lt; y &amp;&amp; z &gt; 0');
       expect(ankiText).toContain('Reverse Linked List');
       expect(ankiText).toContain('algorecall::Array');
       expect(ankiText).toContain('algorecall::Linked_List');
+      expect(ankiText).toContain('algorecall::(deleted)');
 
       const result = await ActionService.executeAction('export-anki');
       expect(result.success).toBe(true);

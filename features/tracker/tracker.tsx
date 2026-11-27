@@ -16,7 +16,8 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { flushSync } from 'preact/compat';
 import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
 import { TagInputControl } from '../common/utils/tagInput';
-import { Card, StorageData, ExtensionSettings } from '../../types/domain';
+import { Card, StorageData, ExtensionSettings, TagEntry } from '../../types/domain';
+import { TagRegistry } from '../common/tags/tagRegistry';
 import { RATING_UI_DEBOUNCE_MS } from '../common/constants';
 import FsrsScheduler from './scheduler/fsrsScheduler';
 import { Logger } from '@common/logger';
@@ -61,6 +62,7 @@ function safeFlushSync(fn: () => void): void {
  */
 interface AlgoRecallState {
     cards: Card[];
+    tagRegistry?: TagEntry[];
     topicWeights: Record<string, number[]>;
     scheduler: FsrsScheduler;
     extensionSettings?: ExtensionSettings;
@@ -250,16 +252,18 @@ export const TrackerHeader: FunctionalComponent<TrackerHeaderProps> = ({ problem
 export interface TrackerNavBarProps {
     cards: Card[];
     activeCardId: string | null;
+    tagRegistry?: TagEntry[];
     onSelectCard?: (cardId: string) => void;
     onAddCard?: () => void;
 }
 
-export const TrackerNavBar: FunctionalComponent<TrackerNavBarProps> = ({ cards, activeCardId, onSelectCard, onAddCard }) => {
+export const TrackerNavBar: FunctionalComponent<TrackerNavBarProps> = ({ cards, activeCardId, tagRegistry = [], onSelectCard, onAddCard }) => {
     return (
         <div id="fsrs-nav-bar" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid rgba(255,255,255,0.08)', overflowX: 'auto' }}>
             {cards.map((c, idx) => {
                 const isActive = (c.id === activeCardId);
-                const tagLabel = (c.tags && c.tags.length > 0) ? ` (${c.tags.join(', ')})` : '';
+                const tagNames = tagRegistry.length > 0 ? TagRegistry.hydrate(c.tags || [], tagRegistry) : (c.tags || []);
+                const tagLabel = tagNames.length > 0 ? ` (${tagNames.join(', ')})` : '';
                 const cardTitleText = `Card ${idx + 1}${tagLabel}`;
                 return (
                     <button
@@ -370,6 +374,7 @@ export interface TrackerCardReviewViewProps {
     index: number;
     total: number;
     activeFilter?: string | null;
+    tagRegistry?: TagEntry[];
     isAnswerShown?: boolean;
     onShowAnswer?: () => void;
     onBack?: () => void;
@@ -381,6 +386,7 @@ export const TrackerCardReviewView: FunctionalComponent<TrackerCardReviewViewPro
     index,
     total,
     activeFilter,
+    tagRegistry = [],
     isAnswerShown = false,
     onShowAnswer,
     onBack,
@@ -391,6 +397,12 @@ export const TrackerCardReviewView: FunctionalComponent<TrackerCardReviewViewPro
     const approachHtml = typeof renderFn === 'function'
         ? renderFn(card.approach || '')
         : (card.approach || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+    const filterLabel = activeFilter
+        ? (tagRegistry.length > 0 ? TagRegistry.hydrate([activeFilter], tagRegistry)[0] : activeFilter)
+        : '';
+    const hydratedTags = card.tags && card.tags.length > 0
+        ? (tagRegistry.length > 0 ? TagRegistry.hydrate(card.tags, tagRegistry) : card.tags)
+        : [];
 
     return (
         <Fragment>
@@ -402,7 +414,7 @@ export const TrackerCardReviewView: FunctionalComponent<TrackerCardReviewViewPro
                             <svg class="svg-icon" viewBox="0 0 24 24" style={{ width: '11px', height: '11px' }}>
                                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                             </svg>
-                            {activeFilter}
+                            {filterLabel}
                         </div>
                     ) : null}
                 </div>
@@ -426,13 +438,13 @@ export const TrackerCardReviewView: FunctionalComponent<TrackerCardReviewViewPro
             <div class="fsrs-review-meta">
                 <span class="fsrs-progress-text">{index} of {total}</span>
             </div>
-            {card.tags && card.tags.length > 0 ? (
+            {hydratedTags.length > 0 ? (
                 <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <svg class="svg-icon" viewBox="0 0 24 24" style={{ stroke: '#888', width: '13px', height: '13px' }}>
                         <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
                         <line x1="7" y1="7" x2="7.01" y2="7" />
                     </svg>
-                    <span>{card.tags.join(', ')}</span>
+                    <span>{hydratedTags.join(', ')}</span>
                 </div>
             ) : null}
             <p style={{ marginBottom: '15px' }}>
@@ -486,6 +498,7 @@ export interface TrackerTagPickerProps {
     allDueCount: number;
     tagCounts: Record<string, number>;
     activeTagChip: string;
+    tagRegistry?: TagEntry[];
     onSelectTagChip: (tag: string) => void;
     onBack: () => void;
     onStartReview: () => void;
@@ -496,6 +509,7 @@ export const TrackerTagPicker: FunctionalComponent<TrackerTagPickerProps> = ({
     allDueCount,
     tagCounts,
     activeTagChip,
+    tagRegistry = [],
     onSelectTagChip,
     onBack,
     onStartReview
@@ -520,16 +534,19 @@ export const TrackerTagPicker: FunctionalComponent<TrackerTagPickerProps> = ({
                 >
                     All Topics <span class="fsrs-tag-count">{allDueCount}</span>
                 </button>
-                {uniqueTags.map(tag => (
-                    <button
-                        key={tag}
-                        class={`fsrs-tag-chip ${activeTagChip === tag ? 'fsrs-tag-chip-active' : ''}`}
-                        data-tag={tag}
-                        onClick={() => onSelectTagChip(tag)}
-                    >
-                        {tag} <span class="fsrs-tag-count">{tagCounts[tag] || 0}</span>
-                    </button>
-                ))}
+                {uniqueTags.map(tag => {
+                    const displayName = tagRegistry.length > 0 ? TagRegistry.hydrate([tag], tagRegistry)[0] : tag;
+                    return (
+                        <button
+                            key={tag}
+                            class={`fsrs-tag-chip ${activeTagChip === tag ? 'fsrs-tag-chip-active' : ''}`}
+                            data-tag={tag}
+                            onClick={() => onSelectTagChip(tag)}
+                        >
+                            {displayName} <span class="fsrs-tag-count">{tagCounts[tag] || 0}</span>
+                        </button>
+                    );
+                })}
             </div>
             <button id="fsrs-start-filtered-btn" class="fsrs-primary-btn" style={{ marginTop: '14px' }} onClick={onStartReview}>
                 <svg class="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', stroke: 'currentColor' }}>
@@ -1112,6 +1129,7 @@ export const TrackerApp: FunctionalComponent<TrackerAppProps> = ({ tracker }) =>
                 <TrackerNavBar
                     cards={urlCards}
                     activeCardId={activeCardId}
+                    tagRegistry={tracker.state.tagRegistry}
                     onSelectCard={handleSelectCardTab}
                     onAddCard={handleAddCardTab}
                 />
@@ -1234,6 +1252,7 @@ export const TrackerApp: FunctionalComponent<TrackerAppProps> = ({ tracker }) =>
                             allDueCount={allDueCount}
                             tagCounts={tagCounts}
                             activeTagChip={activeTagChip}
+                            tagRegistry={tracker.state.tagRegistry}
                             onSelectTagChip={(tag) => {
                                 tracker.activeReviewFilter = tag === '__all__' ? null : tag;
                                 safeFlushSync(() => {
@@ -1251,6 +1270,7 @@ export const TrackerApp: FunctionalComponent<TrackerAppProps> = ({ tracker }) =>
                             index={reviewIndex}
                             total={totalToReview}
                             activeFilter={tracker.activeReviewFilter}
+                            tagRegistry={tracker.state.tagRegistry}
                             isAnswerShown={isAnswerShown}
                             onShowAnswer={() => {
                                 safeFlushSync(() => {
@@ -1522,7 +1542,8 @@ export class Tracker {
 
                     if (activeCard) {
                         this.currentApproachText = activeCard.approach || '';
-                        this.currentTagsText = (activeCard.tags || []).join(', ');
+                        const tagNames = TagRegistry.hydrate(activeCard.tags || [], this.state.tagRegistry || []);
+                        this.currentTagsText = tagNames.join(', ');
                         this._appControls.setApproachText(this.currentApproachText);
                         this._appControls.setTagsText(this.currentTagsText);
                         if (this.approachInputRef?.current) {
@@ -1734,7 +1755,7 @@ export class Tracker {
                 const card = this.state.cards.find((c: Card) => c.id === existingId);
                 if (card) {
                     card.approach = text;
-                    card.tags = tagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                    card.tags = this.resolveTagIds(tagsText);
                     this.saveCards();
                 }
             } else {
@@ -1835,17 +1856,38 @@ export class Tracker {
     }
 
     /**
-     * Collects unique tag strings from all stored flashcards for autocomplete suggestions.
+     * Resolves human-readable tag text (comma-separated) into canonical tag IDs,
+     * registering any new tags in TagRegistry synchronously and persisting.
+     */
+    resolveTagIds(tagsText: string): string[] {
+        const names = tagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        if (names.length === 0) return [];
+        if (!Array.isArray(this.state.tagRegistry)) {
+            this.state.tagRegistry = [];
+        }
+        let registryChanged = false;
+        const ids: string[] = [];
+        for (const name of names) {
+            const { id, created } = TagRegistry.getOrCreateSync(name, this.state.tagRegistry);
+            if (created) registryChanged = true;
+            if (!ids.includes(id)) ids.push(id);
+        }
+        if (registryChanged) {
+            TagRegistry.save(this.state.tagRegistry).catch((err) => {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                Logger.error('Tracker', `Failed to persist tagRegistry: ${errorMessage}`, { err });
+            });
+        }
+        return ids;
+    }
+
+    /**
+     * Collects unique tag strings from tag registry for autocomplete suggestions.
      * @returns {string[]}
      */
     getDatabaseTags(): string[] {
-        const tagsSet = new Set<string>();
-        (this.state.cards || []).forEach((c: Card) => {
-            if (c.tags && Array.isArray(c.tags)) {
-                c.tags.forEach(t => tagsSet.add(t));
-            }
-        });
-        return Array.from(tagsSet).sort();
+        const registry = this.state.tagRegistry || [];
+        return registry.map((entry) => entry.name).sort();
     }
 
     /**
@@ -1932,7 +1974,8 @@ export class Tracker {
 
             let customWeightsToApply: number[] | null = null;
             if (card.tags && card.tags.length > 0) {
-                for (const tag of card.tags) {
+                const tagNames = TagRegistry.hydrate(card.tags, this.state.tagRegistry || []);
+                for (const tag of tagNames) {
                     if (this.state.topicWeights[tag]) {
                         customWeightsToApply = this.state.topicWeights[tag];
                         break;
@@ -1987,7 +2030,7 @@ export class Tracker {
                     const text = this.approachInputRef?.current ? this.approachInputRef.current.value : this.currentApproachText;
                     const tagsVal = this.tagsInputRef?.current ? this.tagsInputRef.current.value : this.currentTagsText;
                     this.state.cards[index].approach = text;
-                    this.state.cards[index].tags = tagsVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                    this.state.cards[index].tags = this.resolveTagIds(tagsVal);
                     this.saveCards();
 
                     safeFlushSync(() => {
@@ -2031,7 +2074,7 @@ export class Tracker {
                 const index = this.state.cards.findIndex((c: Card) => c.id === existingId);
                 if (index > -1) {
                     this.state.cards[index].approach = currentText;
-                    this.state.cards[index].tags = currentTagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                    this.state.cards[index].tags = this.resolveTagIds(currentTagsText);
                     this.saveCards();
                 }
                 chrome.runtime.sendMessage({
@@ -2104,16 +2147,17 @@ export class Tracker {
             }
 
             const tagsVal = this.tagsInputRef?.current ? this.tagsInputRef.current.value : this.currentTagsText;
-            const parsedTags = tagsVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            const parsedTagNames = tagsVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            const parsedTags = this.resolveTagIds(tagsVal);
             const existingId = this.activeCardId && this.activeCardId !== '__new__' ? this.activeCardId : undefined;
             const targetCleanUrl = cleanUrl(window.location.href);
             const problemTitle = (this.utils && typeof this.utils.getExtractedProblemTitle === 'function') ? this.utils.getExtractedProblemTitle() : document.title;
 
             let customWeights: number[] | null = null;
-            if (this.state.topicWeights && parsedTags && parsedTags.length > 0) {
-                for (const tag of parsedTags) {
-                    if (this.state.topicWeights[tag]) {
-                        customWeights = this.state.topicWeights[tag];
+            if (this.state.topicWeights && parsedTagNames.length > 0) {
+                for (const tagName of parsedTagNames) {
+                    if (this.state.topicWeights[tagName]) {
+                        customWeights = this.state.topicWeights[tagName];
                         break;
                     }
                 }

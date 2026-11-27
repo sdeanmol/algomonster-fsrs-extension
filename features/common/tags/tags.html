@@ -1,0 +1,28 @@
+<!--
+  @file features/common/tags/tags.html
+  @context Options Page / Standalone Tag Manager Tab
+  @description Modern full-page tag manager for searching, sorting, viewing, renaming, merging,
+  and deleting canonical tags stored in `tagRegistry`. Uses MD3 dark/light theme tokens from base.css.
+  @mounts-preact #root (<TagManagerApp />)
+  @linked-scripts
+    - ../theme-sync.js (Global dark/light theme synchronizer)
+    - tags.js (features/common/tags/tags.tsx - TagManagerApp Preact root)
+  @linked-styles
+    - ../base.css (Material Design 3 tokens and shared components)
+    - tags.css (Tag manager layout, search/sort panel, inline edit rows, badges, and status banners)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>AlgoRecall Tag Manager</title>
+    <script src="../theme-sync.js"></script>
+    <link rel="stylesheet" href="../base.css">
+    <link rel="stylesheet" href="tags.css">
+</head>
+<body>
+    <div id="root"></div>
+    <script src="tags.js"></script>
+</body>
+</html>

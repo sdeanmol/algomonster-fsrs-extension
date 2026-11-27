@@ -630,37 +630,25 @@ export interface DataPanelProps {
     onImportBackup?: (file: File) => void | Promise<void>;
     /** Callback to export Anki TSV deck */
     onExportAnki?: () => void | Promise<void>;
-    /** Callback to import Anki TSV/TXT file */
-    onImportAnki?: (file: File) => void | Promise<void>;
     /** Optional toast feedback function */
     showToast?: (message: string, isError?: boolean) => void;
 }
 
 /**
- * DataPanel Preact component providing local backup/restore and Anki TSV exchange.
+ * DataPanel Preact component providing local backup/restore and Anki TSV export.
  */
 export function DataPanel({
     isActive,
     onExportBackup,
     onImportBackup,
-    onExportAnki,
-    onImportAnki
+    onExportAnki
 }: DataPanelProps): JSX.Element {
     const importFileRef = useRef<HTMLInputElement>(null);
-    const ankiImportFileRef = useRef<HTMLInputElement>(null);
 
     const handleImportFileChange = (e: Event) => {
         const input = e.target as HTMLInputElement;
         if (input.files && input.files[0] && onImportBackup) {
             onImportBackup(input.files[0]);
-            input.value = '';
-        }
-    };
-
-    const handleAnkiImportFileChange = (e: Event) => {
-        const input = e.target as HTMLInputElement;
-        if (input.files && input.files[0] && onImportAnki) {
-            onImportAnki(input.files[0]);
             input.value = '';
         }
     };
@@ -739,9 +727,9 @@ export function DataPanel({
             </div>
 
             <div className="settings-card">
-                <h3 className="card-section-title">Anki Desktop Interchange</h3>
+                <h3 className="card-section-title">Anki Desktop Export</h3>
                 <p className="section-desc">
-                    Seamlessly move your algorithm flashcard patterns into or out of Anki using tab-separated format (TSV).
+                    Export your algorithm flashcard patterns to Anki using tab-separated format (TSV).
                 </p>
 
                 <div className="data-actions-flex">
@@ -761,41 +749,6 @@ export function DataPanel({
                             </svg>
                             Export Anki Deck
                         </button>
-                    </div>
-
-                    <div className="data-action-box">
-                        <div className="action-info">
-                            <h4 className="action-title">Import from Anki (TSV / TXT)</h4>
-                            <p className="action-desc">
-                                Import text/TSV files exported from Anki into your AlgoRecall spaced repetition queue.
-                            </p>
-                        </div>
-                        <label
-                            id="settings-anki-import-label"
-                            className="btn btn-secondary"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    ankiImportFileRef.current?.click();
-                                }
-                            }}
-                        >
-                            <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="7 10 12 15 17 10" />
-                                <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                            Import Anki File
-                            <input
-                                ref={ankiImportFileRef}
-                                type="file"
-                                id="settings-anki-import-file"
-                                accept=".txt,.tsv"
-                                style={{ display: 'none' }}
-                                onChange={handleAnkiImportFileChange}
-                            />
-                        </label>
                     </div>
                 </div>
             </div>
@@ -1342,62 +1295,6 @@ export const SettingsApp: FunctionalComponent<SettingsAppProps> = ({ initialTab 
         }
     }, [showToast]);
 
-    const handleImportAnki = useCallback(
-        async (file: File) => {
-            try {
-                const text = await file.text();
-                const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-                if (lines.length === 0) {
-                    showToast('Import file is empty', true);
-                    return;
-                }
-
-                const res = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
-                const existingCards: Card[] = res.fsrsCards || [];
-                let importedCount = 0;
-
-                for (const line of lines) {
-                    const parts = line.split('\t');
-                    if (parts.length >= 2) {
-                        const title = parts[0].trim();
-                        const approach = parts[1].trim();
-                        const tags = parts[2] ? parts[2].split(',').map((t) => t.trim()) : ['Anki'];
-
-                        const newCard: Card = {
-                            id: `card_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-                            problemTitle: title,
-                            problemUrl: '',
-                            approach: approach,
-                            tags: tags,
-                            due: Date.now(),
-                            stability: 1,
-                            difficulty: 5,
-                            elapsed_days: 0,
-                            scheduled_days: 0,
-                            learning_steps: 0,
-                            reps: 0,
-                            lapses: 0,
-                            state: 0,
-                            historyLog: []
-                        };
-                        existingCards.push(newCard);
-                        importedCount++;
-                    }
-                }
-
-                if (importedCount > 0) {
-                    await chrome.storage.local.set({ fsrsCards: existingCards });
-                    showToast(`Imported ${importedCount} card(s) from Anki`);
-                } else {
-                    showToast('No valid tab-separated cards found in file', true);
-                }
-            } catch {
-                showToast('Failed to import Anki cards', true);
-            }
-        },
-        [showToast]
-    );
-
     const handleTestNotification = useCallback(() => {
         if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
             chrome.runtime.sendMessage({ action: 'send_test_notification' });
@@ -1450,7 +1347,6 @@ export const SettingsApp: FunctionalComponent<SettingsAppProps> = ({ initialTab 
                         onExportBackup={handleExportBackup}
                         onImportBackup={handleImportBackup}
                         onExportAnki={handleExportAnki}
-                        onImportAnki={handleImportAnki}
                         showToast={showToast}
                     />
                     <IntegrationsPanel

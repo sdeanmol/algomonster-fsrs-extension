@@ -19,7 +19,8 @@
 
 import { Logger } from '@common/logger';
 import { getLastReviewDate } from '../../../common/utils/cardUtils';
-import { Card, ReviewLog } from '../../../../types/domain';
+import { Card, ReviewLog, TagEntry } from '../../../../types/domain';
+import { TagRegistry } from '../../../common/tags/tagRegistry';
 import { MS_PER_DAY, MS_PER_WEEK, RECOVERED_STABILITY_THRESHOLD, GRADUATED_STABILITY_THRESHOLD, RECALL_THRESHOLD_GOOD, RECALL_THRESHOLD_WARNING } from '../../../common/constants';
 import AbstractScheduler from '../../../tracker/scheduler/scheduler';
 
@@ -215,6 +216,8 @@ export class DataUtils {
     activity: Record<string, number>;
     /** Optional active FSRS scheduler instance for retrievability calculations. */
     scheduler: AbstractScheduler | null;
+    /** Canonical tag registry mapping stable UUIDs to display names. */
+    tagRegistry: TagEntry[];
     /** Reference current date timestamp. */
     today: Date;
     /** Midnight timestamp of the current date for day boundary comparisons. */
@@ -225,10 +228,12 @@ export class DataUtils {
      * @param cards - Collection of FSRS cards.
      * @param activity - Daily activity review counts.
      * @param scheduler - Active scheduler instance for retrievability projection.
+     * @param tagRegistry - Optional canonical tag registry for hydrating UUIDs.
      */
-    constructor(cards: Card[], activity: Record<string, number>, scheduler: AbstractScheduler | null) {
+    constructor(cards: Card[], activity: Record<string, number>, scheduler: AbstractScheduler | null, tagRegistry: TagEntry[] = []) {
         try {
             this.cards = cards || [];
+            this.tagRegistry = Array.isArray(tagRegistry) ? tagRegistry : [];
             
             this.cards.forEach((card: Card & { elapsedDays?: number; scheduledDays?: number }) => {
                 try {
@@ -253,11 +258,24 @@ export class DataUtils {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('DataUtils', `Error in DataUtils constructor: ${errorMessage}`, { err });
             this.cards = [];
+            this.tagRegistry = [];
             this.activity = {};
             this.scheduler = null;
             this.today = new Date();
             this.todayStart = new Date(this.today.getFullYear(), this.today.getMonth(), this.today.getDate());
         }
+    }
+
+    /**
+     * Resolves an array of tag UUIDs to display names using `tagRegistry`.
+     * Falls back to returning the raw tags when `tagRegistry` is empty (e.g. legacy test fixtures).
+     */
+    hydrateTags(tagIds?: string[]): string[] {
+        if (!tagIds || tagIds.length === 0) return [];
+        if (this.tagRegistry.length > 0) {
+            return TagRegistry.hydrate(tagIds, this.tagRegistry);
+        }
+        return tagIds;
     }
 
     /**
@@ -473,7 +491,8 @@ export class DataUtils {
             const now = this.today ? this.today.getTime() : Date.now();
             
             this.cards.forEach(card => {
-                const cardTags = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
+                const hydrated = this.hydrateTags(card.tags);
+                const cardTags = hydrated.length > 0 ? hydrated : ['Untagged'];
                 cardTags.forEach((tag: string) => {
                     if (!tags[tag]) {
                         tags[tag] = { count: 0, totalReps: 0, totalLapses: 0, totalStability: 0, reviewed: 0, due: 0, totalRetrievability: 0, retrievabilityCount: 0 };
@@ -720,7 +739,8 @@ export class DataUtils {
             let totalReviewedCards = 0;
 
             this.cards.forEach(card => {
-                const cardTags = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
+                const hydrated = this.hydrateTags(card.tags);
+                const cardTags = hydrated.length > 0 ? hydrated : ['Untagged'];
                 
                 let projectedR = 0;
                 const lastReview = card.last_review || getLastReviewDate(card);

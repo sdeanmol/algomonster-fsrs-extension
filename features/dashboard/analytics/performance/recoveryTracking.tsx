@@ -99,20 +99,24 @@ export const RecoveryTable: FunctionalComponent<RecoveryTableProps> = ({ cards, 
 export interface RecoveryTrackingProps {
     lapsed: Card[];
     recovered: Card[];
-    tagFilter?: string;
+    tagFilter?: string | string[];
 }
 
 export const RecoveryTrackingComponent: FunctionalComponent<RecoveryTrackingProps> = ({
     lapsed = [],
     recovered = [],
-    tagFilter = 'all'
+    tagFilter = []
 }) => {
     let filteredLapsed = lapsed || [];
     let filteredRecovered = recovered || [];
 
-    if (tagFilter !== 'all') {
-        filteredLapsed = lapsed.filter(c => c.tags && c.tags.includes(tagFilter));
-        filteredRecovered = recovered.filter(c => c.tags && c.tags.includes(tagFilter));
+    const activeFilters = Array.isArray(tagFilter)
+        ? tagFilter.filter(t => t && t !== 'all')
+        : (!tagFilter || tagFilter === 'all' ? [] : [tagFilter]);
+
+    if (activeFilters.length > 0) {
+        filteredLapsed = lapsed.filter(c => c.tags && c.tags.some(t => activeFilters.includes(t)));
+        filteredRecovered = recovered.filter(c => c.tags && c.tags.some(t => activeFilters.includes(t)));
     }
 
     return (
@@ -140,8 +144,8 @@ export const RecoveryTrackingComponent: FunctionalComponent<RecoveryTrackingProp
 export class RecoveryTracking {
     /** Data utility instance for card performance analysis */
     dataUtils: DataUtils;
-    /** Current tag filter applied to the recovery analysis ('all' or specific tag name) */
-    tagFilter: string;
+    /** Current tag filter applied to the recovery analysis (empty array for all, or selected tag IDs) */
+    tagFilter: string[];
 
     /**
      * Creates an instance of RecoveryTracking.
@@ -150,23 +154,27 @@ export class RecoveryTracking {
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
-            this.tagFilter = 'all';
+            this.tagFilter = [];
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('RecoveryTracking', `Error initializing RecoveryTracking constructor: ${errorMessage}`, { err });
             this.dataUtils = dataUtils;
-            this.tagFilter = 'all';
+            this.tagFilter = [];
         }
     }
 
     /**
      * Updates the tag filter applied when displaying recovered and struggling cards.
-     * @param tag - Tag name to filter by, or 'all' to show all cards.
+     * @param tag - Tag ID/name or array of tag IDs/names to filter by, or 'all'/empty to show all cards.
      * @returns void
      */
-    setTagFilter(tag: string): void {
+    setTagFilter(tag: string | string[]): void {
         try {
-            this.tagFilter = tag || 'all';
+            if (Array.isArray(tag)) {
+                this.tagFilter = tag.filter(t => t && t !== 'all');
+            } else {
+                this.tagFilter = !tag || tag === 'all' ? [] : [tag];
+            }
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('RecoveryTracking', `Error setting tag filter: ${errorMessage}`, { tag, err });

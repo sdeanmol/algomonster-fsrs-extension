@@ -395,11 +395,23 @@ export interface PomodoroStats {
 }
 
 /**
+ * Canonical tag registry entry stored in `chrome.storage.local` under `tagRegistry`.
+ */
+export interface TagEntry {
+    /** Stable UUID identifier (never changes after creation) */
+    id: string;
+    /** Mutable human-readable display name */
+    name: string;
+}
+
+/**
  * Root schema definition for all entities persisted in `chrome.storage.local`.
  */
 export interface StorageData {
     /** Collection of all tracked spaced repetition cards */
     fsrsCards?: Card[];
+    /** Canonical tag registry mapping stable UUIDs to mutable display names */
+    tagRegistry?: TagEntry[];
     /** Daily review count map indexed by ISO date string ("YYYY-MM-DD" -> count) */
     fsrsActivity?: { [date: string]: number };
     /** Topic-specific custom FSRS weight arrays indexed by category name */

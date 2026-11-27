@@ -1,0 +1,283 @@
+/**
+ * @file features/common/tags/tags.css
+ * @context Standalone Options Page UI (features/common/tags/tags.html)
+ * @description Stylesheet for the Tag Manager page. Uses Material Design 3 tokens from base.css
+ * for consistent dark and light theme rendering across all extension pages.
+ */
+body {
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
+    padding: 20px 10px;
+    font-family: var(--font-family);
+    line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+    body {
+        padding: 40px 20px;
+    }
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--md-border);
+    padding-bottom: 20px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.header-main h1 {
+    color: var(--md-text-high);
+    margin: 0 0 6px 0;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.subtitle {
+    color: var(--md-text-low);
+    font-size: 13.5px;
+    margin: 0;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.header-actions .btn {
+    text-decoration: none;
+}
+
+/* Status Banner */
+.status-banner {
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: 13.5px;
+    font-weight: 500;
+    box-shadow: var(--shadow-1);
+}
+
+.status-banner.success {
+    background-color: var(--md-success-container);
+    border: 1px solid var(--md-success);
+    color: var(--md-success);
+}
+
+.status-banner.error {
+    background-color: var(--md-danger-container);
+    border: 1px solid var(--md-danger);
+    color: var(--md-danger);
+}
+
+/* Search & Sort Panel */
+.filters-panel {
+    background-color: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: var(--shadow-1);
+}
+
+.search-box-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    stroke: var(--md-text-low);
+    pointer-events: none;
+}
+
+.search-input {
+    padding-left: 42px !important;
+}
+
+.toolbar-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.tags-summary {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--md-text-med);
+}
+
+.sort-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sort-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--md-text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.select-field {
+    background-color: var(--md-surface-variant);
+    cursor: pointer;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    border: 1px solid var(--md-border);
+    color: var(--md-text-high);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.select-field:focus {
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 2px rgba(168, 199, 250, 0.2);
+}
+
+.select-field option {
+    background-color: var(--md-surface);
+    color: var(--md-text-high);
+}
+
+/* Tags Table Card */
+.tags-card {
+    background-color: var(--md-surface);
+    border: 1px solid var(--md-border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-1);
+}
+
+.tags-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.tag-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--md-border);
+    transition: background-color 0.15s ease;
+}
+
+.tag-row:hover {
+    background-color: var(--md-surface-variant);
+}
+
+.tag-row:last-child {
+    border-bottom: none;
+}
+
+.tag-row-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.tag-icon {
+    width: 16px;
+    height: 16px;
+    stroke: var(--md-primary);
+    flex-shrink: 0;
+}
+
+.tag-name-input {
+    flex: 1 1 240px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--md-border);
+    background-color: var(--md-bg);
+    color: var(--md-text-high);
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tag-name-input:hover {
+    border-color: var(--md-border-hover);
+}
+
+.tag-name-input:focus {
+    outline: none;
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 2px rgba(168, 199, 250, 0.2);
+}
+
+.tag-count-badge {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background-color: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.tag-count-badge:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.tag-count-badge:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+
+.tag-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tag-row-error {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--md-danger);
+    padding: 8px 12px;
+    border-radius: 8px;
+    background-color: var(--md-danger-container);
+    flex-wrap: wrap;
+}
+
+.empty-state {
+    padding: 48px 20px;
+    text-align: center;
+    color: var(--md-text-low);
+    font-size: 14px;
+}

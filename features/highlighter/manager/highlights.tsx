@@ -21,6 +21,7 @@ import { HighlightsHelpers } from './highlights-helpers';
 import { HighlightMark, BookmarkItem, StorageData } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
 import { ActionService } from '@common/services/actionService';
+import { MultiSelect, MultiSelectOption } from '../../common/ui/components/MultiSelect';
 
 function safeFlushSync(fn: () => void): void {
     try {
@@ -303,7 +304,7 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
     const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(() => manager.loadedBookmarks || []);
     const [searchQuery, setSearchQuery] = useState<string>(() => manager.searchQuery || '');
     const [activeColorFilter, setActiveColorFilter] = useState<string | null>(() => manager.activeColorFilter);
-    const [activePageFilter, setActivePageFilter] = useState<string>(() => manager.activePageFilter || 'all');
+    const [activePageFilters, setActivePageFilters] = useState<string[]>(() => manager.activePageFilters || []);
     const [sortOption, setSortOption] = useState<string>(() => manager.sortOption || 'newest');
     const [isLoading, setIsLoading] = useState<boolean>(() => !manager.loadedMarks || manager.loadedMarks.length === 0);
     const [toastMessage, setToastMessage] = useState<string>('');
@@ -346,7 +347,7 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
             setBookmarks([...manager.loadedBookmarks]);
             setSearchQuery(manager.searchQuery || '');
             setActiveColorFilter(manager.activeColorFilter);
-            setActivePageFilter(manager.activePageFilter || 'all');
+            setActivePageFilters(manager.activePageFilters || []);
             setSortOption(manager.sortOption || 'newest');
             setIsLoading(false);
         });
@@ -387,7 +388,7 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
             markCategory.includes(q);
 
         const matchesColor = !activeColorFilter || mark.color === activeColorFilter;
-        const matchesPage = activePageFilter === 'all' || mark.url === activePageFilter;
+        const matchesPage = activePageFilters.length === 0 || activePageFilters.includes(mark.url);
 
         return matchesQuery && matchesColor && matchesPage;
     });
@@ -412,17 +413,17 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
         return 0;
     });
 
-    const isFilteredActive = searchQuery !== '' || activeColorFilter !== null || activePageFilter !== 'all';
+    const isFilteredActive = searchQuery !== '' || activeColorFilter !== null || activePageFilters.length > 0;
 
     const handleClearFilters = () => {
         manager.searchQuery = '';
         manager.activeColorFilter = null;
-        manager.activePageFilter = 'all';
+        manager.activePageFilters = [];
         manager.sortOption = 'newest';
         safeFlushSync(() => {
             setSearchQuery('');
             setActiveColorFilter(null);
-            setActivePageFilter('all');
+            setActivePageFilters([]);
             setSortOption('newest');
         });
     };
@@ -521,30 +522,28 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
                 <div className="filters-row">
                     <div className="filter-group">
                         <label htmlFor="webpage-select">Source Page</label>
-                        <select
+                        <MultiSelect
                             id="webpage-select"
-                            className="input-field select-field"
-                            value={activePageFilter}
-                            onChange={(e) => {
+                            options={Array.from(uniquePagesMap.entries()).map(([url, title]): MultiSelectOption => ({
+                                value: url,
+                                label: title.length > 50 ? title.substring(0, 50) + '...' : title
+                            }))}
+                            selectedValues={activePageFilters}
+                            placeholder="All Pages"
+                            searchPlaceholder="Search pages..."
+                            ariaLabel="Filter by source page"
+                            onChange={(values) => {
                                 try {
-                                    const val = (e.target as HTMLSelectElement).value;
-                                    manager.activePageFilter = val;
+                                    manager.activePageFilters = values;
                                     safeFlushSync(() => {
-                                        setActivePageFilter(val);
+                                        setActivePageFilters(values);
                                     });
                                 } catch (err) {
                                     const errorMessage = err instanceof Error ? err.message : String(err);
                                     Logger.error('HighlightsManager', `Error handling page filter change: ${errorMessage}`, { err });
                                 }
                             }}
-                        >
-                            <option value="all">All Pages</option>
-                            {Array.from(uniquePagesMap.entries()).map(([url, title]) => (
-                                <option key={url} value={url}>
-                                    {title.length > 50 ? title.substring(0, 50) + '...' : title}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </div>
 
                     <div className="filter-group">
@@ -645,8 +644,8 @@ export class HighlightsManager {
     searchQuery: string;
     /** Active hex color string filtering annotations, or null for all colors. */
     activeColorFilter: string | null;
-    /** Target page URL filter, or 'all' for all web pages. */
-    activePageFilter: string;
+    /** Target page URL filters (empty array for all web pages). */
+    activePageFilters: string[];
     /** Current sort criterion ('newest' | 'oldest' | 'longest' | 'shortest' | 'title'). */
     sortOption: string;
     /** Observer callback notifying root component of state updates. */
@@ -663,7 +662,7 @@ export class HighlightsManager {
         
         this.searchQuery = '';
         this.activeColorFilter = null;
-        this.activePageFilter = 'all';
+        this.activePageFilters = [];
         this.sortOption = 'newest';
     }
 
@@ -805,7 +804,7 @@ export class HighlightsManager {
                                  markCategory.includes(q);
 
             const matchesColor = !this.activeColorFilter || mark.color === this.activeColorFilter;
-            const matchesPage = this.activePageFilter === 'all' || mark.url === this.activePageFilter;
+            const matchesPage = this.activePageFilters.length === 0 || this.activePageFilters.includes(mark.url);
 
             return matchesQuery && matchesColor && matchesPage;
         });

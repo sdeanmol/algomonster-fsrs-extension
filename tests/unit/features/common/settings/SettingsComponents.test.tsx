@@ -336,15 +336,13 @@ describe('Settings Hub Preact Functional Components', () => {
             expect(handleExportAnki).toHaveBeenCalledTimes(1);
         });
 
-        it('handles file inputs for backup restore and Anki import', () => {
+        it('handles file input for backup restore', () => {
             const handleImportBackup: any = jest.fn();
-            const handleImportAnki: any = jest.fn();
 
             render(
                 <DataPanel
                     isActive={true}
                     onImportBackup={handleImportBackup}
-                    onImportAnki={handleImportAnki}
                 />,
                 container
             );
@@ -354,12 +352,6 @@ describe('Settings Hub Preact Functional Components', () => {
             Object.defineProperty(backupInput, 'files', { value: [backupFile] });
             backupInput.dispatchEvent(new Event('change'));
             expect(handleImportBackup).toHaveBeenCalledWith(backupFile);
-
-            const ankiFile = new File(['p1\tnote\n'], 'anki.tsv', { type: 'text/tab-separated-values' });
-            const ankiInput = container.querySelector('#settings-anki-import-file') as HTMLInputElement;
-            Object.defineProperty(ankiInput, 'files', { value: [ankiFile] });
-            ankiInput.dispatchEvent(new Event('change'));
-            expect(handleImportAnki).toHaveBeenCalledWith(ankiFile);
         });
 
         it('triggers file selection when pressing Enter or Space on import labels', () => {

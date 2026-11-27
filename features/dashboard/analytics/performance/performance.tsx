@@ -14,6 +14,7 @@ import { RecoveryTracking, RecoveryTrackingComponent } from './recoveryTracking'
 import { ReviewStats, ReviewStatsComponent } from './reviewStats';
 import { DataUtils } from '../utils/dataUtils';
 import { resolveContainer } from '../utils/resolveContainer';
+import { MultiSelect, MultiSelectOption } from '../../../common/ui/components/MultiSelect';
 
 export interface PerformanceNextActionBannerProps {
     strugglingCount: number;
@@ -52,7 +53,7 @@ export const PerformanceNextActionBanner: FunctionalComponent<PerformanceNextAct
 export interface PerformanceTabProps {
     cards?: Card[];
     dataUtils?: DataUtils;
-    onFilterTagChange?: (tag: string) => void;
+    onFilterTagChange?: (tags: string[]) => void;
     onPeriodChange?: (period: string) => void;
 }
 
@@ -64,7 +65,7 @@ export const PerformanceTabComponent: FunctionalComponent<PerformanceTabProps> =
 }) => {
     const dataUtils = propDataUtils || new DataUtils(cards || [], {}, null);
     const [period, setPeriod] = useState('daily');
-    const [filterTag, setFilterTag] = useState('all');
+    const [filterTags, setFilterTags] = useState<string[]>([]);
 
     let struggling = 0;
     if (dataUtils && dataUtils.cards) {
@@ -78,11 +79,18 @@ export const PerformanceTabComponent: FunctionalComponent<PerformanceTabProps> =
 
     const { lapsed, recovered } = dataUtils.getPerformanceStats();
 
-    const tagSet = new Set<string>();
-    (dataUtils.cards || []).forEach(c => {
-        if (c.tags) c.tags.forEach(t => tagSet.add(t));
-    });
-    const allTags = Array.from(tagSet).sort();
+    const tagOptions: MultiSelectOption[] = (() => {
+        if (dataUtils.tagRegistry && dataUtils.tagRegistry.length > 0) {
+            return [...dataUtils.tagRegistry]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(entry => ({ value: entry.id, label: entry.name }));
+        }
+        const tagSet = new Set<string>();
+        (dataUtils.cards || []).forEach(c => {
+            if (c.tags) c.tags.forEach(t => tagSet.add(t));
+        });
+        return Array.from(tagSet).sort().map(t => ({ value: t, label: t }));
+    })();
 
     const formatDateKey = dataUtils?.formatDateKey ? dataUtils.formatDateKey.bind(dataUtils) : undefined;
 
@@ -135,33 +143,30 @@ export const PerformanceTabComponent: FunctionalComponent<PerformanceTabProps> =
                         <span class="help-icon" data-tooltip="Highlights cards you've forgotten multiple times (Lapses). 'Still Struggling' means the card has not yet graduated to long-term memory again.">?</span>
                     </span>
                     <div class="performance-controls">
-                        <select
+                        <MultiSelect
                             id="performance-filter-tag"
-                            class="modern-select"
-                            value={filterTag}
-                            onChange={(e) => {
+                            options={tagOptions}
+                            selectedValues={filterTags}
+                            placeholder="All Tags"
+                            searchPlaceholder="Search tags..."
+                            ariaLabel="Filter recovery by tags"
+                            onChange={(values) => {
                                 try {
-                                    const val = (e.target as HTMLSelectElement).value;
-                                    setFilterTag(val);
-                                    onFilterTagChange?.(val);
+                                    setFilterTags(values);
+                                    onFilterTagChange?.(values);
                                 } catch (tagErr) {
                                     const errorMessage = tagErr instanceof Error ? tagErr.message : String(tagErr);
                                     Logger.error('PerformanceTab', `Error in tag filter change listener: ${errorMessage}`, { tagErr });
                                 }
                             }}
-                        >
-                            <option value="all">All Tags</option>
-                            {allTags.map(tag => (
-                                <option key={tag} value={tag}>{tag}</option>
-                            ))}
-                        </select>
+                        />
                     </div>
                 </div>
                 <div id="recovery-tracking-container">
                     <RecoveryTrackingComponent
                         lapsed={lapsed}
                         recovered={recovered}
-                        tagFilter={filterTag}
+                        tagFilter={filterTags}
                     />
                 </div>
             </div>

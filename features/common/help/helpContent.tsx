@@ -390,11 +390,8 @@ export function OverviewTabContent(): JSX.Element {
                                 existing backup file.</li>
                             <li><strong>To Anki (.txt Export):</strong> Exports your cards into standard Anki
                                 tab-delimited format (<code>Front \t Back \t Tags</code>) with
-                                <code>#separator:tab</code> directives for seamless desktop Anki importing.
+                                <code>#separator:tab</code> and <code>#html:true</code> directives for seamless desktop Anki importing.
                             </li>
-                            <li><strong>From Anki (.txt / .tsv Import):</strong> Imports flashcard decks from Anki.
-                                Existing cards with matching problem titles are automatically detected and skipped to
-                                avoid duplicates.</li>
                         </ul>
                     </div>
 
@@ -1760,7 +1757,7 @@ export function AdvancedTabContent({ onSwitchTab }: { onSwitchTab: (tab: string)
             <div className="card">
                 <h2>⚙️ AlgoRecall Engine Customizer, Anki & Data Disclosures</h2>
                 <p className="section-intro">
-                    Advanced configuration options, custom FSRS weight parameters, bi-directional Anki synchronization, and legal licensing disclosures.
+                    Advanced configuration options, custom FSRS weight parameters, Anki export, and legal licensing disclosures.
                 </p>
 
                 <div className="card card-accent mb-4">
@@ -1781,10 +1778,9 @@ export function AdvancedTabContent({ onSwitchTab }: { onSwitchTab: (tab: string)
                     </div>
 
                     <div className="card card-accent">
-                        <h3>📦 Anki Integration (.txt / .tsv)</h3>
+                        <h3>📦 Anki Export (.txt / .tsv)</h3>
                         <ul className="help-bullet-list">
                             <li><strong>Export to Anki:</strong> Export your cards into Anki-compatible format for offline study.</li>
-                            <li><strong>Import from Anki:</strong> Import Anki deck TSV/txt files directly into AlgoRecall.</li>
                         </ul>
                     </div>
                 </div>
@@ -1928,7 +1924,7 @@ export function PrivacyTabContent(): JSX.Element {
                     </p>
                     <ul className="help-bullet-list">
                         <li><strong>JSON State Export:</strong> Download your entire database (cards, reviews, notes, tags, settings) in structured JSON format with FNV-1a checksum validation.</li>
-                        <li><strong>Anki Compatibility:</strong> Seamlessly export your flashcards into Anki-compatible format or import existing Anki decks.</li>
+                        <li><strong>Anki Compatibility:</strong> Seamlessly export your flashcards into Anki-compatible format.</li>
                         <li><strong>Offline Accessibility:</strong> The extension continues to function completely offline without internet connectivity.</li>
                     </ul>
                 </div>

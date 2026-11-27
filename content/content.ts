@@ -19,7 +19,7 @@ import './utils';
 import '../features/highlighter/highlighter';
 import './notifications';
 import '../features/tracker/tracker';
-import { Card, StorageData, ExtensionMessage, MessageResponse, FSRSParameters, HighlightMark, BookmarkItem } from '../types/domain';
+import { Card, StorageData, ExtensionMessage, MessageResponse, FSRSParameters, HighlightMark, BookmarkItem, TagEntry } from '../types/domain';
 import { AlgoRecallState, getAlgoRecallGlobal } from './state';
 import { Utils } from './utils';
 import { Notifier } from './notifications';
@@ -142,7 +142,7 @@ export class AlgoRecallOrchestrator {
                 Logger.timeEnd('ContentScript', 'Init Storage Load');
                 return;
             }
-            chrome.storage.local.get(['fsrsCards', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'extensionSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result: StorageData & {
+            chrome.storage.local.get(['fsrsCards', 'tagRegistry', 'fsrsTopicWeights', 'marks', 'bookmarks', 'pagecontents', 'extensionSettings', 'theme', 'whitelistedWebsites', 'fsrsGlobalParams'], (result: StorageData & {
                 marks?: HighlightMark[];
                 bookmarks?: BookmarkItem[];
                 pagecontents?: unknown[];
@@ -170,6 +170,7 @@ export class AlgoRecallOrchestrator {
                     }
 
                     if (result.fsrsCards) this.state.cards = result.fsrsCards;
+                    if (result.tagRegistry) this.state.tagRegistry = result.tagRegistry;
                     if (result.fsrsTopicWeights) this.state.topicWeights = result.fsrsTopicWeights;
 
                     if (result.marks) this.state.marks = result.marks;
@@ -433,6 +434,10 @@ export class AlgoRecallOrchestrator {
                 }
                 if (changes.fsrsCards) {
                     this.state.cards = (changes.fsrsCards.newValue as Card[]) || [];
+                    this.tracker.refreshWidgetState();
+                }
+                if (changes.tagRegistry) {
+                    this.state.tagRegistry = (changes.tagRegistry.newValue as TagEntry[]) || [];
                     this.tracker.refreshWidgetState();
                 }
                 if (changes.fsrsTopicWeights) {

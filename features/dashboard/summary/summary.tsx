@@ -21,7 +21,7 @@ import { h, VNode, render, Fragment } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
-import { StorageData, Card } from '../../../types/domain';
+import { StorageData, Card, TagEntry } from '../../../types/domain';
 import { generateSummaryReport, SummaryReport, TopicMastery, SummaryInsight, DailyActivityPoint } from './summaryGenerator';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -469,6 +469,8 @@ export class SummaryDashboard {
     allCards: Card[] = [];
     /** Cached activity history mapping ISO date strings to review counts. */
     fsrsActivity: { [date: string]: number } = {};
+    /** Canonical tag registry mapping stable UUIDs to display names. */
+    tagRegistry: TagEntry[] = [];
     /** State change observer callback. */
     onUpdate?: () => void;
 
@@ -512,7 +514,7 @@ export class SummaryDashboard {
     }
 
     getReport(): SummaryReport {
-        return generateSummaryReport(this.allCards, this.fsrsActivity, this.currentPeriod);
+        return generateSummaryReport(this.allCards, this.fsrsActivity, this.currentPeriod, Date.now(), this.tagRegistry);
     }
 
     /**
@@ -531,7 +533,7 @@ export class SummaryDashboard {
      */
     loadData(): void {
         try {
-            chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], (result: StorageData) => {
+            chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'tagRegistry'], (result: StorageData) => {
                 try {
                     if (chrome.runtime.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
@@ -541,6 +543,7 @@ export class SummaryDashboard {
 
                     this.allCards = result.fsrsCards || [];
                     this.fsrsActivity = result.fsrsActivity || {};
+                    this.tagRegistry = Array.isArray(result.tagRegistry) ? result.tagRegistry : [];
 
                     this.updateTabUI();
                     this.renderReport();

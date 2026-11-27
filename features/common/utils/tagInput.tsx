@@ -85,21 +85,23 @@ export function TagSuggestionsList({
     suggestions,
     query,
     highlightedIndex,
+    showCreateOption = false,
     onHover,
     onSelect
 }: {
     suggestions: string[];
     query: string;
     highlightedIndex: number;
+    showCreateOption?: boolean;
     onHover: (index: number) => void;
     onSelect: (suggestion: string) => void;
 }): JSX.Element {
     return (
         <Fragment>
             {suggestions.map((suggestion, idx) => {
-                const matchPos = suggestion.toLowerCase().indexOf(query.toLowerCase());
+                const matchPos = query ? suggestion.toLowerCase().indexOf(query.toLowerCase()) : -1;
                 let content: JSX.Element | string;
-                if (matchPos >= 0) {
+                if (query && matchPos >= 0) {
                     const before = suggestion.substring(0, matchPos);
                     const match = suggestion.substring(matchPos, matchPos + query.length);
                     const after = suggestion.substring(matchPos + query.length);
@@ -118,7 +120,8 @@ export function TagSuggestionsList({
                         key={suggestion}
                         className={`tag-suggestion-item ${idx === highlightedIndex ? 'highlighted' : ''}`}
                         onMouseEnter={() => onHover(idx)}
-                        onClick={(e) => {
+                        onMouseDown={(e) => {
+                            e.preventDefault();
                             e.stopPropagation();
                             onSelect(suggestion);
                         }}
@@ -127,6 +130,18 @@ export function TagSuggestionsList({
                     </div>
                 );
             })}
+            {showCreateOption && query && (
+                <div
+                    className="tag-create-item"
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onSelect(query);
+                    }}
+                >
+                    <span className="tag-create-plus">+</span> Create <strong>&ldquo;{query}&rdquo;</strong>
+                </div>
+            )}
         </Fragment>
     );
 }
@@ -159,6 +174,8 @@ export function TagInput({
     const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
     const [isOpen, setIsOpen] = useState<boolean>(false);
 
+    const [showCreateOption, setShowCreateOption] = useState<boolean>(false);
+
     const wrapperRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -175,6 +192,7 @@ export function TagInput({
         setIsOpen(false);
         setHighlightedIndex(-1);
         setSuggestions([]);
+        setShowCreateOption(false);
     }, []);
 
     const addTag = useCallback((tagText: string): boolean => {
@@ -207,8 +225,9 @@ export function TagInput({
 
     const triggerAutocomplete = useCallback(async (queryText?: string) => {
         const text = queryText !== undefined ? queryText : (inputRef.current?.value || inputValue);
-        const query = text.trim().toLowerCase();
-        if (!query || !getSuggestions) {
+        const rawQuery = text.trim();
+        const query = rawQuery.toLowerCase();
+        if (!getSuggestions && !rawQuery) {
             closeDropdown();
             return;
         }
@@ -216,7 +235,7 @@ export function TagInput({
         const seq = ++autocompleteSeqRef.current;
 
         try {
-            const rawSuggestions = await Promise.resolve(getSuggestions());
+            const rawSuggestions = getSuggestions ? await Promise.resolve(getSuggestions()) : [];
             if (seq !== autocompleteSeqRef.current) {
                 return;
             }
@@ -231,12 +250,20 @@ export function TagInput({
                 );
             }).slice(0, 8);
 
-            if (filtered.length > 0) {
+            const hasExactMatch = (rawSuggestions || []).some(
+                (t) => t.trim().toLowerCase() === query
+            ) || currentTagSet.has(query);
+
+            const canCreate = Boolean(rawQuery && !hasExactMatch);
+
+            if (filtered.length > 0 || canCreate) {
+                const nextHighlighted = filtered.length > 0 ? 0 : -1;
                 suggestionsRef.current = filtered;
-                highlightedIndexRef.current = 0;
+                highlightedIndexRef.current = nextHighlighted;
                 isOpenRef.current = true;
                 setSuggestions(filtered);
-                setHighlightedIndex(0);
+                setHighlightedIndex(nextHighlighted);
+                setShowCreateOption(canCreate);
                 setIsOpen(true);
             } else {
                 closeDropdown();
@@ -301,11 +328,19 @@ export function TagInput({
     const handleInput = (e: Event) => {
         const val = (e.currentTarget as HTMLInputElement).value;
         setInputValue(val);
-        if (!val.trim()) {
-            closeDropdown();
-        } else {
-            triggerAutocomplete(val);
+        triggerAutocomplete(val);
+    };
+
+    const handleFocus = () => {
+        triggerAutocomplete();
+    };
+
+    const handleBlur = () => {
+        const val = (inputRef.current?.value || inputValue).trim();
+        if (val) {
+            addTag(val);
         }
+        closeDropdown();
     };
 
     const handlePaste = (e: ClipboardEvent) => {
@@ -359,6 +394,8 @@ export function TagInput({
                 placeholder={tags.length === 0 ? placeholder : ''}
                 disabled={disabled}
                 onInput={handleInput}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
             />
@@ -372,6 +409,7 @@ export function TagInput({
                         suggestions={suggestions}
                         query={inputValue.trim()}
                         highlightedIndex={highlightedIndex}
+                        showCreateOption={showCreateOption}
                         onHover={(idx) => {
                             highlightedIndexRef.current = idx;
                             setHighlightedIndex(idx);

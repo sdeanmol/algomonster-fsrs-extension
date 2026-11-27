@@ -55,17 +55,20 @@ describe('RecoveryTracking', () => {
   });
 
   describe('constructor and setTagFilter', () => {
-    it('initializes dataUtils and default tagFilter to all', () => {
+    it('initializes dataUtils and default tagFilter to empty array', () => {
       expect(component.dataUtils).toBe(mockDataUtils);
-      expect(component.tagFilter).toBe('all');
+      expect(component.tagFilter).toEqual([]);
     });
 
     it('sets tagFilter correctly and handles empty fallback', () => {
       component.setTagFilter('Array');
-      expect(component.tagFilter).toBe('Array');
+      expect(component.tagFilter).toEqual(['Array']);
+
+      component.setTagFilter(['Array', 'DP']);
+      expect(component.tagFilter).toEqual(['Array', 'DP']);
 
       component.setTagFilter('');
-      expect(component.tagFilter).toBe('all');
+      expect(component.tagFilter).toEqual([]);
     });
   });
 

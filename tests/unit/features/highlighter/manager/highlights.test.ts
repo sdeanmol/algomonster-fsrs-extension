@@ -104,10 +104,10 @@ describe('HighlightsManager', () => {
       searchInput.dispatchEvent(new Event('input'));
       expect(manager.searchQuery).toBe('Dynamic');
 
-      const webpageSelect = document.getElementById('webpage-select') as HTMLSelectElement;
-      webpageSelect.value = 'https://leetcode.com/problems/two-sum';
-      webpageSelect.dispatchEvent(new Event('change'));
-      expect(manager.activePageFilter).toBe('https://leetcode.com/problems/two-sum');
+      const webpageCheckbox = document.querySelector('#webpage-select input[type="checkbox"][value="https://leetcode.com/problems/two-sum"]') as HTMLInputElement;
+      expect(webpageCheckbox).not.toBeNull();
+      webpageCheckbox.click();
+      expect(manager.activePageFilters).toEqual(['https://leetcode.com/problems/two-sum']);
 
       const sortSelect = document.getElementById('sort-select') as HTMLSelectElement;
       sortSelect.value = 'oldest';
@@ -189,9 +189,9 @@ describe('HighlightsManager', () => {
       manager.loadedBookmarks = mockBookmarks;
       manager.populateWebpageSelect();
 
-      const select = document.getElementById('webpage-select') as HTMLSelectElement;
-      expect(select.options.length).toBe(4);
-      expect(select.options[1].textContent).toContain('...');
+      const labels = Array.from(document.querySelectorAll('#webpage-select .multi-select-option span')).map(el => el.textContent || '');
+      expect(labels.length).toBe(3);
+      expect(labels.some(l => l.includes('...'))).toBe(true);
     });
   });
 

@@ -61,7 +61,7 @@ class TestFSRSDataDashboard extends FSRSDataDashboard {
       if (tagSelect) {
         tagSelect.addEventListener('change', () => {
           try {
-            this.selectedTag = tagSelect.value;
+            this.selectedTags = tagSelect.value && tagSelect.value !== 'all' ? [tagSelect.value] : [];
             this.filterAndRender();
           } catch (_) {}
         });
@@ -70,7 +70,7 @@ class TestFSRSDataDashboard extends FSRSDataDashboard {
       if (statusSelect) {
         statusSelect.addEventListener('change', () => {
           try {
-            this.selectedStatus = statusSelect.value;
+            this.selectedStatuses = statusSelect.value && statusSelect.value !== 'all' ? [statusSelect.value] : [];
             this.filterAndRender();
           } catch (_) {}
         });
@@ -79,7 +79,7 @@ class TestFSRSDataDashboard extends FSRSDataDashboard {
       if (platformSelect) {
         platformSelect.addEventListener('change', () => {
           try {
-            this.selectedPlatform = platformSelect.value;
+            this.selectedPlatforms = platformSelect.value && platformSelect.value !== 'all' ? [platformSelect.value] : [];
             this.filterAndRender();
           } catch (_) {}
         });
@@ -88,7 +88,7 @@ class TestFSRSDataDashboard extends FSRSDataDashboard {
       if (stateSelect) {
         stateSelect.addEventListener('change', () => {
           try {
-            this.selectedState = stateSelect.value;
+            this.selectedStates = stateSelect.value && stateSelect.value !== 'all' ? [stateSelect.value] : [];
             this.filterAndRender();
           } catch (_) {}
         });
@@ -451,7 +451,7 @@ describe('FSRSDataDashboard', () => {
       tagSelect.value = 'linked-list';
       tagSelect.dispatchEvent(new Event('change'));
 
-      expect(dashboard.selectedTag).toBe('linked-list');
+      expect(dashboard.selectedTags).toEqual(['linked-list']);
     });
 
     it('resets all filters when clear filters button is clicked', () => {
@@ -460,8 +460,8 @@ describe('FSRSDataDashboard', () => {
       clearBtn.click();
 
       expect(dashboard.searchQuery).toBe('');
-      expect(dashboard.selectedTag).toBe('all');
-      expect(dashboard.selectedStatus).toBe('all');
+      expect(dashboard.selectedTags).toEqual([]);
+      expect(dashboard.selectedStatuses).toEqual([]);
     });
 
     it('renders different dashboard views (due, retention, history, forecast)', () => {
@@ -586,7 +586,11 @@ describe('FSRSDataDashboard', () => {
       dashboard.selectedCardIds.add('c1');
 
       dashboard.bulkRetag();
-      expect(dashboard.allCards[0].tags).toEqual(['new-tag', 'review']);
+      expect(dashboard.allCards[0].tags).toHaveLength(2);
+      const hydrated = (dashboard.allCards[0].tags || []).map(
+        id => dashboard.tagRegistry.find(t => t.id === id)?.name
+      );
+      expect(hydrated).toEqual(['new-tag', 'review']);
       expect(chrome.storage.local.set).toHaveBeenCalled();
       promptSpy.mockRestore();
     });
@@ -692,9 +696,9 @@ describe('FSRSDataDashboard', () => {
       stateSelect.value = '1';
       stateSelect.dispatchEvent(new Event('change'));
 
-      expect(dashboard.selectedStatus).toBe('due');
-      expect(dashboard.selectedPlatform).toBe('leetcode.com');
-      expect(dashboard.selectedState).toBe('1');
+      expect(dashboard.selectedStatuses).toEqual(['due']);
+      expect(dashboard.selectedPlatforms).toEqual(['leetcode.com']);
+      expect(dashboard.selectedStates).toEqual(['1']);
     });
 
     it('tests openEditModal and getDatabaseTags', () => {
@@ -738,7 +742,7 @@ describe('FSRSDataDashboard', () => {
       testDash.init();
 
       expect(testDash.searchQuery).toBe('Two');
-      expect(testDash.selectedTag).toBe('array');
+      expect(testDash.selectedTags).toEqual(['array']);
     });
 
     it('handles chrome.runtime.lastError in bulk operations storage set callbacks', () => {

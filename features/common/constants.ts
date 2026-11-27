@@ -181,6 +181,7 @@ export const ACTION_URL_MAP: Record<string, string> = {
     'open-highlights-options': 'features/highlighter/options/highlightOptions.html',
     'open-summary': 'features/dashboard/summary/summary.html',
     'open-websites-manager': 'features/common/websites/websites.html',
+    'open-tags-manager': 'features/common/tags/tags.html',
     'open-fsrs-config': 'features/tracker/config/fsrsConfig.html',
     'open-help': 'features/common/help/help.html',
     'open-settings': 'features/common/settings/settings.html',
@@ -257,7 +258,7 @@ export const MARKDOWN_PURIFY_OPTIONS = {
 
 /** Set of valid NDJSON backup record type discriminator strings */
 export const VALID_BACKUP_RECORD_TYPES: ReadonlySet<string> = new Set<BackupRecordType>([
-    'header', 'page', 'card', 'mark', 'bookmark', 'pagecontent', 'activity', 'weights', 'settings', 'footer'
+    'header', 'page', 'card', 'mark', 'bookmark', 'pagecontent', 'activity', 'weights', 'settings', 'tagregistry', 'footer'
 ]);
 
 /** 32-bit FNV-1a hash algorithm offset basis initial value */

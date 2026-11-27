@@ -14,7 +14,7 @@
  * - `getAlgoRecallGlobal`: Helper accessor ensuring safe retrieval and creation of `window.AlgoRecall`.
  */
 
-import { Card, HighlightMark, BookmarkItem, ExtensionSettings } from '../types/domain';
+import { Card, HighlightMark, BookmarkItem, ExtensionSettings, TagEntry } from '../types/domain';
 import AbstractScheduler from '../features/tracker/scheduler/scheduler';
 import { Logger } from '@common/logger';
 import { DEFAULT_PALETTES, DEFAULT_EXTENSION_SETTINGS, DEFAULT_THEME } from '../features/common/constants';
@@ -28,6 +28,8 @@ export interface AlgoRecallState {
     scheduler: AbstractScheduler;
     /** Cached flashcards and study items retrieved from extension storage. */
     cards: Card[];
+    /** Canonical tag registry mapping stable UUIDs to display names. */
+    tagRegistry: TagEntry[];
     /** Canonical URL of the last processed page, preventing duplicate scans during SPA navigation. */
     lastCheckedUrl: string;
     /** User-defined per-topic difficulty multiplier weights. */
@@ -137,6 +139,9 @@ algoGlobal.state = {
 
     // Active collection of study cards/patterns loaded from storage
     cards: [],
+
+    // Canonical tag registry loaded from storage
+    tagRegistry: [],
 
     // URL caching to prevent duplicate triggers on SPA change transitions
     lastCheckedUrl: window.location.href,

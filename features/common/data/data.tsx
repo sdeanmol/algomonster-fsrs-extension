@@ -3,7 +3,10 @@ import { useState, useEffect } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { ensureCardIds } from '../utils/cardUtils';
-import { Card, StorageData, UserSettings } from '../../../types/domain';
+import { Card, StorageData, UserSettings, TagEntry } from '../../../types/domain';
+import { TagRegistry } from '../tags/tagRegistry';
+import { TagInput } from '../utils/tagInput';
+import { MultiSelect, MultiSelectOption } from '../ui/components/MultiSelect';
 import { PLATFORM_NAMES, MONTH_NAMES } from '../constants';
 
 /**
@@ -93,6 +96,8 @@ export function CardsTableEmptyState({
 export interface DataAnalyticsPanelProps {
     /** Collection of cards to compute analytics for */
     cards: Card[];
+    /** Canonical tag registry for hydrating UUIDs to display names */
+    tagRegistry?: TagEntry[];
 }
 
 /**
@@ -103,7 +108,7 @@ export interface DataAnalyticsPanelProps {
  * @param props - Card collection.
  * @returns VNode rendered analytics grid.
  */
-export function DataAnalyticsPanel({ cards }: DataAnalyticsPanelProps): VNode {
+export function DataAnalyticsPanel({ cards, tagRegistry = [] }: DataAnalyticsPanelProps): VNode {
     let newCount = 0;
     let learningCount = 0;
     let reviewCount = 0;
@@ -129,7 +134,8 @@ export function DataAnalyticsPanel({ cards }: DataAnalyticsPanelProps): VNode {
     const tagCounts: Record<string, number> = {};
     cards.forEach((c: Card) => {
         if (c.tags && Array.isArray(c.tags)) {
-            c.tags.forEach((t: string) => {
+            const hydrated = tagRegistry.length > 0 ? TagRegistry.hydrate(c.tags, tagRegistry) : c.tags;
+            hydrated.forEach((t: string) => {
                 tagCounts[t] = (tagCounts[t] || 0) + 1;
             });
         }
@@ -232,6 +238,8 @@ export interface CardsTableRowProps {
     showLapses?: boolean;
     /** Human-readable FSRS state badge text (e.g., "New", "Learning", "Review") */
     stateLabel: string;
+    /** Canonical tag registry for hydrating UUIDs */
+    tagRegistry?: TagEntry[];
     /** Callback when row checkbox is toggled */
     onToggleCheck?: (cardId: string, checked: boolean) => void;
     /** Callback to open problem edit modal */
@@ -251,6 +259,7 @@ export function CardsTableRow({
     isChecked,
     showLapses = true,
     stateLabel,
+    tagRegistry = [],
     onToggleCheck,
     onEdit,
     onDelete
@@ -287,8 +296,8 @@ export function CardsTableRow({
                 </a>
             </td>
             <td className="td-tags" style={{ whiteSpace: 'normal', wordWrap: 'break-word', maxWidth: '140px' }}>
-                {(card.tags || []).map((t) => (
-                    <span key={t} className="tag">{t}</span>
+                {(tagRegistry.length > 0 ? TagRegistry.hydrate(card.tags || [], tagRegistry) : (card.tags || [])).map((t, idx) => (
+                    <span key={`${t}-${idx}`} className="tag">{t}</span>
                 ))}
             </td>
             <td>
@@ -371,6 +380,8 @@ export interface CardsTableProps {
     isFilterActive?: boolean;
     /** Formatter returning human-readable FSRS state name from state enum */
     getStateLabel: (state: number) => string;
+    /** Canonical tag registry for hydrating UUIDs */
+    tagRegistry?: TagEntry[];
     /** Callback when master select-all checkbox is toggled */
     onToggleSelectAll?: (checked: boolean) => void;
     /** Callback when an individual card checkbox is toggled */
@@ -395,6 +406,7 @@ export function CardsTable({
     showLapses = true,
     isFilterActive = false,
     getStateLabel,
+    tagRegistry = [],
     onToggleSelectAll,
     onToggleCard,
     onEditCard,
@@ -444,6 +456,7 @@ export function CardsTable({
                             isChecked={Boolean(card.id && selectedCardIds.has(card.id))}
                             showLapses={showLapses}
                             stateLabel={getStateLabel(card.state || 0)}
+                            tagRegistry={tagRegistry}
                             onToggleCheck={onToggleCard}
                             onEdit={onEditCard}
                             onDelete={onDeleteCard}
@@ -548,17 +561,17 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     const [cards, setCards] = useState<Card[]>(() => dashboard.filterAndRender());
     const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(dashboard.selectedCardIds || new Set());
     const [searchQuery, setSearchQuery] = useState<string>(dashboard.searchQuery || '');
-    const [selectedTag, setSelectedTag] = useState<string>(dashboard.selectedTag || 'all');
-    const [selectedStatus, setSelectedStatus] = useState<string>(dashboard.selectedStatus || 'all');
-    const [selectedPlatform, setSelectedPlatform] = useState<string>(dashboard.selectedPlatform || 'all');
-    const [selectedState, setSelectedState] = useState<string>(dashboard.selectedState || 'all');
+    const [selectedTags, setSelectedTags] = useState<string[]>(dashboard.selectedTags || []);
+    const [selectedStatuses, setSelectedStatuses] = useState<string[]>(dashboard.selectedStatuses || []);
+    const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(dashboard.selectedPlatforms || []);
+    const [selectedStates, setSelectedStates] = useState<string[]>(dashboard.selectedStates || []);
     const [sortBy, setSortBy] = useState<string>(dashboard.sortBy || 'due-asc');
     const [view, setView] = useState<string>(dashboard.currentView || 'total');
 
     // Edit modal states
     const [editingCard, setEditingCard] = useState<Card | null>(null);
     const [editTitle, setEditTitle] = useState('');
-    const [editTags, setEditTags] = useState('');
+    const [editTagsList, setEditTagsList] = useState<string[]>([]);
     const [editTimeComplexity, setEditTimeComplexity] = useState('');
     const [editSpaceComplexity, setEditSpaceComplexity] = useState('');
     const [editApproach, setEditApproach] = useState('');
@@ -570,7 +583,10 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     const openCardEdit = (card: Card) => {
         setEditingCard(card);
         setEditTitle(card.problemTitle || '');
-        setEditTags((card.tags || []).join(', '));
+        const hydrated = dashboard.tagRegistry.length > 0
+            ? TagRegistry.hydrate(card.tags || [], dashboard.tagRegistry)
+            : (card.tags || []);
+        setEditTagsList(hydrated);
         setEditTimeComplexity(card.timeComplexity || '');
         setEditSpaceComplexity(card.spaceComplexity || '');
         setEditApproach(card.approach || '');
@@ -583,12 +599,12 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
 
     const handleSaveEdit = () => {
         if (!editingCard) return;
-        const tagList = editTags.split(',').map(t => t.trim()).filter(Boolean);
+        const resolvedTagIds = dashboard.resolveTagIds(editTagsList);
         const updates: Partial<Card> = {
-            problemTitle: editTitle,
-            tags: tagList,
-            timeComplexity: editTimeComplexity,
-            spaceComplexity: editSpaceComplexity,
+            problemTitle: editTitle.trim() || editingCard.problemTitle,
+            tags: resolvedTagIds,
+            timeComplexity: editTimeComplexity.trim(),
+            spaceComplexity: editSpaceComplexity.trim(),
             approach: editApproach
         };
         dashboard.saveCardEdit(editingCard.id, updates);
@@ -602,9 +618,10 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
             setCards(dashboard.filterAndRender());
             return;
         }
-        chrome.storage.local.get(['fsrsCards', 'extensionSettings'], (result: StorageData) => {
+        chrome.storage.local.get(['fsrsCards', 'tagRegistry', 'extensionSettings'], (result: StorageData) => {
             const loaded = ensureCardIds(result.fsrsCards || []);
             dashboard.allCards = loaded;
+            dashboard.tagRegistry = Array.isArray(result.tagRegistry) ? result.tagRegistry : [];
             dashboard.extensionSettings = (result.extensionSettings || {}) as UserSettings & { showCharts?: boolean };
             setCards(dashboard.filterAndRender());
             forceUpdate();
@@ -622,10 +639,10 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
             setCards(dashboard.filterAndRender());
             setSelectedCardIds(new Set(dashboard.selectedCardIds));
             setSearchQuery(dashboard.searchQuery);
-            setSelectedTag(dashboard.selectedTag);
-            setSelectedStatus(dashboard.selectedStatus);
-            setSelectedPlatform(dashboard.selectedPlatform);
-            setSelectedState(dashboard.selectedState);
+            setSelectedTags([...dashboard.selectedTags]);
+            setSelectedStatuses([...dashboard.selectedStatuses]);
+            setSelectedPlatforms([...dashboard.selectedPlatforms]);
+            setSelectedStates([...dashboard.selectedStates]);
             setSortBy(dashboard.sortBy);
             setView(dashboard.currentView);
             forceUpdate();
@@ -643,33 +660,52 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
         }
         const urlTag = urlParams.get('tag');
         if (urlTag) {
-            dashboard.selectedTag = urlTag;
-            setSelectedTag(urlTag);
+            const parsedTags = urlTag.split(',').map(t => t.trim()).filter(Boolean);
+            dashboard.selectedTags = parsedTags;
+            setSelectedTags(parsedTags);
         }
 
         refreshData();
     }, [dashboard]);
 
-    // Unique tags
-    const allTags = new Set<string>();
-    cards.forEach(c => {
-        (c.tags || []).forEach(t => allTags.add(t));
-    });
-    const sortedTags = Array.from(allTags).sort();
+    // Tag options from tagRegistry (or fallback to card.tags)
+    const tagOptions: MultiSelectOption[] = (() => {
+        if (dashboard.tagRegistry && dashboard.tagRegistry.length > 0) {
+            return [...dashboard.tagRegistry]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((entry) => ({ value: entry.id, label: entry.name }));
+        }
+        const allTags = new Set<string>();
+        dashboard.allCards.forEach(c => {
+            (c.tags || []).forEach(t => allTags.add(t));
+        });
+        return Array.from(allTags).sort().map(t => ({ value: t, label: t }));
+    })();
 
     // Unique platforms
     const allPlatforms = new Set<string>();
-    cards.forEach(c => {
-        try {
-            const urlObj = new URL(c.problemUrl);
-            allPlatforms.add(urlObj.hostname);
-        } catch {
-            // ignore
-        }
+    dashboard.allCards.forEach(c => {
+        const p = dashboard.extractPlatform(c.problemUrl);
+        if (p) allPlatforms.add(p);
     });
-    const sortedPlatforms = Array.from(allPlatforms).sort();
+    const platformOptions: MultiSelectOption[] = Array.from(allPlatforms)
+        .sort()
+        .map(p => ({ value: p, label: PLATFORM_NAMES[p] || p }));
 
-    const isFilterActive = searchQuery !== '' || selectedTag !== 'all' || selectedStatus !== 'all' || selectedPlatform !== 'all' || selectedState !== 'all' || sortBy !== 'due-asc';
+    const statusOptions: MultiSelectOption[] = [
+        { value: 'due', label: 'Due for Review' },
+        { value: 'safe', label: 'Safe (Caught Up)' }
+    ];
+
+    const stateOptions: MultiSelectOption[] = [
+        { value: '0', label: 'New' },
+        { value: '1', label: 'Learning' },
+        { value: '2', label: 'Review' },
+        { value: '3', label: 'Relearning (Lapsed)' },
+        { value: 'leech', label: '⚡ Leeches (3+ Lapses)' }
+    ];
+
+    const isFilterActive = searchQuery !== '' || selectedTags.length > 0 || selectedStatuses.length > 0 || selectedPlatforms.length > 0 || selectedStates.length > 0 || sortBy !== 'due-asc';
 
     // Title & subtitle
     let pageTitle = 'Total Saved Patterns';
@@ -693,10 +729,10 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     const handleClearFilters = () => {
         dashboard.resetFilters();
         setSearchQuery('');
-        setSelectedTag('all');
-        setSelectedStatus('all');
-        setSelectedPlatform('all');
-        setSelectedState('all');
+        setSelectedTags([]);
+        setSelectedStatuses([]);
+        setSelectedPlatforms([]);
+        setSelectedStates([]);
         setSortBy('due-asc');
         setCards(dashboard.filterAndRender());
         forceUpdate();
@@ -709,30 +745,30 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
         forceUpdate();
     };
 
-    const handleTagChange = (val: string) => {
-        setSelectedTag(val);
-        dashboard.selectedTag = val;
+    const handleTagChange = (vals: string[]) => {
+        setSelectedTags(vals);
+        dashboard.selectedTags = vals;
         setCards(dashboard.filterAndRender());
         forceUpdate();
     };
 
-    const handleStatusChange = (val: string) => {
-        setSelectedStatus(val);
-        dashboard.selectedStatus = val;
+    const handleStatusChange = (vals: string[]) => {
+        setSelectedStatuses(vals);
+        dashboard.selectedStatuses = vals;
         setCards(dashboard.filterAndRender());
         forceUpdate();
     };
 
-    const handlePlatformChange = (val: string) => {
-        setSelectedPlatform(val);
-        dashboard.selectedPlatform = val;
+    const handlePlatformChange = (vals: string[]) => {
+        setSelectedPlatforms(vals);
+        dashboard.selectedPlatforms = vals;
         setCards(dashboard.filterAndRender());
         forceUpdate();
     };
 
-    const handleStateChange = (val: string) => {
-        setSelectedState(val);
-        dashboard.selectedState = val;
+    const handleStateChange = (vals: string[]) => {
+        setSelectedStates(vals);
+        dashboard.selectedStates = vals;
         setCards(dashboard.filterAndRender());
         forceUpdate();
     };
@@ -800,6 +836,13 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
                     <p id="page-subtitle" className="subtitle">{pageSubtitle}</p>
                 </div>
                 <div className="header-actions">
+                    <a href="../../common/tags/tags.html" className="btn btn-secondary" style={{ marginRight: '8px' }}>
+                        <svg className="svg-icon" viewBox="0 0 24 24" style={{ marginRight: '6px' }} aria-hidden="true">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                            <line x1="7" y1="7" x2="7.01" y2="7" />
+                        </svg>
+                        Manage Tags
+                    </a>
                     <a href="../../dashboard/analytics/analytics.html" className="btn btn-secondary" style={{ marginRight: '8px' }}>
                         <svg className="svg-icon" viewBox="0 0 24 24" style={{ marginRight: '6px' }} aria-hidden="true">
                             <line x1="18" y1="20" x2="18" y2="10" />
@@ -821,7 +864,7 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
 
             {/* Dynamic Analytics Graphs Panel */}
             {shouldShowAnalytics ? (
-                <DataAnalyticsPanel cards={cards} />
+                <DataAnalyticsPanel cards={cards} tagRegistry={dashboard.tagRegistry} />
             ) : (
                 <div id="analytics-panel" className="analytics-grid" style={{ display: 'none', marginBottom: '24px' }} />
             )}
@@ -846,63 +889,54 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
                 <div className="filters-row">
                     <div className="filter-group">
                         <label htmlFor="tag-select">Filter by Tag</label>
-                        <select
+                        <MultiSelect
                             id="tag-select"
-                            className="input-field select-field"
-                            value={selectedTag}
-                            onChange={(e) => handleTagChange((e.target as HTMLSelectElement).value)}
-                        >
-                            <option value="all">All Tags</option>
-                            {sortedTags.map(t => (
-                                <option key={t} value={t}>{t}</option>
-                            ))}
-                        </select>
+                            options={tagOptions}
+                            selectedValues={selectedTags}
+                            placeholder="All Tags"
+                            searchPlaceholder="Search tags..."
+                            ariaLabel="Filter by Tag"
+                            onChange={handleTagChange}
+                        />
                     </div>
 
                     <div className="filter-group">
                         <label htmlFor="status-select">Status</label>
-                        <select
+                        <MultiSelect
                             id="status-select"
-                            className="input-field select-field"
-                            value={selectedStatus}
-                            onChange={(e) => handleStatusChange((e.target as HTMLSelectElement).value)}
-                        >
-                            <option value="all">All Patterns</option>
-                            <option value="due">Due for Review</option>
-                            <option value="safe">Safe (Caught Up)</option>
-                        </select>
+                            options={statusOptions}
+                            selectedValues={selectedStatuses}
+                            placeholder="All Patterns"
+                            searchPlaceholder="Search status..."
+                            ariaLabel="Filter by Status"
+                            onChange={handleStatusChange}
+                        />
                     </div>
 
                     <div className="filter-group">
                         <label htmlFor="platform-select">Platform</label>
-                        <select
+                        <MultiSelect
                             id="platform-select"
-                            className="input-field select-field"
-                            value={selectedPlatform}
-                            onChange={(e) => handlePlatformChange((e.target as HTMLSelectElement).value)}
-                        >
-                            <option value="all">All Platforms</option>
-                            {sortedPlatforms.map(p => (
-                                <option key={p} value={p}>{p}</option>
-                            ))}
-                        </select>
+                            options={platformOptions}
+                            selectedValues={selectedPlatforms}
+                            placeholder="All Platforms"
+                            searchPlaceholder="Search platforms..."
+                            ariaLabel="Filter by Platform"
+                            onChange={handlePlatformChange}
+                        />
                     </div>
 
                     <div className="filter-group">
                         <label htmlFor="state-select">FSRS State</label>
-                        <select
+                        <MultiSelect
                             id="state-select"
-                            className="input-field select-field"
-                            value={selectedState}
-                            onChange={(e) => handleStateChange((e.target as HTMLSelectElement).value)}
-                        >
-                            <option value="all">All States</option>
-                            <option value="0">New</option>
-                            <option value="1">Learning</option>
-                            <option value="2">Review</option>
-                            <option value="3">Relearning (Lapsed)</option>
-                            <option value="leech">⚡ Leeches (3+ Lapses)</option>
-                        </select>
+                            options={stateOptions}
+                            selectedValues={selectedStates}
+                            placeholder="All States"
+                            searchPlaceholder="Search states..."
+                            ariaLabel="Filter by FSRS State"
+                            onChange={handleStateChange}
+                        />
                     </div>
 
                     <div className="filter-group">
@@ -958,6 +992,7 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
                     showLapses={true}
                     isFilterActive={isFilterActive}
                     getStateLabel={(s) => dashboard.getStateLabel(s)}
+                    tagRegistry={dashboard.tagRegistry}
                     onToggleSelectAll={handleToggleSelectAll}
                     onToggleCard={handleToggleCard}
                     onEditCard={handleEditCard}
@@ -970,12 +1005,37 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
             <div
                 id="inline-edit-overlay"
                 className="edit-overlay"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="edit-modal-title"
                 style={{ display: editingCard ? 'flex' : 'none' }}
+                onClick={(e) => {
+                    if (e.target === e.currentTarget) handleCloseEdit();
+                }}
+                onKeyDown={(e: KeyboardEvent) => {
+                    if (e.key === 'Escape') {
+                        handleCloseEdit();
+                    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        handleSaveEdit();
+                    }
+                }}
             >
                 <div className="edit-modal">
                     <div className="edit-modal-header">
-                        <h3 style={{ padding: 0, margin: 0, background: 'none' }}>Edit Card</h3>
-                        <button id="edit-close-btn" className="edit-close-btn" onClick={handleCloseEdit}>
+                        <div className="edit-modal-title-group">
+                            <span className="edit-modal-icon" aria-hidden="true">
+                                <svg className="svg-icon" viewBox="0 0 24 24">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                            </span>
+                            <div>
+                                <h3 id="edit-modal-title">Edit Pattern Card</h3>
+                                <p className="edit-modal-subtitle">Update title, tags, complexities, and approach notes</p>
+                            </div>
+                        </div>
+                        <button id="edit-close-btn" className="edit-close-btn" aria-label="Close edit modal" onClick={handleCloseEdit}>
                             <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                                 <line x1="18" y1="6" x2="6" y2="18" />
                                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -996,14 +1056,15 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
                             />
                         </div>
                         <div className="edit-field">
-                            <label htmlFor="edit-tags">Tags (comma-separated)</label>
-                            <input
-                                type="text"
-                                id="edit-tags"
-                                className="input-field"
-                                placeholder="Binary Search, DP, Graphs..."
-                                value={editTags}
-                                onInput={(e) => setEditTags((e.target as HTMLInputElement).value)}
+                            <div className="edit-field-label-row">
+                                <label htmlFor="edit-tags">Tags</label>
+                                <span className="edit-field-hint">Enter, Tab, or comma to add</span>
+                            </div>
+                            <TagInput
+                                tags={editTagsList}
+                                onChange={setEditTagsList}
+                                getSuggestions={() => dashboard.getDatabaseTags()}
+                                placeholder="Type to search or create a tag..."
                             />
                         </div>
                         <div className="edit-field-row">
@@ -1043,12 +1104,15 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
                         </div>
                     </div>
                     <div className="edit-modal-footer">
-                        <button id="edit-cancel-btn" className="btn btn-secondary" onClick={handleCloseEdit}>
-                            Cancel
-                        </button>
-                        <button id="edit-save-btn" className="btn btn-primary" onClick={handleSaveEdit}>
-                            Save Changes
-                        </button>
+                        <span className="edit-modal-shortcut">Esc to cancel &middot; Ctrl/Cmd + Enter to save</span>
+                        <div className="edit-modal-footer-actions">
+                            <button id="edit-cancel-btn" className="btn btn-secondary" onClick={handleCloseEdit}>
+                                Cancel
+                            </button>
+                            <button id="edit-save-btn" className="btn btn-primary" onClick={handleSaveEdit}>
+                                Save Changes
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1070,6 +1134,8 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
 export class FSRSDataDashboard {
     /** In-memory cache of all FSRS cards retrieved from storage */
     allCards: Card[];
+    /** Canonical tag registry mapping stable UUIDs to display names */
+    tagRegistry: TagEntry[];
     /** Current view mode ('total' | 'due' | 'retention') */
     currentView: string;
     /** Optional calendar date filter parameter ("YYYY-MM-DD") */
@@ -1077,14 +1143,14 @@ export class FSRSDataDashboard {
 
     /** Active search query string */
     searchQuery: string;
-    /** Currently selected tag filter identifier */
-    selectedTag: string;
-    /** Currently selected due status filter */
-    selectedStatus: string;
-    /** Currently selected platform/domain filter */
-    selectedPlatform: string;
-    /** Currently selected FSRS state filter */
-    selectedState: string;
+    /** Currently selected tag filter identifiers */
+    selectedTags: string[];
+    /** Currently selected due status filters */
+    selectedStatuses: string[];
+    /** Currently selected platform/domain filters */
+    selectedPlatforms: string[];
+    /** Currently selected FSRS state filters */
+    selectedStates: string[];
     /** Active sorting key (e.g. 'due-asc', 'difficulty-desc') */
     sortBy: string;
     /** User extension settings cached from storage */
@@ -1108,6 +1174,7 @@ export class FSRSDataDashboard {
      */
     constructor() {
         this.allCards = [];
+        this.tagRegistry = [];
         this.undoTimer = null;
 
         if (typeof window !== 'undefined' && window.location?.search) {
@@ -1115,17 +1182,18 @@ export class FSRSDataDashboard {
             this.currentView = urlParams.get('view') || 'total';
             this.targetDate = urlParams.get('date');
             this.searchQuery = urlParams.get('search') || urlParams.get('q') || urlParams.get('query') || '';
-            this.selectedTag = urlParams.get('tag') || 'all';
+            const urlTag = urlParams.get('tag');
+            this.selectedTags = urlTag ? urlTag.split(',').map(t => t.trim()).filter(Boolean) : [];
         } else {
             this.currentView = 'total';
             this.targetDate = null;
             this.searchQuery = '';
-            this.selectedTag = 'all';
+            this.selectedTags = [];
         }
 
-        this.selectedStatus = 'all';
-        this.selectedPlatform = 'all';
-        this.selectedState = 'all';
+        this.selectedStatuses = [];
+        this.selectedPlatforms = [];
+        this.selectedStates = [];
         this.sortBy = 'due-asc';
         this.extensionSettings = {};
 
@@ -1205,17 +1273,18 @@ export class FSRSDataDashboard {
 
             const urlTag = urlParams.get('tag');
             if (urlTag) {
-                this.selectedTag = urlTag;
+                this.selectedTags = urlTag.split(',').map(t => t.trim()).filter(Boolean);
             }
 
             if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-                chrome.storage.local.get(['fsrsCards', 'extensionSettings'], (result: StorageData) => {
+                chrome.storage.local.get(['fsrsCards', 'tagRegistry', 'extensionSettings'], (result: StorageData) => {
                     if (chrome.runtime?.lastError) {
                         const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                         Logger.error('DataDashboard', `Storage error in init: ${errorMessage}`, { error: chrome.runtime.lastError });
                         return;
                     }
                     this.allCards = ensureCardIds(result.fsrsCards || []);
+                    this.tagRegistry = Array.isArray(result.tagRegistry) ? result.tagRegistry : [];
                     this.extensionSettings = (result.extensionSettings || {}) as UserSettings & { showCharts?: boolean };
                     this.filterAndRender();
                 });
@@ -1349,25 +1418,28 @@ export class FSRSDataDashboard {
             let filtered = baseCards.filter((card: Card) => {
                 const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(this.searchQuery.toLowerCase());
                 const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(this.searchQuery.toLowerCase());
-                const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(this.searchQuery.toLowerCase()));
+                const hydratedTagNames = this.tagRegistry.length > 0
+                    ? TagRegistry.hydrate(card.tags || [], this.tagRegistry)
+                    : (card.tags || []);
+                const tagMatch = hydratedTagNames.some((t: string) => t.toLowerCase().includes(this.searchQuery.toLowerCase()));
                 const approachMatch = card.approach && card.approach.toLowerCase().includes(this.searchQuery.toLowerCase());
 
                 const matchesSearch = !this.searchQuery || titleMatch || urlMatch || tagMatch || approachMatch;
-                const matchesTag = this.selectedTag === 'all' || (card.tags && card.tags.includes(this.selectedTag));
+                const matchesTag = this.selectedTags.length === 0 || (card.tags && card.tags.some((t: string) => this.selectedTags.includes(t)));
                 const cardDue = typeof card.due === 'number' ? card.due : new Date(card.due).getTime();
                 const isCardDue = !isNaN(cardDue) && cardDue <= now;
-                const matchesStatus = this.selectedStatus === 'all' ||
-                    (this.selectedStatus === 'due' && isCardDue) ||
-                    (this.selectedStatus === 'safe' && !isCardDue);
+                const matchesStatus = this.selectedStatuses.length === 0 ||
+                    (this.selectedStatuses.includes('due') && isCardDue) ||
+                    (this.selectedStatuses.includes('safe') && !isCardDue);
 
                 const cardPlatform = this.extractPlatform(card.problemUrl);
-                const matchesPlatform = this.selectedPlatform === 'all' || cardPlatform === this.selectedPlatform;
+                const matchesPlatform = this.selectedPlatforms.length === 0 || Boolean(cardPlatform && this.selectedPlatforms.includes(cardPlatform));
 
                 let matchesState = true;
-                if (this.selectedState === 'leech') {
-                    matchesState = (card.lapses || 0) >= 3;
-                } else if (this.selectedState !== 'all') {
-                    matchesState = String(card.state || 0) === this.selectedState;
+                if (this.selectedStates.length > 0) {
+                    const isLeechSelected = this.selectedStates.includes('leech') && (card.lapses || 0) >= 3;
+                    const isStateSelected = this.selectedStates.includes(String(card.state || 0));
+                    matchesState = isLeechSelected || isStateSelected;
                 }
 
                 return matchesSearch && matchesTag && matchesStatus && matchesPlatform && matchesState;
@@ -1383,15 +1455,15 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Resets all search queries and filter dropdown values to their default states ('all' / 'due-asc')
+     * Resets all search queries and filter dropdown values to their default states (empty / 'due-asc')
      * and triggers a re-render.
      */
     resetFilters(): void {
         this.searchQuery = '';
-        this.selectedTag = 'all';
-        this.selectedStatus = 'all';
-        this.selectedPlatform = 'all';
-        this.selectedState = 'all';
+        this.selectedTags = [];
+        this.selectedStatuses = [];
+        this.selectedPlatforms = [];
+        this.selectedStates = [];
         this.sortBy = 'due-asc';
 
         this.filterAndRender();
@@ -1411,7 +1483,7 @@ export class FSRSDataDashboard {
             }
 
             if (cardsArray.length === 0) {
-                const isFilterActive = this.searchQuery !== '' || this.selectedTag !== 'all' || this.selectedStatus !== 'all' || this.selectedPlatform !== 'all' || this.selectedState !== 'all';
+                const isFilterActive = this.searchQuery !== '' || this.selectedTags.length > 0 || this.selectedStatuses.length > 0 || this.selectedPlatforms.length > 0 || this.selectedStates.length > 0;
                 const message = isFilterActive 
                     ? 'No problem patterns match your selected filters.' 
                     : 'No problem patterns tracked yet. Solve problems on LeetCode or AlgoMonster to build your spaced repetition deck!';
@@ -1454,7 +1526,10 @@ export class FSRSDataDashboard {
                     ? '<span class="badge badge-due">Due Now</span>'
                     : `<span class="badge badge-safe">${new Date(card.due).toLocaleDateString()}</span>`;
 
-                const tagsHtml = (card.tags || []).map((t: string) => `<span class="tag">${t}</span>`).join('');
+                const hydratedTags = this.tagRegistry.length > 0
+                    ? TagRegistry.hydrate(card.tags || [], this.tagRegistry)
+                    : (card.tags || []);
+                const tagsHtml = hydratedTags.map((t: string) => `<span class="tag">${t}</span>`).join('');
                 const reps = card.reps || 0;
                 const lapses = card.lapses || 0;
                 const state = card.state || 0;
@@ -1600,6 +1675,25 @@ export class FSRSDataDashboard {
         }
     }
 
+    /**
+     * Resolves comma-separated tag names or an array of tag names into stable UUIDs
+     * from `tagRegistry`, creating new registry entries when needed.
+     */
+    resolveTagIds(tagsInput: string | string[]): string[] {
+        const names = Array.isArray(tagsInput)
+            ? tagsInput.map(t => t.trim()).filter(t => t.length > 0)
+            : tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        if (!Array.isArray(this.tagRegistry)) {
+            this.tagRegistry = [];
+        }
+        const ids: string[] = [];
+        for (const name of names) {
+            const { id } = TagRegistry.getOrCreateSync(name, this.tagRegistry);
+            if (!ids.includes(id)) ids.push(id);
+        }
+        return ids;
+    }
+
     bulkRetag(): void {
         try {
             const count = this.selectedCardIds.size;
@@ -1608,7 +1702,7 @@ export class FSRSDataDashboard {
             const newTagsStr = typeof window !== 'undefined' ? prompt(`Enter new tags:`, '') : '';
             if (newTagsStr === null) return;
 
-            const newTags = newTagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            const newTags = this.resolveTagIds(newTagsStr);
             this.allCards.forEach(card => {
                 if (card.id && this.selectedCardIds.has(card.id)) {
                     card.tags = newTags;
@@ -1616,7 +1710,7 @@ export class FSRSDataDashboard {
             });
 
             this.selectedCardIds.clear();
-            chrome.storage.local.set({ fsrsCards: this.allCards }, () => {
+            chrome.storage.local.set({ fsrsCards: this.allCards, tagRegistry: this.tagRegistry }, () => {
                 this.updateBulkActionsBar();
                 this.filterAndRender();
             });
@@ -1650,11 +1744,15 @@ export class FSRSDataDashboard {
     bindEditButtons(): void {}
 
     /**
-     * Collects all unique tag strings present across the entire card database.
-     * @returns Sorted array of unique tag names.
+     * Gathers and returns a sorted array of all unique tag display names in the registry
+     * (falling back to card tags if the registry is empty).
+     * @returns Sorted array of unique tag display names.
      */
     getDatabaseTags(): string[] {
         try {
+            if (this.tagRegistry && this.tagRegistry.length > 0) {
+                return this.tagRegistry.map(entry => entry.name).sort();
+            }
             const tags = new Set<string>();
             this.allCards.forEach(c => {
                 if (c.tags && Array.isArray(c.tags)) {
@@ -1682,7 +1780,12 @@ export class FSRSDataDashboard {
         const titleInput = document.getElementById('edit-title') as HTMLInputElement | null;
         if (titleInput) titleInput.value = card.problemTitle || '';
         const tagsInput = document.getElementById('edit-tags') as HTMLInputElement | null;
-        if (tagsInput) tagsInput.value = (card.tags || []).join(', ');
+        if (tagsInput) {
+            const hydrated = this.tagRegistry.length > 0
+                ? TagRegistry.hydrate(card.tags || [], this.tagRegistry)
+                : (card.tags || []);
+            tagsInput.value = hydrated.join(', ');
+        }
         const tcInput = document.getElementById('edit-time-complexity') as HTMLInputElement | null;
         if (tcInput) tcInput.value = card.timeComplexity || '';
         const scInput = document.getElementById('edit-space-complexity') as HTMLInputElement | null;
@@ -1715,12 +1818,12 @@ export class FSRSDataDashboard {
                 const scInput = document.getElementById('edit-space-complexity') as HTMLInputElement | null;
                 const appInput = document.getElementById('edit-approach') as HTMLTextAreaElement | null;
                 if (titleInput) card.problemTitle = titleInput.value;
-                if (tagsInput) card.tags = tagsInput.value.split(',').map(t => t.trim()).filter(Boolean);
+                if (tagsInput) card.tags = this.resolveTagIds(tagsInput.value);
                 if (tcInput) card.timeComplexity = tcInput.value;
                 if (scInput) card.spaceComplexity = scInput.value;
                 if (appInput) card.approach = appInput.value;
             }
-            chrome.storage.local.set({ fsrsCards: this.allCards });
+            chrome.storage.local.set({ fsrsCards: this.allCards, tagRegistry: this.tagRegistry });
         }
         this.closeEditModal();
     }

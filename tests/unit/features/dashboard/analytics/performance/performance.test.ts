@@ -66,20 +66,17 @@ describe('PerformanceTab', () => {
     });
 
     it('handles tag filter select change listener', () => {
+      mockDataUtils.cards = [{ id: 'c1', tags: ['Array'] } as any];
       component.render('performance-tab-container');
 
-      const tagFilter = document.getElementById('performance-filter-tag') as HTMLSelectElement;
+      const tagFilter = document.getElementById('performance-filter-tag');
       expect(tagFilter).not.toBeNull();
 
-      const option = document.createElement('option');
-      option.value = 'Array';
-      option.textContent = 'Array';
-      tagFilter.appendChild(option);
+      const tagCheckbox = document.querySelector('#performance-filter-tag input[type="checkbox"][value="Array"]') as HTMLInputElement;
+      expect(tagCheckbox).not.toBeNull();
+      tagCheckbox.click();
 
-      tagFilter.value = 'Array';
-      tagFilter.dispatchEvent(new Event('change'));
-
-      expect(component.recoveryTracking.tagFilter).toBe('Array');
+      expect(component.recoveryTracking.tagFilter).toEqual(['Array']);
     });
 
     it('handles period select change listener', () => {

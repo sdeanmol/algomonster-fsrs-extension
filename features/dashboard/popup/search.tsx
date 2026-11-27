@@ -19,7 +19,9 @@ import { useState, useMemo } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
-import { Card, StorageData } from '../../../types/domain';
+import { Card, StorageData, TagEntry } from '../../../types/domain';
+import { TagRegistry } from '../../common/tags/tagRegistry';
+import { MultiSelect, MultiSelectOption } from '../../common/ui/components/MultiSelect';
 import { SEARCH_DEBOUNCE_MS, SEARCH_MAX_RESULTS } from '../../common/constants';
 
 function safeFlushSync(fn: () => void): void {
@@ -279,36 +281,44 @@ export interface QuickSearchAppProps {
  */
 export function QuickSearchApp({ component }: QuickSearchAppProps): VNode {
     const [query, setQuery] = useState<string>(component.searchQuery);
-    const [tag, setTag] = useState<string>(component.selectedTag);
+    const [selectedTags, setSelectedTags] = useState<string[]>(component.selectedTags);
 
     component._setQuery = setQuery;
-    component._setTag = setTag;
+    component._setTags = setSelectedTags;
 
-    const availableTags = useMemo(() => {
+    const availableTagOptions = useMemo<MultiSelectOption[]>(() => {
+        if (component.tagRegistry.length > 0) {
+            return [...component.tagRegistry]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((entry) => ({ value: entry.id, label: entry.name }));
+        }
         const set = new Set<string>();
         for (const c of component.quickSearchCards) {
             if (c.tags && Array.isArray(c.tags)) {
                 for (const t of c.tags) set.add(t);
             }
         }
-        return Array.from(set).sort();
-    }, [component.quickSearchCards]);
+        return Array.from(set).sort().map((t) => ({ value: t, label: t }));
+    }, [component.quickSearchCards, component.tagRegistry]);
 
     const filteredCards = useMemo(() => {
         const q = query.trim().toLowerCase();
-        if (!q && tag === 'all') return [];
+        if (!q && selectedTags.length === 0) return [];
         return component.quickSearchCards.filter((c) => {
-            if (tag !== 'all' && !(c.tags && c.tags.includes(tag))) return false;
+            if (selectedTags.length > 0 && !(c.tags && c.tags.some((t: string) => selectedTags.includes(t)))) return false;
+            const hydratedTags = component.tagRegistry.length > 0
+                ? TagRegistry.hydrate(c.tags || [], component.tagRegistry)
+                : (c.tags || []);
             if (q) {
                 const titleMatch = c.problemTitle && c.problemTitle.toLowerCase().includes(q);
                 const urlMatch = c.problemUrl && c.problemUrl.toLowerCase().includes(q);
-                const tagMatch = c.tags && c.tags.some((t: string) => t.toLowerCase().includes(q));
+                const tagMatch = hydratedTags.some((t: string) => t.toLowerCase().includes(q));
                 const approachMatch = c.approach && c.approach.toLowerCase().includes(q);
                 if (!titleMatch && !urlMatch && !tagMatch && !approachMatch) return false;
             }
             return true;
         });
-    }, [component.quickSearchCards, query, tag]);
+    }, [component.quickSearchCards, component.tagRegistry, query, selectedTags]);
 
     const totalMatches = filteredCards.length;
     const now = Date.now();
@@ -319,9 +329,9 @@ export function QuickSearchApp({ component }: QuickSearchAppProps): VNode {
         const urlParams = new URLSearchParams();
         urlParams.append('view', 'total');
         if (query.trim()) urlParams.append('search', query.trim());
-        if (tag && tag !== 'all') urlParams.append('tag', tag);
+        if (selectedTags.length > 0) urlParams.append('tag', selectedTags.join(','));
         return chrome.runtime.getURL(`features/common/data/data.html?${urlParams.toString()}`);
-    }, [query, tag]);
+    }, [query, selectedTags]);
 
     const handleSearchInput = (val: string) => {
         try {
@@ -341,18 +351,18 @@ export function QuickSearchApp({ component }: QuickSearchAppProps): VNode {
         }
     };
 
-    const handleTagChange = (newTag: string) => {
+    const handleTagsChange = (newTags: string[]) => {
         try {
-            component.selectedTag = newTag;
+            component.selectedTags = newTags;
             safeFlushSync(() => {
-                setTag(newTag);
+                setSelectedTags(newTags);
             });
         } catch (err) {
             UIUtils.catchError('QuickSearchComponent', 'Error in tag filter change listener', err);
         }
     };
 
-    const hasActiveFilter = Boolean(query.trim() || tag !== 'all');
+    const hasActiveFilter = Boolean(query.trim() || selectedTags.length > 0);
 
     return (
         <div className="quick-search-section">
@@ -367,18 +377,15 @@ export function QuickSearchApp({ component }: QuickSearchAppProps): VNode {
                         onInput={(e) => handleSearchInput((e.target as HTMLInputElement).value)}
                     />
                 </div>
-                <select
+                <MultiSelect
                     id="popup-tag-filter"
-                    className="tag-filter-select"
-                    aria-label="Filter by tag"
-                    value={tag}
-                    onChange={(e) => handleTagChange((e.target as HTMLSelectElement).value)}
-                >
-                    <option value="all">All Tags</option>
-                    {availableTags.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                    ))}
-                </select>
+                    options={availableTagOptions}
+                    selectedValues={selectedTags}
+                    placeholder="All Tags"
+                    searchPlaceholder="Search tags..."
+                    ariaLabel="Filter by tag"
+                    onChange={handleTagsChange}
+                />
             </div>
             <div
                 id="popup-search-results"
@@ -390,15 +397,20 @@ export function QuickSearchApp({ component }: QuickSearchAppProps): VNode {
                         <div className="popup-search-empty">No matching patterns found.</div>
                     ) : (
                         <Fragment>
-                            {displayCards.map((card) => (
-                                <PopupSearchResultItem
-                                    key={card.id}
-                                    problemTitle={card.problemTitle}
-                                    problemUrl={card.problemUrl}
-                                    isDue={card.due <= now}
-                                    tags={card.tags || []}
-                                />
-                            ))}
+                            {displayCards.map((card) => {
+                                const hydratedTags = component.tagRegistry.length > 0
+                                    ? TagRegistry.hydrate(card.tags || [], component.tagRegistry)
+                                    : (card.tags || []);
+                                return (
+                                    <PopupSearchResultItem
+                                        key={card.id}
+                                        problemTitle={card.problemTitle}
+                                        problemUrl={card.problemUrl}
+                                        isDue={card.due <= now}
+                                        tags={hydratedTags}
+                                    />
+                                );
+                            })}
                             {totalMatches > SEARCH_MAX_RESULTS && (
                                 <a
                                     href={dataUrl}
@@ -424,18 +436,20 @@ export function QuickSearchApp({ component }: QuickSearchAppProps): VNode {
 export class QuickSearchComponent extends DashboardComponent {
     /** In-memory cache of all tracked FSRS cards for instant query filtering. */
     quickSearchCards: Card[];
+    /** Canonical tag registry mapping stable UUIDs to display names. */
+    tagRegistry: TagEntry[];
     /** Timeout handle for debouncing user input keystrokes. */
     quickSearchDebounce: ReturnType<typeof setTimeout> | null;
     /** Target container element for mounting Preact component. */
     container: HTMLElement | null;
     /** Current search query string. */
     searchQuery: string;
-    /** Current selected topic tag filter. */
-    selectedTag: string;
+    /** Current selected topic tag filters. */
+    selectedTags: string[];
     /** Registered state dispatch hook for search query. */
     _setQuery?: (q: string) => void;
-    /** Registered state dispatch hook for tag filter. */
-    _setTag?: (t: string) => void;
+    /** Registered state dispatch hook for tag filters. */
+    _setTags?: (tags: string[]) => void;
 
     /**
      * Initializes the quick search component with a coordinator reference.
@@ -445,15 +459,16 @@ export class QuickSearchComponent extends DashboardComponent {
     constructor(coordinator: DashboardCoordinator, container?: HTMLElement | null) {
         super(coordinator);
         this.quickSearchCards = [];
+        this.tagRegistry = [];
         this.quickSearchDebounce = null;
         this.container = container || null;
         this.searchQuery = '';
-        this.selectedTag = 'all';
+        this.selectedTags = [];
     }
 
     /**
      * Initializes quick search input and tag selectors from the dashboard.
-     * Loads cards from storage and renders the declarative Preact search app.
+     * Loads cards and tag registry from storage and renders the declarative Preact search app.
      * @async
      * @returns Promise resolving when cards and Preact components have loaded.
      */
@@ -462,8 +477,9 @@ export class QuickSearchComponent extends DashboardComponent {
             const root = this.container || (typeof document !== 'undefined' ? document.getElementById('root') : null);
             if (!root) return;
 
-            const result = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
+            const result = (await chrome.storage.local.get(['fsrsCards', 'tagRegistry'])) as StorageData;
             this.quickSearchCards = result?.fsrsCards || [];
+            this.tagRegistry = Array.isArray(result?.tagRegistry) ? result.tagRegistry : [];
 
             this.render(root);
         } catch (error) {
@@ -507,8 +523,8 @@ export class QuickSearchComponent extends DashboardComponent {
                 if (this._setQuery) {
                     this._setQuery(this.searchQuery);
                 }
-                if (this._setTag) {
-                    this._setTag(this.selectedTag);
+                if (this._setTags) {
+                    this._setTags(this.selectedTags);
                 }
             });
         } catch (err) {
