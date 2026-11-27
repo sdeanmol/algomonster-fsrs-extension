@@ -5,7 +5,9 @@ import {
     TrackerHeader,
     TrackerNavBar,
     TrackerRatingBar,
-    TrackerCardReviewView
+    TrackerCardReviewView,
+    TrackerApp,
+    Tracker
 } from '../../../../features/tracker/tracker';
 import { Card } from '../../../../types/domain';
 
@@ -201,6 +203,84 @@ describe('Tracker Preact Components', () => {
             const backBtn = container.querySelector('#fsrs-back-btn') as HTMLElement;
             backBtn.click();
             expect(onBack).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('TrackerApp Feedback Banner, Focus Trap & Case-Insensitive Weights', () => {
+        it('GAP-014: showReviewFeedback displays #fsrs-feedback-banner with daily goal progress and hides after 2.5s', () => {
+            jest.useFakeTimers();
+            const tracker = new Tracker();
+            render(<TrackerApp tracker={tracker} />, container);
+
+            const today = new Date();
+            const dateString = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
+            (chrome.storage.local.get as any).mockImplementation((_keys: any, cb: (res: any) => void) => {
+                cb({ fsrsActivity: { [dateString]: 10 }, dailyGoalTarget: 10 });
+            });
+
+            tracker.showReviewFeedback();
+
+            const banner = container.querySelector('#fsrs-feedback-banner') as HTMLElement;
+            expect(banner).not.toBeNull();
+            expect(banner.style.display).toBe('block');
+            expect(banner.classList.contains('fsrs-feedback-visible')).toBe(true);
+            expect(banner.textContent).toContain('Daily goal reached! (10/10)');
+
+            jest.advanceTimersByTime(2500);
+            expect(banner.style.display).toBe('none');
+            expect(banner.classList.contains('fsrs-feedback-visible')).toBe(false);
+            jest.useRealTimers();
+        });
+
+        it('GAP-015: Tab and Shift+Tab trap focus inside #algo-fsrs-container', () => {
+            const tracker = new Tracker();
+            render(<TrackerApp tracker={tracker} />, container);
+
+            const modal = container.querySelector('#algo-fsrs-container') as HTMLElement;
+            const focusable = Array.from(
+                modal.querySelectorAll<HTMLElement>('button, input, textarea, [tabindex]:not([tabindex="-1"])')
+            ).filter(el => !el.hasAttribute('disabled') && el.style.display !== 'none');
+
+            expect(focusable.length).toBeGreaterThan(1);
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+
+            // Tab on last element wraps to first
+            last.focus();
+            const firstFocusSpy = jest.spyOn(first, 'focus');
+            modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+            expect(firstFocusSpy).toHaveBeenCalled();
+
+            // Shift+Tab on first element wraps to last
+            first.focus();
+            const lastFocusSpy = jest.spyOn(last, 'focus');
+            modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+            expect(lastFocusSpy).toHaveBeenCalled();
+        });
+
+        it('GAP-016: handleRating matches topicWeights case-insensitively', () => {
+            const tracker = new Tracker();
+            const customW = Array(17).fill(0.5);
+            const reviewCardSpy = jest.fn((card: Card) => card);
+            (window as any).AlgoRecall = {
+                state: {
+                    cards: [{ id: 'c1', url: 'https://example.com', tags: ['tag-1'], approach: 'test' } as unknown as Card],
+                    tagRegistry: [{ id: 'tag-1', name: 'Dynamic Programming' }],
+                    topicWeights: { 'dynamic programming': customW },
+                    scheduler: { reviewCard: reviewCardSpy }
+                },
+                Utils: { getAutoTags: () => [], getExtractedProblemTitle: () => 'Test' }
+            };
+
+            tracker.handleRating((window as any).AlgoRecall.state.cards[0], 3, 1000);
+            expect(reviewCardSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'c1' }),
+                3,
+                customW,
+                expect.any(Number),
+                1000
+            );
         });
     });
 });

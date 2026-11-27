@@ -299,6 +299,30 @@ describe('Keyboard Shortcuts & Command Dispatcher', () => {
       });
       expect(checkResult.success).toBe(true);
       expect((checkResult.data as any).dueCount).toBe(3);
+
+      // GAP-009: getDueCardsCount overrides updateDueCardsBadge return value (e.g. during Pomodoro)
+      const checkWithCountResult = await ActionService.executeAction('check-due-reviews', {
+        background: {
+          checkDueCards: async () => {},
+          updateDueCardsBadge: async () => 0,
+          getDueCardsCount: async () => 5
+        }
+      });
+      expect(checkWithCountResult.success).toBe(true);
+      expect((checkWithCountResult.data as any).dueCount).toBe(5);
+    });
+  });
+
+  describe('GAP-001 Manual Due-Review Throttle Bypass', () => {
+    it('bypasses lastNotificationTime throttle when source is manual', async () => {
+      storedData.lastNotificationTime = Date.now();
+      storedData.notificationSettings = { enabled: true, frequency: '60', quietHoursEnabled: false };
+      storedData.fsrsCards = [{ id: 'c1', problemTitle: 'Two Sum', due: Date.now() - 1000, state: 2, reps: 1 }];
+
+      await background.checkDueCards('manual');
+      expect(chrome.storage.local.set).toHaveBeenCalledWith(
+        expect.objectContaining({ lastNotificationTime: expect.any(Number) })
+      );
     });
   });
 });

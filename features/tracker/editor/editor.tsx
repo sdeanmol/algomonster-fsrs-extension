@@ -696,16 +696,21 @@ export function EditorApp({ manager: initialManager }: EditorAppProps): VNode {
 
     const handleTogglePreview = () => {
         const currentText = textareaRef.current ? textareaRef.current.value : approach;
+        let nextPreviewMode = false;
         safeFlushSync(() => {
             if (currentText !== approach) {
                 setApproach(currentText);
                 manager.approach = currentText;
             }
             setIsPreviewMode((prev) => {
-                manager.isPreviewMode = !prev;
-                return !prev;
+                nextPreviewMode = !prev;
+                manager.isPreviewMode = nextPreviewMode;
+                return nextPreviewMode;
             });
         });
+        if (!nextPreviewMode && textareaRef.current) {
+            textareaRef.current.focus();
+        }
     };
 
     const handleSave = () => {

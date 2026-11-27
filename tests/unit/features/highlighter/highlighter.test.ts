@@ -1082,4 +1082,48 @@ describe('Highlighter Component', () => {
     expect(tooltip.classList.contains('caret-bottom')).toBe(true);
   });
 
+  it('GAP-017: deleting an existing highlight via tooltip delete button keeps tooltip closed', () => {
+    highlighter.createHighlighterUI();
+    highlighter.state.marks = [
+      { id: 'mark-del-1', url: window.location.href, text: 'Delete me', color: '#f1c40f', createdAt: 1000, type: 'highlight' } as any
+    ];
+    highlighter.renderTooltipColors('mark-del-1', '#f1c40f');
+
+    const deleteBtn = document.querySelector('#algo-highlight-tooltip .algo-delete-btn') as HTMLButtonElement;
+    expect(deleteBtn).not.toBeNull();
+
+    deleteBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+
+    const tooltip = document.getElementById('algo-highlight-tooltip') as HTMLElement;
+    expect(highlighter.tooltipState.visible).toBe(false);
+    expect(tooltip.style.display).toBe('none');
+  });
+
+  it('GAP-018: positionTooltip with numeric coords measures #algo-highlight-tooltip getBoundingClientRect()', () => {
+    highlighter.createHighlighterUI();
+    highlighter.renderTooltipColors(null, null);
+    const tooltip = document.getElementById('algo-highlight-tooltip') as HTMLElement;
+
+    jest.spyOn(tooltip, 'getBoundingClientRect').mockReturnValue({
+      width: 320,
+      height: 120,
+      top: 0,
+      left: 0,
+      right: 320,
+      bottom: 120,
+      x: 0,
+      y: 0,
+      toJSON: () => ({})
+    } as DOMRect);
+
+    // Near right edge: window.innerWidth (1024) - 320 - 15 = 689
+    highlighter.positionTooltip(900, 100, 80);
+    expect(parseFloat(tooltip.style.left)).toBe(window.innerWidth - 320 - 15);
+
+    // Near bottom edge: fallbackTop (300) - 120 - 10 = 170
+    highlighter.positionTooltip(100, window.innerHeight - 50, 300);
+    expect(parseFloat(tooltip.style.top)).toBe(170);
+    expect(highlighter.tooltipState.isCaretBottom).toBe(true);
+  });
+
 });

@@ -117,7 +117,7 @@ export const OverviewTabComponent: FunctionalComponent<OverviewTabProps> = ({ ca
     }, [stats, dataUtils]);
 
     return (
-        <div id="tab-overview" class="tab-pane active">
+        <Fragment>
             <div id="overview-next-action-container">
                 <OverviewNextActionBanner
                     type={nextActionType}
@@ -136,7 +136,7 @@ export const OverviewTabComponent: FunctionalComponent<OverviewTabProps> = ({ ca
             <div id="mini-forecast-container">
                 <SafeMiniForecastPanel dataUtils={dataUtils} />
             </div>
-        </div>
+        </Fragment>
     );
 };
 

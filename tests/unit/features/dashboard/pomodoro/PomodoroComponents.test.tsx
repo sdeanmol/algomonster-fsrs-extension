@@ -11,7 +11,9 @@ import {
     PomodoroSessionProgress,
     PomodoroStatsDisplay,
     PomodoroControls,
-    PomodoroSettingsForm
+    PomodoroSettingsForm,
+    PomodoroApp,
+    PomodoroTimer
 } from '../../../../../features/dashboard/pomodoro/pomodoro';
 
 describe('Pomodoro Preact Components', () => {
@@ -175,6 +177,51 @@ describe('Pomodoro Preact Components', () => {
                 longBreakDuration: 15,
                 sessionsBeforeLongBreak: 4
             });
+        });
+    });
+
+    describe('PomodoroApp & PomodoroTimer parity (GAP-008, GAP-033)', () => {
+        const flushEffects = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+        it('GAP-008: updates document.title with live countdown and start() resets 0 & starts visual interval', async () => {
+            const timer = new PomodoroTimer();
+            timer.initialized = true;
+            timer.timeRemaining = 0;
+            timer.todayFocusMinutes = 60;
+            const intervalSpy = jest.spyOn(timer, 'startVisualInterval');
+
+            render(<PomodoroApp timer={timer} />, container);
+            await flushEffects();
+            expect(document.title).toBe('00:00 — AlgoRecall Pomodoro');
+
+            timer.start();
+            expect(timer.timeRemaining).toBe(timer.settings.focusDuration * 60);
+            expect(intervalSpy).toHaveBeenCalled();
+
+            timer.stopVisualInterval();
+        });
+
+        it('GAP-033: formats 60m as 1h and allows clearing number input without snapping to 1', async () => {
+            const timer = new PomodoroTimer();
+            timer.initialized = true;
+            timer.todayFocusMinutes = 60;
+            const saveSpy = jest.spyOn(timer, 'saveSettings').mockImplementation(() => {});
+
+            render(<PomodoroApp timer={timer} />, container);
+            await flushEffects();
+            expect(container.querySelector('#today-focus-time')?.textContent).toBe('1h');
+
+            const focusInput = container.querySelector('#focus-duration') as HTMLInputElement;
+            focusInput.value = '';
+            focusInput.dispatchEvent(new Event('input', { bubbles: true }));
+            await flushEffects();
+
+            expect(focusInput.value).toBe('');
+
+            (container.querySelector('#save-settings-btn') as HTMLButtonElement).click();
+            expect(saveSpy).toHaveBeenCalledWith(expect.objectContaining({
+                focusDuration: timer.settings.focusDuration
+            }));
         });
     });
 });

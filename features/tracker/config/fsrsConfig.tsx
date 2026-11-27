@@ -517,12 +517,23 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
             return;
         }
         if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-            chrome.storage.local.set({ fsrsGlobalParams: newParams }, () => {
+            chrome.storage.local.get(['fsrsGlobalParams'], (result: { fsrsGlobalParams?: FSRSParameters }) => {
                 if (chrome.runtime?.lastError) {
                     showToast("Failed to save configuration.", true);
                     return;
                 }
-                showToast(successMsg);
+                const existing = result?.fsrsGlobalParams || {};
+                const mergedParams: FSRSParameters = {
+                    ...existing,
+                    ...newParams
+                };
+                chrome.storage.local.set({ fsrsGlobalParams: mergedParams }, () => {
+                    if (chrome.runtime?.lastError) {
+                        showToast("Failed to save configuration.", true);
+                        return;
+                    }
+                    showToast(successMsg);
+                });
             });
         }
     }, [showToast]);
@@ -617,7 +628,7 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
             weightsArray = wStr.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
         }
 
-        tag = tag.trim().toLowerCase();
+        tag = tag.trim();
 
         if (!tag) {
             showToast("Please provide a tag name.", true);
@@ -632,6 +643,10 @@ export function FSRSConfigApp({ manager: initialManager }: FSRSConfigAppProps): 
         if (typeof chrome !== 'undefined' && chrome.storage?.local) {
             chrome.storage.local.get(['fsrsTopicWeights'], (result: any) => {
                 const nextTopics = result?.fsrsTopicWeights || {};
+                const existingKey = Object.keys(nextTopics).find(k => k.toLowerCase() === tag.toLowerCase());
+                if (existingKey && existingKey !== tag) {
+                    delete nextTopics[existingKey];
+                }
                 nextTopics[tag] = weightsArray;
                 chrome.storage.local.set({ fsrsTopicWeights: nextTopics }, () => {
                     setTopicWeights({ ...nextTopics });
@@ -1340,7 +1355,7 @@ export class FSRSConfigManager {
             return;
         }
 
-        const tagName = (tag !== undefined ? tag : (this.pendingTagName || '')).trim().toLowerCase();
+        const tagName = (tag !== undefined ? tag : (this.pendingTagName || '')).trim();
         let weightsArray = weights;
         if (weightsArray === undefined && this.pendingTagWeights) {
             weightsArray = this.pendingTagWeights.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
@@ -1359,6 +1374,10 @@ export class FSRSConfigManager {
         if (typeof chrome !== 'undefined' && chrome.storage?.local) {
             chrome.storage.local.get(['fsrsTopicWeights'], (result: any) => {
                 const nextTopics = result?.fsrsTopicWeights || {};
+                const existingKey = Object.keys(nextTopics).find(k => k.toLowerCase() === tagName.toLowerCase());
+                if (existingKey && existingKey !== tagName) {
+                    delete nextTopics[existingKey];
+                }
                 nextTopics[tagName] = weightsArray;
                 chrome.storage.local.set({ fsrsTopicWeights: nextTopics });
             });

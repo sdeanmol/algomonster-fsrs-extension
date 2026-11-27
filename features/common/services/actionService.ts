@@ -59,6 +59,8 @@ export interface ActionExecutionOptions {
         checkDueCards?: (reason?: string) => Promise<unknown>;
         /** Handler to recalculate and update the toolbar action badge */
         updateDueCardsBadge?: () => Promise<number>;
+        /** Handler to calculate exact due cards count from storage */
+        getDueCardsCount?: () => Promise<number>;
     };
     /** Callback receiving user status alerts */
     onStatus?: (message: string, isError?: boolean) => void;
@@ -272,9 +274,24 @@ export class ActionService {
      * @fires chrome.runtime.sendMessage
      */
     static async checkDueReviews(options?: ActionExecutionOptions): Promise<number> {
-        if (options?.background?.checkDueCards && options?.background?.updateDueCardsBadge) {
+        if (options?.background?.checkDueCards) {
             await options.background.checkDueCards('manual');
-            return await options.background.updateDueCardsBadge();
+            if (options.background.getDueCardsCount) {
+                if (options.background.updateDueCardsBadge) {
+                    await options.background.updateDueCardsBadge();
+                }
+                return await options.background.getDueCardsCount();
+            }
+            if (options.background.updateDueCardsBadge) {
+                return await options.background.updateDueCardsBadge();
+            }
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                const storage = (await chrome.storage.local.get(['fsrsCards'])) as { fsrsCards?: Card[] };
+                const cards = storage.fsrsCards || [];
+                const now = Date.now();
+                return cards.filter((c: Card) => typeof c.due === 'number' && c.due <= now).length;
+            }
+            return 0;
         }
 
         return new Promise<number>((resolve, reject) => {

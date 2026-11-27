@@ -212,8 +212,7 @@ export const MemoryTabComponent: FunctionalComponent<MemoryTabProps> = ({
     }
 
     return (
-        <div id="tab-memory" class="tab-pane active">
-            <div class="memory-grid">
+        <div class="memory-grid">
                 <div id="memory-next-action-container">
                     {nextActionBanner}
                 </div>
@@ -283,7 +282,6 @@ export const MemoryTabComponent: FunctionalComponent<MemoryTabProps> = ({
                     </div>
                 </div>
             </div>
-        </div>
     );
 };
 

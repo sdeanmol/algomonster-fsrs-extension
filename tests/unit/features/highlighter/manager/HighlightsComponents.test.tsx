@@ -105,5 +105,39 @@ describe('Highlights Preact Components', () => {
         expect(container.querySelector('#highlights-container')).not.toBeNull();
         expect(container.querySelector('.highlight-text')?.textContent).toContain('Hash Map Solution for O(N)');
     });
+
+    it('GAP-030: trims searchQuery on search input while filtering highlights', () => {
+        const manager = new HighlightsManager();
+        manager.loadedMarks = [
+            {
+                id: 'mark-1',
+                url: 'https://leetcode.com/problems/two-sum',
+                text: 'Hash Map Solution',
+                color: '#f1c40f',
+                createdAt: 1700000000000,
+                type: 'highlight'
+            } as any,
+            {
+                id: 'mark-2',
+                url: 'https://leetcode.com/problems/binary-search',
+                text: 'Binary Search Template',
+                color: '#2ecc71',
+                createdAt: 1700000001000,
+                type: 'highlight'
+            } as any
+        ];
+        manager.loadedBookmarks = [];
+
+        render(<HighlightsApp manager={manager} />, container);
+
+        const searchInput = container.querySelector('#search-input') as HTMLInputElement;
+        searchInput.value = '  Binary  ';
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(manager.searchQuery).toBe('Binary');
+        const cards = container.querySelectorAll('.highlight-text');
+        expect(cards.length).toBe(1);
+        expect(cards[0].textContent).toContain('Binary Search Template');
+    });
 });
 

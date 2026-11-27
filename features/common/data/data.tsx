@@ -1,5 +1,5 @@
 import { h, Fragment, render, VNode } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../utils/uiUtils';
 import { ensureCardIds } from '../utils/cardUtils';
@@ -7,6 +7,7 @@ import { Card, StorageData, UserSettings, TagEntry } from '../../../types/domain
 import { TagRegistry } from '../tags/tagRegistry';
 import { TagInput } from '../utils/tagInput';
 import { MultiSelect, MultiSelectOption } from '../ui/components/MultiSelect';
+import { Toast } from '../ui/components/Toast';
 import { PLATFORM_NAMES, MONTH_NAMES } from '../constants';
 
 /**
@@ -613,6 +614,50 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
         forceUpdate();
     };
 
+    const [undoMessage, setUndoMessage] = useState<string>('');
+    const [undoVisible, setUndoVisible] = useState<boolean>(false);
+    const undoCallbackRef = useRef<(() => void) | null>(null);
+    const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const handleUndoToast = (event: Event) => {
+            const detail = (event as CustomEvent<{ message?: string; onUndo?: () => void }>).detail;
+            if (!detail || typeof detail.message !== 'string') return;
+            setUndoMessage(detail.message);
+            setUndoVisible(true);
+            undoCallbackRef.current = typeof detail.onUndo === 'function' ? detail.onUndo : null;
+            if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+            undoTimerRef.current = setTimeout(() => {
+                setUndoVisible(false);
+                undoCallbackRef.current = null;
+                undoTimerRef.current = null;
+            }, 5000);
+        };
+        if (typeof window !== 'undefined') {
+            window.addEventListener('algorecall-undo-toast', handleUndoToast);
+        }
+        return () => {
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('algorecall-undo-toast', handleUndoToast);
+            }
+            if (undoTimerRef.current) {
+                clearTimeout(undoTimerRef.current);
+                undoTimerRef.current = null;
+            }
+        };
+    }, []);
+
+    const handleUndoClick = () => {
+        if (undoTimerRef.current) {
+            clearTimeout(undoTimerRef.current);
+            undoTimerRef.current = null;
+        }
+        setUndoVisible(false);
+        const cb = undoCallbackRef.current;
+        undoCallbackRef.current = null;
+        if (cb) cb();
+    };
+
     const refreshData = () => {
         if (typeof chrome === 'undefined' || !chrome.storage?.local) {
             setCards(dashboard.filterAndRender());
@@ -718,9 +763,22 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
     } else if (view === 'retention') {
         pageTitle = 'Retention';
         pageSubtitle = 'Showing all patterns with at least 1 lapse.';
+    } else if (view === 'history' && dashboard.targetDate) {
+        let dateDisplay = dashboard.targetDate;
+        if (dashboard.targetDate.length === 7) {
+            const [y, m] = dashboard.targetDate.split('-');
+            dateDisplay = `${MONTH_NAMES[parseInt(m, 10) - 1]} ${y}`;
+        } else if (dashboard.targetDate.length === 10) {
+            const [y, m, d] = dashboard.targetDate.split('-');
+            const localDate = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+            dateDisplay = localDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+        pageTitle = `Activity for ${dateDisplay}`;
+        pageSubtitle = `Patterns reviewed during ${dateDisplay}.`;
     } else if (view === 'forecast' && dashboard.targetDate) {
-        pageTitle = `Cards Due — ${dashboard.targetDate}`;
-        pageSubtitle = `Cards scheduled for review on ${dashboard.targetDate}.`;
+        const dateDisplay = new Date(dashboard.targetDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        pageTitle = `Cards Due — ${dateDisplay}`;
+        pageSubtitle = `Cards scheduled for review on ${dateDisplay}.`;
     }
 
     const showCharts = dashboard.extensionSettings?.showCharts !== false;
@@ -1118,10 +1176,10 @@ export function DataApp({ dashboard: initialDashboard }: DataAppProps): VNode {
             </div>
 
             {/* Notification Toast & Temporary Undo Toast */}
-            <div id="status-toast" className="toast" />
-            <div id="undo-toast" className="undo-toast" style={{ display: 'none' }}>
-                <span id="undo-toast-text" />
-                <button id="undo-action-btn" className="btn-undo">Undo</button>
+            <Toast id="status-toast" />
+            <div id="undo-toast" className="undo-toast" style={{ display: undoVisible ? 'flex' : 'none' }}>
+                <span id="undo-toast-text">{undoMessage}</span>
+                <button id="undo-action-btn" className="btn-undo" onClick={handleUndoClick}>Undo</button>
             </div>
         </div>
     );
@@ -1610,6 +1668,12 @@ export class FSRSDataDashboard {
                         const bCreated = b.createdAt || (b.historyLog && b.historyLog[0] && (typeof b.historyLog[0] === 'object' ? b.historyLog[0].date : b.historyLog[0])) || 0;
                         return (bCreated as number) - (aCreated as number);
                     });
+                case 'created-asc':
+                    return sorted.sort((a, b) => {
+                        const aCreated = a.createdAt || (a.historyLog && a.historyLog[0] && (typeof a.historyLog[0] === 'object' ? a.historyLog[0].date : a.historyLog[0])) || 0;
+                        const bCreated = b.createdAt || (b.historyLog && b.historyLog[0] && (typeof b.historyLog[0] === 'object' ? b.historyLog[0].date : b.historyLog[0])) || 0;
+                        return (aCreated as number) - (bCreated as number);
+                    });
                 default:
                     return sorted;
             }
@@ -1699,7 +1763,9 @@ export class FSRSDataDashboard {
             const count = this.selectedCardIds.size;
             if (count === 0) return;
 
-            const newTagsStr = typeof window !== 'undefined' ? prompt(`Enter new tags:`, '') : '';
+            const newTagsStr = typeof window !== 'undefined'
+                ? prompt(`Enter new tags for ${count} selected card(s) (comma-separated).\nThis will REPLACE existing tags:`, '')
+                : '';
             if (newTagsStr === null) return;
 
             const newTags = this.resolveTagIds(newTagsStr);
@@ -1723,6 +1789,8 @@ export class FSRSDataDashboard {
         try {
             const count = this.selectedCardIds.size;
             if (count === 0) return;
+
+            if (!confirm(`Reschedule ${count} selected card(s) to be due now? This resets their due date to today.`)) return;
 
             const now = Date.now();
             this.allCards.forEach(card => {

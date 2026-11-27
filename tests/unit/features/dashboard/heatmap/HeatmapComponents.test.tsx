@@ -182,6 +182,79 @@ describe('Heatmap Preact Components', () => {
 
             expect(container.querySelector('#select-month')?.classList.contains('hide-select')).toBe(false);
         });
+
+        it('GAP-006: cascades selectedMonth and selectedDay when year or month changes', async () => {
+            const currentYear = new Date().getFullYear().toString();
+            const pastYear = String(Number(currentYear) - 1);
+            const initialActivity = {
+                [`${currentYear}-11-20`]: 2,
+                [`${pastYear}-03-15`]: 4,
+                [`${pastYear}-07-08`]: 1
+            };
+
+            render(<HeatmapApp initialActivityData={initialActivity} />, container);
+
+            const filterTypeSelect = container.querySelector('#filter-type') as HTMLSelectElement;
+            filterTypeSelect.value = 'day-wise';
+            filterTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            await Promise.resolve();
+
+            const yearSelect = container.querySelector('#select-year') as HTMLSelectElement;
+            const monthSelect = container.querySelector('#select-month') as HTMLSelectElement;
+            const daySelect = container.querySelector('#select-day') as HTMLSelectElement;
+
+            yearSelect.value = pastYear;
+            yearSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            await Promise.resolve();
+
+            expect(monthSelect.value).toBe('03');
+            expect(daySelect.value).toBe('15');
+
+            monthSelect.value = '07';
+            monthSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            await Promise.resolve();
+
+            expect(daySelect.value).toBe('08');
+        });
+
+        it('GAP-022: auto-scrolls .heatmap-wrapper to the right in lifetime mode', async () => {
+            const initialActivity = { '2026-08-01': 5 };
+            render(<HeatmapApp initialActivityData={initialActivity} />, container);
+
+            const wrapper = container.querySelector('.heatmap-wrapper') as HTMLElement;
+            Object.defineProperty(wrapper, 'scrollWidth', { value: 1200, configurable: true });
+
+            // Trigger re-render in lifetime mode by switching away and back
+            const filterTypeSelect = container.querySelector('#filter-type') as HTMLSelectElement;
+            filterTypeSelect.value = 'year-wise';
+            filterTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            await Promise.resolve();
+
+            filterTypeSelect.value = 'lifetime';
+            filterTypeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            await Promise.resolve();
+
+            expect(wrapper.scrollLeft).toBe(1200);
+        });
+
+        it('GAP-023: does not nest .stats-grid inside #heatmap-stats-container', () => {
+            render(<HeatmapApp initialActivityData={{ '2026-08-01': 5 }} />, container);
+
+            const statsContainer = container.querySelector('#heatmap-stats-container') as HTMLElement;
+            expect(statsContainer.classList.contains('stats-grid')).toBe(false);
+            const grids = container.querySelectorAll('.stats-grid');
+            expect(grids.length).toBe(1);
+            expect(grids[0].querySelectorAll(':scope > .stats-card').length).toBe(4);
+        });
+
+        it('GAP-033: handles chrome.runtime.lastError gracefully in HeatmapApp storage callback', () => {
+            const prevLastError = chrome.runtime.lastError;
+            (chrome.runtime as any).lastError = { message: 'Storage read failed' };
+            (chrome.storage.local.get as jest.Mock).mockImplementationOnce((_keys: any, cb: any) => cb({}));
+
+            expect(() => render(<HeatmapApp />, container)).not.toThrow();
+            (chrome.runtime as any).lastError = prevLastError;
+        });
     });
 });
 

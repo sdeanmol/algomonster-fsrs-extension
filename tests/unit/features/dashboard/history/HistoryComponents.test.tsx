@@ -70,6 +70,13 @@ describe('History Preact Components', () => {
 
             (container.querySelector('.bc-month') as HTMLElement).click();
             expect(onNavigateMonth).toHaveBeenCalledWith('2026');
+
+            // GAP-033: keyboard navigation on breadcrumb items
+            (container.querySelector('.bc-year') as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+            expect(onNavigateYear).toHaveBeenCalledTimes(2);
+
+            (container.querySelector('.bc-month') as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+            expect(onNavigateMonth).toHaveBeenCalledTimes(2);
         });
     });
 
@@ -201,6 +208,21 @@ describe('History Preact Components', () => {
             render(<HistoryApp dashboard={dashboard} />, container);
 
             expect(container.textContent).toContain('No contribution activity recorded yet');
+        });
+
+        it('GAP-026: returns allCards-derived aggregation unconditionally when allCards.length > 0', () => {
+            const dashboard = new FSRSHistoryDashboard();
+            dashboard.activityData = { '2020-01-05': 99 };
+            dashboard.allCards = [
+                {
+                    id: 'c1',
+                    historyLog: [{ date: new Date('2026-05-10T12:00:00').getTime(), rating: 3 }]
+                } as any
+            ];
+
+            expect(dashboard.aggregateByYear()['2020']).toBeUndefined();
+            expect(dashboard.aggregateByMonth('2020')).toEqual({});
+            expect(dashboard.aggregateByDay('2020-01')).toEqual({});
         });
     });
 });

@@ -916,6 +916,31 @@ describe('FSRSDataDashboard', () => {
       expect(dashboard.allCards.some(c => c.id === 'c1')).toBe(true);
       expect(undoToast.style.display).toBe('none');
     });
+
+    it('GAP-010 & GAP-011 & GAP-027: sorts created-asc, confirms bulkReschedule, and uses full bulkRetag prompt', () => {
+      const older = { ...mockCards[0], id: 'old', createdAt: 1000 };
+      const newer = { ...mockCards[1], id: 'new', createdAt: 5000 };
+      dashboard.sortBy = 'created-asc';
+      const sorted = dashboard.sortCards([newer, older]);
+      expect(sorted.map(c => c.id)).toEqual(['old', 'new']);
+
+      dashboard.allCards = [older, newer];
+      dashboard.selectedCardIds = new Set(['old']);
+
+      const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
+      dashboard.bulkReschedule();
+      expect(confirmSpy).toHaveBeenCalled();
+      expect(dashboard.selectedCardIds.has('old')).toBe(true);
+      confirmSpy.mockRestore();
+
+      const promptSpy = jest.spyOn(window, 'prompt').mockReturnValue(null);
+      dashboard.bulkRetag();
+      expect(promptSpy).toHaveBeenCalledWith(
+        expect.stringContaining('This will REPLACE existing tags:'),
+        ''
+      );
+      promptSpy.mockRestore();
+    });
   });
 });
 

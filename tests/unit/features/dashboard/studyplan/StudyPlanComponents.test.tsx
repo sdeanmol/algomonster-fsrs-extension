@@ -175,6 +175,58 @@ describe('StudyPlan Preact Components', () => {
             expect(container.querySelector('#active-panel')).not.toBeNull();
             expect(container.querySelector('#active-daily-target')?.textContent).toBe('5');
         });
+
+        it('GAP-025: caps preview total by dailyLimit and resets examDate/dailyLimit on deactivate', async () => {
+            const controller = new StudyPlanController();
+            controller.settings = null;
+            controller.allCards = Array.from({ length: 100 }, (_, i) => ({
+                id: `c-${i}`,
+                due: Date.now()
+            })) as any;
+
+            const futureDate = new Date(Date.now() + 5 * 86400000);
+            const futureIso = futureDate.toISOString().split('T')[0];
+
+            render(<StudyPlanApp controller={controller} />, container);
+
+            const dateInput = container.querySelector('#exam-date-input') as HTMLInputElement;
+            dateInput.value = futureIso;
+            dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+            const limitInput = container.querySelector('#daily-limit-input') as HTMLInputElement;
+            limitInput.value = '5';
+            limitInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+            await Promise.resolve();
+
+            const days = parseInt(container.querySelector('#preview-days')?.textContent || '0', 10);
+            expect(days).toBeGreaterThan(0);
+            expect(container.querySelector('#preview-daily')?.textContent).toBe('5');
+            expect(container.querySelector('#preview-total')?.textContent).toBe(String(5 * days));
+
+            // Simulate activation then deactivation
+            controller.settings = {
+                isActive: true,
+                examDate: futureIso,
+                dailyTarget: 5,
+                activatedAt: Date.now()
+            };
+            controller.onUpdate?.();
+            await Promise.resolve();
+
+            expect(container.querySelector('#active-panel')).not.toBeNull();
+
+            controller.deactivateExamMode = jest.fn(() => {
+                controller.settings = null;
+                controller.onUpdate?.();
+            });
+            (container.querySelector('#deactivate-btn') as HTMLButtonElement).click();
+            await Promise.resolve();
+
+            const activateBtn = container.querySelector('#activate-btn') as HTMLButtonElement;
+            expect(activateBtn).not.toBeNull();
+            expect(activateBtn.disabled).toBe(true);
+        });
     });
 });
 

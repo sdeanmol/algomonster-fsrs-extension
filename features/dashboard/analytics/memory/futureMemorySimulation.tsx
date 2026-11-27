@@ -133,8 +133,7 @@ export const SimulationTab: FunctionalComponent<SimulationTabProps> = ({
     const retentionClass = isGood ? 'text-success' : (isWarning ? 'text-warning' : 'text-danger');
 
     return (
-        <div id="tab-simulation" class="tab-pane active">
-            <div class="memory-panel ana-panel-wide future-sim-panel">
+        <div class="memory-panel ana-panel-wide future-sim-panel">
                 <div class="ana-panel-header">
                     <div>
                         <span class="ana-panel-title">
@@ -234,7 +233,6 @@ export const SimulationTab: FunctionalComponent<SimulationTabProps> = ({
                         </svg>
                     </div>
                 </div>
-            </div>
         </div>
     );
 };

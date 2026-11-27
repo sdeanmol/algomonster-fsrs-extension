@@ -4,6 +4,7 @@
  */
 
 import { h, render } from 'preact';
+import { act } from 'preact/test-utils';
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 
 jest.mock('@open-spaced-repetition/binding/dynamic-wasi', () => ({
@@ -159,6 +160,71 @@ describe('FSRS Config Preact Components', () => {
             expect(container.querySelector('#weights-inputs-container')).not.toBeNull();
             expect(container.querySelector('#active-tag-profiles-list')).not.toBeNull();
             expect(container.querySelector('#status-toast')).not.toBeNull();
+        });
+
+        it('GAP-016: preserves original tag case in fsrsTopicWeights when saving tag profile', () => {
+            (chrome.storage.local.get as any).mockImplementation((_keys: any, cb: (res: any) => void) => {
+                cb({ fsrsTopicWeights: { 'dynamic programming': Array(17).fill(0.1) } });
+            });
+            (chrome.storage.local.set as any).mockImplementation((_data: any, cb?: () => void) => {
+                if (cb) cb();
+            });
+
+            const manager = new FSRSConfigManager();
+            act(() => { render(<FSRSConfigApp manager={manager} />, container); });
+
+            // Call the manager API directly (bypasses jsdom async Preact state issues with native events)
+            const newWeights = Array(17).fill(0.25);
+            act(() => {
+                manager.onAddTagProfile?.('Dynamic Programming', newWeights);
+            });
+
+            expect(chrome.storage.local.set).toHaveBeenCalledWith(
+                { fsrsTopicWeights: { 'Dynamic Programming': newWeights } },
+                expect.any(Function)
+            );
+        });
+
+        it('GAP-028: saveParamsToStorage merges existing fsrsGlobalParams metadata (version, timestamp)', () => {
+            (chrome.storage.local.get as any).mockImplementation((keys: any, cb: (res: any) => void) => {
+                if (Array.isArray(keys) && keys.includes('fsrsGlobalParams')) {
+                    cb({
+                        fsrsGlobalParams: {
+                            version: 'personalized',
+                            timestamp: 1700000000000,
+                            w: Array(17).fill(0.4),
+                            decay: -0.5,
+                            factor: 19 / 81,
+                            requestRetention: 0.9
+                        }
+                    });
+                } else {
+                    cb({});
+                }
+            });
+            (chrome.storage.local.set as any).mockImplementation((_data: any, cb?: () => void) => {
+                if (cb) cb();
+            });
+
+            const manager = new FSRSConfigManager();
+            act(() => { render(<FSRSConfigApp manager={manager} />, container); });
+
+            // Switch to advanced mode so the save button is visible
+            const advancedBtn = container.querySelector('#mode-advanced-btn') as HTMLButtonElement;
+            act(() => { advancedBtn?.click(); });
+
+            const saveBtn = container.querySelector('#save-global-btn') as HTMLButtonElement;
+            act(() => { saveBtn.click(); });
+
+            expect(chrome.storage.local.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    fsrsGlobalParams: expect.objectContaining({
+                        version: 'personalized',
+                        timestamp: 1700000000000
+                    })
+                }),
+                expect.any(Function)
+            );
         });
     });
 });

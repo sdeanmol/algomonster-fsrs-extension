@@ -275,6 +275,12 @@ export function ForecastApp({ initialCards, initialSettings }: ForecastAppProps)
     useEffect(() => {
         if (!initialCards && typeof chrome !== 'undefined' && chrome.storage?.local) {
             chrome.storage.local.get(['fsrsCards', 'extensionSettings'], (result: StorageData) => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('ForecastDashboard', `Storage error fetching forecast data: ${errorMessage}`, { error: lastError });
+                    return;
+                }
                 if (result.fsrsCards) setCards(result.fsrsCards);
                 if (result.extensionSettings) setSettings(result.extensionSettings);
             });
@@ -302,8 +308,9 @@ export function ForecastApp({ initialCards, initialSettings }: ForecastAppProps)
 
         cards.forEach((card) => {
             if (card.state === 0) return;
-            const diffMs = card.due - todayStartTime;
-            const dayOffset = Math.floor(diffMs / 86400000);
+            const dueDate = new Date(card.due);
+            const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+            const dayOffset = Math.round((dueDay.getTime() - todayStartTime) / 86400000);
             if (dayOffset <= 0) {
                 dueCounts[0] = (dueCounts[0] || 0) + 1;
             } else if (dayOffset <= FORECAST_DAYS_TO_SHOW) {
@@ -312,13 +319,15 @@ export function ForecastApp({ initialCards, initialSettings }: ForecastAppProps)
         });
 
         let totalUpcoming = 0;
-        let peak = 0;
+        let summaryPeak = 0;
+        let chartMaxVal = 0;
         const pts: ForecastDataPoint[] = [];
 
         for (let i = 0; i <= FORECAST_DAYS_TO_SHOW; i++) {
             const count = dueCounts[i] || 0;
             totalUpcoming += count;
-            if (count > peak) peak = count;
+            if (i > 0 && count > summaryPeak) summaryPeak = count;
+            if (count > chartMaxVal) chartMaxVal = count;
 
             const date = new Date(todayStart);
             date.setDate(date.getDate() + i);
@@ -375,11 +384,11 @@ export function ForecastApp({ initialCards, initialSettings }: ForecastAppProps)
             summary: {
                 totalUpcoming,
                 avgPerDay: avg,
-                peakCount: peak,
+                peakCount: summaryPeak,
                 todayCount
             },
             dataPoints: pts,
-            maxVal: peak,
+            maxVal: chartMaxVal,
             calendarCells: cells,
             startDow: todayStart.getDay(),
             startStr

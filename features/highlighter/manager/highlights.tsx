@@ -303,6 +303,7 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
     const [marks, setMarks] = useState<HighlightMark[]>(() => manager.loadedMarks || []);
     const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(() => manager.loadedBookmarks || []);
     const [searchQuery, setSearchQuery] = useState<string>(() => manager.searchQuery || '');
+    const [rawSearchInput, setRawSearchInput] = useState<string>(() => manager.searchQuery || '');
     const [activeColorFilter, setActiveColorFilter] = useState<string | null>(() => manager.activeColorFilter);
     const [activePageFilters, setActivePageFilters] = useState<string[]>(() => manager.activePageFilters || []);
     const [sortOption, setSortOption] = useState<string>(() => manager.sortOption || 'newest');
@@ -346,6 +347,7 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
             setMarks([...manager.loadedMarks]);
             setBookmarks([...manager.loadedBookmarks]);
             setSearchQuery(manager.searchQuery || '');
+            setRawSearchInput(manager.searchQuery || '');
             setActiveColorFilter(manager.activeColorFilter);
             setActivePageFilters(manager.activePageFilters || []);
             setSortOption(manager.sortOption || 'newest');
@@ -422,6 +424,7 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
         manager.sortOption = 'newest';
         safeFlushSync(() => {
             setSearchQuery('');
+            setRawSearchInput('');
             setActiveColorFilter(null);
             setActivePageFilters([]);
             setSortOption('newest');
@@ -503,13 +506,15 @@ export function HighlightsManagerApp({ manager: initialManager }: HighlightsMana
                         id="search-input"
                         className="input-field search-input"
                         placeholder="Search in highlights or webpage titles..."
-                        value={searchQuery}
+                        value={rawSearchInput}
                         onInput={(e) => {
                             try {
-                                const val = (e.target as HTMLInputElement).value;
-                                manager.searchQuery = val;
+                                const rawVal = (e.target as HTMLInputElement).value;
+                                const trimmed = rawVal.trim();
+                                manager.searchQuery = trimmed;
                                 safeFlushSync(() => {
-                                    setSearchQuery(val);
+                                    setRawSearchInput(rawVal);
+                                    setSearchQuery(trimmed);
                                 });
                             } catch (err) {
                                 const errorMessage = err instanceof Error ? err.message : String(err);

@@ -157,7 +157,8 @@ export class AlgoRecallBackground {
             const result = await ActionService.executeAction(command as CommandActionId, {
                 background: {
                     checkDueCards: this.checkDueCards.bind(this),
-                    updateDueCardsBadge: this.updateDueCardsBadge.bind(this)
+                    updateDueCardsBadge: this.updateDueCardsBadge.bind(this),
+                    getDueCardsCount: this.getDueCardsCount.bind(this)
                 }
             });
             if (!result.success && result.error) {
@@ -742,8 +743,8 @@ export class AlgoRecallBackground {
             const whitelistedWebsites: WhitelistedWebsite[] = result.whitelistedWebsites || DEFAULT_WHITELISTED_WEBSITES;
 
             // Enforce minimum interval to bypass MV3 alarm bugs (like frequent re-triggering upon wake-up)
-            // Allow explicit 'snoozeFsrsReviews' and 'test' source to bypass this throttle
-            if (source !== 'snoozeFsrsReviews' && source !== 'test') {
+            // Allow explicit 'snoozeFsrsReviews', 'test', and 'manual' sources to bypass this throttle
+            if (source !== 'snoozeFsrsReviews' && source !== 'test' && source !== 'manual') {
                 const interval = parseInt(settings.frequency || String(ALARM_DEFAULT_CHECK_INTERVAL_MIN), 10);
                 const lastCheck = result.lastNotificationTime || 0;
                 const now = Date.now();

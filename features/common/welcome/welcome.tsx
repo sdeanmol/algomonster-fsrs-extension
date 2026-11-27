@@ -48,6 +48,12 @@ export function StepIndicators({
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelectStep && onSelectStep(i)}
+                onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && onSelectStep) {
+                        e.preventDefault();
+                        onSelectStep(i);
+                    }
+                }}
             />
         );
     }
@@ -155,6 +161,7 @@ export class OnboardingWelcome {
 
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                 chrome.storage.local.get(['notificationSettings'], (result) => {
+                    if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching notificationSettings in checkNotificationState')) return;
                     const enabled = result.notificationSettings ? result.notificationSettings.enabled !== false : true;
                     if (this.onNotificationChange) this.onNotificationChange(perm, enabled);
                     if (callback) callback(perm, enabled);
@@ -228,9 +235,11 @@ export function WelcomeApp({ controller: injectedController }: WelcomeAppProps):
         setNotifEnabled(checked);
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
             chrome.storage.local.get(['notificationSettings'], (result) => {
+                if (UIUtils.checkStorageError('Onboarding', 'Storage error fetching notificationSettings')) return;
                 const settings = result.notificationSettings || { enabled: true };
                 settings.enabled = checked;
                 chrome.storage.local.set({ notificationSettings: settings }, () => {
+                    if (UIUtils.checkStorageError('Onboarding', 'Storage error saving notificationSettings')) return;
                     UIUtils.showToast(checked ? "Reminders Enabled" : "Reminders Disabled");
                 });
             });
@@ -361,7 +370,7 @@ export function WelcomeApp({ controller: injectedController }: WelcomeAppProps):
                     <p>Ensure you never miss review intervals. Enable OS reminders to alert you when patterns fall due:</p>
 
                     <div className="notif-box">
-                        <div className="notif-status-row" style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignSelf: 'center' }}>
+                        <div className="notif-status-row" style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span className="status-label">Enable Reminders:</span>
                             <label className="toggle-switch">
                                 <input

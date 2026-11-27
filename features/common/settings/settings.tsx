@@ -250,7 +250,12 @@ export function NotificationsPanel({
     const standardOptions = ['1', '15', '30', '60', '120', '360', '720', '1440'];
     const isCustom = !standardOptions.includes(rawFreq) || rawFreq === 'custom';
     const selectedFreq = isCustom ? 'custom' : rawFreq;
-    const customValue = settings.customInterval ? String(settings.customInterval) : (isCustom && rawFreq !== 'custom' ? rawFreq : '45');
+    const derivedCustomValue = settings.customInterval ? String(settings.customInterval) : (isCustom && rawFreq !== 'custom' ? rawFreq : '60');
+    const [customDraft, setCustomDraft] = useState<string>(derivedCustomValue);
+
+    useEffect(() => {
+        setCustomDraft(derivedCustomValue);
+    }, [derivedCustomValue]);
 
     const handleToggleEnabled = (e: Event) => {
         const checked = (e.target as HTMLInputElement).checked;
@@ -263,8 +268,8 @@ export function NotificationsPanel({
     const handleIntervalChange = (e: Event) => {
         const val = (e.target as HTMLSelectElement).value;
         if (val === 'custom') {
-            const parsed = parseInt(customValue, 10) || 60;
-            onUpdate?.({ frequency: String(parsed), customInterval: parsed });
+            const parsed = parseInt(customDraft, 10) || 60;
+            onUpdate?.({ frequency: 'custom', customInterval: parsed });
         } else {
             const parsed = parseInt(val, 10) || 60;
             onUpdate?.({ frequency: val, customInterval: parsed });
@@ -273,8 +278,17 @@ export function NotificationsPanel({
 
     const handleCustomIntervalChange = (e: Event) => {
         const val = (e.target as HTMLInputElement).value;
+        setCustomDraft(val);
         const parsed = parseInt(val, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+            onUpdate?.({ frequency: String(parsed), customInterval: parsed });
+        }
+    };
+
+    const handleCustomIntervalBlur = () => {
+        const parsed = parseInt(customDraft, 10);
         const validVal = !isNaN(parsed) && parsed > 0 ? parsed : 60;
+        setCustomDraft(String(validVal));
         onUpdate?.({ frequency: String(validVal), customInterval: validVal });
     };
 
@@ -366,9 +380,10 @@ export function NotificationsPanel({
                             min="1"
                             max="1440"
                             placeholder="60"
-                            value={customValue}
+                            value={customDraft}
                             onChange={handleCustomIntervalChange}
                             onInput={handleCustomIntervalChange}
+                            onBlur={handleCustomIntervalBlur}
                         />
                     </div>
                 </div>
@@ -1054,7 +1069,7 @@ export function AboutPanel({ isActive }: AboutPanelProps): JSX.Element {
                         <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                         </svg>
-                        Rate on Web Store
+                        Rate on {BROWSER_CONFIG.storeName}
                     </a>
                 </div>
             </div>

@@ -155,6 +155,11 @@ export class WhitelistedWebsitesManager {
             }
 
             chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
+                if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error fetching whitelistedWebsites')) {
+                    UIUtils.showToast('Error checking website status.');
+                    callback?.(false);
+                    return;
+                }
                 const sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map((s) => ({ ...s }))];
                 if (sites.some((s) => s.domain === hostname)) {
                     UIUtils.showToast('Website is already whitelisted.');
@@ -170,6 +175,11 @@ export class WhitelistedWebsitesManager {
                         origins: [originPattern]
                     },
                     (granted: boolean) => {
+                        if (UIUtils.checkStorageError('WhitelistedWebsites', 'Permission request error', { hostname })) {
+                            UIUtils.showToast('Error requesting domain permission.');
+                            callback?.(false);
+                            return;
+                        }
                         if (granted) {
                             chrome.scripting.registerContentScripts(
                                 [
@@ -187,8 +197,13 @@ export class WhitelistedWebsitesManager {
                                     }
                                 ],
                                 () => {
+                                    UIUtils.checkStorageError('WhitelistedWebsites', 'Script registration error', { hostname });
                                     sites.push({ domain: hostname, isDefault: false });
                                     chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
+                                        if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage set error after script registration', { hostname })) {
+                                            callback?.(false);
+                                            return;
+                                        }
                                         if (this.onUpdate) this.onUpdate(sites);
                                         UIUtils.showToast(`Authorized & Whitelisted: ${hostname}`);
                                         callback?.(true);
@@ -214,6 +229,7 @@ export class WhitelistedWebsitesManager {
      */
     handleDeleteWebsite(siteDomain: string, callback?: () => void): void {
         chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
+            if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error reading websites for delete', { siteDomain })) return;
             let sites: WhitelistedSite[] = result.whitelistedWebsites || [...this.defaultSitesList.map((s) => ({ ...s }))];
             const site = sites.find((s) => s.domain === siteDomain);
             if (!site) return;
@@ -221,6 +237,7 @@ export class WhitelistedWebsitesManager {
             const performStorageDelete = () => {
                 sites = sites.filter((s) => s.domain !== siteDomain);
                 chrome.storage.local.set({ whitelistedWebsites: sites }, () => {
+                    if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage set error during website delete', { siteDomain })) return;
                     if (this.onUpdate) this.onUpdate(sites);
                     UIUtils.showToast(`Removed access for: ${siteDomain}`);
                     callback?.();
@@ -234,7 +251,9 @@ export class WhitelistedWebsitesManager {
                 const scriptId = `site-${siteDomain.replace(/[^a-z0-9]/g, '-')}`;
 
                 chrome.scripting.unregisterContentScripts({ ids: [scriptId] }, () => {
+                    UIUtils.checkStorageError('WhitelistedWebsites', 'Script unregister warning', { siteDomain });
                     chrome.permissions.remove({ origins: [originPattern] }, () => {
+                        UIUtils.checkStorageError('WhitelistedWebsites', 'Permission remove warning', { siteDomain });
                         performStorageDelete();
                     });
                 });
@@ -247,11 +266,13 @@ export class WhitelistedWebsitesManager {
      */
     restoreDefaults(callback?: () => void): void {
         chrome.storage.local.get(['whitelistedWebsites'], (result: { whitelistedWebsites?: WhitelistedSite[] }) => {
+            if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error fetching websites for restore defaults')) return;
             const currentSites: WhitelistedSite[] = result.whitelistedWebsites || [];
             const customSites = currentSites.filter((s) => !s.isDefault);
             const restoredList = [...this.defaultSitesList.map((s) => ({ ...s })), ...customSites];
 
             chrome.storage.local.set({ whitelistedWebsites: restoredList }, () => {
+                if (UIUtils.checkStorageError('WhitelistedWebsites', 'Storage error saving restored defaults')) return;
                 if (this.onUpdate) this.onUpdate(restoredList);
                 UIUtils.showToast('Default platforms restored!');
                 callback?.();

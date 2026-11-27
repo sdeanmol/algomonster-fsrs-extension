@@ -874,6 +874,12 @@ export class Highlighter {
             x = tooltipOrX;
             y = xOrY || 0;
             fallback = yOrFallbackTop || 0;
+            const tooltipEl = typeof document !== 'undefined' ? document.getElementById('algo-highlight-tooltip') : null;
+            if (tooltipEl && typeof tooltipEl.getBoundingClientRect === 'function') {
+                const rect = tooltipEl.getBoundingClientRect();
+                if (rect.width > 0) width = rect.width;
+                if (rect.height > 0) height = rect.height;
+            }
         } else {
             if (tooltipOrX && typeof tooltipOrX.getBoundingClientRect === 'function') {
                 const rect = tooltipOrX.getBoundingClientRect();
@@ -1064,7 +1070,6 @@ export class Highlighter {
                 try {
                     if (existingMarkId) {
                         this.deleteHighlight(existingMarkId);
-                        this.renderTooltipColors();
                     }
                 } catch (err) {
                     const errorMessage = err instanceof Error ? err.message : String(err);

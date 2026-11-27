@@ -195,6 +195,13 @@ export class HeatmapComponent extends DashboardComponent {
             />,
             root
         );
+
+        setTimeout(() => {
+            const grid = root.querySelector('#heatmap-grid') as HTMLElement | null;
+            if (grid) {
+                grid.scrollLeft = grid.scrollWidth;
+            }
+        }, 10);
     }
 
     /**

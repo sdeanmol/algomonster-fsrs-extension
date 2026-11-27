@@ -119,13 +119,12 @@ export const ReadinessTabComponent: FunctionalComponent<ReadinessTabProps> = ({
     }), [stats.targetDate]);
 
     return (
-        <div id="tab-readiness" class="tab-pane active">
-            <div class="readiness-wrapper">
-                <div class="readiness-control-card">
-                    <div class="control-header">
-                        <h2>Exam Readiness Forecast</h2>
-                        <p class="subtitle">Predict expected recall probability across all subjects using FSRS memory decay.</p>
-                    </div>
+        <div class="readiness-wrapper">
+            <div class="readiness-control-card">
+                <div class="control-header">
+                    <h2>Exam Readiness Forecast</h2>
+                    <p class="subtitle">Predict expected recall probability across all subjects using AlgoRecall Engine memory decay.</p>
+                </div>
 
                     <div class="simulation-input-row">
                         <label for="readiness-days-input" class="sim-label">
@@ -175,7 +174,7 @@ export const ReadinessTabComponent: FunctionalComponent<ReadinessTabProps> = ({
                 <div class="readiness-section">
                     <div class="section-header">
                         <h3>Expected Recall by Subject / Tag</h3>
-                        <span class="help-icon" data-tooltip="Calculated dynamically per card using ts-fsrs retrievability decay at target exam timestamp.">?</span>
+                        <span class="help-icon" data-tooltip="Calculated dynamically per card using AlgoRecall Engine retrievability decay at target exam timestamp.">?</span>
                     </div>
 
                     <div class="topics-grid">
@@ -203,7 +202,6 @@ export const ReadinessTabComponent: FunctionalComponent<ReadinessTabProps> = ({
                         Activate Exam Countdown Mode
                     </a>
                 </div>
-            </div>
         </div>
     );
 };

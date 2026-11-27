@@ -718,6 +718,8 @@ interface TrackerAppControls {
     setReviewIndex: (index: number) => void;
     setTotalToReview: (total: number) => void;
     setIsAnswerShown: (shown: boolean) => void;
+    setFeedbackMsg: (msg: string) => void;
+    setFeedbackVisible: (visible: boolean) => void;
     approachRef: RefObject<HTMLTextAreaElement | null>;
     tagsRef: RefObject<HTMLInputElement | null>;
     launcherRef: RefObject<HTMLDivElement | null>;
@@ -765,6 +767,10 @@ export const TrackerApp: FunctionalComponent<TrackerAppProps> = ({ tracker }) =>
     const [totalToReview, setTotalToReview] = useState(0);
     const [isAnswerShown, setIsAnswerShown] = useState(false);
 
+    // 6. Post-review feedback banner state
+    const [feedbackMsg, setFeedbackMsg] = useState('');
+    const [feedbackVisible, setFeedbackVisible] = useState(false);
+
     // Refs
     const launcherRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -801,6 +807,8 @@ export const TrackerApp: FunctionalComponent<TrackerAppProps> = ({ tracker }) =>
             setReviewIndex,
             setTotalToReview,
             setIsAnswerShown,
+            setFeedbackMsg,
+            setFeedbackVisible,
             approachRef,
             tagsRef,
             launcherRef,
@@ -1045,6 +1053,21 @@ export const TrackerApp: FunctionalComponent<TrackerAppProps> = ({ tracker }) =>
         if (e.key === 'Escape') {
             e.preventDefault();
             handleClose();
+            return;
+        }
+        if (e.key !== 'Tab' || !containerRef.current) return;
+        const focusable = Array.from(
+            containerRef.current.querySelectorAll<HTMLElement>('button, input, textarea, [tabindex]:not([tabindex="-1"])')
+        ).filter(el => !el.hasAttribute('disabled') && el.style.display !== 'none');
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
         }
     };
 
@@ -1145,6 +1168,15 @@ export const TrackerApp: FunctionalComponent<TrackerAppProps> = ({ tracker }) =>
                     }}
                 >
                     No cards tracked for this problem yet. Add your initial approach notes below to start!
+                </div>
+                <div
+                    id="fsrs-feedback-banner"
+                    class={`fsrs-feedback-banner${feedbackVisible ? ' fsrs-feedback-visible' : ''}`}
+                    style={{ display: feedbackVisible ? 'block' : 'none' }}
+                    role="status"
+                    aria-live="polite"
+                >
+                    {feedbackMsg}
                 </div>
                 <div id="fsrs-body" style={{ display: viewMode === 'edit' ? 'block' : 'none' }}>
                     <div class="fsrs-tags-container">
@@ -1329,6 +1361,9 @@ export class Tracker {
     /** Registered Preact state control delegates. */
     _appControls: TrackerAppControls | null;
 
+    /** Timer ID for auto-hiding the post-review feedback banner. */
+    _feedbackTimeout: ReturnType<typeof setTimeout> | null;
+
     /**
      * Initializes default widget state and binds callback handlers.
      */
@@ -1349,6 +1384,7 @@ export class Tracker {
         this.launcherRef = null;
         this.containerRef = null;
         this._appControls = null;
+        this._feedbackTimeout = null;
 
         // Bind functions to avoid lexical context issues
         this.saveDraft = this.saveDraft.bind(this);
@@ -1967,6 +2003,81 @@ export class Tracker {
      * @param {number} [timeTaken=0] - Active time spent on card in milliseconds.
      * @returns {void}
      */
+    private _getTopicWeightsForTag(tagName: string): number[] | null {
+        const weights = this.state.topicWeights;
+        if (!weights) return null;
+        if (weights[tagName]) return weights[tagName];
+        const lower = tagName.toLowerCase();
+        const matchKey = Object.keys(weights).find(k => k.toLowerCase() === lower);
+        return matchKey ? weights[matchKey] : null;
+    }
+
+    /**
+     * Displays a transient post-review feedback banner with daily goal progress.
+     */
+    showReviewFeedback(): void {
+        try {
+            if (typeof chrome === 'undefined' || !chrome.storage?.local) return;
+            chrome.storage.local.get(['fsrsActivity', 'dailyGoalTarget'], (res: StorageData & { dailyGoalTarget?: number }) => {
+                try {
+                    const activity = (res?.fsrsActivity || {}) as Record<string, number>;
+                    const target = typeof res?.dailyGoalTarget === 'number' ? res.dailyGoalTarget : 10;
+                    const today = new Date();
+                    const dateString = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                    const todayCount = activity[dateString] || 1;
+
+                    let msg = `✨ Review saved • ${todayCount} today`;
+                    if (todayCount === target) {
+                        msg = `🎯 Daily goal reached! (${todayCount}/${target})`;
+                    } else if (todayCount > target) {
+                        msg = `⭐ Goal completed! (${todayCount}/${target} today)`;
+                    } else if (target - todayCount <= 3 && target > todayCount) {
+                        msg = `🎯 Almost there! ${target - todayCount} more to hit daily goal`;
+                    }
+
+                    if (this._appControls) {
+                        safeFlushSync(() => {
+                            this._appControls?.setFeedbackMsg(msg);
+                            this._appControls?.setFeedbackVisible(true);
+                        });
+                    } else {
+                        const banner = document.getElementById('fsrs-feedback-banner');
+                        if (!banner) return;
+                        banner.textContent = msg;
+                        banner.style.display = 'block';
+                        banner.classList.add('fsrs-feedback-visible');
+                    }
+
+                    if (this._feedbackTimeout) {
+                        clearTimeout(this._feedbackTimeout);
+                    }
+
+                    this._feedbackTimeout = setTimeout(() => {
+                        try {
+                            if (this._appControls) {
+                                safeFlushSync(() => {
+                                    this._appControls?.setFeedbackVisible(false);
+                                });
+                            } else {
+                                const banner = document.getElementById('fsrs-feedback-banner');
+                                if (banner) {
+                                    banner.classList.remove('fsrs-feedback-visible');
+                                    banner.style.display = 'none';
+                                }
+                            }
+                        } catch {
+                            // Non-fatal banner timer cleanup catch
+                        }
+                    }, 2500);
+                } catch {
+                    // Non-fatal review feedback storage callback catch
+                }
+            });
+        } catch {
+            // Non-fatal review feedback catch
+        }
+    }
+
     handleRating(card: Card, rating: number, timeTaken: number = 0): void {
         try {
             const index = this.state.cards.findIndex((c: Card) => c.id === card.id);
@@ -1976,8 +2087,9 @@ export class Tracker {
             if (card.tags && card.tags.length > 0) {
                 const tagNames = TagRegistry.hydrate(card.tags, this.state.tagRegistry || []);
                 for (const tag of tagNames) {
-                    if (this.state.topicWeights[tag]) {
-                        customWeightsToApply = this.state.topicWeights[tag];
+                    const matchedWeights = this._getTopicWeightsForTag(tag);
+                    if (matchedWeights) {
+                        customWeightsToApply = matchedWeights;
                         break;
                     }
                 }
@@ -1988,6 +2100,7 @@ export class Tracker {
 
             this.saveCards();
             this.logReviewActivity();
+            this.showReviewFeedback();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('Tracker', `Failed to handle card rating: ${errorMessage}`, { cardId: card.id, rating, err });
@@ -2156,8 +2269,9 @@ export class Tracker {
             let customWeights: number[] | null = null;
             if (this.state.topicWeights && parsedTagNames.length > 0) {
                 for (const tagName of parsedTagNames) {
-                    if (this.state.topicWeights[tagName]) {
-                        customWeights = this.state.topicWeights[tagName];
+                    const matchedWeights = this._getTopicWeightsForTag(tagName);
+                    if (matchedWeights) {
+                        customWeights = matchedWeights;
                         break;
                     }
                 }

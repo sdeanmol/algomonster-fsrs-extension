@@ -58,7 +58,7 @@ export const MemoryHealthMetricsGrid: FunctionalComponent<MemoryHealthMetricsGri
         <div class="health-metrics-grid">
             <div class="health-metric">
                 <div class="hm-val">{stats.trueRetention ?? 0}%</div>
-                <div class="hm-lbl">Retention <span class="help-icon" data-tooltip="Probability you will remember your cards right now (FSRS Retrievability).">?</span></div>
+                <div class="hm-lbl">Retention <span class="help-icon" data-tooltip="Probability you will remember your cards right now (AlgoRecall Engine Retrievability).">?</span></div>
             </div>
             <div class="health-metric">
                 <div class="hm-val">{stats.totalLapses ?? 0}</div>
@@ -275,7 +275,7 @@ export class MemoryHealth {
                 <div class="health-metrics-grid">
                     <div class="health-metric">
                         <div class="hm-val">${stats.trueRetention}%</div>
-                        <div class="hm-lbl">Retention <span class="help-icon" data-tooltip="Probability you will remember your cards right now (FSRS Retrievability).">?</span></div>
+                        <div class="hm-lbl">Retention <span class="help-icon" data-tooltip="Probability you will remember your cards right now (AlgoRecall Engine Retrievability).">?</span></div>
                     </div>
                     <div class="health-metric">
                         <div class="hm-val">${stats.totalLapses}</div>

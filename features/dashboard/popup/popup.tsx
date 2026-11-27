@@ -14,9 +14,11 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'preact/hooks'
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { withErrorHandling } from '../../../decorators';
-import { Card, StorageData, ExtensionSettings, Achievement, PersonalRecords, FSRSParameters } from '../../../types/domain';
+import { Card, StorageData, ExtensionSettings, Achievement, PersonalRecords, FSRSParameters, TagEntry } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
 import { calculateStreaks, triggerConfetti } from './stats';
+import { TagRegistry } from '../../common/tags/tagRegistry';
+import { MultiSelect, MultiSelectOption } from '../../common/ui/components/MultiSelect';
 import {
     DEFAULT_DAILY_GOAL,
     DEFAULT_EXTENSION_SETTINGS,
@@ -226,6 +228,7 @@ export function PopupStatusToast({ message }: PopupStatusToastProps): VNode | nu
 export interface DailyFocusCardProps {
     completedToday?: number;
     dailyGoalTarget?: number;
+    dueCount?: number;
     currentStreak?: number;
     longestStreak?: number;
     activity?: Record<string, number>;
@@ -244,6 +247,7 @@ export interface DailyFocusCardProps {
 export function DailyFocusCard({
     completedToday = 0,
     dailyGoalTarget = DEFAULT_DAILY_GOAL,
+    dueCount = 0,
     currentStreak = 0,
     longestStreak = 0,
     activity = {},
@@ -258,7 +262,15 @@ export function DailyFocusCard({
     style,
     hasCards = true
 }: DailyFocusCardProps = {}): VNode {
-    const isGoalMet = dailyGoalTarget > 0 && completedToday >= dailyGoalTarget;
+    const goalInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (isEditingGoal) {
+            goalInputRef.current?.focus();
+        }
+    }, [isEditingGoal]);
+
+    const isGoalMet = dailyGoalTarget > 0 && completedToday >= dailyGoalTarget && dueCount === 0;
     const progress = dailyGoalTarget > 0 ? completedToday / dailyGoalTarget : 0;
     const circumference = 2 * Math.PI * 42;
     const offset = circumference - (Math.min(Math.max(progress, 0), 1) * circumference);
@@ -383,6 +395,7 @@ export function DailyFocusCard({
                                     style={{ display: isEditingGoal ? 'flex' : 'none' }}
                                 >
                                     <input
+                                        ref={goalInputRef}
                                         type="number"
                                         id="goal-input"
                                         className="goal-input"
@@ -438,6 +451,14 @@ export function DailyFocusCard({
                                                 <polyline points="22 4 12 14.01 9 11.01" />
                                             </svg>
                                             All {completedToday} reviews done! Inbox Zero achieved!
+                                        </Fragment>
+                                    ) : completedToday >= dailyGoalTarget && dueCount > 0 ? (
+                                        <Fragment>
+                                            <svg className="svg-icon" style={{ stroke: 'var(--md-success)', marginRight: '4px', display: 'inline-block', verticalAlign: 'middle' }} viewBox="0 0 24 24">
+                                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                                <polyline points="22 4 12 14.01 9 11.01" />
+                                            </svg>
+                                            Daily goal reached! {dueCount} more patterns due.
                                         </Fragment>
                                     ) : completedToday > 0 ? (
                                         <Fragment>
@@ -738,8 +759,11 @@ export function AchievementsModal({
     achievements = [],
     records = null
 }: AchievementsModalProps = {}): VNode {
+    const closeBtnRef = useRef<HTMLButtonElement>(null);
+
     useEffect(() => {
         if (!isOpen) return;
+        closeBtnRef.current?.focus();
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 onClose?.();
@@ -757,6 +781,7 @@ export function AchievementsModal({
             className={`modal-overlay ${isOpen ? '' : 'hide-panel'}`}
             role="dialog"
             aria-modal="true"
+            aria-hidden={isOpen ? 'false' : 'true'}
             aria-labelledby="achievements-modal-title"
             onClick={(e) => {
                 if (e.target === e.currentTarget) {
@@ -778,6 +803,7 @@ export function AchievementsModal({
                         Milestones & Records
                     </h3>
                     <button
+                        ref={closeBtnRef}
                         id="close-achievements-btn"
                         className="icon-btn close-modal-btn"
                         aria-label="Close dialog"
@@ -904,14 +930,17 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
     });
 
     const [cards, setCards] = useState<Card[]>(() => initialCards || []);
+    const [tagRegistry, setTagRegistry] = useState<TagEntry[]>([]);
     const [activity, setActivity] = useState<Record<string, number>>({});
     const [fsrsGlobalParams, setFsrsGlobalParams] = useState<Partial<FSRSParameters> | null>(null);
     const [dailyGoalTarget, setDailyGoalTarget] = useState<number>(DEFAULT_DAILY_GOAL);
     const [longestStreak, setLongestStreak] = useState<number>(0);
     const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
+    const [lastCelebratedMilestone, setLastCelebratedMilestone] = useState<number>(0);
+    const [hasLoadedStorage, setHasLoadedStorage] = useState<boolean>(false);
     const [studyPlanSettings, setStudyPlanSettings] = useState<{ isActive?: boolean; examDate?: string } | null>(null);
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const [selectedTag, setSelectedTag] = useState<string>('all');
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [statusToast, setStatusToast] = useState<{ message: string; isError: boolean } | null>(null);
     const [milestoneToast, setMilestoneToast] = useState<string | null>(null);
     const [isAchievementsOpen, setIsAchievementsOpen] = useState<boolean>(false);
@@ -920,6 +949,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
     const [isLifetimeView, setIsLifetimeView] = useState<boolean>(false);
     const [isEditingGoal, setIsEditingGoal] = useState<boolean>(false);
     const [goalInputVal, setGoalInputVal] = useState<string>(String(DEFAULT_DAILY_GOAL));
+    const [isCheckingNow, setIsCheckingNow] = useState<boolean>(false);
     const heatmapGridRef = useRef<HTMLDivElement>(null);
 
     // ── 2. Load Stored Data on Mount & Reloads ──
@@ -929,6 +959,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                 const result = (await chrome.storage.local.get([
                     'extensionSettings',
                     'fsrsCards',
+                    'tagRegistry',
                     'fsrsActivity',
                     'ratingPromptState',
                     'dailyGoalTarget',
@@ -938,6 +969,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                     'studyPlanSettings',
                     'fsrsGlobalParams'
                 ])) as StorageData & {
+                    tagRegistry?: TagEntry[];
                     ratingPromptState?: { status?: string; snoozedUntil?: number };
                     dailyGoalTarget?: number;
                     longestStreak?: number;
@@ -953,6 +985,9 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                 if (result.fsrsCards) {
                     setCards(result.fsrsCards);
                 }
+                if (Array.isArray(result.tagRegistry)) {
+                    setTagRegistry(result.tagRegistry);
+                }
                 if (result.fsrsActivity) {
                     setActivity(result.fsrsActivity);
                 }
@@ -962,6 +997,9 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                 }
                 if (typeof result.longestStreak === 'number') {
                     setLongestStreak(result.longestStreak);
+                }
+                if (typeof result.lastCelebratedMilestone === 'number') {
+                    setLastCelebratedMilestone(result.lastCelebratedMilestone);
                 }
                 if (result.unlockedAchievements) {
                     setUnlockedAchievements(result.unlockedAchievements);
@@ -981,6 +1019,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                     await chrome.storage.local.set({ ratingPromptState: rating });
                 }
                 setRatingStatus((rating.status as 'unrated' | 'snoozed' | 'rated') || 'unrated');
+                setHasLoadedStorage(true);
             }
 
             if (typeof Notification !== 'undefined') {
@@ -1087,8 +1126,8 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
     }, [cards]);
 
     // Achievements Evaluation & Personal Records
-    const { evaluatedAchievements, evaluatedRecords } = useMemo(() => {
-        const evalResult = evaluateAchievements({
+    const evalResult = useMemo(() => {
+        return evaluateAchievements({
             cards,
             activity,
             dailyGoalTarget,
@@ -1097,11 +1136,98 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
             completedToday,
             unlockedIds: unlockedAchievements
         });
-        return {
-            evaluatedAchievements: evalResult.achievements,
-            evaluatedRecords: evalResult.records
-        };
     }, [cards, activity, dailyGoalTarget, currentStreak, effectiveLongestStreak, completedToday, unlockedAchievements]);
+
+    const evaluatedAchievements = evalResult.achievements;
+    const evaluatedRecords = evalResult.records;
+
+    const showMilestoneToast = useCallback((message: string) => {
+        safeFlushSync(() => {
+            setMilestoneToast(message);
+        });
+        setTimeout(() => {
+            safeFlushSync(() => {
+                setMilestoneToast(prev => (prev === message ? null : prev));
+            });
+        }, 4000);
+    }, []);
+
+    // Persist longestStreak, unlockedAchievements, and milestones after initial load
+    useEffect(() => {
+        if (!hasLoadedStorage) return;
+
+        let celebrationTimer: ReturnType<typeof setTimeout> | null = null;
+        let celebrationMessage: string | null = null;
+
+        if (effectiveLongestStreak > longestStreak) {
+            setLongestStreak(effectiveLongestStreak);
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                chrome.storage.local.set({ longestStreak: effectiveLongestStreak });
+            }
+        }
+
+        if (evalResult.newUnlocks.length > 0) {
+            setUnlockedAchievements(evalResult.allUnlockedIds);
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                chrome.storage.local.set({ unlockedAchievements: evalResult.allUnlockedIds });
+            }
+            const first = evalResult.newUnlocks[0];
+            celebrationMessage = `🏆 ${first.icon} ${first.title} Unlocked!`;
+        }
+
+        let newMilestone: { type: 'streak' | 'reviews'; value: number } | null = null;
+        for (const milestone of STREAK_MILESTONES) {
+            if (currentStreak >= milestone && lastCelebratedMilestone < milestone) {
+                newMilestone = { type: 'streak', value: milestone };
+            }
+        }
+        if (!newMilestone) {
+            for (const milestone of REVIEW_MILESTONES) {
+                if (totalActivityReviews >= milestone && lastCelebratedMilestone < milestone) {
+                    newMilestone = { type: 'reviews', value: milestone };
+                }
+            }
+        }
+
+        if (newMilestone) {
+            const milestoneKey = newMilestone.value;
+            setLastCelebratedMilestone(milestoneKey);
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+                chrome.storage.local.set({ lastCelebratedMilestone: milestoneKey });
+            }
+            if (!celebrationMessage) {
+                celebrationMessage = newMilestone.type === 'streak'
+                    ? `🔥 ${milestoneKey}-Day Streak!`
+                    : `⭐ ${milestoneKey} Reviews!`;
+            }
+        }
+
+        if (celebrationMessage) {
+            const msg = celebrationMessage;
+            celebrationTimer = setTimeout(() => {
+                try {
+                    showMilestoneToast(msg);
+                    triggerConfetti();
+                } catch (err) {
+                    UIUtils.catchError('PopupApp', 'Error in milestone celebration callback', err);
+                }
+            }, 300);
+        }
+
+        return () => {
+            if (celebrationTimer) clearTimeout(celebrationTimer);
+        };
+    }, [
+        hasLoadedStorage,
+        effectiveLongestStreak,
+        longestStreak,
+        evalResult.newUnlocks,
+        evalResult.allUnlockedIds,
+        currentStreak,
+        totalActivityReviews,
+        lastCelebratedMilestone,
+        showMilestoneToast
+    ]);
 
     // Study Plan Days Left
     const studyPlanDaysLeft = useMemo(() => {
@@ -1110,47 +1236,55 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
         return Math.max(0, Math.ceil((examTime - now) / (1000 * 60 * 60 * 24)));
     }, [studyPlanSettings, now]);
 
-    // Tag list for dropdown
-    const allTags = useMemo(() => {
+    // Tag options for MultiSelect dropdown (prefers canonical tagRegistry, falls back to raw card tags)
+    const availableTagOptions = useMemo<MultiSelectOption[]>(() => {
+        if (tagRegistry.length > 0) {
+            return [...tagRegistry]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(entry => ({ value: entry.id, label: entry.name }));
+        }
         const set = new Set<string>();
         for (const c of cards) {
             if (c.tags) {
                 for (const t of c.tags) set.add(t);
             }
         }
-        return Array.from(set).sort();
-    }, [cards]);
+        return Array.from(set).sort().map(t => ({ value: t, label: t }));
+    }, [cards, tagRegistry]);
 
-    // Quick Search Filtering (Searches 4 fields: problemTitle, problemUrl, tags, approach)
+    // Quick Search Filtering (Searches 4 fields: problemTitle, problemUrl, hydrated tags, approach)
     const filteredCards = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
-        if (!query && selectedTag === 'all') return [];
+        if (!query && selectedTags.length === 0) return [];
 
         return cards.filter(card => {
-            if (selectedTag !== 'all' && !(card.tags && card.tags.includes(selectedTag))) {
+            if (selectedTags.length > 0 && !(card.tags && card.tags.some(t => selectedTags.includes(t)))) {
                 return false;
             }
+            const hydratedTags = tagRegistry.length > 0
+                ? TagRegistry.hydrate(card.tags || [], tagRegistry)
+                : (card.tags || []);
             if (query) {
                 const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(query);
                 const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(query);
-                const tagMatch = card.tags && card.tags.some(t => t.toLowerCase().includes(query));
+                const tagMatch = hydratedTags.some(t => t.toLowerCase().includes(query));
                 const approachMatch = card.approach && card.approach.toLowerCase().includes(query);
                 if (!titleMatch && !urlMatch && !tagMatch && !approachMatch) return false;
             }
             return true;
         });
-    }, [cards, searchQuery, selectedTag]);
+    }, [cards, tagRegistry, searchQuery, selectedTags]);
 
     // View All Search URL
     const searchViewAllUrl = useMemo(() => {
         const urlParams = new URLSearchParams();
         urlParams.append('view', 'total');
         if (searchQuery.trim()) urlParams.append('search', searchQuery.trim());
-        if (selectedTag && selectedTag !== 'all') urlParams.append('tag', selectedTag);
+        if (selectedTags.length > 0) urlParams.append('tag', selectedTags.join(','));
         return chrome.runtime?.getURL
             ? chrome.runtime.getURL(`features/common/data/data.html?${urlParams.toString()}`)
             : `features/common/data/data.html?${urlParams.toString()}`;
-    }, [searchQuery, selectedTag]);
+    }, [searchQuery, selectedTags]);
 
     // Heatmap Cells Generation
     const heatmapCells = useMemo(() => {
@@ -1293,7 +1427,9 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
             }).length;
 
             if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+                setIsCheckingNow(true);
                 chrome.runtime.sendMessage({ action: 'check_due_cards_now' }, (response) => {
+                    setIsCheckingNow(false);
                     const localDueCount = calculateLocalDue();
                     let count = (response && response.success && typeof response.dueCount === 'number') ? response.dueCount : 0;
                     if (count === 0 && localDueCount > 0) {
@@ -1307,6 +1443,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                 showStatus(`Checked! ${localDueCount} review${localDueCount === 1 ? '' : 's'} due.`, false);
             }
         } catch (err) {
+            setIsCheckingNow(false);
             UIUtils.catchError('PopupApp', 'Error checking due reviews', err);
         }
     }, [cards, showStatus, loadInitialData]);
@@ -1413,22 +1550,27 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                 const result = await chrome.storage.local.get(['debugLogs']);
                 const logs = result?.debugLogs || [];
                 if (!logs || logs.length === 0) {
-                    showStatus('No debug logs found.', false);
+                    showStatus('No debug logs found.', true);
                     return;
                 }
-                const jsonStr = JSON.stringify(logs, null, 2);
+                const logLines = logs.map((l: unknown) => JSON.stringify(l)).join('\n');
+                const blob = new Blob([logLines], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const filename = `algorecall_debug_logs_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
                 if (BROWSER_CONFIG.supportsDownloads && chrome.downloads?.download) {
-                    const blob = new Blob([jsonStr], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    chrome.downloads.download({ url, filename: `algorecall-debug-${Date.now()}.json` }, () => {
-                        showStatus('Debug logs exported.', false);
+                    chrome.downloads.download({ url, filename, saveAs: true }, () => {
+                        try {
+                            URL.revokeObjectURL(url);
+                        } catch (revokeErr) {
+                            const errorMessage = revokeErr instanceof Error ? revokeErr.message : String(revokeErr);
+                            Logger.debug('Popup', `Ignore revokeObjectURL error: ${errorMessage}`, { revokeErr });
+                        }
                     });
                 } else {
-                    const blob = new Blob([jsonStr], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    ActionService.triggerDomDownload(url, `algorecall-debug-${Date.now()}.json`);
-                    showStatus('Debug logs exported.', false);
+                    ActionService.triggerDomDownload(url, filename);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
                 }
+                showStatus(`Exported ${logs.length} debug logs!`, false);
             }
         } catch (err) {
             UIUtils.catchError('PopupApp', 'Error exporting debug logs', err);
@@ -1476,6 +1618,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                             className="icon-btn check-now-header-btn"
                             title="Check for due reviews immediately"
                             aria-label="Check for due reviews immediately"
+                            disabled={isCheckingNow}
                             onClick={handleCheckNow}
                         >
                             <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -1567,11 +1710,16 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                             <line x1="12" y1="9" x2="12" y2="13" />
                             <line x1="12" y1="17" x2="12.01" y2="17" />
                         </svg>
-                        <span>Reminders work best with notifications enabled.</span>
+                        <span>
+                            {notificationPermission === 'denied'
+                                ? '⚠️ Notifications blocked. Enable them in settings for reminders.'
+                                : 'Reminders work best with notifications enabled.'}
+                        </span>
                     </div>
                     <button
                         id="enable-notifications-btn"
                         className="btn-text-accent"
+                        style={{ display: notificationPermission === 'denied' ? 'none' : undefined }}
                         onClick={handleEnableNotifications}
                     >
                         Enable
@@ -1589,7 +1737,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                     >
                         <div className="rating-text-group">
                             <h3 className="rating-title">Enjoying AlgoRecall? 🌟</h3>
-                            <p className="rating-desc" id="rating-prompt-text">Rate us 5 stars to help us grow!</p>
+                            <p className="rating-desc" id="rating-prompt-text">{BROWSER_CONFIG.ratingPromptText}</p>
                         </div>
                         <div className="rating-actions-v">
                             <a
@@ -1603,7 +1751,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                                 <svg className="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
                                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                                 </svg>
-                                <span id="rate-store-label">Rate on {BROWSER_CONFIG.storeName}</span>
+                                <span id="rate-store-label">{BROWSER_CONFIG.ratingButtonLabel}</span>
                             </a>
                             <div className="rating-sub-actions">
                                 <button id="snooze-rate-btn" className="btn-link" onClick={handleSnoozeRating}>
@@ -1683,53 +1831,55 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                                 onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
                             />
                         </div>
-                        <select
+                        <MultiSelect
                             id="popup-tag-filter"
-                            className="tag-filter-select"
-                            aria-label="Filter by tag"
-                            value={selectedTag}
-                            onChange={(e) => setSelectedTag((e.target as HTMLSelectElement).value)}
-                        >
-                            <option value="all">All Tags</option>
-                            {allTags.map(tag => (
-                                <option key={tag} value={tag}>{tag}</option>
-                            ))}
-                        </select>
+                            options={availableTagOptions}
+                            selectedValues={selectedTags}
+                            placeholder="All Tags"
+                            searchPlaceholder="Search tags..."
+                            ariaLabel="Filter by tag"
+                            onChange={setSelectedTags}
+                        />
                     </div>
 
                     {/* Search Results Dropdown List */}
                     <div
                         id="popup-search-results"
                         className="search-results-container"
-                        style={{ display: searchQuery.trim() || selectedTag !== 'all' ? 'block' : 'none' }}
+                        style={{ display: searchQuery.trim() || selectedTags.length > 0 ? 'block' : 'none' }}
                     >
                         {filteredCards.length === 0 ? (
                             <div className="popup-search-empty">No matching patterns found.</div>
                         ) : (
                             <Fragment>
-                                {filteredCards.slice(0, SEARCH_MAX_RESULTS).map(card => (
-                                    <a
-                                        key={card.id}
-                                        href={card.problemUrl || '#'}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="popup-search-item"
-                                        title={card.problemTitle || 'Untitled'}
-                                        aria-label={card.problemTitle || 'Untitled'}
-                                    >
-                                        <div className="popup-search-item-top">
-                                            <span className="popup-search-title">{card.problemTitle || 'Untitled'}</span>
-                                            <span className={`popup-badge ${card.due <= now ? 'popup-badge-due' : 'popup-badge-safe'}`}>
-                                                {card.due <= now ? 'Due' : 'Safe'}
-                                            </span>
-                                        </div>
-                                        <div className="popup-search-item-tags">
-                                            {(card.tags || []).slice(0, 3).map((tag, idx) => (
-                                                <span key={idx} className="popup-tag">{tag}</span>
-                                            ))}
-                                        </div>
-                                    </a>
-                                ))}
+                                {filteredCards.slice(0, SEARCH_MAX_RESULTS).map(card => {
+                                    const hydratedTags = tagRegistry.length > 0
+                                        ? TagRegistry.hydrate(card.tags || [], tagRegistry)
+                                        : (card.tags || []);
+                                    return (
+                                        <a
+                                            key={card.id}
+                                            href={card.problemUrl || '#'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="popup-search-item"
+                                            title={card.problemTitle || 'Untitled'}
+                                            aria-label={card.problemTitle || 'Untitled'}
+                                        >
+                                            <div className="popup-search-item-top">
+                                                <span className="popup-search-title">{card.problemTitle || 'Untitled'}</span>
+                                                <span className={`popup-badge ${card.due <= now ? 'popup-badge-due' : 'popup-badge-safe'}`}>
+                                                    {card.due <= now ? 'Due' : 'Safe'}
+                                                </span>
+                                            </div>
+                                            <div className="popup-search-item-tags">
+                                                {hydratedTags.slice(0, 3).map((tag, idx) => (
+                                                    <span key={idx} className="popup-tag">{tag}</span>
+                                                ))}
+                                            </div>
+                                        </a>
+                                    );
+                                })}
                                 {filteredCards.length > SEARCH_MAX_RESULTS && (
                                     <a
                                         href={searchViewAllUrl}
@@ -1749,6 +1899,7 @@ export const PopupApp: FunctionalComponent<PopupAppProps> = ({ initialCards, ini
                 <DailyFocusCard
                     completedToday={completedToday}
                     dailyGoalTarget={dailyGoalTarget}
+                    dueCount={dueCount}
                     currentStreak={currentStreak}
                     longestStreak={effectiveLongestStreak}
                     activity={activity}

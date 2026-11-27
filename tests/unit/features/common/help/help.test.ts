@@ -216,4 +216,32 @@ describe('HelpCenterSPA & HelpApp', () => {
       expect(() => helpCenter.smoothScrollToTab('overview')).not.toThrow();
     });
   });
+
+  describe('GAP-002 Live Search Filtering & Tab Highlighting', () => {
+    it('filters cards by searchQuery, highlights matching tabs, and shows empty state when no match', async () => {
+      await act(async () => {
+        render(h(HelpApp, { spa: helpCenter }), container);
+      });
+
+      const searchInput = container.querySelector('#help-search-input') as HTMLInputElement;
+      expect(searchInput).not.toBeNull();
+
+      await act(async () => {
+        searchInput.value = 'Anki';
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+      const advPane = container.querySelector('#tab-advanced');
+      expect(advPane?.classList.contains('active')).toBe(true);
+      expect(container.querySelector('.tab-btn[data-tab="advanced"]')?.classList.contains('active')).toBe(true);
+      expect(container.querySelector('#help-search-empty')).toBeNull();
+
+      await act(async () => {
+        searchInput.value = 'xyznonexistentkeyword999';
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+      expect(container.querySelector('#help-search-empty')).not.toBeNull();
+    });
+  });
 });

@@ -219,6 +219,25 @@ describe('Editor Preact Components', () => {
             expect(container.querySelector('#save-close-btn')).not.toBeNull();
             expect(container.querySelector('#status-toast')).not.toBeNull();
         });
+
+        it('GAP-029: focuses textarea when toggling from Preview back to Edit mode', () => {
+            const manager = new EditorManager();
+            render(<EditorApp manager={manager} />, container);
+
+            const previewBtn = container.querySelector('#preview-toggle-btn') as HTMLButtonElement;
+            // Edit -> Preview
+            previewBtn.click();
+            const textareaInPreview = container.querySelector('#editor-textarea') as HTMLTextAreaElement | null;
+            // The textarea is hidden with display:none in preview mode (not unmounted)
+            expect(textareaInPreview?.style.display).toBe('none');
+
+            // Preview -> Edit
+            previewBtn.click();
+            const textarea = container.querySelector('#editor-textarea') as HTMLTextAreaElement;
+            expect(textarea).not.toBeNull();
+            expect(textarea.style.display).not.toBe('none');
+            expect(document.activeElement).toBe(textarea);
+        });
     });
 });
 

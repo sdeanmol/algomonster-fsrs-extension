@@ -5,7 +5,7 @@
  * Eliminates all imperative DOM querying, classList toggling, and multi-mount tab sub-trees.
  */
 
-import { h, Fragment, FunctionalComponent, render } from 'preact';
+import { h, Fragment, Component, ComponentChildren, FunctionalComponent, render } from 'preact';
 import { useState, useEffect, useMemo, useCallback } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
@@ -26,6 +26,66 @@ import FsrsScheduler from '@tracker/scheduler/fsrsScheduler';
  * Valid tab navigation identifiers in the Analytics SPA dashboard.
  */
 export type TabKey = 'overview' | 'readiness' | 'memory' | 'simulation' | 'tags' | 'performance' | 'insights';
+
+export interface AnalyticsTabErrorBoundaryProps {
+    tabId: TabKey;
+    tabTitle: string;
+    children: ComponentChildren;
+}
+
+export interface AnalyticsTabErrorBoundaryState {
+    hasError: boolean;
+    errorMessage: string;
+}
+
+/**
+ * Error boundary wrapping individual analytics tab sub-trees so a render crash
+ * in one tab displays a fallback `.error-card` without breaking the SPA shell.
+ */
+export class AnalyticsTabErrorBoundary extends Component<AnalyticsTabErrorBoundaryProps, AnalyticsTabErrorBoundaryState> {
+    constructor(props: AnalyticsTabErrorBoundaryProps) {
+        super(props);
+        this.state = { hasError: false, errorMessage: '' };
+    }
+
+    static getDerivedStateFromError(error: unknown): AnalyticsTabErrorBoundaryState {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return { hasError: true, errorMessage };
+    }
+
+    componentDidCatch(error: unknown): void {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        Logger.error('AnalyticsDashboardSPA', `Failed to render tab '${this.props.tabId}': ${errorMessage}`, {
+            tabId: this.props.tabId,
+            err: error
+        });
+    }
+
+    componentDidUpdate(prevProps: AnalyticsTabErrorBoundaryProps): void {
+        if (prevProps.tabId !== this.props.tabId && this.state.hasError) {
+            this.setState({ hasError: false, errorMessage: '' });
+        }
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div class="error-card p-6 bg-red-900/20 border border-red-500/30 rounded-xl text-red-300">
+                    <h4 class="font-bold text-lg mb-2">Failed to render {this.props.tabTitle || this.props.tabId}</h4>
+                    <p class="text-sm opacity-80 mb-4">{this.state.errorMessage}</p>
+                    <button
+                        type="button"
+                        class="px-4 py-2 bg-red-600/40 hover:bg-red-600/60 text-white text-xs font-semibold rounded-lg transition-colors"
+                        onClick={() => window.location.reload()}
+                    >
+                        Reload Page
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 export const TAB_TITLES: Record<TabKey, string> = {
     overview: 'Overview',
@@ -376,25 +436,53 @@ export const AnalyticsApp: FunctionalComponent<AnalyticsAppProps> = ({
                 />
                 <div class="tab-content-container">
                     <div id="tab-overview" class={`tab-pane ${currentTab === 'overview' ? 'active' : ''}`}>
-                        {currentTab === 'overview' && <OverviewTab cards={cards} activity={activity} dataUtils={dataUtils} />}
+                        {currentTab === 'overview' && (
+                            <AnalyticsTabErrorBoundary tabId="overview" tabTitle={TAB_TITLES.overview}>
+                                <OverviewTab cards={cards} activity={activity} dataUtils={dataUtils} />
+                            </AnalyticsTabErrorBoundary>
+                        )}
                     </div>
                     <div id="tab-readiness" class={`tab-pane ${currentTab === 'readiness' ? 'active' : ''}`}>
-                        {currentTab === 'readiness' && <ReadinessTab cards={cards} dataUtils={dataUtils} />}
+                        {currentTab === 'readiness' && (
+                            <AnalyticsTabErrorBoundary tabId="readiness" tabTitle={TAB_TITLES.readiness}>
+                                <ReadinessTab cards={cards} dataUtils={dataUtils} />
+                            </AnalyticsTabErrorBoundary>
+                        )}
                     </div>
                     <div id="tab-memory" class={`tab-pane ${currentTab === 'memory' ? 'active' : ''}`}>
-                        {currentTab === 'memory' && <MemoryTab cards={cards} dataUtils={dataUtils} />}
+                        {currentTab === 'memory' && (
+                            <AnalyticsTabErrorBoundary tabId="memory" tabTitle={TAB_TITLES.memory}>
+                                <MemoryTab cards={cards} dataUtils={dataUtils} />
+                            </AnalyticsTabErrorBoundary>
+                        )}
                     </div>
                     <div id="tab-simulation" class={`tab-pane ${currentTab === 'simulation' ? 'active' : ''}`}>
-                        {currentTab === 'simulation' && <SimulationTab cards={cards} dataUtils={dataUtils} />}
+                        {currentTab === 'simulation' && (
+                            <AnalyticsTabErrorBoundary tabId="simulation" tabTitle={TAB_TITLES.simulation}>
+                                <SimulationTab cards={cards} dataUtils={dataUtils} />
+                            </AnalyticsTabErrorBoundary>
+                        )}
                     </div>
                     <div id="tab-tags" class={`tab-pane ${currentTab === 'tags' ? 'active' : ''}`}>
-                        {currentTab === 'tags' && <TagsTab cards={cards} dataUtils={dataUtils} />}
+                        {currentTab === 'tags' && (
+                            <AnalyticsTabErrorBoundary tabId="tags" tabTitle={TAB_TITLES.tags}>
+                                <TagsTab cards={cards} dataUtils={dataUtils} />
+                            </AnalyticsTabErrorBoundary>
+                        )}
                     </div>
                     <div id="tab-performance" class={`tab-pane ${currentTab === 'performance' ? 'active' : ''}`}>
-                        {currentTab === 'performance' && <PerformanceTab cards={cards} dataUtils={dataUtils} />}
+                        {currentTab === 'performance' && (
+                            <AnalyticsTabErrorBoundary tabId="performance" tabTitle={TAB_TITLES.performance}>
+                                <PerformanceTab cards={cards} dataUtils={dataUtils} />
+                            </AnalyticsTabErrorBoundary>
+                        )}
                     </div>
                     <div id="tab-insights" class={`tab-pane ${currentTab === 'insights' ? 'active' : ''}`}>
-                        {currentTab === 'insights' && <InsightsTab cards={cards} dataUtils={dataUtils} />}
+                        {currentTab === 'insights' && (
+                            <AnalyticsTabErrorBoundary tabId="insights" tabTitle={TAB_TITLES.insights}>
+                                <InsightsTab cards={cards} dataUtils={dataUtils} />
+                            </AnalyticsTabErrorBoundary>
+                        )}
                     </div>
                 </div>
             </main>

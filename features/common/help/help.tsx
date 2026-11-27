@@ -7,7 +7,7 @@
  */
 
 import { h, render, JSX } from 'preact';
-import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'preact/hooks';
 import { UIUtils } from '../utils/uiUtils';
 import {
     OverviewTabContent,
@@ -32,6 +32,8 @@ export interface HelpTabBarProps {
     tabs: HelpTabItem[];
     /** Identifier of the currently active tab */
     activeTab: string;
+    /** Optional set of tab IDs to highlight during active search */
+    highlightedTabs?: Set<string>;
     /** Callback invoked when a tab button is clicked */
     onSelect: (tabId: string) => void;
 }
@@ -42,12 +44,13 @@ export interface HelpTabBarProps {
 export function HelpTabBar({
     tabs,
     activeTab,
+    highlightedTabs,
     onSelect
 }: HelpTabBarProps): JSX.Element {
     return (
         <nav className="tabs-container" role="tablist">
             {tabs.map((tab) => {
-                const isActive = tab.id === activeTab;
+                const isActive = highlightedTabs ? highlightedTabs.has(tab.id) : tab.id === activeTab;
                 return (
                     <button
                         key={tab.id}
@@ -226,6 +229,10 @@ export function HelpApp({ spa: injectedSpa, tabs = DEFAULT_HELP_TABS }: HelpAppP
         return spa.currentTab || 'overview';
     });
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [matchingTabs, setMatchingTabs] = useState<Set<string> | undefined>(undefined);
+    const [hasSearchMatches, setHasSearchMatches] = useState<boolean>(true);
+    const contentRef = useRef<HTMLElement>(null);
+    const trimmedQuery = searchQuery.toLowerCase().trim();
 
     useEffect(() => {
         spa.currentTab = currentTab;
@@ -261,6 +268,49 @@ export function HelpApp({ spa: injectedSpa, tabs = DEFAULT_HELP_TABS }: HelpAppP
         return () => clearTimeout(timer);
     }, [spa, currentTab]);
 
+    useEffect(() => {
+        const container = contentRef.current;
+        if (!container) return;
+
+        const allCards = container.querySelectorAll('.card, .gamify-card, .strategy-card');
+        const tabPanes = container.querySelectorAll('.tab-pane');
+
+        if (!trimmedQuery) {
+            allCards.forEach((card) => {
+                (card as HTMLElement).style.display = '';
+            });
+            tabPanes.forEach((pane) => {
+                pane.classList.toggle('active', pane.id === `tab-${currentTab}`);
+            });
+            setMatchingTabs(undefined);
+            setHasSearchMatches(true);
+            return;
+        }
+
+        const nextMatchingTabs = new Set<string>();
+        let anyMatch = false;
+
+        tabPanes.forEach((pane) => {
+            let paneHasMatch = false;
+            const cardsInPane = pane.querySelectorAll('.card, .gamify-card, .strategy-card');
+            cardsInPane.forEach((card) => {
+                const text = card.textContent?.toLowerCase() || '';
+                const isMatch = text.includes(trimmedQuery);
+                (card as HTMLElement).style.display = isMatch ? '' : 'none';
+                if (isMatch) paneHasMatch = true;
+            });
+            pane.classList.toggle('active', paneHasMatch);
+            if (paneHasMatch) {
+                anyMatch = true;
+                const tabId = pane.id.startsWith('tab-') ? pane.id.slice(4) : pane.id;
+                nextMatchingTabs.add(tabId);
+            }
+        });
+
+        setMatchingTabs(nextMatchingTabs);
+        setHasSearchMatches(anyMatch);
+    }, [trimmedQuery, currentTab]);
+
     const handleSelectTab = useCallback((tabId: string) => {
         setCurrentTab(tabId);
         spa.switchTab(tabId);
@@ -280,10 +330,10 @@ export function HelpApp({ spa: injectedSpa, tabs = DEFAULT_HELP_TABS }: HelpAppP
             {/* Embedded styles for reactive tab pane display and search filtering */}
             <style>{`
                 .tab-pane { display: none !important; }
-                #tab-${currentTab} { display: block !important; }
-                ${searchQuery ? `
-                    .tab-pane { display: block !important; }
-                ` : ''}
+                ${trimmedQuery
+                    ? `.tab-pane.active { display: block !important; }`
+                    : `#tab-${currentTab} { display: block !important; }`
+                }
             `}</style>
 
             {/* Header: Brand badge, title, live search box, and close button */}
@@ -325,11 +375,12 @@ export function HelpApp({ spa: injectedSpa, tabs = DEFAULT_HELP_TABS }: HelpAppP
             <HelpTabBar
                 tabs={tabs}
                 activeTab={currentTab}
+                highlightedTabs={matchingTabs}
                 onSelect={handleSelectTab}
             />
 
             {/* Tab Contents */}
-            <main className="tab-content-container">
+            <main className="tab-content-container" ref={contentRef}>
                 <OverviewTabContent />
                 <FsrsTabContent />
                 <HighlighterTabContent />
@@ -337,6 +388,11 @@ export function HelpApp({ spa: injectedSpa, tabs = DEFAULT_HELP_TABS }: HelpAppP
                 <GamificationTabContent />
                 <AdvancedTabContent onSwitchTab={handleSelectTab} />
                 <PrivacyTabContent />
+                {trimmedQuery && !hasSearchMatches && (
+                    <div id="help-search-empty" className="empty-state" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--md-text-med)' }}>
+                        No help topics found matching &ldquo;{searchQuery.trim()}&rdquo;.
+                    </div>
+                )}
             </main>
         </div>
     );

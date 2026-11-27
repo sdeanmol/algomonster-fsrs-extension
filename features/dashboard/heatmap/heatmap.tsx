@@ -17,7 +17,7 @@
  */
 
 import { h, VNode, render } from 'preact';
-import { useState, useEffect, useMemo } from 'preact/hooks';
+import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { HeatmapStats, HeatmapStatsDashboard } from './heatmap-stats';
@@ -231,11 +231,18 @@ export function HeatmapApp({ initialActivityData }: HeatmapAppProps): VNode {
     const [selectedYear, setSelectedYear] = useState<string>(currentYear);
     const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
     const [selectedDay, setSelectedDay] = useState<string>(currentDay);
+    const wrapperRef = useRef<HTMLDivElement>(null);
 
     // Load activity data from storage if not provided
     useEffect(() => {
         if (!initialActivityData && typeof chrome !== 'undefined' && chrome.storage?.local) {
             chrome.storage.local.get(['fsrsActivity'], (result: StorageData) => {
+                const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
+                if (lastError) {
+                    const errorMessage = lastError.message || String(lastError);
+                    Logger.error('HeatmapDashboard', `Storage error fetching fsrsActivity: ${errorMessage}`, { error: lastError });
+                    return;
+                }
                 if (result && result.fsrsActivity) {
                     setActivityData(result.fsrsActivity);
                 }
@@ -243,15 +250,9 @@ export function HeatmapApp({ initialActivityData }: HeatmapAppProps): VNode {
         }
     }, [initialActivityData]);
 
-    const years = useMemo(() => {
-        const ySet = new Set<string>([currentYear]);
-        Object.keys(activityData).forEach((d) => ySet.add(d.split('-')[0]));
-        return Array.from(ySet).sort().reverse();
-    }, [activityData, currentYear]);
-
-    const months = useMemo(() => {
+    const getMonthsForYear = (data: Record<string, number>, year: string) => {
         const activeMonths = new Set<string>();
-        Object.keys(activityData).filter((d) => d.startsWith(selectedYear)).forEach((d) => activeMonths.add(d.split('-')[1]));
+        Object.keys(data).filter((d) => d.startsWith(year)).forEach((d) => activeMonths.add(d.split('-')[1]));
         if (activeMonths.size === 0) {
             for (let i = 1; i <= 12; i++) activeMonths.add(i.toString().padStart(2, '0'));
         }
@@ -259,20 +260,48 @@ export function HeatmapApp({ initialActivityData }: HeatmapAppProps): VNode {
             value: m,
             label: MONTH_NAMES[parseInt(m, 10) - 1] || m
         }));
-    }, [activityData, selectedYear]);
+    };
 
-    const days = useMemo(() => {
+    const getDaysForMonth = (data: Record<string, number>, year: string, month: string) => {
         const activeDays = new Set<string>();
-        Object.keys(activityData).filter((d) => d.startsWith(`${selectedYear}-${selectedMonth}`)).forEach((d) => activeDays.add(d.split('-')[2]));
+        Object.keys(data).filter((d) => d.startsWith(`${year}-${month}`)).forEach((d) => activeDays.add(d.split('-')[2]));
         if (activeDays.size === 0) {
-            const daysInMonth = new Date(parseInt(selectedYear, 10), parseInt(selectedMonth, 10), 0).getDate();
+            const daysInMonth = new Date(parseInt(year, 10), parseInt(month, 10), 0).getDate();
             for (let i = 1; i <= daysInMonth; i++) activeDays.add(i.toString().padStart(2, '0'));
         }
         return Array.from(activeDays).sort().map((d) => ({
             value: d,
             label: `Day ${parseInt(d, 10)}`
         }));
-    }, [activityData, selectedYear, selectedMonth]);
+    };
+
+    const years = useMemo(() => {
+        const ySet = new Set<string>([currentYear]);
+        Object.keys(activityData).forEach((d) => ySet.add(d.split('-')[0]));
+        return Array.from(ySet).sort().reverse();
+    }, [activityData, currentYear]);
+
+    const months = useMemo(() => getMonthsForYear(activityData, selectedYear), [activityData, selectedYear]);
+
+    const days = useMemo(() => getDaysForMonth(activityData, selectedYear, selectedMonth), [activityData, selectedYear, selectedMonth]);
+
+    useEffect(() => {
+        if (months.length > 0 && !months.some((m) => m.value === selectedMonth)) {
+            const fallbackMonth = (selectedYear === currentYear && months.some((m) => m.value === currentMonth))
+                ? currentMonth
+                : months[0].value;
+            setSelectedMonth(fallbackMonth);
+        }
+    }, [months, selectedMonth, selectedYear, currentYear, currentMonth]);
+
+    useEffect(() => {
+        if (days.length > 0 && !days.some((d) => d.value === selectedDay)) {
+            const fallbackDay = (selectedYear === currentYear && selectedMonth === currentMonth && days.some((d) => d.value === currentDay))
+                ? currentDay
+                : days[0].value;
+            setSelectedDay(fallbackDay);
+        }
+    }, [days, selectedDay, selectedYear, selectedMonth, currentYear, currentMonth, currentDay]);
 
     const { cells, summaryText } = useMemo(() => {
         const y = parseInt(selectedYear, 10);
@@ -379,6 +408,37 @@ export function HeatmapApp({ initialActivityData }: HeatmapAppProps): VNode {
 
     const streakStats = useMemo(() => HeatmapStats.getStreakStats(activityData), [activityData]);
 
+    useEffect(() => {
+        if (filterType === 'lifetime' && wrapperRef.current) {
+            wrapperRef.current.scrollLeft = wrapperRef.current.scrollWidth;
+        }
+    }, [filterType, cells]);
+
+    const handleYearChange = (newYear: string) => {
+        const nextMonths = getMonthsForYear(activityData, newYear);
+        const nextMonth = (newYear === currentYear && nextMonths.some((m) => m.value === currentMonth))
+            ? currentMonth
+            : (nextMonths[0]?.value || currentMonth);
+        const nextDays = getDaysForMonth(activityData, newYear, nextMonth);
+        const nextDay = (newYear === currentYear && nextMonth === currentMonth && nextDays.some((d) => d.value === currentDay))
+            ? currentDay
+            : (nextDays[0]?.value || currentDay);
+
+        setSelectedYear(newYear);
+        setSelectedMonth(nextMonth);
+        setSelectedDay(nextDay);
+    };
+
+    const handleMonthChange = (newMonth: string) => {
+        const nextDays = getDaysForMonth(activityData, selectedYear, newMonth);
+        const nextDay = (selectedYear === currentYear && newMonth === currentMonth && nextDays.some((d) => d.value === currentDay))
+            ? currentDay
+            : (nextDays[0]?.value || currentDay);
+
+        setSelectedMonth(newMonth);
+        setSelectedDay(nextDay);
+    };
+
     return (
         <div className="container">
             <div className="header">
@@ -413,13 +473,13 @@ export function HeatmapApp({ initialActivityData }: HeatmapAppProps): VNode {
                     selectedDay={selectedDay}
                     summaryText={summaryText}
                     onFilterTypeChange={(e) => setFilterType((e.target as HTMLSelectElement).value as any)}
-                    onYearChange={(e) => setSelectedYear((e.target as HTMLSelectElement).value)}
-                    onMonthChange={(e) => setSelectedMonth((e.target as HTMLSelectElement).value)}
+                    onYearChange={(e) => handleYearChange((e.target as HTMLSelectElement).value)}
+                    onMonthChange={(e) => handleMonthChange((e.target as HTMLSelectElement).value)}
                     onDayChange={(e) => setSelectedDay((e.target as HTMLSelectElement).value)}
                 />
             </div>
 
-            <div className="heatmap-wrapper">
+            <div className="heatmap-wrapper" ref={wrapperRef}>
                 <div className="heatmap-container">
                     <div className="weekday-labels">
                         <span>Sun</span>
@@ -434,7 +494,7 @@ export function HeatmapApp({ initialActivityData }: HeatmapAppProps): VNode {
                 </div>
             </div>
 
-            <div id="heatmap-stats-container" className="stats-grid">
+            <div id="heatmap-stats-container">
                 <HeatmapStatsDashboard stats={streakStats} />
             </div>
 

@@ -339,9 +339,14 @@ export function StudyPlanApp({ controller: initialController }: StudyPlanAppProp
 
     useEffect(() => {
         controller.onUpdate = () => {
-            setIsActive(controller.settings?.isActive ?? false);
+            const nextActive = controller.settings?.isActive ?? false;
+            setIsActive(nextActive);
             setSettings(controller.settings ? { ...controller.settings } : null);
             setAllCards([...controller.allCards]);
+            if (!nextActive) {
+                setExamDate('');
+                setDailyLimit(undefined);
+            }
             forceUpdate();
         };
 
@@ -360,10 +365,11 @@ export function StudyPlanApp({ controller: initialController }: StudyPlanAppProp
         const now = Date.now();
         const days = Math.ceil((examTime - now) / (1000 * 60 * 60 * 24));
         if (days <= 0) return null;
-        const total = allCards.length;
-        const target = dailyLimit && dailyLimit > 0
-            ? Math.min(dailyLimit, Math.ceil(total / days))
-            : Math.ceil(total / days);
+        const totalCardsCount = allCards.length;
+        const uncappedTarget = Math.ceil(totalCardsCount / days);
+        const isCapped = Boolean(dailyLimit && dailyLimit > 0 && dailyLimit < uncappedTarget);
+        const target = isCapped ? (dailyLimit as number) : uncappedTarget;
+        const total = isCapped ? target * days : totalCardsCount;
         return { days, total, target };
     }, [examDate, dailyLimit, allCards.length]);
 
@@ -383,6 +389,8 @@ export function StudyPlanApp({ controller: initialController }: StudyPlanAppProp
 
     const handleDeactivate = () => {
         controller.deactivateExamMode();
+        setExamDate('');
+        setDailyLimit(undefined);
     };
 
     // Calculate active metrics

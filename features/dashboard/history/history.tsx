@@ -99,6 +99,13 @@ export function HistoryBreadcrumb({
         }
     };
 
+    const handleBreadcrumbKeyDown = (action: () => void) => (e: KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            action();
+        }
+    };
+
     if (currentView === 'year') {
         return <div id="breadcrumb" className="breadcrumb">All Years</div>;
     }
@@ -106,7 +113,15 @@ export function HistoryBreadcrumb({
     if (currentView === 'month') {
         return (
             <div id="breadcrumb" className="breadcrumb">
-                <span className="bc-year" role="button" tabIndex={0} onClick={handleNavigateYear}>All Years</span>
+                <span
+                    className="bc-year"
+                    role="button"
+                    tabIndex={0}
+                    onClick={handleNavigateYear}
+                    onKeyDown={handleBreadcrumbKeyDown(handleNavigateYear)}
+                >
+                    All Years
+                </span>
                 {' > '}
                 {selectedYear}
             </div>
@@ -118,7 +133,15 @@ export function HistoryBreadcrumb({
 
     return (
         <div id="breadcrumb" className="breadcrumb">
-            <span className="bc-year" role="button" tabIndex={0} onClick={handleNavigateYear}>All Years</span>
+            <span
+                className="bc-year"
+                role="button"
+                tabIndex={0}
+                onClick={handleNavigateYear}
+                onKeyDown={handleBreadcrumbKeyDown(handleNavigateYear)}
+            >
+                All Years
+            </span>
             {' > '}
             <span
                 className="bc-month"
@@ -126,6 +149,7 @@ export function HistoryBreadcrumb({
                 tabIndex={0}
                 data-year={selectedYear || ''}
                 onClick={handleNavigateMonth}
+                onKeyDown={handleBreadcrumbKeyDown(handleNavigateMonth)}
             >
                 {selectedYear}
             </span>
@@ -838,9 +862,7 @@ export class FSRSHistoryDashboard {
                         activeDays: yearActiveDates[year].size
                     };
                 }
-                if (Object.keys(years).length > 0) {
-                    return years;
-                }
+                return years;
             }
 
             const years: Record<string, { total: number; activeDays: number }> = {};
@@ -891,9 +913,7 @@ export class FSRSHistoryDashboard {
                 for (const [monthKey, cardSet] of Object.entries(monthCardSets)) {
                     months[monthKey] = { total: cardSet.size };
                 }
-                if (Object.keys(months).length > 0) {
-                    return months;
-                }
+                return months;
             }
 
             const months: Record<string, { total: number }> = {};
@@ -944,9 +964,7 @@ export class FSRSHistoryDashboard {
                 for (const [dateString, cardSet] of Object.entries(dayCardSets)) {
                     days[dateString] = cardSet.size;
                 }
-                if (Object.keys(days).length > 0) {
-                    return days;
-                }
+                return days;
             }
 
             const days: Record<string, number> = {};

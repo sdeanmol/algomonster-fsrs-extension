@@ -216,16 +216,20 @@ export interface PomodoroStatsDisplayProps {
     todayFocusMinutes: number;
 }
 
+export function formatFocusMinutes(totalMinutes: number): string {
+    if (totalMinutes >= 60) {
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+    return `${totalMinutes}m`;
+}
+
 export function PomodoroStatsDisplay({
     todaySessions,
     todayFocusMinutes
 }: PomodoroStatsDisplayProps): VNode {
-    let focusText = `${todayFocusMinutes}m`;
-    if (todayFocusMinutes >= 60) {
-        const hours = Math.floor(todayFocusMinutes / 60);
-        const mins = todayFocusMinutes % 60;
-        focusText = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-    }
+    const focusText = formatFocusMinutes(todayFocusMinutes);
 
     return (
         <div className="pomodoro-today-stats">
@@ -401,16 +405,16 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
     const timer = useMemo(() => initialTimer || new PomodoroTimer(), [initialTimer]);
     const [, setTick] = useState(0);
 
-    const [cfgFocus, setCfgFocus] = useState(timer.settings.focusDuration);
-    const [cfgShort, setCfgShort] = useState(timer.settings.shortBreakDuration);
-    const [cfgLong, setCfgLong] = useState(timer.settings.longBreakDuration);
-    const [cfgSessions, setCfgSessions] = useState(timer.settings.sessionsBeforeLongBreak);
+    const [cfgFocus, setCfgFocus] = useState(String(timer.settings.focusDuration));
+    const [cfgShort, setCfgShort] = useState(String(timer.settings.shortBreakDuration));
+    const [cfgLong, setCfgLong] = useState(String(timer.settings.longBreakDuration));
+    const [cfgSessions, setCfgSessions] = useState(String(timer.settings.sessionsBeforeLongBreak));
 
     useEffect(() => {
-        setCfgFocus(timer.settings.focusDuration);
-        setCfgShort(timer.settings.shortBreakDuration);
-        setCfgLong(timer.settings.longBreakDuration);
-        setCfgSessions(timer.settings.sessionsBeforeLongBreak);
+        setCfgFocus(String(timer.settings.focusDuration));
+        setCfgShort(String(timer.settings.shortBreakDuration));
+        setCfgLong(String(timer.settings.longBreakDuration));
+        setCfgSessions(String(timer.settings.sessionsBeforeLongBreak));
     }, [timer.settings.focusDuration, timer.settings.shortBreakDuration, timer.settings.longBreakDuration, timer.settings.sessionsBeforeLongBreak]);
 
     useEffect(() => {
@@ -426,6 +430,12 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
     const mins = Math.floor(timer.timeRemaining / 60);
     const secs = timer.timeRemaining % 60;
     const formattedTime = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    useEffect(() => {
+        if (typeof document !== 'undefined') {
+            document.title = `${formattedTime} — AlgoRecall Pomodoro`;
+        }
+    }, [formattedTime]);
     let phaseLabel = 'Focus Time';
     if (timer.phase === 'shortBreak') phaseLabel = 'Short Break';
     if (timer.phase === 'longBreak') phaseLabel = 'Long Break';
@@ -583,9 +593,7 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                 </div>
                 <div className="today-stat">
                     <span className="today-stat-value" id="today-focus-time">
-                        {timer.todayFocusMinutes >= 60
-                            ? `${Math.floor(timer.todayFocusMinutes / 60)}h ${timer.todayFocusMinutes % 60}m`
-                            : `${timer.todayFocusMinutes}m`}
+                        {formatFocusMinutes(timer.todayFocusMinutes)}
                     </span>
                     <span className="today-stat-label">Focus Time</span>
                 </div>
@@ -595,7 +603,7 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                 <summary className="settings-toggle">
                     <svg className="svg-icon" viewBox="0 0 24 24" style={{ width: '14px', height: '14px', marginRight: '6px' }} aria-hidden="true">
                         <circle cx="12" cy="12" r="3" />
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                     </svg>
                     Timer Settings
                 </summary>
@@ -610,7 +618,7 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                                 value={cfgFocus}
                                 min={1}
                                 max={120}
-                                onInput={(e) => setCfgFocus(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
+                                onInput={(e) => setCfgFocus((e.target as HTMLInputElement).value)}
                             />
                         </div>
                         <div className="setting-group">
@@ -622,7 +630,7 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                                 value={cfgShort}
                                 min={1}
                                 max={30}
-                                onInput={(e) => setCfgShort(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
+                                onInput={(e) => setCfgShort((e.target as HTMLInputElement).value)}
                             />
                         </div>
                         <div className="setting-group">
@@ -634,7 +642,7 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                                 value={cfgLong}
                                 min={1}
                                 max={60}
-                                onInput={(e) => setCfgLong(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
+                                onInput={(e) => setCfgLong((e.target as HTMLInputElement).value)}
                             />
                         </div>
                         <div className="setting-group">
@@ -646,7 +654,7 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                                 value={cfgSessions}
                                 min={2}
                                 max={10}
-                                onInput={(e) => setCfgSessions(parseInt((e.target as HTMLInputElement).value, 10) || 1)}
+                                onInput={(e) => setCfgSessions((e.target as HTMLInputElement).value)}
                             />
                         </div>
                     </div>
@@ -655,11 +663,23 @@ export function PomodoroApp({ timer: initialTimer }: PomodoroAppProps): VNode {
                         className="btn btn-primary btn-sm"
                         style={{ marginTop: '12px' }}
                         onClick={() => {
+                            const parsePositive = (raw: string, fallback: number) => {
+                                const parsed = parseInt(raw, 10);
+                                return isNaN(parsed) || parsed < 1 ? fallback : parsed;
+                            };
+                            const nextFocus = parsePositive(cfgFocus, timer.settings.focusDuration);
+                            const nextShort = parsePositive(cfgShort, timer.settings.shortBreakDuration);
+                            const nextLong = parsePositive(cfgLong, timer.settings.longBreakDuration);
+                            const nextSessions = parsePositive(cfgSessions, timer.settings.sessionsBeforeLongBreak);
+                            setCfgFocus(String(nextFocus));
+                            setCfgShort(String(nextShort));
+                            setCfgLong(String(nextLong));
+                            setCfgSessions(String(nextSessions));
                             timer.saveSettings({
-                                focusDuration: cfgFocus,
-                                shortBreakDuration: cfgShort,
-                                longBreakDuration: cfgLong,
-                                sessionsBeforeLongBreak: cfgSessions
+                                focusDuration: nextFocus,
+                                shortBreakDuration: nextShort,
+                                longBreakDuration: nextLong,
+                                sessionsBeforeLongBreak: nextSessions
                             });
                             setTick((t) => t + 1);
                         }}
@@ -955,7 +975,12 @@ export class PomodoroTimer {
         try {
             if (this.state === 'running') return;
             this.state = 'running';
+            if (this.timeRemaining === 0) {
+                this.totalTime = this.getPhaseDuration() * 60;
+                this.timeRemaining = this.totalTime;
+            }
             this.targetEndTime = Date.now() + (this.timeRemaining * 1000);
+            this.startVisualInterval();
             
             const stateObj = this.getStateObj();
             chrome.storage.local.set({ pomodoroState: stateObj }, () => {

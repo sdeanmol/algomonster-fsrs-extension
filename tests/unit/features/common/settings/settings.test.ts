@@ -550,6 +550,38 @@ describe('SettingsApp & initSettings (Production Preact UI)', () => {
       expect(rateLink).not.toBeNull();
       expect(rateLink.href).toContain(BROWSER_CONFIG.reviewUrl);
       expect(rateLink.title).toContain(BROWSER_CONFIG.storeName);
+      expect(rateLink.textContent).toContain(`Rate on ${BROWSER_CONFIG.storeName}`);
+    });
+  });
+
+  describe('GAP-013 Custom Interval Draft Input', () => {
+    it('allows clearing custom interval input without snapping immediately, falling back to 60 on blur', async () => {
+      await act(async () => {
+        render(h(SettingsApp, { initialTab: 'notifications' }), container);
+        await Promise.resolve();
+      });
+
+      const intervalSelect = container.querySelector('#notification-interval') as HTMLSelectElement;
+      await act(async () => {
+        intervalSelect.value = 'custom';
+        intervalSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        await Promise.resolve();
+      });
+
+      const customInput = container.querySelector('#custom-interval-input') as HTMLInputElement;
+      expect(customInput.value).toBe('60');
+
+      await act(async () => {
+        customInput.value = '';
+        customInput.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      expect(customInput.value).toBe('');
+
+      await act(async () => {
+        customInput.dispatchEvent(new Event('blur', { bubbles: true }));
+        await Promise.resolve();
+      });
+      expect(customInput.value).toBe('60');
     });
   });
 

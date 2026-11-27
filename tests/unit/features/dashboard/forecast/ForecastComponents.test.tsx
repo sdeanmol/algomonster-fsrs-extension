@@ -148,6 +148,61 @@ describe('Forecast Preact Components', () => {
             expect(container.querySelector('#forecast-chart-wrapper')).not.toBeNull();
             expect(container.querySelector('#forecast-calendar')).not.toBeNull();
         });
+
+        it('GAP-007: excludes Today/overdue cards from Peak Day summary card', () => {
+            const today = new Date();
+            today.setHours(12, 0, 0, 0);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const dayAfter = new Date(today);
+            dayAfter.setDate(dayAfter.getDate() + 2);
+
+            const mockCards = [
+                // 3 overdue/today cards
+                { id: '1', state: 2, due: today.getTime() - 86400000 * 2, stability: 1, difficulty: 1, historyLog: [] },
+                { id: '2', state: 2, due: today.getTime() - 86400000, stability: 1, difficulty: 1, historyLog: [] },
+                { id: '3', state: 2, due: today.getTime(), stability: 1, difficulty: 1, historyLog: [] },
+                // 2 cards tomorrow, 1 card day after
+                { id: '4', state: 2, due: tomorrow.getTime(), stability: 1, difficulty: 1, historyLog: [] },
+                { id: '5', state: 2, due: tomorrow.getTime(), stability: 1, difficulty: 1, historyLog: [] },
+                { id: '6', state: 2, due: dayAfter.getTime(), stability: 1, difficulty: 1, historyLog: [] }
+            ] as any;
+
+            render(<ForecastApp initialCards={mockCards} initialSettings={{ showCharts: true }} />, container);
+
+            expect(container.querySelector('#forecast-today')?.textContent).toBe('3');
+            expect(container.querySelector('#forecast-peak')?.textContent).toBe('2');
+            expect(container.querySelector('#forecast-total')?.textContent).toBe('6');
+        });
+
+        it('GAP-024: normalizes due timestamps to local midnight for day-offset bucketing', () => {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const tonight = new Date(todayStart);
+            tonight.setHours(23, 30, 0, 0);
+            const tomorrowEarly = new Date(todayStart);
+            tomorrowEarly.setDate(tomorrowEarly.getDate() + 1);
+            tomorrowEarly.setHours(1, 0, 0, 0);
+
+            const mockCards = [
+                { id: '1', state: 2, due: tonight.getTime(), stability: 1, difficulty: 1, historyLog: [] },
+                { id: '2', state: 2, due: tomorrowEarly.getTime(), stability: 1, difficulty: 1, historyLog: [] }
+            ] as any;
+
+            render(<ForecastApp initialCards={mockCards} initialSettings={{ showCharts: false }} />, container);
+
+            expect(container.querySelector('#forecast-today')?.textContent).toBe('1');
+            expect(container.querySelector('#forecast-peak')?.textContent).toBe('1');
+        });
+
+        it('GAP-033: handles chrome.runtime.lastError gracefully in ForecastApp storage callback', () => {
+            const prevLastError = chrome.runtime.lastError;
+            (chrome.runtime as any).lastError = { message: 'Storage read failed' };
+            (chrome.storage.local.get as jest.Mock).mockImplementationOnce((_keys: any, cb: any) => cb({}));
+
+            expect(() => render(<ForecastApp />, container)).not.toThrow();
+            (chrome.runtime as any).lastError = prevLastError;
+        });
     });
 });
 
