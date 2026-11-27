@@ -9,7 +9,7 @@
 import { Logger } from '@common/logger';
 import { CatchAndLog, CatchAndReturn, MeasureTime, withErrorHandling, withFallback } from '../../../decorators';
 import { ensureCardIds } from '../utils/cardUtils';
-import { Card, StorageData, UserSettings, WhitelistedWebsite, HighlightMark, BookmarkItem } from '../../../types/domain';
+import { Card, StorageData, UserSettings, WhitelistedWebsite, HighlightMark, BookmarkItem, TagEntry } from '../../../types/domain';
 import {
     BackupRecord,
     BackupRecordType,
@@ -254,7 +254,8 @@ export class BackupManager {
                         cards: dupCards.length,
                         marks: dupMarks.length,
                         bookmarks: dupBookmarks.length,
-                        pagecontents: dupPageContents.length
+                        pagecontents: dupPageContents.length,
+                        tagregistry: (raw.tagRegistry?.length ?? 0) > 0 ? 1 : 0
                     }
                 }
             };
@@ -298,6 +299,10 @@ export class BackupManager {
                 settings.whitelistedWebsites = raw.whitelistedWebsites;
             }
             yield JSON.stringify({ type: "settings", data: settings });
+
+            if (raw.tagRegistry && raw.tagRegistry.length > 0) {
+                yield JSON.stringify({ type: "tagregistry", data: raw.tagRegistry });
+            }
         }
 
         const lineGenerator = generateLines();
@@ -463,6 +468,7 @@ export class BackupManager {
             let activity: Record<string, number> = {};
             let weights: Record<string, number[]> = {};
             let settings: SettingsData = {};
+            let tagRegistry: TagEntry[] = [];
 
             const linesIterable = readLines(stream);
             for await (const line of linesIterable) {
@@ -504,6 +510,9 @@ export class BackupManager {
                         break;
                     case "settings":
                         settings = parsed.data;
+                        break;
+                    case "tagregistry":
+                        tagRegistry = Array.isArray(parsed.data) ? parsed.data : [];
                         break;
                     case "header":
                     case "footer":
@@ -559,6 +568,7 @@ export class BackupManager {
             // Hydrate local storage atomically
             const storageUpdate: StorageData & Record<string, unknown> = {
                 fsrsCards: reconstructedCards,
+                tagRegistry,
                 fsrsActivity: activity,
                 fsrsTopicWeights: weights,
                 marks: reconstructedMarks as unknown as HighlightMark[],

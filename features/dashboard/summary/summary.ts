@@ -13,7 +13,7 @@
 import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { CatchAndLog, withErrorHandling } from '../../../decorators';
-import { StorageData, Card } from '../../../types/domain';
+import { StorageData, Card, TagEntry } from '../../../types/domain';
 import { generateSummaryReport, SummaryReport, TopicMastery, SummaryInsight } from './summaryGenerator';
 
 /**
@@ -28,6 +28,8 @@ export class SummaryDashboard {
     private allCards: Card[] = [];
     /** Cached activity history mapping ISO date strings to review counts. */
     private fsrsActivity: { [date: string]: number } = {};
+    /** Canonical tag registry mapping stable UUIDs to display names. */
+    private tagRegistry: TagEntry[] = [];
 
     /**
      * Initializes the summary digest by parsing URL parameters, binding tab controls,
@@ -98,7 +100,7 @@ export class SummaryDashboard {
      */
     @CatchAndLog('SummaryDashboard', 'Failed storage get')
     private loadData(): void {
-        chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], withErrorHandling((result: StorageData) => {
+        chrome.storage.local.get(['fsrsCards', 'fsrsActivity', 'tagRegistry'], withErrorHandling((result: StorageData) => {
             if (chrome.runtime.lastError) {
                 const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                 Logger.error('SummaryDashboard', `Storage error fetching cards: ${errorMessage}`);
@@ -107,6 +109,7 @@ export class SummaryDashboard {
 
             this.allCards = result.fsrsCards || [];
             this.fsrsActivity = result.fsrsActivity || {};
+            this.tagRegistry = Array.isArray(result.tagRegistry) ? result.tagRegistry : [];
 
             this.updateTabUI();
             this.renderReport();
@@ -122,7 +125,9 @@ export class SummaryDashboard {
         const report: SummaryReport = generateSummaryReport(
             this.allCards,
             this.fsrsActivity,
-            this.currentPeriod
+            this.currentPeriod,
+            Date.now(),
+            this.tagRegistry
         );
 
         // Subtitle Date Range

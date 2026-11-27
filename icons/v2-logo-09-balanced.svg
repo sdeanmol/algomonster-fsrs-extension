@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <!--
+    CANVA PRINCIPLE #9 — BALANCED (OPTICAL BALANCE)
+    Uses RADIAL symmetry: all elements arranged around the center point (64,64).
+    Not mathematical symmetry — the intervals on the arc are intentionally 
+    spaced with Fibonacci-like growth (1,2,3,5,8) so they feel naturally balanced 
+    rather than mechanically even. Each arc segment represents a spaced repetition 
+    interval growing outward. The inner brain mark anchors the visual weight at center.
+    The composition reads as stable, harmonious, and complete at any rotation.
+  -->
+  <defs>
+    <linearGradient id="arcGrad09" x1="14" y1="14" x2="114" y2="114" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="24" fill="#0f172a"/>
+
+  <!-- Radially balanced interval arcs (5 arcs, Fibonacci-spaced gaps) -->
+  <!-- Arc 1: innermost, shortest (interval = 1 day) -->
+  <circle cx="64" cy="64" r="22" stroke="url(#arcGrad09)" stroke-width="3" fill="none"
+          stroke-dasharray="8 70" stroke-dashoffset="-4"/>
+  <!-- Arc 2: (interval = 2 days) -->
+  <circle cx="64" cy="64" r="31" stroke="url(#arcGrad09)" stroke-width="2.5" fill="none"
+          stroke-dasharray="14 83" stroke-dashoffset="-10"/>
+  <!-- Arc 3: (interval = 3 days) -->
+  <circle cx="64" cy="64" r="39" stroke="url(#arcGrad09)" stroke-width="2" fill="none"
+          stroke-dasharray="22 102" stroke-dashoffset="-18"/>
+  <!-- Arc 4: (interval = 5 days) -->
+  <circle cx="64" cy="64" r="46" stroke="url(#arcGrad09)" stroke-width="1.8" fill="none"
+          stroke-dasharray="30 119" stroke-dashoffset="-26" opacity="0.75"/>
+  <!-- Arc 5: outermost (interval = 8 days) -->
+  <circle cx="64" cy="64" r="52" stroke="url(#arcGrad09)" stroke-width="1.5" fill="none"
+          stroke-dasharray="38 139" stroke-dashoffset="-34" opacity="0.5"/>
+
+  <!-- Center anchor: solid brain-inspired icon, optically weighted -->
+  <circle cx="64" cy="64" r="13" fill="#38bdf8" opacity="0.15"/>
+  <!-- Two-lobe brain mark at center -->
+  <circle cx="58" cy="63" r="7" stroke="#38bdf8" stroke-width="2.5" fill="none"/>
+  <circle cx="70" cy="63" r="7" stroke="#818cf8" stroke-width="2.5" fill="none"/>
+  <!-- Stem connector -->
+  <rect x="61" y="69" width="6" height="4" rx="2" fill="#38bdf8" opacity="0.7"/>
+</svg>

@@ -42,6 +42,7 @@ module.exports = (env) => {
     // Common & Page Scripts
     'features/common/theme-sync': './features/common/theme-sync.ts',
     'features/common/websites/websites': './features/common/websites/websites.ts',
+    'features/common/tags/tags': './features/common/tags/tags.ts',
     'features/common/data/data': './features/common/data/data.ts',
     'features/common/help/help': './features/common/help/help.ts',
     'features/common/welcome/welcome': './features/common/welcome/welcome.ts',

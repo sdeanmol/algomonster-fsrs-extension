@@ -119,10 +119,10 @@ describe('HighlightsManager', () => {
       searchInput.dispatchEvent(new Event('input'));
       expect(manager.searchQuery).toBe('Dynamic');
 
-      const webpageSelect = document.getElementById('webpage-select') as HTMLSelectElement;
-      webpageSelect.value = 'https://leetcode.com/problems/two-sum';
-      webpageSelect.dispatchEvent(new Event('change'));
-      expect(manager.activePageFilter).toBe('https://leetcode.com/problems/two-sum');
+      const webpageCheckbox = document.querySelector('#webpage-select + .multi-select-wrapper input[type="checkbox"][value="https://leetcode.com/problems/two-sum"]') as HTMLInputElement;
+      expect(webpageCheckbox).not.toBeNull();
+      webpageCheckbox.click();
+      expect(manager.activePageFilters).toEqual(['https://leetcode.com/problems/two-sum']);
 
       const sortSelect = document.getElementById('sort-select') as HTMLSelectElement;
       sortSelect.value = 'oldest';

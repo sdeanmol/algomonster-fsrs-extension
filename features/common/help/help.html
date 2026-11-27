@@ -524,11 +524,8 @@
                                 existing backup file.</li>
                             <li><strong>To Anki (.txt Export):</strong> Exports your cards into standard Anki
                                 tab-delimited format (<code>Front \t Back \t Tags</code>) with
-                                <code>#separator:tab</code> directives for seamless desktop Anki importing.
+                                <code>#separator:tab</code> and <code>#html:true</code> directives for seamless desktop Anki importing.
                             </li>
-                            <li><strong>From Anki (.txt / .tsv Import):</strong> Imports flashcard decks from Anki.
-                                Existing cards with matching problem titles are automatically detected and skipped to
-                                avoid duplicates.</li>
                         </ul>
                     </div>
 
@@ -2072,17 +2069,16 @@
                         </div>
 
                         <div class="card card-accent">
-                            <h3>📦 Bi-Directional Anki Integration (.txt / .tsv)</h3>
+                            <h3>📦 Anki Export (.txt / .tsv)</h3>
                             <p style="font-size: 12.5px; color: var(--md-text-med); margin-bottom: 8px;">
-                                Seamlessly synchronize your algorithmic flashcards between AlgoRecall and desktop Anki:
+                                Export your algorithmic flashcards from AlgoRecall to desktop Anki:
                             </p>
                             <ul class="help-bullet-list">
                                 <li><strong>Export to Anki (<code>.txt</code>):</strong> Under <em>Data &amp;
-                                        Options</em>, click <strong>To Anki</strong>. Generates a tab-delimited text
+                                        Options</em>, click <strong>Export Anki Deck</strong>. Generates a tab-delimited text
                                     file containing:
                                     <ul style="margin-top: 4px;">
-                                        <li><code>Front</code>: Problem Title and embedded Problem URL (e.g.
-                                            <code>[URL: https://leetcode.com/problems/...]</code>).
+                                        <li><code>Front</code>: Problem Title and clickable Problem URL link.
                                         </li>
                                         <li><code>Back</code>: Your saved solution approach, time/space complexity, and
                                             notes.</li>
@@ -2091,13 +2087,6 @@
                                         </li>
                                     </ul>
                                 </li>
-                                <li><strong>Import from Anki:</strong> Click <strong>From Anki</strong> to import any
-                                    standard 2-column or 3-column tab-delimited Anki export (<code>.txt</code> or
-                                    <code>.tsv</code>).
-                                </li>
-                                <li><strong>Duplicate Prevention:</strong> The importer checks existing cards by problem
-                                    title. Any cards already present in your collection are safely preserved, and only
-                                    new cards are imported without creating duplicates.</li>
                             </ul>
                         </div>
                     </div>

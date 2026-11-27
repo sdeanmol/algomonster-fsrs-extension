@@ -10,6 +10,7 @@ import { Logger } from '@common/logger';
 import { RecoveryTracking } from './recoveryTracking';
 import { ReviewStats } from './reviewStats';
 import { DataUtils } from '../utils/dataUtils';
+import { MultiSelectControl } from '../../../common/utils/multiSelect';
 import { CatchAndLog, withErrorHandling } from '../../../../decorators';
 
 /**
@@ -98,11 +99,34 @@ export class PerformanceTab {
             
             const tagFilter = container.querySelector('#performance-filter-tag') as HTMLSelectElement | null;
             if (tagFilter) {
-                tagFilter.addEventListener('change', withErrorHandling((e: Event) => {
-                    const target = e.target as HTMLSelectElement;
-                    this.recoveryTracking.setTagFilter(target.value);
-                    this.recoveryTracking.render('recovery-tracking-container');
-                }, 'PerformanceTab', 'Error in tag filter change listener'));
+                if (this.dataUtils.tagRegistry && this.dataUtils.tagRegistry.length > 0) {
+                    [...this.dataUtils.tagRegistry]
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .forEach(entry => {
+                            const opt = document.createElement('option');
+                            opt.value = entry.id;
+                            opt.textContent = entry.name;
+                            tagFilter.appendChild(opt);
+                        });
+                } else {
+                    const tagSet = new Set<string>();
+                    (this.dataUtils.cards || []).forEach(c => (c.tags || []).forEach(t => tagSet.add(t)));
+                    [...tagSet].sort().forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t;
+                        opt.textContent = t;
+                        tagFilter.appendChild(opt);
+                    });
+                }
+
+                MultiSelectControl.attach(tagFilter, {
+                    placeholder: 'All Tags',
+                    searchPlaceholder: 'Search tags...',
+                    onChange: withErrorHandling((values: string[]) => {
+                        this.recoveryTracking.setTagFilter(values);
+                        this.recoveryTracking.render('recovery-tracking-container');
+                    }, 'PerformanceTab', 'Error in tag multi-select change listener')
+                });
             }
 
             const periodSelect = container.querySelector('#review-period-select') as HTMLSelectElement | null;

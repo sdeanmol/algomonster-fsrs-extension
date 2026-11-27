@@ -142,9 +142,13 @@ export class RetentionChart {
         if (!this.dataUtils || !this.dataUtils.cards) return [];
 
         this.dataUtils.cards.forEach(withErrorHandling(card => {
+            const hydratedTags = typeof this.dataUtils.hydrateTags === 'function'
+                ? this.dataUtils.hydrateTags(card.tags)
+                : (card.tags || []);
+
             // Apply tag filtering if specified
             if (this.filterTag) {
-                const hasTag = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(this.filterTag));
+                const hasTag = hydratedTags.some((t: string) => t.toLowerCase().includes(this.filterTag));
                 if (!hasTag) return;
             }
 
@@ -152,7 +156,7 @@ export class RetentionChart {
             if (card.stability > 0) {
                 let keys: string[] = [];
                 if (this.groupBy === 'tag') {
-                    keys = (card.tags && card.tags.length > 0) ? card.tags : ['Untagged'];
+                    keys = hydratedTags.length > 0 ? hydratedTags : ['Untagged'];
                 } else if (this.groupBy === 'deck') {
                     keys = ['Default']; // Deck support can be expanded here
                 } else if (this.groupBy === 'difficulty') {

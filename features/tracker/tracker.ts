@@ -12,7 +12,8 @@
 
 import { ensureCardIds, getCardsForUrl, generateCardId, cleanUrl } from '../common/utils/cardUtils';
 import { TagInputControl } from '../common/utils/tagInput';
-import { Card, StorageData, ExtensionSettings } from '../../types/domain';
+import { Card, StorageData, ExtensionSettings, TagEntry } from '../../types/domain';
+import { TagRegistry } from '../common/tags/tagRegistry';
 import { RATING_UI_DEBOUNCE_MS } from '../common/constants';
 import FsrsScheduler from './scheduler/fsrsScheduler';
 import { Logger } from '@common/logger';
@@ -23,6 +24,7 @@ import { UIUtils } from '../common/utils/uiUtils';
  */
 interface AlgoRecallState {
     cards: Card[];
+    tagRegistry?: TagEntry[];
     topicWeights: Record<string, number[]>;
     scheduler: FsrsScheduler;
     extensionSettings?: ExtensionSettings;
@@ -362,7 +364,8 @@ class Tracker {
                 let navHtml = '';
                 urlCards.forEach((c, idx) => {
                     const isActive = (c.id === this.activeCardId);
-                    const tagLabel = (c.tags && c.tags.length > 0) ? ` (${c.tags.join(', ')})` : '';
+                    const tagNames = TagRegistry.hydrate(c.tags || [], this.state.tagRegistry || []);
+                    const tagLabel = tagNames.length > 0 ? ` (${tagNames.join(', ')})` : '';
                     const cardTitleText = `Card ${idx + 1}${tagLabel}`;
                     const btnStyle = isActive
                         ? 'background: #4CAF50; color: #fff; font-weight: bold; border: none; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; max-height: 4.5em; word-break: break-word; white-space: normal; max-width: 120px; flex-shrink: 0; line-height: 1.3;'
@@ -417,7 +420,7 @@ class Tracker {
                     approachArea.value = activeCard.approach || "";
                 }
                 if (tagsInput && document.activeElement !== tagsInput) {
-                    tagsInput.value = (activeCard.tags || []).join(', ');
+                    tagsInput.value = TagRegistry.hydrate(activeCard.tags || [], this.state.tagRegistry || []).join(', ');
                 }
                 if (actionLabel) actionLabel.innerText = `Card ${urlCards.indexOf(activeCard) + 1} Exists. Review Early or Update Notes:`;
                 if (updateTextBtn) updateTextBtn.style.display = "block";
@@ -784,7 +787,7 @@ class Tracker {
                         const index = this.state.cards.findIndex((c: Card) => c.id === existingId);
                         if (index > -1) {
                             this.state.cards[index].approach = currentText;
-                            this.state.cards[index].tags = currentTagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                            this.state.cards[index].tags = this.resolveTagIds(currentTagsText);
                             this.saveCards();
                         }
                         chrome.runtime.sendMessage({
@@ -871,7 +874,7 @@ class Tracker {
                         if (index > -1) {
                             this.state.cards[index].approach = (document.getElementById('fsrs-approach') as HTMLTextAreaElement)?.value || '';
                             const tagsVal = (document.getElementById('fsrs-tags-input') as HTMLInputElement)?.value || '';
-                            this.state.cards[index].tags = tagsVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                            this.state.cards[index].tags = this.resolveTagIds(tagsVal);
                             this.saveCards();
 
                             const targetBtn = e.target as HTMLElement;
@@ -904,7 +907,8 @@ class Tracker {
                         if (!approach) return alert("Please enter your approach.");
 
                         const tagsVal = (document.getElementById('fsrs-tags-input') as HTMLInputElement)?.value || '';
-                        const parsedTags = tagsVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                        const parsedTagNames = tagsVal.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                        const parsedTags = this.resolveTagIds(tagsVal);
 
                         const target = e.target as HTMLElement;
                         const rating = parseInt(target.getAttribute('data-rating') || '1', 10);
@@ -912,12 +916,12 @@ class Tracker {
                         const targetCleanUrl = cleanUrl(window.location.href);
                         const problemTitle = (this.utils && typeof this.utils.getExtractedProblemTitle === 'function') ? this.utils.getExtractedProblemTitle() : document.title;
 
-                        // Dynamic Topic Weights mapping
+                        // Dynamic Topic Weights mapping (keyed by display name)
                         let customWeights: number[] | null = null;
-                        if (this.state.topicWeights && parsedTags && parsedTags.length > 0) {
-                            for (const tag of parsedTags) {
-                                if (this.state.topicWeights[tag]) {
-                                    customWeights = this.state.topicWeights[tag];
+                        if (this.state.topicWeights && parsedTagNames.length > 0) {
+                            for (const tagName of parsedTagNames) {
+                                if (this.state.topicWeights[tagName]) {
+                                    customWeights = this.state.topicWeights[tagName];
                                     break;
                                 }
                             }
@@ -1030,7 +1034,7 @@ class Tracker {
                 const card = this.state.cards.find((c: Card) => c.id === existingId);
                 if (card) {
                     card.approach = text;
-                    card.tags = tagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                    card.tags = this.resolveTagIds(tagsText);
                     this.saveCards();
                 }
             } else {
@@ -1120,9 +1124,10 @@ class Tracker {
             fsrsBody.style.display = 'none';
             reviewUi.style.display = 'block';
 
-            const tagChipsHtml = uniqueTags.map(tag => {
-                const count = allDue.filter((c: Card) => c.tags && c.tags.includes(tag)).length;
-                return `<button class="fsrs-tag-chip" data-tag="${tag}">${tag} <span class="fsrs-tag-count">${count}</span></button>`;
+            const tagChipsHtml = uniqueTags.map(tagId => {
+                const count = allDue.filter((c: Card) => c.tags && c.tags.includes(tagId)).length;
+                const displayName = TagRegistry.hydrate([tagId], this.state.tagRegistry || [])[0];
+                return `<button class="fsrs-tag-chip" data-tag="${tagId}">${displayName} <span class="fsrs-tag-count">${count}</span></button>`;
             }).join('');
 
             reviewUi.innerHTML = `
@@ -1197,14 +1202,31 @@ class Tracker {
     /**
      * Launches the review queue display sequence, looping cards in the due stack.
      */
+    private resolveTagIds(tagsText: string): string[] {
+        const names = tagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        if (names.length === 0) return [];
+        if (!Array.isArray(this.state.tagRegistry)) {
+            this.state.tagRegistry = [];
+        }
+        let registryChanged = false;
+        const ids: string[] = [];
+        for (const name of names) {
+            const { id, created } = TagRegistry.getOrCreateSync(name, this.state.tagRegistry);
+            if (created) registryChanged = true;
+            if (!ids.includes(id)) ids.push(id);
+        }
+        if (registryChanged) {
+            TagRegistry.save(this.state.tagRegistry).catch((err) => {
+                const errorMessage = err instanceof Error ? err.message : String(err);
+                Logger.error('Tracker', `Failed to persist tagRegistry: ${errorMessage}`, { err });
+            });
+        }
+        return ids;
+    }
+
     private getDatabaseTags(): string[] {
-        const tagsSet = new Set<string>();
-        (this.state.cards || []).forEach((c: Card) => {
-            if (c.tags && Array.isArray(c.tags)) {
-                c.tags.forEach(t => tagsSet.add(t));
-            }
-        });
-        return Array.from(tagsSet).sort();
+        const registry = this.state.tagRegistry || [];
+        return registry.map((entry) => entry.name).sort();
     }
 
     private _startReviewSession(): void {
@@ -1258,15 +1280,21 @@ class Tracker {
             fsrsBody.style.display = 'none';
             reviewUi.style.display = 'block';
 
-            const tagsHtml = currentCard.tags?.length ? `<div style="font-size: 11px; color: #888; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
+            const hydratedTags = currentCard.tags?.length
+                ? TagRegistry.hydrate(currentCard.tags, this.state.tagRegistry || [])
+                : [];
+            const tagsHtml = hydratedTags.length ? `<div style="font-size: 11px; color: #888; margin-bottom: 8px; display: flex; align-items: center; gap: 4px;">
                 <svg class="svg-icon" viewBox="0 0 24 24" style="stroke: #888; width: 13px; height: 13px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                <span>${currentCard.tags.join(', ')}</span>
+                <span>${hydratedTags.join(', ')}</span>
             </div>` : '';
 
+            const filterLabel = this.activeReviewFilter
+                ? TagRegistry.hydrate([this.activeReviewFilter], this.state.tagRegistry || [])[0]
+                : '';
             const filterBadge = this.activeReviewFilter
                 ? `<div class="fsrs-filter-badge">
                     <svg class="svg-icon" viewBox="0 0 24 24" style="width: 11px; height: 11px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                    ${this.activeReviewFilter}
+                    ${filterLabel}
                    </div>`
                 : '';
 
@@ -1442,7 +1470,8 @@ class Tracker {
             // Determine if this card has a tag that matches a custom weight profile
             let customWeightsToApply: number[] | null = null;
             if (card.tags && card.tags.length > 0) {
-                for (const tag of card.tags) {
+                const tagNames = TagRegistry.hydrate(card.tags, this.state.tagRegistry || []);
+                for (const tag of tagNames) {
                     if (this.state.topicWeights[tag]) {
                         customWeightsToApply = this.state.topicWeights[tag];
                         break;

@@ -22,7 +22,7 @@ import { PerformanceTab } from './performance/performance';
 import { InsightsTab } from './insights/insights';
 import { ReadinessTab } from './readiness/readiness';
 import { FutureMemorySimulation } from './memory/futureMemorySimulation';
-import { Card, StorageData } from '../../../types/domain';
+import { Card, StorageData, TagEntry } from '../../../types/domain';
 import AbstractScheduler from '../../tracker/scheduler/scheduler';
 
 /**
@@ -90,7 +90,7 @@ class AnalyticsDashboardSPA {
      */
     @CatchAndLog('AnalyticsDashboardSPA', 'Failed storage get in Analytics init')
     init(): void {
-        chrome.storage.local.get(['fsrsCards', 'fsrsActivity'], withErrorHandling((result: StorageData) => {
+        chrome.storage.local.get(['fsrsCards', 'tagRegistry', 'fsrsActivity'], withErrorHandling((result: StorageData) => {
             const lastError = typeof chrome !== 'undefined' ? chrome.runtime?.lastError : undefined;
             if (lastError) {
                 const errorMessage = lastError.message || String(lastError);
@@ -100,11 +100,12 @@ class AnalyticsDashboardSPA {
 
             const cards: Card[] = result.fsrsCards || [];
             const activity: Record<string, number> = result.fsrsActivity || {};
+            const tagRegistry: TagEntry[] = Array.isArray(result.tagRegistry) ? result.tagRegistry : [];
             
             const initializeDataUtils = withErrorHandling(() => {
                 const SchedulerClass = (window as unknown as { FsrsScheduler?: new () => AbstractScheduler }).FsrsScheduler;
                 const scheduler = typeof SchedulerClass === 'function' ? new SchedulerClass() : null;
-                this.dataUtils = new DataUtils(cards, activity, scheduler);
+                this.dataUtils = new DataUtils(cards, activity, scheduler, tagRegistry);
                 
                 // Initialize tab controllers
                 this.tabs.overview = new OverviewTab(this.dataUtils);

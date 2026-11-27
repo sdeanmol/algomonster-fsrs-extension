@@ -8,7 +8,8 @@
 
 import { Logger } from '@common/logger';
 import { CatchAndLog, CatchAndReturn, withErrorHandling } from '../../../decorators';
-import { Card, StorageData } from '../../../types/domain';
+import { Card, StorageData, TagEntry } from '../../../types/domain';
+import { TagRegistry } from '../tags/tagRegistry';
 import { BROWSER_CONFIG } from '../browserConfig';
 import {
     ACTION_URL_MAP,
@@ -324,50 +325,76 @@ export class ActionService {
         }
     }
 
+    private static escapeHtml(str: string): string {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     /**
      * Serializes an array of FSRS problem cards into Anki-compatible TSV format.
-     * Includes headers for deck name, note type, tab delimiters, and tags.
+     * Includes headers for deck name, note type, tab delimiters, HTML support, and tags.
      * @param cards - Array of card entities to format.
+     * @param registry - Canonical tag registry for hydrating UUIDs to display names.
      * @returns Formatted Anki TSV file contents string.
      */
-    static formatCardsForAnki(cards: Card[]): string {
+    static formatCardsForAnki(cards: Card[], registry: TagEntry[] = []): string {
         const lines: string[] = [];
         lines.push('#separator:tab');
-        lines.push('#html:false');
+        lines.push('#html:true');
         lines.push('#tags column:3');
         lines.push('#deck:AlgoRecall');
         lines.push('#notetype:Basic');
         lines.push('');
 
         cards.forEach((card: Card) => {
-            const front = (card.problemTitle || 'Untitled').replace(/\t/g, ' ').replace(/\n/g, ' ');
-            const back = (card.approach || '').replace(/\t/g, '    ');
-            const tags = (card.tags || []).map((t: string) => `algorecall::${t.replace(/\s+/g, '_')}`).join(' ');
-            const frontWithUrl = card.problemUrl ? `${front}\n[URL: ${card.problemUrl}]` : front;
-            lines.push(`${frontWithUrl}\t${back}\t${tags}`);
+            const title = ActionService.escapeHtml((card.problemTitle || 'Untitled').replace(/\t/g, ' ').replace(/\n/g, ' '));
+            const urlLink = card.problemUrl
+                ? `<br><a href="${ActionService.escapeHtml(card.problemUrl)}" style="font-size:11px;color:#888;">Open Problem ↗</a>`
+                : '';
+            const front = `${title}${urlLink}`;
+            const back = ActionService.escapeHtml((card.approach || '').replace(/\t/g, '    ')).replace(/\r?\n/g, '<br>');
+            const tagNames = TagRegistry.hydrate(card.tags || [], registry);
+            const tags = tagNames.map((t: string) => `algorecall::${t.replace(/\s+/g, '_')}`).join(' ');
+            lines.push(`${front}\t${back}\t${tags}`);
         });
 
         return lines.join('\n');
     }
 
     /**
-     * Reads all cards from storage, formats them for Anki, and initiates download.
+     * Reads all cards and tag registry from storage, formats them for Anki, and initiates download.
      * @returns Promise resolving to the number of exported cards.
-     * @throws Error if no cards exist to export.
+     * @throws Error if no cards exist or storage/download fails.
      * @async
      */
     static async exportAnki(): Promise<number> {
-        const result = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
+        let result: StorageData;
+        try {
+            result = (await chrome.storage.local.get(['fsrsCards', 'tagRegistry'])) as StorageData;
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            throw new Error(`Failed to read cards from storage for Anki export: ${msg}`);
+        }
+
         const cards = result.fsrsCards || [];
         if (cards.length === 0) {
             throw new Error('No cards to export.');
         }
 
-        const ankiText = ActionService.formatCardsForAnki(cards);
+        const registry: TagEntry[] = Array.isArray(result.tagRegistry) ? result.tagRegistry : [];
+        const ankiText = ActionService.formatCardsForAnki(cards, registry);
         const blob = new Blob([ankiText], { type: 'text/plain;charset=utf-8' });
         const filename = `algorecall_anki_${new Date().toISOString().split('T')[0]}.txt`;
 
-        await ActionService.downloadBlobOrFallback(blob, filename, 'features/common/data/data.html?action=export-anki');
+        try {
+            await ActionService.downloadBlobOrFallback(blob, filename, 'features/common/data/data.html?action=export-anki');
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            throw new Error(`Failed to download Anki export file: ${msg}`);
+        }
         return cards.length;
     }
 

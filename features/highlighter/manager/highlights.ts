@@ -12,6 +12,7 @@
 
 import { Logger } from '@common/logger';
 import { HighlightsHelpers } from './highlights-helpers';
+import { MultiSelectControl } from '../../common/utils/multiSelect';
 import { HighlightMark, BookmarkItem, StorageData } from '../../../types/domain';
 import { BROWSER_CONFIG } from '../../common/browserConfig';
 import { CatchAndLog, withErrorHandling } from '../../../decorators';
@@ -32,8 +33,10 @@ export class HighlightsManager {
     searchQuery: string;
     /** Active hex color string filtering annotations, or null for all colors. */
     activeColorFilter: string | null;
-    /** Target page URL filter, or 'all' for all web pages. */
-    activePageFilter: string;
+    /** Target page URL filters (empty array for all web pages). */
+    activePageFilters: string[];
+    /** Multi-select controller for webpage filter dropdown. */
+    private webpageMultiSelect: MultiSelectControl | null = null;
     /** Current sort criterion ('newest' | 'oldest' | 'longest' | 'shortest' | 'title'). */
     sortOption: string;
 
@@ -46,7 +49,7 @@ export class HighlightsManager {
         
         this.searchQuery = '';
         this.activeColorFilter = null;
-        this.activePageFilter = 'all';
+        this.activePageFilters = [];
         this.sortOption = 'newest';
     }
 
@@ -101,11 +104,14 @@ export class HighlightsManager {
 
         const webpageSelect = document.getElementById('webpage-select') as HTMLSelectElement | null;
         if (webpageSelect) {
-            webpageSelect.addEventListener('change', withErrorHandling((e: Event) => {
-                const target = e.target as HTMLSelectElement;
-                this.activePageFilter = target.value;
-                this.filterAndRender();
-            }, 'HighlightsManager', 'Error in webpage select handler'));
+            this.webpageMultiSelect = MultiSelectControl.attach(webpageSelect, {
+                placeholder: 'All Pages',
+                searchPlaceholder: 'Search pages...',
+                onChange: withErrorHandling((values: string[]) => {
+                    this.activePageFilters = values;
+                    this.filterAndRender();
+                }, 'HighlightsManager', 'Error in webpage multi-select handler')
+            });
         }
 
         const sortSelect = document.getElementById('sort-select') as HTMLSelectElement | null;
@@ -122,11 +128,11 @@ export class HighlightsManager {
             clearFiltersBtn.addEventListener('click', withErrorHandling(() => {
                 this.searchQuery = '';
                 this.activeColorFilter = null;
-                this.activePageFilter = 'all';
+                this.activePageFilters = [];
                 this.sortOption = 'newest';
 
                 if (searchInput) searchInput.value = '';
-                if (webpageSelect) webpageSelect.value = 'all';
+                this.webpageMultiSelect?.clear(false);
                 if (sortSelect) sortSelect.value = 'newest';
 
                 this.renderColorFilters();
@@ -187,7 +193,10 @@ export class HighlightsManager {
             select.appendChild(option);
         }
         
-        select.value = this.activePageFilter;
+        this.webpageMultiSelect?.refreshOptions();
+        if (this.activePageFilters.length > 0) {
+            this.webpageMultiSelect?.setSelectedValues(this.activePageFilters, false);
+        }
     }
 
     /**
@@ -254,7 +263,7 @@ export class HighlightsManager {
                                  markCategory.includes(q);
 
             const matchesColor = !this.activeColorFilter || mark.color === this.activeColorFilter;
-            const matchesPage = this.activePageFilter === 'all' || mark.url === this.activePageFilter;
+            const matchesPage = this.activePageFilters.length === 0 || this.activePageFilters.includes(mark.url);
 
             return matchesQuery && matchesColor && matchesPage;
         });
@@ -293,7 +302,7 @@ export class HighlightsManager {
             return 0;
         });
 
-        const isFilteredActive = this.searchQuery !== '' || this.activeColorFilter !== null || this.activePageFilter !== 'all';
+        const isFilteredActive = this.searchQuery !== '' || this.activeColorFilter !== null || this.activePageFilters.length > 0;
         if (clearFiltersBtn) {
             clearFiltersBtn.style.display = isFilteredActive ? 'inline-block' : 'none';
         }

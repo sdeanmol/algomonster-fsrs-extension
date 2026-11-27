@@ -1,0 +1,88 @@
+<!--
+  @file features/common/tags/tags.html
+  @context Options Page / Standalone Tag Manager Tab
+  @description Modern full-page tag manager for searching, sorting, viewing, renaming, merging,
+  and deleting canonical tags stored in `tagRegistry`. Uses MD3 dark/light theme tokens from base.css.
+  @linked-scripts
+    - ../theme-sync.js (Global dark/light theme synchronizer)
+    - tags.js (features/common/tags/tags.ts - TagManagerPage controller)
+  @linked-styles
+    - ../base.css (Material Design 3 tokens and shared components)
+    - tags.css (Tag manager layout, search/sort panel, inline edit rows, badges, and status banners)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>AlgoRecall Tag Manager</title>
+    <script src="../theme-sync.js"></script>
+    <link rel="stylesheet" href="../base.css">
+    <link rel="stylesheet" href="tags.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-main">
+                <div class="algorecall-brand-badge">
+                    <svg class="svg-icon logo-icon algorecall-brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-2.5 2.5C6 22 4 19.5 4 17c0-1.5 1-2.5 1-3.5 0-1 1-2 1-3.5 0-2.5 2-5 5.5-6z"></path>
+                        <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 2.5 2.5C18 22 20 19.5 20 17c0-1.5-1-2.5-1-3.5 0-1 1-2 1-3.5 0-2.5-2-5-5.5-6z"></path>
+                        <path d="M12 8h2M12 12h3M12 16h2M10 8h2M9 12h3M10 16h2"></path>
+                    </svg>
+                    <span class="algorecall-brand-name">AlgoRecall</span>
+                </div>
+                <h1 id="page-title">Tag Manager</h1>
+                <p id="page-subtitle" class="subtitle">Rename, merge, or delete tags across all your saved patterns.</p>
+            </div>
+            <div class="header-actions">
+                <a href="../data/data.html" class="btn btn-secondary">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    Data Manager
+                </a>
+                <a href="../../dashboard/analytics/analytics.html" class="btn btn-secondary">
+                    <svg class="svg-icon" viewBox="0 0 24 24" style="margin-right:6px;" aria-hidden="true">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    Analytics
+                </a>
+            </div>
+        </div>
+
+        <div id="status-banner" class="status-banner" role="status" aria-live="polite" style="display: none;"></div>
+
+        <div class="filters-panel">
+            <div class="search-box-wrapper">
+                <svg class="svg-icon search-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="tags-search-input" class="input-field search-input" placeholder="Search tags by name..." aria-label="Search tags by name">
+            </div>
+            <div class="toolbar-meta">
+                <span id="tags-summary" class="tags-summary">Loading tags...</span>
+                <div class="sort-wrapper">
+                    <label for="tags-sort-select" class="sort-label">Sort</label>
+                    <select id="tags-sort-select" class="select-field" aria-label="Sort tags">
+                        <option value="name-asc">Name (A–Z)</option>
+                        <option value="name-desc">Name (Z–A)</option>
+                        <option value="count-desc">Most Cards</option>
+                        <option value="count-asc">Fewest Cards</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="tags-card">
+            <div id="tags-list" class="tags-list"></div>
+        </div>
+    </div>
+
+    <script src="tags.js"></script>
+</body>
+</html>

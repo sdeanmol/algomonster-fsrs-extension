@@ -7,7 +7,7 @@
  */
 
 import { Rating, State } from 'ts-fsrs';
-import { ExtensionSettings, NotificationSettings, FSRSParameters, WhitelistedWebsite, ReviewLog } from './domain';
+import { ExtensionSettings, NotificationSettings, FSRSParameters, WhitelistedWebsite, ReviewLog, TagEntry } from './domain';
 
 /**
  * Line record discriminator identifiers for Backup NDJSON streams.
@@ -23,6 +23,7 @@ export type BackupRecordType =
     | 'activity'
     | 'weights'
     | 'settings'
+    | 'tagregistry'
     | 'footer';
 
 /**
@@ -278,6 +279,16 @@ export interface SettingsRecord {
 }
 
 /**
+ * Line record containing the canonical tag registry.
+ */
+export interface TagRegistryRecord {
+    /** Record type discriminator */
+    type: 'tagregistry';
+    /** Full tag registry array */
+    data: TagEntry[];
+}
+
+/**
  * Footer record appearing strictly as the final line of a backup NDJSON stream.
  * Encapsulates the stream integrity verification checksum and line count.
  */
@@ -306,4 +317,5 @@ export type BackupRecord =
     | ActivityRecord
     | WeightsRecord
     | SettingsRecord
+    | TagRegistryRecord
     | FooterRecord;

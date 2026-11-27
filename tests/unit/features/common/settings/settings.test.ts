@@ -60,7 +60,6 @@ describe('SettingsController', () => {
     <button id="settings-export-btn"></button>
     <label id="settings-import-label"><input id="settings-import-file" type="file" /></label>
     <button id="settings-anki-export-btn"></button>
-    <label id="settings-anki-import-label"><input id="settings-anki-import-file" type="file" /></label>
 
     <input id="toggle-show-charts" type="checkbox" checked />
     <input id="toggle-daily-focus" type="checkbox" checked />
@@ -505,7 +504,7 @@ describe('SettingsController', () => {
       expect(BackupManager.exportBackup).toHaveBeenCalled();
     });
 
-    it('triggers ActionService.exportAnki on anki export click', async () => {
+    it('triggers ActionService.exportAnki on anki export click and surfaces errors via toast', async () => {
       const spy = jest.spyOn(ActionService, 'executeAction').mockResolvedValue({
         success: true,
         data: 5
@@ -515,7 +514,19 @@ describe('SettingsController', () => {
       controller.dom.ankiExportBtn?.click();
 
       expect(spy).toHaveBeenCalledWith('export-anki');
+
+      spy.mockResolvedValueOnce({
+        success: false,
+        error: 'No cards to export.'
+      });
+      const toastSpy = jest.spyOn(controller, 'showToast');
+      controller.dom.ankiExportBtn?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(toastSpy).toHaveBeenCalledWith('No cards to export.', true);
       spy.mockRestore();
+      toastSpy.mockRestore();
     });
   });
 

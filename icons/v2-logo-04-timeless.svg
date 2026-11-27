@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <!--
+    CANVA PRINCIPLE #4 — MAKE IT TIMELESS
+    Avoids all 2020s trends (gradients, glassmorphism, neon glow, 3D shadows).
+    Uses only: geometry, two flat colors, and one universal symbol — a brain
+    inside a circle. This aesthetic would look equally valid in 2010, 2026, or 2040.
+    Inspired by the timelessness of Nike, Apple, and PBS logos.
+    Two colors max: deep navy + electric teal. No decoration.
+  -->
+
+  <!-- Background -->
+  <rect width="128" height="128" rx="22" fill="#0f172a"/>
+
+  <!-- Outer ring (timeless circle badge) -->
+  <circle cx="64" cy="60" r="44" stroke="#14b8a6" stroke-width="5" fill="none"/>
+
+  <!-- Brain mark — geometric, symmetrical, no wrinkles or detail -->
+  <!-- Left lobe circle -->
+  <circle cx="51" cy="56" r="16" stroke="#14b8a6" stroke-width="4" fill="none"/>
+  <!-- Right lobe circle -->
+  <circle cx="77" cy="56" r="16" stroke="#14b8a6" stroke-width="4" fill="none"/>
+  <!-- Stem/base -->
+  <rect x="58" y="68" width="12" height="10" rx="3" fill="#14b8a6"/>
+
+  <!-- Single clean divider between lobes -->
+  <line x1="64" y1="42" x2="64" y2="68" stroke="#0f172a" stroke-width="4"/>
+</svg>

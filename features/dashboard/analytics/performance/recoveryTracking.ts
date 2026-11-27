@@ -20,8 +20,8 @@ import { CatchAndLog, CatchAndReturn, withFallback } from '../../../../decorator
 export class RecoveryTracking {
     /** Data utility instance for card performance analysis */
     dataUtils: DataUtils;
-    /** Current tag filter applied to the recovery analysis ('all' or specific tag name) */
-    tagFilter: string;
+    /** Current tag filter applied to the recovery analysis (empty array for all, or selected tag IDs) */
+    tagFilter: string[];
 
     /**
      * Creates an instance of RecoveryTracking.
@@ -30,23 +30,27 @@ export class RecoveryTracking {
     constructor(dataUtils: DataUtils) {
         try {
             this.dataUtils = dataUtils;
-            this.tagFilter = 'all';
+            this.tagFilter = [];
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
             Logger.error('RecoveryTracking', `Error initializing RecoveryTracking constructor: ${errorMessage}`, { err });
             this.dataUtils = dataUtils;
-            this.tagFilter = 'all';
+            this.tagFilter = [];
         }
     }
 
     /**
      * Updates the tag filter applied when displaying recovered and struggling cards.
-     * @param tag - Tag name to filter by, or 'all' to show all cards.
+     * @param tag - Tag ID/name or array of tag IDs/names to filter by, or 'all'/empty to show all cards.
      * @returns void
      */
     @CatchAndLog('RecoveryTracking', 'Error setting tag filter')
-    setTagFilter(tag: string): void {
-        this.tagFilter = tag || 'all';
+    setTagFilter(tag: string | string[]): void {
+        if (Array.isArray(tag)) {
+            this.tagFilter = tag.filter(t => t && t !== 'all');
+        } else {
+            this.tagFilter = !tag || tag === 'all' ? [] : [tag];
+        }
     }
 
     /**
@@ -64,9 +68,9 @@ export class RecoveryTracking {
         let filteredLapsed = lapsed || [];
         let filteredRecovered = recovered || [];
         
-        if (this.tagFilter !== 'all') {
-            filteredLapsed = lapsed.filter(c => c.tags && c.tags.includes(this.tagFilter));
-            filteredRecovered = recovered.filter(c => c.tags && c.tags.includes(this.tagFilter));
+        if (this.tagFilter.length > 0) {
+            filteredLapsed = lapsed.filter(c => c.tags && c.tags.some(t => this.tagFilter.includes(t)));
+            filteredRecovered = recovered.filter(c => c.tags && c.tags.some(t => this.tagFilter.includes(t)));
         }
 
         const html = `

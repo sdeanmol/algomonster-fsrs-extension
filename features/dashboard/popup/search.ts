@@ -14,7 +14,9 @@ import { Logger } from '@common/logger';
 import { UIUtils } from '../../common/utils/uiUtils';
 import { CatchAndLog, withErrorHandling } from '../../../decorators';
 import { DashboardComponent, DashboardCoordinator } from './DashboardComponent';
-import { Card, StorageData } from '../../../types/domain';
+import { Card, StorageData, TagEntry } from '../../../types/domain';
+import { TagRegistry } from '../../common/tags/tagRegistry';
+import { MultiSelectControl } from '../../common/utils/multiSelect';
 import { SEARCH_DEBOUNCE_MS, SEARCH_MAX_RESULTS } from '../../common/constants';
 
 /**
@@ -24,6 +26,10 @@ import { SEARCH_DEBOUNCE_MS, SEARCH_MAX_RESULTS } from '../../common/constants';
 export class QuickSearchComponent extends DashboardComponent {
     /** In-memory cache of all tracked FSRS cards for instant query filtering. */
     quickSearchCards: Card[];
+    /** Canonical tag registry mapping stable UUIDs to display names. */
+    tagRegistry: TagEntry[];
+    /** Multi-select controller for the tag filter dropdown. */
+    private tagMultiSelect: MultiSelectControl | null;
     /** Timeout handle for debouncing user input keystrokes. */
     quickSearchDebounce: ReturnType<typeof setTimeout> | null;
 
@@ -34,6 +40,8 @@ export class QuickSearchComponent extends DashboardComponent {
     constructor(coordinator: DashboardCoordinator) {
         super(coordinator);
         this.quickSearchCards = [];
+        this.tagRegistry = [];
+        this.tagMultiSelect = null;
         this.quickSearchDebounce = null;
     }
 
@@ -51,27 +59,40 @@ export class QuickSearchComponent extends DashboardComponent {
 
         if (!searchInput || !tagFilter || !resultsContainer) return;
 
-        // Load cards and populate tag filter
-        const result = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
+        // Load cards and tag registry and populate tag filter
+        const result = (await chrome.storage.local.get(['fsrsCards', 'tagRegistry'])) as StorageData;
         this.quickSearchCards = result.fsrsCards || [];
+        this.tagRegistry = Array.isArray(result.tagRegistry) ? result.tagRegistry : [];
 
         // Populate tag dropdown (keep the 'All Tags' option)
         while (tagFilter.options.length > 1) {
             tagFilter.remove(1);
         }
 
-        const tagsSet = new Set<string>();
-        this.quickSearchCards.forEach(card => {
-            if (card.tags && Array.isArray(card.tags)) {
-                card.tags.forEach((t: string) => tagsSet.add(t));
-            }
-        });
-        [...tagsSet].sort().forEach(tag => {
-            const option = document.createElement('option');
-            option.value = tag;
-            option.textContent = tag;
-            tagFilter.appendChild(option);
-        });
+        if (this.tagRegistry.length > 0) {
+            [...this.tagRegistry]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .forEach(entry => {
+                    const option = document.createElement('option');
+                    option.value = entry.id;
+                    option.textContent = entry.name;
+                    tagFilter.appendChild(option);
+                });
+        } else {
+            const tagsSet = new Set<string>();
+            this.quickSearchCards.forEach(card => {
+                if (card.tags && Array.isArray(card.tags)) {
+                    card.tags.forEach((t: string) => tagsSet.add(t));
+                }
+            });
+            [...tagsSet].sort().forEach(tag => {
+                const option = document.createElement('option');
+                option.value = tag;
+                option.textContent = tag;
+                tagFilter.appendChild(option);
+            });
+        }
+        this.tagMultiSelect?.refreshOptions();
     }
 
     /**
@@ -92,9 +113,13 @@ export class QuickSearchComponent extends DashboardComponent {
         }
 
         if (tagFilter) {
-            tagFilter.addEventListener('change', withErrorHandling(() => {
-                this.renderQuickSearch();
-            }, { context: 'QuickSearchComponent', message: 'Error in tag filter change listener' }));
+            this.tagMultiSelect = MultiSelectControl.attach(tagFilter as HTMLSelectElement, {
+                placeholder: 'All Tags',
+                searchPlaceholder: 'Search tags...',
+                onChange: withErrorHandling(() => {
+                    this.renderQuickSearch();
+                }, { context: 'QuickSearchComponent', message: 'Error in tag multi-select change listener' })
+            });
         }
     }
 
@@ -110,10 +135,12 @@ export class QuickSearchComponent extends DashboardComponent {
         if (!searchInput || !resultsContainer) return;
 
         const query = searchInput.value.trim().toLowerCase();
-        const selectedTag = tagFilter ? tagFilter.value : 'all';
+        const selectedTags = this.tagMultiSelect
+            ? this.tagMultiSelect.getSelectedValues()
+            : (tagFilter && tagFilter.value !== 'all' ? [tagFilter.value] : []);
 
         // Hide results if no query and no tag filter
-        if (!query && selectedTag === 'all') {
+        if (!query && selectedTags.length === 0) {
             resultsContainer.innerHTML = '';
             resultsContainer.style.display = 'none';
             return;
@@ -122,13 +149,17 @@ export class QuickSearchComponent extends DashboardComponent {
         const now = Date.now();
         const filtered = this.quickSearchCards.filter(card => {
             // Tag filter
-            if (selectedTag !== 'all' && !(card.tags && card.tags.includes(selectedTag))) return false;
+            if (selectedTags.length > 0 && !(card.tags && card.tags.some((t: string) => selectedTags.includes(t)))) return false;
+
+            const hydratedTags = this.tagRegistry.length > 0
+                ? TagRegistry.hydrate(card.tags || [], this.tagRegistry)
+                : (card.tags || []);
 
             // Search query
             if (query) {
                 const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(query);
                 const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(query);
-                const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(query));
+                const tagMatch = hydratedTags.some((t: string) => t.toLowerCase().includes(query));
                 const approachMatch = card.approach && card.approach.toLowerCase().includes(query);
                 if (!titleMatch && !urlMatch && !tagMatch && !approachMatch) return false;
             }
@@ -151,7 +182,10 @@ export class QuickSearchComponent extends DashboardComponent {
             const statusBadge = isDue
                 ? '<span class="popup-badge popup-badge-due">Due</span>'
                 : '<span class="popup-badge popup-badge-safe">Safe</span>';
-            const tagsHtml = (card.tags || []).slice(0, 3).map((t: string) => `<span class="popup-tag">${t}</span>`).join('');
+            const hydratedTags = this.tagRegistry.length > 0
+                ? TagRegistry.hydrate(card.tags || [], this.tagRegistry)
+                : (card.tags || []);
+            const tagsHtml = hydratedTags.slice(0, 3).map((t: string) => `<span class="popup-tag">${t}</span>`).join('');
             const title = card.problemTitle || 'Untitled';
 
             return `<a href="${card.problemUrl}" target="_blank" class="popup-search-item" title="${title}" aria-label="${title}">
@@ -167,7 +201,7 @@ export class QuickSearchComponent extends DashboardComponent {
             const urlParams = new URLSearchParams();
             urlParams.append('view', 'total');
             if (query) urlParams.append('search', query);
-            if (selectedTag && selectedTag !== 'all') urlParams.append('tag', selectedTag);
+            if (selectedTags.length > 0) urlParams.append('tag', selectedTags.join(','));
             const dataUrl = chrome.runtime.getURL(`features/common/data/data.html?${urlParams.toString()}`);
             html += `<a href="${dataUrl}" target="_blank" class="popup-search-view-all">View all ${totalMatches} results →</a>`;
         }

@@ -65,8 +65,6 @@ export class SettingsController {
         importFile: HTMLInputElement | null;
         importLabel: HTMLElement | null;
         ankiExportBtn: HTMLElement | null;
-        ankiImportFile: HTMLInputElement | null;
-        ankiImportLabel: HTMLElement | null;
 
         // Developer & General
         toggleShowCharts: HTMLInputElement | null;
@@ -108,8 +106,6 @@ export class SettingsController {
             importFile: document.getElementById('settings-import-file') as HTMLInputElement | null,
             importLabel: document.getElementById('settings-import-label'),
             ankiExportBtn: document.getElementById('settings-anki-export-btn'),
-            ankiImportFile: document.getElementById('settings-anki-import-file') as HTMLInputElement | null,
-            ankiImportLabel: document.getElementById('settings-anki-import-label'),
 
             toggleShowCharts: document.getElementById('toggle-show-charts') as HTMLInputElement | null,
             toggleDailyFocus: document.getElementById('toggle-daily-focus') as HTMLInputElement | null,
@@ -482,71 +478,6 @@ export class SettingsController {
             contextMessage: 'Error exporting Anki cards',
             fallback: () => { this.showToast('Failed to export Anki deck', true); }
         }));
-
-        // Anki Import
-        this.dom.ankiImportFile?.addEventListener('change', withErrorHandling(async (e: Event) => {
-            const input = e.target as HTMLInputElement;
-            if (!input.files || !input.files[0]) return;
-            const file = input.files[0];
-            const text = await file.text();
-            const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-
-            if (lines.length === 0) {
-                this.showToast('Import file is empty', true);
-                return;
-            }
-
-            const res = (await chrome.storage.local.get(['fsrsCards'])) as StorageData;
-            const existingCards: Card[] = res.fsrsCards || [];
-            let importedCount = 0;
-
-            for (const line of lines) {
-                const parts = line.split('\t');
-                if (parts.length >= 2) {
-                    const title = parts[0].trim();
-                    const approach = parts[1].trim();
-                    const tags = parts[2] ? parts[2].split(',').map((t) => t.trim()) : ['Anki'];
-
-                    const newCard: Card = {
-                        id: `card_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-                        problemTitle: title,
-                        problemUrl: '',
-                        approach: approach,
-                        tags: tags,
-                        due: Date.now(),
-                        stability: 1,
-                        difficulty: 5,
-                        elapsed_days: 0,
-                        scheduled_days: 0,
-                        learning_steps: 0,
-                        reps: 0,
-                        lapses: 0,
-                        state: 0,
-                        historyLog: []
-                    };
-                    existingCards.push(newCard);
-                    importedCount++;
-                }
-            }
-
-            if (importedCount > 0) {
-                await chrome.storage.local.set({ fsrsCards: existingCards });
-                this.showToast(`Imported ${importedCount} card(s) from Anki`);
-            } else {
-                this.showToast('No valid tab-separated cards found in file', true);
-            }
-            input.value = '';
-        }, 'SettingsController', {
-            contextMessage: 'Error importing from Anki',
-            fallback: () => { this.showToast('Failed to import Anki cards', true); }
-        }));
-
-        this.dom.ankiImportLabel?.addEventListener('keydown', (e: KeyboardEvent) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                this.dom.ankiImportFile?.click();
-            }
-        });
     }
 
     /**

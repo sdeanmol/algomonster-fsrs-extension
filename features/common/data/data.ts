@@ -3,7 +3,9 @@ import { UIUtils } from '../utils/uiUtils';
 import { CatchAndLog, CatchAndReturn, withErrorHandling } from '../../../decorators';
 import { ensureCardIds } from '../utils/cardUtils';
 import { TagInputControl } from '../utils/tagInput';
-import { Card, StorageData, UserSettings } from '../../../types/domain';
+import { MultiSelectControl } from '../utils/multiSelect';
+import { TagRegistry } from '../tags/tagRegistry';
+import { Card, StorageData, UserSettings, TagEntry } from '../../../types/domain';
 import { PLATFORM_NAMES, MONTH_NAMES } from '../constants';
 
 /**
@@ -18,6 +20,8 @@ import { PLATFORM_NAMES, MONTH_NAMES } from '../constants';
 export class FSRSDataDashboard {
     /** In-memory cache of all FSRS cards retrieved from storage */
     allCards: Card[];
+    /** Canonical tag registry mapping stable UUIDs to display names */
+    tagRegistry: TagEntry[];
     /** Current view mode ('total' | 'due' | 'retention') */
     currentView: string;
     /** Optional calendar date filter parameter ("YYYY-MM-DD") */
@@ -25,14 +29,19 @@ export class FSRSDataDashboard {
 
     /** Active search query string */
     searchQuery: string;
-    /** Currently selected tag filter identifier */
-    selectedTag: string;
-    /** Currently selected due status filter */
-    selectedStatus: string;
-    /** Currently selected platform/domain filter */
-    selectedPlatform: string;
-    /** Currently selected FSRS state filter */
-    selectedState: string;
+    /** Currently selected tag filter identifiers */
+    selectedTags: string[];
+    /** Currently selected due status filters */
+    selectedStatuses: string[];
+    /** Currently selected platform/domain filters */
+    selectedPlatforms: string[];
+    /** Currently selected FSRS state filters */
+    selectedStates: string[];
+    /** Multi-select controller instances */
+    private tagMultiSelect: MultiSelectControl | null = null;
+    private statusMultiSelect: MultiSelectControl | null = null;
+    private platformMultiSelect: MultiSelectControl | null = null;
+    private stateMultiSelect: MultiSelectControl | null = null;
     /** Active sorting key (e.g. 'due-asc', 'difficulty-desc') */
     sortBy: string;
     /** User extension settings cached from storage */
@@ -48,15 +57,16 @@ export class FSRSDataDashboard {
      */
     constructor() {
         this.allCards = [];
+        this.tagRegistry = [];
         this.currentView = 'total';
         this.targetDate = null;
         this.undoTimer = null;
 
         this.searchQuery = '';
-        this.selectedTag = 'all';
-        this.selectedStatus = 'all';
-        this.selectedPlatform = 'all';
-        this.selectedState = 'all';
+        this.selectedTags = [];
+        this.selectedStatuses = [];
+        this.selectedPlatforms = [];
+        this.selectedStates = [];
         this.sortBy = 'due-asc';
         this.extensionSettings = {};
 
@@ -82,34 +92,34 @@ export class FSRSDataDashboard {
 
         const urlTag = urlParams.get('tag');
         if (urlTag) {
-            this.selectedTag = urlTag;
+            this.selectedTags = urlTag.split(',').map(t => t.trim()).filter(Boolean);
         }
 
-        chrome.storage.local.get(['fsrsCards', 'extensionSettings'], withErrorHandling((result: StorageData) => {
+        chrome.storage.local.get(['fsrsCards', 'tagRegistry', 'extensionSettings'], withErrorHandling((result: StorageData) => {
             if (chrome.runtime?.lastError) {
                 const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                 Logger.error('DataDashboard', `Storage error in init: ${errorMessage}`, { error: chrome.runtime.lastError });
                 return;
             }
             this.allCards = ensureCardIds(result.fsrsCards || []);
+            this.tagRegistry = Array.isArray(result.tagRegistry) ? result.tagRegistry : [];
             this.extensionSettings = (result.extensionSettings || {}) as UserSettings & { showCharts?: boolean };
 
             // Dynamic Filter Populators
             this.populateTagsFilter();
             this.populatePlatformFilter();
 
+            // Register Listeners & Multi-Selects
+            this.bindEvents();
+
             // Pre-select search input & tag filter from URL
             if (urlSearch) {
                 const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
                 if (searchInput) searchInput.value = urlSearch;
             }
-            if (urlTag) {
-                const tagSelect = document.getElementById('tag-select') as HTMLSelectElement | null;
-                if (tagSelect) tagSelect.value = urlTag;
+            if (urlTag && this.selectedTags.length > 0) {
+                this.tagMultiSelect?.setSelectedValues(this.selectedTags, false);
             }
-
-            // Register Listeners
-            this.bindEvents();
 
             // Run initial render
             this.filterAndRender();
@@ -132,34 +142,50 @@ export class FSRSDataDashboard {
 
         const tagSelect = document.getElementById('tag-select') as HTMLSelectElement | null;
         if (tagSelect) {
-            tagSelect.addEventListener('change', withErrorHandling((e: Event) => {
-                this.selectedTag = (e.target as HTMLSelectElement).value;
-                this.filterAndRender();
-            }, 'DataDashboard', 'Error in tag select handler'));
+            this.tagMultiSelect = MultiSelectControl.attach(tagSelect, {
+                placeholder: 'All Tags',
+                searchPlaceholder: 'Search tags...',
+                onChange: withErrorHandling((values: string[]) => {
+                    this.selectedTags = values;
+                    this.filterAndRender();
+                }, 'DataDashboard', 'Error in tag multi-select handler')
+            });
         }
 
         const statusSelect = document.getElementById('status-select') as HTMLSelectElement | null;
         if (statusSelect) {
-            statusSelect.addEventListener('change', withErrorHandling((e: Event) => {
-                this.selectedStatus = (e.target as HTMLSelectElement).value;
-                this.filterAndRender();
-            }, 'DataDashboard', 'Error in status select handler'));
+            this.statusMultiSelect = MultiSelectControl.attach(statusSelect, {
+                placeholder: 'All Patterns',
+                searchPlaceholder: 'Search status...',
+                onChange: withErrorHandling((values: string[]) => {
+                    this.selectedStatuses = values;
+                    this.filterAndRender();
+                }, 'DataDashboard', 'Error in status multi-select handler')
+            });
         }
 
         const platformSelect = document.getElementById('platform-select') as HTMLSelectElement | null;
         if (platformSelect) {
-            platformSelect.addEventListener('change', withErrorHandling((e: Event) => {
-                this.selectedPlatform = (e.target as HTMLSelectElement).value;
-                this.filterAndRender();
-            }, 'DataDashboard', 'Error in platform select handler'));
+            this.platformMultiSelect = MultiSelectControl.attach(platformSelect, {
+                placeholder: 'All Platforms',
+                searchPlaceholder: 'Search platforms...',
+                onChange: withErrorHandling((values: string[]) => {
+                    this.selectedPlatforms = values;
+                    this.filterAndRender();
+                }, 'DataDashboard', 'Error in platform multi-select handler')
+            });
         }
 
         const stateSelect = document.getElementById('state-select') as HTMLSelectElement | null;
         if (stateSelect) {
-            stateSelect.addEventListener('change', withErrorHandling((e: Event) => {
-                this.selectedState = (e.target as HTMLSelectElement).value;
-                this.filterAndRender();
-            }, 'DataDashboard', 'Error in state select handler'));
+            this.stateMultiSelect = MultiSelectControl.attach(stateSelect, {
+                placeholder: 'All States',
+                searchPlaceholder: 'Search states...',
+                onChange: withErrorHandling((values: string[]) => {
+                    this.selectedStates = values;
+                    this.filterAndRender();
+                }, 'DataDashboard', 'Error in state multi-select handler')
+            });
         }
 
         const sortSelect = document.getElementById('sort-select') as HTMLSelectElement | null;
@@ -223,7 +249,7 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Inspects the cached `allCards` collection and dynamically populates unique tags into the `#tag-select` dropdown.
+     * Populates unique tags from `tagRegistry` into the `#tag-select` dropdown.
      */
     @CatchAndLog('DataDashboard', 'Error populating tags filter')
     populateTagsFilter(): void {
@@ -232,19 +258,14 @@ export class FSRSDataDashboard {
 
         tagSelect.innerHTML = '<option value="all">All Tags</option>';
 
-        const tagsSet = new Set<string>();
-        this.allCards.forEach((card: Card) => {
-            if (card.tags && Array.isArray(card.tags)) {
-                card.tags.forEach((t: string) => tagsSet.add(t));
-            }
-        });
-
-        [...tagsSet].sort().forEach(tag => {
+        const sorted = [...this.tagRegistry].sort((a, b) => a.name.localeCompare(b.name));
+        sorted.forEach(entry => {
             const option = document.createElement('option');
-            option.value = tag;
-            option.textContent = tag;
+            option.value = entry.id;
+            option.textContent = entry.name;
             tagSelect.appendChild(option);
         });
+        this.tagMultiSelect?.refreshOptions();
     }
 
     /**
@@ -269,6 +290,7 @@ export class FSRSDataDashboard {
             option.textContent = PLATFORM_NAMES[platform] || platform;
             platformSelect.appendChild(option);
         });
+        this.platformMultiSelect?.refreshOptions();
     }
 
     /**
@@ -374,24 +396,25 @@ export class FSRSDataDashboard {
         let filtered = baseCards.filter((card: Card) => {
             const titleMatch = card.problemTitle && card.problemTitle.toLowerCase().includes(this.searchQuery.toLowerCase());
             const urlMatch = card.problemUrl && card.problemUrl.toLowerCase().includes(this.searchQuery.toLowerCase());
-            const tagMatch = card.tags && card.tags.some((t: string) => t.toLowerCase().includes(this.searchQuery.toLowerCase()));
+            const hydratedTagNames = TagRegistry.hydrate(card.tags || [], this.tagRegistry);
+            const tagMatch = hydratedTagNames.some((t: string) => t.toLowerCase().includes(this.searchQuery.toLowerCase()));
             const approachMatch = card.approach && card.approach.toLowerCase().includes(this.searchQuery.toLowerCase());
 
             const matchesSearch = !this.searchQuery || titleMatch || urlMatch || tagMatch || approachMatch;
-            const matchesTag = this.selectedTag === 'all' || (card.tags && card.tags.includes(this.selectedTag));
+            const matchesTag = this.selectedTags.length === 0 || (card.tags && card.tags.some((t: string) => this.selectedTags.includes(t)));
             const isCardDue = card.due <= now;
-            const matchesStatus = this.selectedStatus === 'all' ||
-                (this.selectedStatus === 'due' && isCardDue) ||
-                (this.selectedStatus === 'safe' && !isCardDue);
+            const matchesStatus = this.selectedStatuses.length === 0 ||
+                (this.selectedStatuses.includes('due') && isCardDue) ||
+                (this.selectedStatuses.includes('safe') && !isCardDue);
 
             const cardPlatform = this.extractPlatform(card.problemUrl);
-            const matchesPlatform = this.selectedPlatform === 'all' || cardPlatform === this.selectedPlatform;
+            const matchesPlatform = this.selectedPlatforms.length === 0 || Boolean(cardPlatform && this.selectedPlatforms.includes(cardPlatform));
 
             let matchesState = true;
-            if (this.selectedState === 'leech') {
-                matchesState = (card.lapses || 0) >= 3;
-            } else if (this.selectedState !== 'all') {
-                matchesState = String(card.state || 0) === this.selectedState;
+            if (this.selectedStates.length > 0) {
+                const isLeechSelected = this.selectedStates.includes('leech') && (card.lapses || 0) >= 3;
+                const isStateSelected = this.selectedStates.includes(String(card.state || 0));
+                matchesState = isLeechSelected || isStateSelected;
             }
 
             return matchesSearch && matchesTag && matchesStatus && matchesPlatform && matchesState;
@@ -399,7 +422,7 @@ export class FSRSDataDashboard {
 
         filtered = this.sortCards(filtered);
 
-        const isFilterActive = this.searchQuery !== '' || this.selectedTag !== 'all' || this.selectedStatus !== 'all' || this.selectedPlatform !== 'all' || this.selectedState !== 'all' || this.sortBy !== 'due-asc';
+        const isFilterActive = this.searchQuery !== '' || this.selectedTags.length > 0 || this.selectedStatuses.length > 0 || this.selectedPlatforms.length > 0 || this.selectedStates.length > 0 || this.sortBy !== 'due-asc';
         if (clearFiltersBtn) {
             clearFiltersBtn.style.display = isFilterActive ? 'inline-flex' : 'none';
         }
@@ -454,24 +477,20 @@ export class FSRSDataDashboard {
      */
     resetFilters(): void {
         this.searchQuery = '';
-        this.selectedTag = 'all';
-        this.selectedStatus = 'all';
-        this.selectedPlatform = 'all';
-        this.selectedState = 'all';
+        this.selectedTags = [];
+        this.selectedStatuses = [];
+        this.selectedPlatforms = [];
+        this.selectedStates = [];
         this.sortBy = 'due-asc';
 
         const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
-        const tagSelect = document.getElementById('tag-select') as HTMLSelectElement | null;
-        const statusSelect = document.getElementById('status-select') as HTMLSelectElement | null;
-        const platformSelect = document.getElementById('platform-select') as HTMLSelectElement | null;
-        const stateSelect = document.getElementById('state-select') as HTMLSelectElement | null;
         const sortSelect = document.getElementById('sort-select') as HTMLSelectElement | null;
 
         if (searchInput) searchInput.value = '';
-        if (tagSelect) tagSelect.value = 'all';
-        if (statusSelect) statusSelect.value = 'all';
-        if (platformSelect) platformSelect.value = 'all';
-        if (stateSelect) stateSelect.value = 'all';
+        this.tagMultiSelect?.clear(false);
+        this.statusMultiSelect?.clear(false);
+        this.platformMultiSelect?.clear(false);
+        this.stateMultiSelect?.clear(false);
         if (sortSelect) sortSelect.value = 'due-asc';
 
         this.filterAndRender();
@@ -491,7 +510,7 @@ export class FSRSDataDashboard {
         }
 
         if (cardsArray.length === 0) {
-            const isFilterActive = this.searchQuery !== '' || this.selectedTag !== 'all' || this.selectedStatus !== 'all' || this.selectedPlatform !== 'all' || this.selectedState !== 'all';
+            const isFilterActive = this.searchQuery !== '' || this.selectedTags.length > 0 || this.selectedStatuses.length > 0 || this.selectedPlatforms.length > 0 || this.selectedStates.length > 0;
             const message = isFilterActive 
                 ? 'No problem patterns match your selected filters.' 
                 : 'No problem patterns tracked yet. Solve problems on LeetCode or AlgoMonster to build your spaced repetition deck!';
@@ -534,7 +553,7 @@ export class FSRSDataDashboard {
                 ? '<span class="badge badge-due">Due Now</span>'
                 : `<span class="badge badge-safe">${new Date(card.due).toLocaleDateString()}</span>`;
 
-            const tagsHtml = (card.tags || []).map((t: string) => `<span class="tag">${t}</span>`).join('');
+            const tagsHtml = TagRegistry.hydrate(card.tags || [], this.tagRegistry).map((t: string) => `<span class="tag">${t}</span>`).join('');
             const reps = card.reps || 0;
             const lapses = card.lapses || 0;
             const state = card.state || 0;
@@ -805,7 +824,7 @@ export class FSRSDataDashboard {
         const newTagsStr = prompt(`Enter new tags for ${count} selected card(s) (comma-separated).\nThis will REPLACE existing tags:`, '');
         if (newTagsStr === null) return;
 
-        const newTags = newTagsStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        const newTags = this.resolveTagIds(newTagsStr);
 
         this.allCards.forEach(card => {
             if (card.id && this.selectedCardIds.has(card.id)) {
@@ -814,7 +833,7 @@ export class FSRSDataDashboard {
         });
 
         this.selectedCardIds.clear();
-        chrome.storage.local.set({ fsrsCards: this.allCards }, withErrorHandling(() => {
+        chrome.storage.local.set({ fsrsCards: this.allCards, tagRegistry: this.tagRegistry }, withErrorHandling(() => {
             if (chrome.runtime?.lastError) {
                 const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                 Logger.error('DataDashboard', `Error in bulk retag storage set: ${errorMessage}`, { error: chrome.runtime.lastError });
@@ -871,17 +890,25 @@ export class FSRSDataDashboard {
     }
 
     /**
-     * Gathers and returns a sorted array of all unique tags present across stored cards.
-     * @returns Array of unique tag strings.
+     * Resolves comma-separated tag names into stable UUIDs from `tagRegistry`,
+     * creating new registry entries when needed.
+     */
+    private resolveTagIds(tagsText: string): string[] {
+        const names = tagsText.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        const ids: string[] = [];
+        for (const name of names) {
+            const { id } = TagRegistry.getOrCreateSync(name, this.tagRegistry);
+            if (!ids.includes(id)) ids.push(id);
+        }
+        return ids;
+    }
+
+    /**
+     * Gathers and returns a sorted array of all unique tag display names in the registry.
+     * @returns Array of unique tag display names.
      */
     getDatabaseTags(): string[] {
-        const tagsSet = new Set<string>();
-        (this.allCards || []).forEach((c: Card) => {
-            if (c.tags && Array.isArray(c.tags)) {
-                c.tags.forEach(t => tagsSet.add(t));
-            }
-        });
-        return Array.from(tagsSet).sort();
+        return (this.tagRegistry || []).map(entry => entry.name).sort();
     }
 
     /**
@@ -901,7 +928,7 @@ export class FSRSDataDashboard {
             TagInputControl.attach(editTagsInput, {
                 getSuggestions: () => this.getDatabaseTags()
             });
-            editTagsInput.value = (card.tags || []).join(', ');
+            editTagsInput.value = TagRegistry.hydrate(card.tags || [], this.tagRegistry).join(', ');
         }
         (document.getElementById('edit-approach') as HTMLTextAreaElement).value = card.approach || '';
         (document.getElementById('edit-time-complexity') as HTMLInputElement).value = card.timeComplexity || '';
@@ -932,12 +959,12 @@ export class FSRSDataDashboard {
         if (!card) return;
 
         card.problemTitle = (document.getElementById('edit-title') as HTMLInputElement).value.trim() || card.problemTitle;
-        card.tags = (document.getElementById('edit-tags') as HTMLInputElement).value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        card.tags = this.resolveTagIds((document.getElementById('edit-tags') as HTMLInputElement).value);
         card.approach = (document.getElementById('edit-approach') as HTMLTextAreaElement).value;
         card.timeComplexity = (document.getElementById('edit-time-complexity') as HTMLInputElement).value.trim();
         card.spaceComplexity = (document.getElementById('edit-space-complexity') as HTMLInputElement).value.trim();
 
-        chrome.storage.local.set({ fsrsCards: this.allCards }, withErrorHandling(() => {
+        chrome.storage.local.set({ fsrsCards: this.allCards, tagRegistry: this.tagRegistry }, withErrorHandling(() => {
             if (chrome.runtime?.lastError) {
                 const errorMessage = chrome.runtime.lastError.message || String(chrome.runtime.lastError);
                 Logger.error('DataDashboard', `Error saving card edit to storage: ${errorMessage}`, { cardId, error: chrome.runtime.lastError });
@@ -996,7 +1023,7 @@ export class FSRSDataDashboard {
         const tagCounts: Record<string, number> = {};
         cards.forEach((c: Card) => {
             if (c.tags && Array.isArray(c.tags)) {
-                c.tags.forEach((t: string) => {
+                TagRegistry.hydrate(c.tags, this.tagRegistry).forEach((t: string) => {
                     tagCounts[t] = (tagCounts[t] || 0) + 1;
                 });
             }

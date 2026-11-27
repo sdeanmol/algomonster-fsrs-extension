@@ -14,7 +14,8 @@
  * - {@link generateSummaryReport}: Main calculation function generating digest reports.
  */
 
-import { Card } from '../../../types/domain';
+import { Card, TagEntry } from '../../../types/domain';
+import { TagRegistry } from '../../common/tags/tagRegistry';
 
 /**
  * Retention and volume metrics calculated for an individual problem topic tag.
@@ -132,7 +133,8 @@ export function generateSummaryReport(
     cards: Card[],
     fsrsActivity: { [date: string]: number } = {},
     period: 'weekly' | 'monthly' = 'weekly',
-    nowMs: number = Date.now()
+    nowMs: number = Date.now(),
+    tagRegistry?: TagEntry[]
 ): SummaryReport {
     const daysInPeriod = period === 'weekly' ? 7 : 30;
     const endDate = new Date(nowMs);
@@ -148,7 +150,7 @@ export function generateSummaryReport(
     const prevStartTimestamp = new Date(prevStartDate.getFullYear(), prevStartDate.getMonth(), prevStartDate.getDate()).getTime();
 
     // 1. Gather all review logs within current & previous windows
-    const stats = calculateReviewStats(cards, startTimestamp, endTimestamp, prevStartTimestamp);
+    const stats = calculateReviewStats(cards, startTimestamp, endTimestamp, prevStartTimestamp, tagRegistry);
 
     // 2. Compute Retention Rates
     const retentionRate = calculatePercentage(stats.currentSuccessReviews, stats.currentTotalReviews);
@@ -221,7 +223,13 @@ export function generateSummaryReport(
  * @param prevStartMs Start timestamp of the previous period (for comparison)
  * @returns Aggregated statistics for the period
  */
-function calculateReviewStats(cards: Card[], startMs: number, endMs: number, prevStartMs: number) {
+function calculateReviewStats(
+    cards: Card[],
+    startMs: number,
+    endMs: number,
+    prevStartMs: number,
+    tagRegistry?: TagEntry[]
+) {
     const stats = {
         currentTotalReviews: 0,
         currentSuccessReviews: 0,
@@ -259,7 +267,10 @@ function calculateReviewStats(cards: Card[], startMs: number, endMs: number, pre
 
                 // Track Topic Mastery
                 if (card.tags && Array.isArray(card.tags)) {
-                    card.tags.forEach(tag => {
+                    const resolvedTags = (tagRegistry && tagRegistry.length > 0)
+                        ? TagRegistry.hydrate(card.tags, tagRegistry)
+                        : card.tags;
+                    resolvedTags.forEach(tag => {
                         if (!stats.topicStats[tag]) stats.topicStats[tag] = { total: 0, success: 0 };
                         stats.topicStats[tag].total++;
                         if (isSuccess) stats.topicStats[tag].success++;

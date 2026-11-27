@@ -143,6 +143,8 @@ describe('FSRSDataDashboard', () => {
   describe('filtering, sorting, and view tabs', () => {
     it('filters cards by search query and tag selection', () => {
       dashboard.init();
+      dashboard.tagRegistry = [{ id: 'linked-list', name: 'linked-list' }];
+      dashboard.populateTagsFilter();
 
       const searchInput = document.getElementById('search-input') as HTMLInputElement;
       searchInput.value = 'LinkedList';
@@ -150,11 +152,11 @@ describe('FSRSDataDashboard', () => {
 
       expect(dashboard.searchQuery).toBe('LinkedList');
 
-      const tagSelect = document.getElementById('tag-select') as HTMLSelectElement;
-      tagSelect.value = 'linked-list';
-      tagSelect.dispatchEvent(new Event('change'));
+      const tagCheckbox = document.querySelector('#tag-select + .multi-select-wrapper input[type="checkbox"][value="linked-list"]') as HTMLInputElement;
+      expect(tagCheckbox).not.toBeNull();
+      tagCheckbox.click();
 
-      expect(dashboard.selectedTag).toBe('linked-list');
+      expect(dashboard.selectedTags).toEqual(['linked-list']);
     });
 
     it('resets all filters when clear filters button is clicked', () => {
@@ -163,8 +165,8 @@ describe('FSRSDataDashboard', () => {
       clearBtn.click();
 
       expect(dashboard.searchQuery).toBe('');
-      expect(dashboard.selectedTag).toBe('all');
-      expect(dashboard.selectedStatus).toBe('all');
+      expect(dashboard.selectedTags).toEqual([]);
+      expect(dashboard.selectedStatuses).toEqual([]);
     });
 
     it('renders different dashboard views (due, retention, history, forecast)', () => {
@@ -289,7 +291,11 @@ describe('FSRSDataDashboard', () => {
       dashboard.selectedCardIds.add('c1');
 
       dashboard.bulkRetag();
-      expect(dashboard.allCards[0].tags).toEqual(['new-tag', 'review']);
+      expect(dashboard.allCards[0].tags).toHaveLength(2);
+      const hydrated = (dashboard.allCards[0].tags || []).map(
+        id => dashboard.tagRegistry.find(t => t.id === id)?.name
+      );
+      expect(hydrated).toEqual(['new-tag', 'review']);
       expect(chrome.storage.local.set).toHaveBeenCalled();
       promptSpy.mockRestore();
     });
@@ -383,25 +389,23 @@ describe('FSRSDataDashboard', () => {
     it('handles status, platform, and state dropdown filter changes', () => {
       dashboard.init();
 
-      const statusSelect = document.getElementById('status-select') as HTMLSelectElement;
-      statusSelect.value = 'due';
-      statusSelect.dispatchEvent(new Event('change'));
+      const statusCheckbox = document.querySelector('#status-select + .multi-select-wrapper input[type="checkbox"][value="due"]') as HTMLInputElement;
+      statusCheckbox.click();
 
-      const platformSelect = document.getElementById('platform-select') as HTMLSelectElement;
-      platformSelect.value = 'leetcode.com';
-      platformSelect.dispatchEvent(new Event('change'));
+      const platformCheckbox = document.querySelector('#platform-select + .multi-select-wrapper input[type="checkbox"][value="leetcode.com"]') as HTMLInputElement;
+      platformCheckbox.click();
 
-      const stateSelect = document.getElementById('state-select') as HTMLSelectElement;
-      stateSelect.value = '1';
-      stateSelect.dispatchEvent(new Event('change'));
+      const stateCheckbox = document.querySelector('#state-select + .multi-select-wrapper input[type="checkbox"][value="1"]') as HTMLInputElement;
+      stateCheckbox.click();
 
-      expect(dashboard.selectedStatus).toBe('due');
-      expect(dashboard.selectedPlatform).toBe('leetcode.com');
-      expect(dashboard.selectedState).toBe('1');
+      expect(dashboard.selectedStatuses).toEqual(['due']);
+      expect(dashboard.selectedPlatforms).toEqual(['leetcode.com']);
+      expect(dashboard.selectedStates).toEqual(['1']);
     });
 
     it('tests openEditModal and getDatabaseTags', () => {
       dashboard.init();
+      dashboard.tagRegistry = [{ id: 't1', name: 'array' }];
 
       const tags = dashboard.getDatabaseTags();
       expect(tags).toContain('array');
@@ -441,7 +445,7 @@ describe('FSRSDataDashboard', () => {
       testDash.init();
 
       expect(testDash.searchQuery).toBe('Two');
-      expect(testDash.selectedTag).toBe('array');
+      expect(testDash.selectedTags).toEqual(['array']);
     });
 
     it('handles chrome.runtime.lastError in bulk operations storage set callbacks', () => {

@@ -81,7 +81,9 @@ describe('Tracker Integration', () => {
         expect(saveSpy).toHaveBeenCalled();
         const newCard = window.AlgoRecall.state.cards[window.AlgoRecall.state.cards.length - 1];
         expect(newCard.state).toBe(1); // 1 = Learning
-        expect(newCard.tags).toContain('TestTag');
+        const tagEntry = (window.AlgoRecall.state.tagRegistry || []).find(t => t.name === 'TestTag');
+        expect(tagEntry).toBeDefined();
+        expect(newCard.tags).toContain(tagEntry.id);
     });
 
     describe('Review Session (startReview)', () => {

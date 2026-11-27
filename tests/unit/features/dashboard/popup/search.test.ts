@@ -131,13 +131,13 @@ describe('QuickSearchComponent (Popup)', () => {
       expect(results?.children.length).toBeGreaterThan(0);
     });
 
-    it('triggers tag filter change listener on select change', async () => {
+    it('triggers tag filter change listener on multi-select checkbox change', async () => {
       await component.load();
       component.bindEvents();
 
-      const tagFilter = document.getElementById('popup-tag-filter') as HTMLSelectElement;
-      tagFilter.value = 'Tree';
-      tagFilter.dispatchEvent(new Event('change'));
+      const treeCheckbox = document.querySelector('#popup-tag-filter + .multi-select-wrapper input[type="checkbox"][value="Tree"]') as HTMLInputElement;
+      expect(treeCheckbox).not.toBeNull();
+      treeCheckbox.click();
 
       const results = document.getElementById('popup-search-results');
       expect(results?.children.length).toBe(1);
